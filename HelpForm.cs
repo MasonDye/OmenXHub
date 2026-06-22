@@ -1,8 +1,9 @@
 using System;
-using System.Diagnostics; // 用于打开浏览器
+using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
 using System.Windows.Forms;
+using OmenSuperHub.Services;
 
 namespace OmenSuperHub {
   public partial class HelpForm : Form {
@@ -29,7 +30,9 @@ namespace OmenSuperHub {
       this.StartPosition = FormStartPosition.Manual;
       this.Location = formLocation;
 
-      Icon = Properties.Resources.fan;
+      using (var icon = TrayService.CreateLogoIcon(32)) {
+        Icon = icon;
+      }
 
       var panel = new Panel() {
         Dock = DockStyle.Fill,

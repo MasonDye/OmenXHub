@@ -1,11 +1,22 @@
 <Application x:Class="OmenSuperHub.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              ShutdownMode="OnExplicitShutdown">
   <Application.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
+        <!-- WPF UI Theme Colors (default Dark, swapped by ThemeService) -->
+        <ui:ThemesDictionary Theme="Dark" />
+        <!-- WPF UI Control Styles -->
+        <ui:ControlsDictionary />
+        <!-- Omen Design Tokens -->
+        <ResourceDictionary Source="Themes/Variables.xaml"/>
+        <!-- Omen Color System (Dark default, swapped by ThemeService) -->
         <ResourceDictionary Source="Themes/Colors.Dark.xaml"/>
+        <!-- Omen Brand Overrides (maps WPF UI brushes to Omen colors) -->
+        <ResourceDictionary Source="Themes/OmenBrand.xaml"/>
+        <!-- Omen Custom Control Styles -->
         <ResourceDictionary Source="Themes/OmenTheme.xaml"/>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>

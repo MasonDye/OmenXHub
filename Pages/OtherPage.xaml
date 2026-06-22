@@ -1,0 +1,138 @@
+<Page x:Class="OmenSuperHub.Pages.OtherPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:app="clr-namespace:OmenSuperHub"
+      Title="{x:Static app:Strings.PageOther}">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
+      <TextBlock x:Name="HeadingOther" Text="{x:Static app:Strings.PageOther}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
+
+      <ui:CardControl x:Name="BatteryChargeCard" Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="BatteryCharge24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="BatteryChargeLabel" Text="{x:Static app:Strings.BatteryChargeHeading}" Tag="BatteryCharge" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="BatteryChargeDescText" Text="{x:Static app:Strings.BatteryChargeDesc}" Tag="BatteryChargeDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="BatteryChargeHint" Text="{x:Static app:Strings.BatteryChargeHint}" Tag="BatteryChargeHint"
+                         FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                         Visibility="Collapsed" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="BatteryChargeToggle" Grid.Column="1" 
+                          IsChecked="False" Checked="BatteryChargeToggle_Changed" Unchecked="BatteryChargeToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="NumberSymbol24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="NumLockText" Text="{x:Static app:Strings.NumLockHeading}" Tag="NumLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="NumLockDescText" Text="{x:Static app:Strings.NumLockDesc}" Tag="NumLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="NumLockToggle" Grid.Column="1" 
+                          Checked="NumLockToggle_Changed" Unchecked="NumLockToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="CapsLockText" Text="{x:Static app:Strings.CapsLockHeading}" Tag="CapsLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="CapsLockDescText" Text="{x:Static app:Strings.CapsLockDesc}" Tag="CapsLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="CapsLockToggle" Grid.Column="1" 
+                          Checked="CapsLockToggle_Changed" Unchecked="CapsLockToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Cursor24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="TouchpadLockText" Text="{x:Static app:Strings.TouchpadLockHeading}" Tag="TouchpadLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="TouchpadLockDescText" Text="{x:Static app:Strings.TouchpadLockDesc}" Tag="TouchpadLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="TouchpadLockToggle" Grid.Column="1" 
+                          Checked="TouchpadLockToggle_Changed" Unchecked="TouchpadLockToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Settings24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="HWiNFOHeadingText" Text="{x:Static app:Strings.HWiNFOHeading}" Tag="HWiNFO" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="HWiNFODescText" Text="{x:Static app:Strings.HWiNFODesc}" Tag="HWiNFODesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="HWiNFOToggle" Grid.Column="1" 
+                          Checked="HWiNFOToggle_Changed" Unchecked="HWiNFOToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl>
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Globe24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="HttpApiHeadingText" Text="{x:Static app:Strings.OtherHttpApiHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="HttpApiDescText" Text="{x:Static app:Strings.OtherHttpApiDesc}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="HttpApiStatusText" Text="" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" FontWeight="SemiBold"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="HttpApiToggle" Grid.Column="1" 
+                          Checked="HttpApiToggle_Changed" Unchecked="HttpApiToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+    </StackPanel>
+  </ScrollViewer>
+</Page>

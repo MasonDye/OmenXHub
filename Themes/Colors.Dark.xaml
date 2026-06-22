@@ -3,73 +3,211 @@
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- OMEN MONOCHROME DARK - Minimalist Black & White            -->
+  <!-- 3-Layer Semantic Color System (WPFUI-inspired)             -->
+  <!-- Layer 1: Raw Colors  |  Layer 2: Brushes  |  Layer 3:     -->
+  <!-- Control-specific semantic brushes                         -->
   <!-- ═══════════════════════════════════════════════════════════ -->
 
-  <!-- Background Colors (Pure Black / Near Black) -->
-  <Color x:Key="BgDeep">#FF000000</Color>      <!-- Main Window Background -->
-  <Color x:Key="BgPrimary">#FF000000</Color>   <!-- Content Background -->
-  <Color x:Key="BgCard">#FF0A0A0A</Color>      <!-- Cards (Subtle separation) -->
-  <Color x:Key="BgElevated">#FF141414</Color>  <!-- Dialogs/Popups -->
-  <Color x:Key="BgHover">#FF333333</Color>     <!-- Hover State -->
-  <Color x:Key="BgInput">#FF000000</Color>     <!-- Inputs -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 1: RAW COLORS                                        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
 
-  <!-- Accent Colors (White) -->
-  <Color x:Key="AccentOmen">#FFFFFFFF</Color>       <!-- Main Accent: White -->
-  <Color x:Key="AccentOmenLight">#FFE0E0E0</Color>  <!-- Slightly dimmer/greyer for contrast -->
-  <Color x:Key="AccentOmenDim">#FF808080</Color>    <!-- Disabled/Dim -->
-  
-  <!-- Functional Colors (Keep colored or make monochrome? User said "Black & White mode". 
-       Usually Functional colors (Success/Error) should remain for meaning, but let's desaturate them or keep them minimal.
-       Let's keep them distinctive but maybe muted, OR make them monochrome if "Minimalist" implies strict B&W.
-       Safety: Keep distinct colors for Red/Green but maybe high contrast. -->
-  <Color x:Key="AccentBlue">#FFFFFFFF</Color>   <!-- Treat as White -->
-  <Color x:Key="AccentGreen">#FF4ADE80</Color>  <!-- Green for status indicators -->
-  <Color x:Key="AccentRed">#FFEF4444</Color>    <!-- Red for warnings/performance -->
-  <Color x:Key="AccentYellow">#FFFBBF24</Color> <!-- Yellow/Amber for battery -->
+  <!-- Background Colors -->
+  <Color x:Key="BgDeep">#FF000000</Color>
+  <Color x:Key="BgPrimary">#FF000000</Color>
+  <Color x:Key="BgPane">#00000000</Color>
+  <Color x:Key="BgContent">#0FFFFFFF</Color>
+  <Color x:Key="BgCard">#0DFFFFFF</Color>
+  <Color x:Key="BgElevated">#FF141414</Color>
+  <Color x:Key="BgHover">#FF333333</Color>
+  <Color x:Key="BgInput">#FF333333</Color>
 
-  <!-- Text Colors (White/Grey) -->
+  <!-- Fill Colors (for controls) -->
+  <Color x:Key="ControlFillDefault">#FF1A1A1A</Color>
+  <Color x:Key="ControlFillSecondary">#FF2A2A2A</Color>
+  <Color x:Key="ControlFillDisabled">#FF111111</Color>
+  <Color x:Key="ControlFillOnAccent">#FFFFFFFF</Color>
+
+  <!-- Accent Colors -->
+  <Color x:Key="AccentOmen">#FFFFFFFF</Color>
+  <Color x:Key="AccentOmenLight">#FFE0E0E0</Color>
+  <Color x:Key="AccentOmenDim">#FF808080</Color>
+
+  <!-- Functional Colors -->
+  <Color x:Key="AccentGreen">#FF4ADE80</Color>
+  <Color x:Key="AccentRed">#FFEF4444</Color>
+  <Color x:Key="AccentYellow">#FFFBBF24</Color>
+  <Color x:Key="AccentBlue">#FF60A5FA</Color>
+  <Color x:Key="AccentOrange">#FFFB923C</Color>
+
+  <!-- Text Colors -->
   <Color x:Key="TextPrimary">#FFFFFFFF</Color>
   <Color x:Key="TextSecondary">#FFCCCCCC</Color>
+  <Color x:Key="TextTertiary">#FF999999</Color>
   <Color x:Key="TextMuted">#FF888888</Color>
+  <Color x:Key="TextDisabled">#FF555555</Color>
   <Color x:Key="TextAccent">#FFFFFFFF</Color>
+  <Color x:Key="TextOnAccent">#FF000000</Color>
 
-  <!-- Border Colors (Grey for structure) -->
+  <!-- Border / Stroke Colors -->
   <Color x:Key="BorderDefault">#FF666666</Color>
+  <Color x:Key="BorderSubtle">#FF444444</Color>
   <Color x:Key="BorderFocus">#FFFFFFFF</Color>
+  <Color x:Key="ControlStrokeDefault">#FF555555</Color>
+  <Color x:Key="ControlStrokeSecondary">#FF3A3A3A</Color>
+  <Color x:Key="ControlStrokeDisabled">#FF222222</Color>
 
-  <!-- Brushes -->
+  <!-- Translucent Overlay Colors (white-based for dark bg) -->
+  <Color x:Key="LayerFillColorTranslucent">#19FFFFFF</Color>
+  <Color x:Key="ControlStrokeColorOnAccentDefault">#0BFFFFFF</Color>
+  <Color x:Key="ControlStrokeColorOnAccentSecondary">#08FFFFFF</Color>
+  <Color x:Key="AccentFillColorSecondary">#14FFFFFF</Color>
+  <Color x:Key="AccentFillColorTertiary">#0AFFFFFF</Color>
+  <Color x:Key="AccentFillColorDisabled">#37FFFFFF</Color>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 2: BRUSHES                                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Background Brushes -->
   <SolidColorBrush x:Key="BgDeepBrush" Color="{StaticResource BgDeep}" />
   <SolidColorBrush x:Key="BgPrimaryBrush" Color="{StaticResource BgPrimary}" />
+  <SolidColorBrush x:Key="BgPaneBrush" Color="{StaticResource BgPane}" />
+  <SolidColorBrush x:Key="BgContentBrush" Color="{StaticResource BgContent}" />
   <SolidColorBrush x:Key="BgCardBrush" Color="{StaticResource BgCard}" />
   <SolidColorBrush x:Key="BgElevatedBrush" Color="{StaticResource BgElevated}" />
   <SolidColorBrush x:Key="BgHoverBrush" Color="{StaticResource BgHover}" />
   <SolidColorBrush x:Key="BgInputBrush" Color="{StaticResource BgInput}" />
 
+  <!-- Control Fill Brushes -->
+  <SolidColorBrush x:Key="ControlFillDefaultBrush" Color="{StaticResource ControlFillDefault}" />
+  <SolidColorBrush x:Key="ControlFillSecondaryBrush" Color="{StaticResource ControlFillSecondary}" />
+  <SolidColorBrush x:Key="ControlFillDisabledBrush" Color="{StaticResource ControlFillDisabled}" />
+  <SolidColorBrush x:Key="ControlFillOnAccentBrush" Color="{StaticResource ControlFillOnAccent}" />
+
+  <!-- Accent Brushes -->
   <SolidColorBrush x:Key="AccentOmenBrush" Color="{StaticResource AccentOmen}" />
   <SolidColorBrush x:Key="AccentOmenLightBrush" Color="{StaticResource AccentOmenLight}" />
   <SolidColorBrush x:Key="AccentOmenDimBrush" Color="{StaticResource AccentOmenDim}" />
-  <SolidColorBrush x:Key="AccentBlueBrush" Color="{StaticResource AccentBlue}" />
   <SolidColorBrush x:Key="AccentGreenBrush" Color="{StaticResource AccentGreen}" />
   <SolidColorBrush x:Key="AccentRedBrush" Color="{StaticResource AccentRed}" />
   <SolidColorBrush x:Key="AccentYellowBrush" Color="{StaticResource AccentYellow}" />
+  <SolidColorBrush x:Key="AccentBlueBrush" Color="{StaticResource AccentBlue}" />
+  <SolidColorBrush x:Key="AccentOrangeBrush" Color="{StaticResource AccentOrange}" />
 
+  <!-- Text Brushes -->
   <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}" />
   <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}" />
+  <SolidColorBrush x:Key="TextTertiaryBrush" Color="{StaticResource TextTertiary}" />
   <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}" />
+  <SolidColorBrush x:Key="TextDisabledBrush" Color="{StaticResource TextDisabled}" />
   <SolidColorBrush x:Key="TextAccentBrush" Color="{StaticResource TextAccent}" />
+  <SolidColorBrush x:Key="TextOnAccentBrush" Color="{StaticResource TextOnAccent}" />
 
+  <!-- Border Brushes -->
   <SolidColorBrush x:Key="BorderDefaultBrush" Color="{StaticResource BorderDefault}" />
+  <SolidColorBrush x:Key="BorderSubtleBrush" Color="{StaticResource BorderSubtle}" />
   <SolidColorBrush x:Key="BorderFocusBrush" Color="{StaticResource BorderFocus}" />
+  <SolidColorBrush x:Key="ControlStrokeDefaultBrush" Color="{StaticResource ControlStrokeDefault}" />
+  <SolidColorBrush x:Key="ControlStrokeSecondaryBrush" Color="{StaticResource ControlStrokeSecondary}" />
+  <SolidColorBrush x:Key="ControlStrokeDisabledBrush" Color="{StaticResource ControlStrokeDisabled}" />
 
-  <!-- Gradient Brushes (Monochrome Gradient) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 3: CONTROL-SPECIFIC SEMANTIC BRUSHES                  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Button -->
+  <SolidColorBrush x:Key="ButtonBackground" Color="{StaticResource ControlFillDefault}" />
+  <SolidColorBrush x:Key="ButtonForeground" Color="{StaticResource TextPrimary}" />
+  <SolidColorBrush x:Key="ButtonBorder" Color="{StaticResource ControlStrokeDefault}" />
+  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{StaticResource BgHover}" />
+  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{StaticResource AccentOmenDim}" />
+  <SolidColorBrush x:Key="ButtonBorderPointerOver" Color="{StaticResource AccentOmen}" />
+
+  <!-- Card -->
+  <SolidColorBrush x:Key="CardBackground" Color="{StaticResource BgCard}" />
+  <SolidColorBrush x:Key="CardBorder" Color="{StaticResource BorderDefault}" />
+  <SolidColorBrush x:Key="CardForeground" Color="{StaticResource TextPrimary}" />
+
+  <!-- TextBox / Input -->
+  <SolidColorBrush x:Key="TextControlBackground" Color="{StaticResource BgInput}" />
+  <SolidColorBrush x:Key="TextControlForeground" Color="{StaticResource TextPrimary}" />
+  <SolidColorBrush x:Key="TextControlBorder" Color="{StaticResource BorderDefault}" />
+  <SolidColorBrush x:Key="TextControlFocusedBorder" Color="{StaticResource AccentOmen}" />
+  <SolidColorBrush x:Key="TextControlPlaceholder" Color="{StaticResource TextMuted}" />
+
+  <!-- Toggle -->
+  <SolidColorBrush x:Key="ToggleFillOff" Color="{StaticResource BorderDefault}" />
+  <SolidColorBrush x:Key="ToggleFillOn" Color="{StaticResource AccentOmen}" />
+  <SolidColorBrush x:Key="ToggleThumb" Color="{StaticResource TextPrimary}" />
+  <SolidColorBrush x:Key="ToggleThumbOn" Color="{StaticResource BgInput}" />
+
+  <!-- Slider -->
+  <SolidColorBrush x:Key="SliderTrackFill" Color="{StaticResource BgInput}" />
+  <SolidColorBrush x:Key="SliderTrackFillOn" Color="{StaticResource AccentOmen}" />
+  <SolidColorBrush x:Key="SliderThumb" Color="{StaticResource AccentOmen}" />
+
+  <!-- ScrollBar -->
+  <SolidColorBrush x:Key="ScrollBarTrack" Color="#20FFFFFF" />
+  <SolidColorBrush x:Key="ScrollBarThumb" Color="#60FFFFFF" />
+  <SolidColorBrush x:Key="ScrollBarThumbPointerOver" Color="#90FFFFFF" />
+
+  <!-- InfoBar -->
+  <SolidColorBrush x:Key="InfoBarInformationalBackground" Color="#1A60A5FA" />
+  <SolidColorBrush x:Key="InfoBarSuccessBackground" Color="#1A4ADE80" />
+  <SolidColorBrush x:Key="InfoBarWarningBackground" Color="#1AFBBF24" />
+  <SolidColorBrush x:Key="InfoBarErrorBackground" Color="#1AEF4444" />
+  <SolidColorBrush x:Key="InfoBarInformationalBorder" Color="{StaticResource AccentBlue}" />
+  <SolidColorBrush x:Key="InfoBarSuccessBorder" Color="{StaticResource AccentGreen}" />
+  <SolidColorBrush x:Key="InfoBarWarningBorder" Color="{StaticResource AccentYellow}" />
+  <SolidColorBrush x:Key="InfoBarErrorBorder" Color="{StaticResource AccentRed}" />
+
+  <!-- Badge -->
+  <SolidColorBrush x:Key="BadgeDefaultBackground" Color="{StaticResource ControlFillSecondary}" />
+  <SolidColorBrush x:Key="BadgeDefaultForeground" Color="{StaticResource TextPrimary}" />
+  <SolidColorBrush x:Key="BadgeSuccessBackground" Color="{StaticResource AccentGreen}" />
+  <SolidColorBrush x:Key="BadgeSuccessForeground" Color="{StaticResource TextOnAccent}" />
+  <SolidColorBrush x:Key="BadgeWarningBackground" Color="{StaticResource AccentYellow}" />
+  <SolidColorBrush x:Key="BadgeWarningForeground" Color="{StaticResource TextOnAccent}" />
+  <SolidColorBrush x:Key="BadgeErrorBackground" Color="{StaticResource AccentRed}" />
+  <SolidColorBrush x:Key="BadgeErrorForeground" Color="{StaticResource TextOnAccent}" />
+  <SolidColorBrush x:Key="BadgeInfoBackground" Color="{StaticResource AccentBlue}" />
+  <SolidColorBrush x:Key="BadgeInfoForeground" Color="{StaticResource TextOnAccent}" />
+
+  <!-- Navigation -->
+  <SolidColorBrush x:Key="NavItemForeground" Color="{StaticResource TextSecondary}" />
+  <SolidColorBrush x:Key="NavItemForegroundActive" Color="{StaticResource AccentOmen}" />
+  <SolidColorBrush x:Key="NavItemBackgroundHover" Color="{StaticResource BgHover}" />
+  <SolidColorBrush x:Key="NavItemIndicator" Color="{StaticResource AccentOmen}" />
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- ELEVATION BORDERS (LinearGradientBrush for depth)          -->
+  <!-- Simulates subtle light-from-above shadow effect            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <LinearGradientBrush x:Key="ControlElevationBorderBrush" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="{StaticResource ControlStrokeDefault}" Offset="0"/>
+    <GradientStop Color="{StaticResource ControlStrokeSecondary}" Offset="1"/>
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="CardElevationBorderBrush" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="{StaticResource BorderDefault}" Offset="0"/>
+    <GradientStop Color="{StaticResource BorderSubtle}" Offset="1"/>
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="ButtonElevationBorderBrush" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="{StaticResource ControlStrokeDefault}" Offset="0"/>
+    <GradientStop Color="{StaticResource ControlStrokeSecondary}" Offset="1"/>
+  </LinearGradientBrush>
+
+  <!-- Legacy Gradients (preserved for backward compat) -->
   <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,1">
     <GradientStop Color="#FFFFFFFF" Offset="0"/>
     <GradientStop Color="#FFCCCCCC" Offset="1"/>
   </LinearGradientBrush>
 
-  <LinearGradientBrush x:Key="CardGradient" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#FF101010" Offset="0"/>
-    <GradientStop Color="#FF000000" Offset="1"/>
-  </LinearGradientBrush>
+  <!-- DropShadow for elevated surfaces -->
+  <DropShadowEffect x:Key="ElevationShadow" BlurRadius="16" ShadowDepth="4"
+                     Direction="270" Color="#80000000" Opacity="0.5"/>
 
 </ResourceDictionary>

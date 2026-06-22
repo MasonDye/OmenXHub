@@ -1,0 +1,56 @@
+<Page x:Class="OmenSuperHub.Pages.MacroPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:app="clr-namespace:OmenSuperHub"
+      Title="{x:Static app:Strings.PageMacro}">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
+      <TextBlock Text="{x:Static app:Strings.MacroHeading}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal">
+              <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <TextBlock x:Name="MacroEnabledText" Text="{x:Static app:Strings.MacroEnabled}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+            <ui:ToggleSwitch Grid.Column="1" x:Name="MacroMasterToggle" IsChecked="True"
+                             Checked="MacroMasterToggle_Checked" Unchecked="MacroMasterToggle_Unchecked"/>
+          </Grid>
+        </ui:CardControl.Header>
+        <TextBlock Text="{x:Static app:Strings.MacroMasterDesc}" FontSize="12"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,8"/>
+      </ui:CardControl>
+
+      <StackPanel Margin="0,0,0,0">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel Orientation="Horizontal">
+            <ui:SymbolIcon Symbol="Keyboard24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBlock Text="宏列表" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          </StackPanel>
+          <Button x:Name="AddMacroBtn" Grid.Column="1" MinWidth="90" Height="30"
+                  Padding="10,0" FontSize="12" Click="AddMacro_Click">
+            <StackPanel Orientation="Horizontal">
+              <ui:SymbolIcon Symbol="Add24" FontSize="12" Margin="0,0,4,0"/>
+              <TextBlock Text="{x:Static app:Strings.MacroAddMacro}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+        <StackPanel x:Name="MacroList"/>
+        <TextBlock x:Name="NoMacrosText" Text="{x:Static app:Strings.MacroNoMacros}" FontSize="12"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                   Margin="0,8,0,0" Visibility="Visible"/>
+      </StackPanel>
+
+    </StackPanel>
+  </ScrollViewer>
+</Page>

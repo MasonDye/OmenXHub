@@ -1,5 +1,40 @@
-*.user
-*.suo
+# Build output
+bin/
+obj/
 Bin/
 Obj/
+publish/
+*.exe
+*.dll
+*.pdb
+
+# NuGet
+packages/
+*.nupkg
+
+# VS / IDE
 .vs/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+
+# Build intermediates
+extracted/
+lib/
+FodyWeavers.xsd
+
+# Temp / generated
+stdout.txt
+stderr.txt
+battery-report.html
+temp_*.svg
+temp_*.txt
+packages.config
+
+# Keys
+*.pfx
+
+# OS
+Thumbs.db
+.DS_Store

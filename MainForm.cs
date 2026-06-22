@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
+using OmenSuperHub.Services;
 
 namespace OmenSuperHub {
   public partial class MainForm : Form {
@@ -36,7 +37,9 @@ namespace OmenSuperHub {
       this.StartPosition = FormStartPosition.Manual;
       this.Location = formLocation;
 
-      Icon = Properties.Resources.fan;
+      using (var icon = TrayService.CreateLogoIcon(32)) {
+        Icon = icon;
+      }
 
       InitializeFanConfigUI();
     }

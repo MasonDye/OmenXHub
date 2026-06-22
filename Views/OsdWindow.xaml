@@ -1,0 +1,32 @@
+<Window x:Class="OmenSuperHub.Views.OsdWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        WindowStyle="None" AllowsTransparency="True"
+        Background="Transparent" Topmost="True"
+        ShowInTaskbar="False" ShowActivated="False"
+        SizeToContent="WidthAndHeight"
+        Left="0" Top="0" Opacity="0">
+
+  <Border x:Name="OsdBorder" CornerRadius="10" Padding="16,12"
+          Background="{DynamicResource BgCardBrush}" Opacity="0.95"
+          BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1">
+    <Border.Effect>
+      <DropShadowEffect BlurRadius="16" ShadowDepth="3" Direction="270"
+                        Color="#80000000" Opacity="0.5"/>
+    </Border.Effect>
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <ui:SymbolIcon x:Name="OsdIcon" Grid.Column="0" FontSize="28"
+                     VerticalAlignment="Center" Margin="0,0,12,0"
+                     Visibility="Collapsed"/>
+      <TextBlock x:Name="OsdText" Grid.Column="1" FontSize="20" FontWeight="SemiBold"
+                 Foreground="{DynamicResource TextPrimaryBrush}" TextAlignment="Left"
+                 VerticalAlignment="Center" MaxWidth="400" TextWrapping="NoWrap"
+                 FontFamily="Microsoft YaHei UI, Segoe UI"/>
+    </Grid>
+  </Border>
+</Window>

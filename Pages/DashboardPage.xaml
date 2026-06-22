@@ -1,0 +1,304 @@
+<Page x:Class="OmenSuperHub.Pages.DashboardPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:app="clr-namespace:OmenSuperHub"
+      Title="{x:Static app:Strings.PageDashboard}">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="24,20" MinWidth="400" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
+
+      <TextBlock Text="{x:Static app:Strings.DashboardHeading}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
+
+      <Grid Margin="0,0,0,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="12"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- CPU -->
+        <ui:CardControl Grid.Column="0">
+          <ui:CardControl.Header>
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.MonitorCpuLabel}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Path x:Name="CpuBrandLogo" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Top"
+                      Width="40" Height="40" Margin="0,4,4,0" Opacity="0.06" Stretch="Uniform"
+                      IsHitTestVisible="False" Fill="Transparent" Visibility="Collapsed"/>
+              </Grid>
+              <Border Grid.Row="1" Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,8,0,6" Opacity="0.3"/>
+              <StackPanel Grid.Row="1" Margin="0,8,0,0">
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{x:Static app:Strings.TempCelsius}" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="CpuTempBar" Width="150" Height="4" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="100"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="CpuTempText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{x:Static app:Strings.UtilizationLabel}" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="CpuUtilBar" Width="150" Height="4" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="100"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="CpuUtilText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{x:Static app:Strings.FanLabel}" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="CpuFanBar" Width="150" Height="4" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="6400"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="CpuFanText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{x:Static app:Strings.PowerLabel}" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="CpuPowerBar" Width="150" Height="4" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="150"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="CpuPowerText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+              </StackPanel>
+            </Grid>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <!-- GPU -->
+        <ui:CardControl Grid.Column="2">
+          <ui:CardControl.Header>
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="DeviceEq24" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.MonitorGpuLabel}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Path x:Name="GpuBrandLogo" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Top"
+                      Width="40" Height="40" Margin="0,4,4,0" Opacity="0.06" Stretch="Uniform"
+                      IsHitTestVisible="False" Fill="Transparent" Visibility="Collapsed"/>
+              </Grid>
+              <Border Grid.Row="1" Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,8,0,6" Opacity="0.3"/>
+              <StackPanel x:Name="GpuDetailPanel" Grid.Row="1" Margin="0,8,0,0">
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{x:Static app:Strings.TempCelsius}" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="GpuTempBar" Width="150" Height="4" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="100"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="GpuTempText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{x:Static app:Strings.UtilizationLabel}" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="GpuUtilBar" Width="150" Height="4" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="100"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="GpuUtilText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{x:Static app:Strings.FanLabel}" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="GpuFanBar" Width="150" Height="4" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="6400"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="GpuFanText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{x:Static app:Strings.PowerLabel}" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextAlignment="Left" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="GpuPowerBar" Width="150" Height="4" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="300"/>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="GpuPowerText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+              </StackPanel>
+              <TextBlock x:Name="GpuOffMessage" Grid.Row="1" Text="{x:Static app:Strings.GpuMonitorOff}"
+                         FontSize="12" FontStyle="Italic"
+                         Foreground="{DynamicResource TextFillColorDisabledBrush}"
+                         VerticalAlignment="Center" HorizontalAlignment="Center"
+                         Visibility="Collapsed"/>
+            </Grid>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+      </Grid>
+
+      <!-- ══════ 系统状态 / 性能预设 (双列) ══════ -->
+      <Grid Margin="0,0,0,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="12"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <ui:CardControl Grid.Column="0">
+          <ui:CardControl.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <ui:SymbolIcon Symbol="Info24" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0"/>
+              <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                <TextBlock Text="{x:Static app:Strings.SysStatusHeading}" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,10"/>
+                <Grid Margin="{StaticResource CardMargin}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Static app:Strings.PerfModeLabel}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                             VerticalAlignment="Center"/>
+                  <TextBlock x:Name="CurrentModeText" Grid.Column="1" Foreground="{DynamicResource AccentOmenBrush}"
+                             FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid Margin="{StaticResource CardMargin}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Static app:Strings.FanControl}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                             VerticalAlignment="Center"/>
+                  <TextBlock x:Name="CurrentFanText" Grid.Column="1" Foreground="{DynamicResource AccentOmenBrush}"
+                             FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Static app:Strings.PowerStatus}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                             VerticalAlignment="Center"/>
+                  <TextBlock x:Name="PowerStatusText" Grid.Column="1" Foreground="{DynamicResource AccentGreenBrush}"
+                             FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+              </StackPanel>
+            </Grid>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Column="2">
+          <ui:CardControl.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <ui:SymbolIcon Symbol="PresenceAvailable24" FontSize="16" VerticalAlignment="Top" Margin="0,2,0,0"/>
+              <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                <TextBlock Text="{x:Static app:Strings.SysPresetsHeading}" FontWeight="SemiBold"
+                           FontSize="13" Margin="0,0,0,10"/>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <ComboBox x:Name="PresetCombo" MinWidth="120"
+                            SelectionChanged="Preset_SelectionChanged"/>
+                  <Button x:Name="PresetRenameBtn" Grid.Column="1" Width="28" Height="28"
+                          Padding="0" Margin="4,0" Click="PresetRename_Click"
+                          ToolTip="{x:Static app:Strings.RenamePreset}" Visibility="Collapsed">
+                    <ui:SymbolIcon Symbol="Edit24" FontSize="13"/>
+                  </Button>
+                  <Button x:Name="PresetSaveBtn" Grid.Column="2" Width="28" Height="28"
+                          Padding="0" Margin="4,0" Click="PresetSave_Click"
+                          ToolTip="{x:Static app:Strings.SaveTooltip}" Visibility="Collapsed">
+                    <ui:SymbolIcon Symbol="Checkmark24" FontSize="13"/>
+                  </Button>
+                </Grid>
+              </StackPanel>
+            </Grid>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+      </Grid>
+
+    </StackPanel>
+  </ScrollViewer>
+</Page>
