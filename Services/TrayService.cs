@@ -89,7 +89,7 @@ namespace OmenSuperHub.Services {
         if (enabled) UpdateCheckedState("monitorGPUGroup", "开启GPU监控");
         else UpdateCheckedState("monitorGPUGroup", "关闭GPU监控");
 
-        TrayIcon.ShowBalloonTip("状态更改提示", message, 3000);
+        _trayHelperRef?.ShowBalloonTip("状态更改提示", message, 3000);
       };
 
       // Initialize timers
@@ -167,6 +167,10 @@ namespace OmenSuperHub.Services {
 
     internal static void RegisterTrayHelper(Utils.TrayHelper helper) {
       _trayHelperRef = helper;
+    }
+
+    internal static void ShowNotification(string title, string text, int timeoutMs = 3000) {
+      _trayHelperRef?.ShowBalloonTip(title, text, timeoutMs);
     }
 
     internal static void RebuildMenu() {
@@ -327,7 +331,7 @@ namespace OmenSuperHub.Services {
             ConfigService.FanControl = "auto";
             ConfigService.Save("FanControl");
             Logger.Info("Auto fan protect: CPU>90°C with fixed fan, switched to auto");
-            TrayIcon.ShowBalloonTip("高温自动保护", "CPU温度>90°C，已自动切换为自动风扇控制", 3000, 2);
+            _trayHelperRef?.ShowBalloonTip("高温自动保护", "CPU温度>90°C，已自动切换为自动风扇控制", 3000);
           }
         }
         // Cooldown: restore saved fan config when CPU drops below 80°C
@@ -1130,6 +1134,9 @@ namespace OmenSuperHub.Services {
       try {
         TrayIcon.Hide();
         TrayIcon.Dispose();
+      } catch { }
+      try {
+        _trayHelperRef?.Dispose();
       } catch { }
       // Schedule shutdown after current event completes to avoid re-entrancy
       var app = System.Windows.Application.Current;

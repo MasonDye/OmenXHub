@@ -20,12 +20,15 @@ namespace OmenSuperHub.Services {
     private static CancellationTokenSource _cts;
     private static Task _listenTask;
     private static bool _running;
+    private static string _apiToken;
 
     public static bool IsRunning => _running;
+    public static string ApiToken => _apiToken;
 
     public static void Start(string prefix = "http://localhost:5000/") {
       if (_running) return;
       try {
+        _apiToken = Guid.NewGuid().ToString("N");
         _cts = new CancellationTokenSource();
         _listener = new HttpListener();
         _listener.Prefixes.Add(prefix);
@@ -77,6 +80,15 @@ namespace OmenSuperHub.Services {
       try {
         string path = req.Url.AbsolutePath.TrimEnd('/').ToLowerInvariant();
         string method = req.HttpMethod.ToUpperInvariant();
+
+        if (method == "POST" && path != "/ping") {
+          if (!ValidateRequest(req, path)) {
+            statusCode = 403;
+            responseText = MakeError("Forbidden: invalid token or origin");
+            SendResponse(resp, statusCode, responseText);
+            return;
+          }
+        }
 
         // ── GET endpoints ──
         if (method == "GET" && path == "/ping") {
@@ -842,7 +854,40 @@ namespace OmenSuperHub.Services {
         "{\"method\":\"POST\",\"path\":\"/api/system/restart\",\"description\":\"Restart system\"}",
         "{\"method\":\"POST\",\"path\":\"/api/system/shutdown\",\"description\":\"Shutdown system\"}"
       };
-      return $"{{\"status\":\"running\",\"version\":\"1.0.0\",\"endpoints\":[{string.Join(",",endpoints)}]}}";
+      return $"{{\"status\":\"running\",\"version\":\"1.0.0\",\"token\":\"{_apiToken}\",\"endpoints\":[{string.Join(",",endpoints)}]}}";
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // Security
+    // ═══════════════════════════════════════════════════════
+
+    private static bool ValidateRequest(HttpListenerRequest req, string path) {
+      if (path == "/api/system/restart" || path == "/api/system/shutdown") {
+        string origin = req.Headers["Origin"];
+        string referer = req.UrlReferrer?.ToString();
+        if (!string.IsNullOrEmpty(origin) && !origin.StartsWith("http://localhost") && !origin.StartsWith("https://localhost")) {
+          Logger.Error($"API: Blocked cross-origin request from {origin}");
+          return false;
+        }
+        if (!string.IsNullOrEmpty(referer) && !referer.StartsWith("http://localhost") && !referer.StartsWith("https://localhost")) {
+          Logger.Error($"API: Blocked cross-referer request from {referer}");
+          return false;
+        }
+      }
+
+      string authHeader = req.Headers["Authorization"];
+      if (!string.IsNullOrEmpty(authHeader)) {
+        if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) {
+          string token = authHeader.Substring(7).Trim();
+          if (token == _apiToken) return true;
+        }
+      }
+
+      string tokenParam = req.QueryString["token"];
+      if (!string.IsNullOrEmpty(tokenParam) && tokenParam == _apiToken) return true;
+
+      Logger.Error($"API: Unauthorized request to {path}");
+      return false;
     }
 
     // ═══════════════════════════════════════════════════════

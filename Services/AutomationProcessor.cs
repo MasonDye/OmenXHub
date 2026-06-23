@@ -27,6 +27,8 @@ namespace OmenSuperHub.Services {
     private static float _lastCpuTemp;
     private static float _lastGpuTemp;
     private static int _lastBatteryPercent = -1;
+    private static bool _cpuTempTriggerFired;
+    private static bool _gpuTempTriggerFired;
 
     public static bool IsExecuting => _executing;
     public static string CurrentPipelineName => _currentPipelineName;
@@ -145,12 +147,19 @@ namespace OmenSuperHub.Services {
             SetMaxFanSpeedOff();
             TrayService.fanControlTimer.Change(0, 1000);
             Views.OsdWindow.ShowFanModeOsd("custom");
-          } else if (step.Value == "manual" && int.TryParse(step.IntValue.ToString(), out int pct) && pct >= 0 && pct <= 100) {
-            ConfigService.FanControl = pct + "%";
-            SetMaxFanSpeedOff();
-            OmenHardware.SetFanLevel(pct, pct);
-            Views.OsdWindow.ShowFanModeOsd(pct + "%");
-            TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
+          } else if (step.Value == "manual") {
+            int pct = 0;
+            if (!string.IsNullOrEmpty(step.Value) && step.Value.Contains(":")) {
+              string pctStr = step.Value.Split(':')[1].Trim().TrimEnd('%');
+              int.TryParse(pctStr, out pct);
+            }
+            if (pct >= 0 && pct <= 100) {
+              ConfigService.FanControl = pct + "%";
+              SetMaxFanSpeedOff();
+              OmenHardware.SetFanLevel(pct, pct);
+              Views.OsdWindow.ShowFanModeOsd(pct + "%");
+              TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            }
           }
           break;
         case "RunProgram":
@@ -166,8 +175,8 @@ namespace OmenSuperHub.Services {
           }
           break;
         case "Notification":
-          if (TrayService.TrayIcon != null && !string.IsNullOrEmpty(step.Value)) {
-            TrayService.TrayIcon.ShowBalloonTip("OmenXHub Automation", step.Value, 3000);
+          if (!string.IsNullOrEmpty(step.Value)) {
+            TrayService.ShowNotification("OmenXHub Automation", step.Value);
           }
           break;
         case "SetIccMax":
@@ -257,7 +266,7 @@ namespace OmenSuperHub.Services {
       PresetManager.SwitchPreset(preset);
 
       // Apply hardware
-      if (ConfigService.GpuClock > 0) TrayService.SetGPUClockLimit(ConfigService.GpuClock);
+      TrayService.SetGPUClockLimit(ConfigService.GpuClock);
       OmenHardware.SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled,
           ConfigService.DState == 2 ? 2 : 1);
       if (ConfigService.Tpp > 0) OmenHardware.SetConcurrentTdp((byte)ConfigService.Tpp);
@@ -402,8 +411,29 @@ namespace OmenSuperHub.Services {
         _lastCpuTemp = cpuTemp;
         _lastGpuTemp = gpuTemp;
         if (tempChanged) {
-          FireTrigger("CpuTempAbove", ((int)cpuTemp).ToString());
-          FireTrigger("GpuTempAbove", ((int)gpuTemp).ToString());
+          foreach (var p in AutomationService.GetEnabledPipelines()) {
+            p.EnsureTriggers();
+            foreach (var t in p.Triggers) {
+              if (!t.Enabled) continue;
+              if (t.Type == "CpuTempAbove" && int.TryParse(t.Value, out int cpuThresh)) {
+                bool above = cpuTemp >= cpuThresh;
+                if (above && !_cpuTempTriggerFired) {
+                  _cpuTempTriggerFired = true;
+                  ExecutePipeline(p);
+                } else if (!above && cpuTemp < cpuThresh - 2) {
+                  _cpuTempTriggerFired = false;
+                }
+              } else if (t.Type == "GpuTempAbove" && int.TryParse(t.Value, out int gpuThresh)) {
+                bool above = gpuTemp >= gpuThresh;
+                if (above && !_gpuTempTriggerFired) {
+                  _gpuTempTriggerFired = true;
+                  ExecutePipeline(p);
+                } else if (!above && gpuTemp < gpuThresh - 2) {
+                  _gpuTempTriggerFired = false;
+                }
+              }
+            }
+          }
         }
 
         int batPct = (int)(System.Windows.Forms.SystemInformation.PowerStatus.BatteryLifePercent * 100);

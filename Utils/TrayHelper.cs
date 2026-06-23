@@ -200,6 +200,10 @@ namespace OmenSuperHub.Utils {
 
     public void MakeVisible() { _trayIcon.Show(); }
 
+    public void ShowBalloonTip(string title, string text, int timeoutMs) {
+      _trayIcon?.ShowBalloonTip(title, text, timeoutMs);
+    }
+
     public void Dispose() {
       GC.SuppressFinalize(this);
       HidePopup();

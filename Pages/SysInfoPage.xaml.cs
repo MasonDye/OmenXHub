@@ -143,48 +143,58 @@ namespace OmenSuperHub.Pages
                     {
                         SysManufacturerText.Text = Strings.SysManufacturer + ": " + mfr;
                         SysModelText.Text = Strings.SysModel + ": " + model;
-                        ConfigService.SysManufacturer = mfr;
-                        ConfigService.SysModel = model;
+                        if (ConfigService.SysManufacturer != mfr) { ConfigService.SysManufacturer = mfr; ConfigService.Save("SysManufacturer"); }
+                        if (ConfigService.SysModel != model) { ConfigService.SysModel = model; ConfigService.Save("SysModel"); }
                         SysBiosText.Text = Strings.SysBiosVersion + ": " + bios;
-                        ConfigService.SysBios = bios;
+                        if (ConfigService.SysBios != bios) { ConfigService.SysBios = bios; ConfigService.Save("SysBios"); }
                         SysCpuText.Text = Strings.SysCpuModel + ": " + cpu;
-                        ConfigService.SysCpu = cpu;
+                        if (ConfigService.SysCpu != cpu) { ConfigService.SysCpu = cpu; ConfigService.Save("SysCpu"); }
                         SysGpuText.Text = Strings.SysGpuList + ": " + gpu;
-                        ConfigService.SysGpu = gpu;
+                        if (ConfigService.SysGpu != gpu) { ConfigService.SysGpu = gpu; ConfigService.Save("SysGpu"); }
                         SysAdapterText.Text = Strings.SysAdapterPower + ": " + adapterW + " W";
-                        ConfigService.SysAdapterPower = adapterW;
+                        if (ConfigService.SysAdapterPower != adapterW) { ConfigService.SysAdapterPower = adapterW; ConfigService.Save("SysAdapterPower"); }
                         SysDriverModelText.Text = Strings.SysModel + ": " + model;
                     }
                     SysProductNameText.Text = Strings.SysModelName + ": " + (_pn ?? Strings.SysUnknown);
-                    ConfigService.SysProductName = _pn ?? Strings.SysUnknown;
+                    if (ConfigService.SysProductName != (_pn ?? Strings.SysUnknown)) { ConfigService.SysProductName = _pn ?? Strings.SysUnknown; ConfigService.Save("SysProductName"); }
                     SysValidationText.Text = Strings.SysModelValidation + ": " + (
                         _validation >= 2 ? Strings.ValidationGamingProduct :
                         _validation == 1 ? Strings.ValidationUnsupported : Strings.ValidationUnsupported);
-                    ConfigService.SysValidation = _validation;
+                    if (ConfigService.SysValidation != _validation) { ConfigService.SysValidation = _validation; ConfigService.Save("SysValidation"); }
                     SysBoardText.Text = Strings.SysBoardProduct + ": " + (_board ?? Strings.SysUnknown);
-                    ConfigService.SysBoardProduct = _board ?? Strings.SysUnknown;
+                    if (ConfigService.SysBoardProduct != (_board ?? Strings.SysUnknown)) { ConfigService.SysBoardProduct = _board ?? Strings.SysUnknown; ConfigService.Save("SysBoardProduct"); }
                     SysCpuTjmaxText.Text = Strings.SysCpuTjMax + ": " + _tj + " °C";
-                    ConfigService.SysCpuTjmax = _tj;
+                    if (ConfigService.SysCpuTjmax != _tj) { ConfigService.SysCpuTjmax = _tj; ConfigService.Save("SysCpuTjmax"); }
                     SysNvidiaTjmaxText.Text = _nvidiaTj > 0 ? Strings.SysNvidiaTjMax + ": " + _nvidiaTj + " °C" : "";
-                    ConfigService.SysNvidiaTjmax = _nvidiaTj;
+                    if (ConfigService.SysNvidiaTjmax != _nvidiaTj) { ConfigService.SysNvidiaTjmax = _nvidiaTj; ConfigService.Save("SysNvidiaTjmax"); }
                     if (_powerLimits != null && _powerLimits[0] > 0)
                     {
                         SysNvidiaPowerText.Text = Strings.SysNvidiaPowerLimitText($"{_powerLimits[0]:F0}W / {_powerLimits[1]:F0}W");
-                        ConfigService.SysNvidiaPowerMin = $"{_powerLimits[0]:F0}W";
-                        ConfigService.SysNvidiaPowerMax = $"{_powerLimits[1]:F0}W";
+                        string minStr = $"{_powerLimits[0]:F0}W";
+                        string maxStr = $"{_powerLimits[1]:F0}W";
+                        if (ConfigService.SysNvidiaPowerMin != minStr) { ConfigService.SysNvidiaPowerMin = minStr; ConfigService.Save("SysNvidiaPowerMin"); }
+                        if (ConfigService.SysNvidiaPowerMax != maxStr) { ConfigService.SysNvidiaPowerMax = maxStr; ConfigService.Save("SysNvidiaPowerMax"); }
                     }
                     SysKbLightTypeText.Text = Strings.SysKbType + ": " + (_kb ?? Strings.SysUnknown);
-                    ConfigService.SysKbType = _kb ?? Strings.SysUnknown;
-                    ConfigService.SysKbRaw = _kbRaw;
+                    if (ConfigService.SysKbType != (_kb ?? Strings.SysUnknown)) {
+                      ConfigService.SysKbType = _kb ?? Strings.SysUnknown;
+                      ConfigService.Save("SysKbType");
+                    }
+                    if (ConfigService.SysKbRaw != _kbRaw) {
+                      ConfigService.SysKbRaw = _kbRaw;
+                      ConfigService.Save("SysKbRaw");
+                    }
                     SysPawnIoText.Text = pawnIoText;
-                    ConfigService.SysPawnIoText = pawnIoText;
+                    if (ConfigService.SysPawnIoText != pawnIoText) {
+                      ConfigService.SysPawnIoText = pawnIoText;
+                      ConfigService.Save("SysPawnIoText");
+                    }
                     SysCpuTempText.Text = cpuTemp;
                     SysGpuTempText.Text = gpuTemp;
                     SysIrSensorText.Text = irTemp;
                     SysAmbientText.Text = ambTemp;
                     SysPchText.Text = pchTemp;
                     SysVrText.Text = vrTemp;
-                    ConfigService.Save();
                 }, DispatcherPriority.Background);
             });
         }
