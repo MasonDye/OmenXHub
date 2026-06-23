@@ -319,7 +319,9 @@ namespace OmenSuperHub.Views {
       int dState = ConfigService.DState == 2 ? 2 : 1;
       string cpuPwr = ConfigService.CpuPower;
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        if (gpuClock > 0) TrayService.SetGPUClockLimit(gpuClock);
+        // Always call: SetGPUClockLimit(<210) resets/releases the lock, so a
+        // preset with GpuClock=0 ("no limit") correctly clears a prior lock.
+        TrayService.SetGPUClockLimit(gpuClock);
         OmenHardware.SetGpuPowerState(tgp, ppab, dState);
         if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254);
         else if (int.TryParse(cpuPwr?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)

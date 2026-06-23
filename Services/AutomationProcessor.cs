@@ -27,8 +27,9 @@ namespace OmenSuperHub.Services {
     private static float _lastCpuTemp;
     private static float _lastGpuTemp;
     private static int _lastBatteryPercent = -1;
-    private static bool _cpuTempTriggerFired;
-    private static bool _gpuTempTriggerFired;
+    // Per-trigger latch (keyed by pipeline + trigger) so independent temp
+    // pipelines at different thresholds don't reset each other's fired state.
+    private static readonly HashSet<string> _firedTempTriggers = new HashSet<string>();
 
     public static bool IsExecuting => _executing;
     public static string CurrentPipelineName => _currentPipelineName;
@@ -147,11 +148,14 @@ namespace OmenSuperHub.Services {
             SetMaxFanSpeedOff();
             TrayService.fanControlTimer.Change(0, 1000);
             Views.OsdWindow.ShowFanModeOsd("custom");
-          } else if (step.Value == "manual") {
-            int pct = 0;
-            if (!string.IsNullOrEmpty(step.Value) && step.Value.Contains(":")) {
-              string pctStr = step.Value.Split(':')[1].Trim().TrimEnd('%');
-              int.TryParse(pctStr, out pct);
+          } else if (!string.IsNullOrEmpty(step.Value) && step.Value.StartsWith("manual")) {
+            // Value format is "manual:NN" (percent). A bare "manual" with no
+            // percent leaves pct = -1 so we never silently drive the fans to 0%.
+            int pct = -1;
+            int colon = step.Value.IndexOf(':');
+            if (colon >= 0) {
+              string pctStr = step.Value.Substring(colon + 1).Trim().TrimEnd('%');
+              if (!int.TryParse(pctStr, out pct)) pct = -1;
             }
             if (pct >= 0 && pct <= 100) {
               ConfigService.FanControl = pct + "%";
@@ -416,20 +420,18 @@ namespace OmenSuperHub.Services {
             foreach (var t in p.Triggers) {
               if (!t.Enabled) continue;
               if (t.Type == "CpuTempAbove" && int.TryParse(t.Value, out int cpuThresh)) {
-                bool above = cpuTemp >= cpuThresh;
-                if (above && !_cpuTempTriggerFired) {
-                  _cpuTempTriggerFired = true;
-                  ExecutePipeline(p);
-                } else if (!above && cpuTemp < cpuThresh - 2) {
-                  _cpuTempTriggerFired = false;
+                string key = p.Name + "|CpuTempAbove|" + t.Value;
+                if (cpuTemp >= cpuThresh) {
+                  if (_firedTempTriggers.Add(key)) ExecutePipeline(p);
+                } else if (cpuTemp < cpuThresh - 2) {
+                  _firedTempTriggers.Remove(key);
                 }
               } else if (t.Type == "GpuTempAbove" && int.TryParse(t.Value, out int gpuThresh)) {
-                bool above = gpuTemp >= gpuThresh;
-                if (above && !_gpuTempTriggerFired) {
-                  _gpuTempTriggerFired = true;
-                  ExecutePipeline(p);
-                } else if (!above && gpuTemp < gpuThresh - 2) {
-                  _gpuTempTriggerFired = false;
+                string key = p.Name + "|GpuTempAbove|" + t.Value;
+                if (gpuTemp >= gpuThresh) {
+                  if (_firedTempTriggers.Add(key)) ExecutePipeline(p);
+                } else if (gpuTemp < gpuThresh - 2) {
+                  _firedTempTriggers.Remove(key);
                 }
               }
             }
