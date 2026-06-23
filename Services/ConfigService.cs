@@ -33,6 +33,8 @@ namespace OmenSuperHub.Services {
     public static string FloatingBarLoc = "left";
     public static string FloatingBarScreen = "";
     public static string FloatingBar = "off";
+    public static double FloatingPosLeft = 100;
+    public static double FloatingPosTop = 100;
 
     // New features from OmenSuperHub-master merge
     public static string Preset = "";
@@ -45,7 +47,7 @@ namespace OmenSuperHub.Services {
     public static string LightingAnimation = "None";
     public static string DisplayMode = "smoothed";
     public static int MonRefreshInterval = 1000;
-    public static string GraphicMode = "";
+
     public static int IccMax = 0;
     public static int AcLoadLine = 0;
     public static int Tpp = 0;
@@ -58,6 +60,15 @@ namespace OmenSuperHub.Services {
     public static double FloatingOpacity = 0.85;
     public static double FloatingTextOpacity = 1.0;
     public static bool VerboseLogging = false;
+
+    // Hetero CPU (AMD dual-CCD simulated hybrid scheduling)
+    public static string HeteroCpuSmallMask = "FFFF0000";
+    public static int HeteroCpuDefaultPolicy = 2;
+    public static int HeteroCpuExpectedRuntime = 1450;
+    public static int HeteroCpuImportantPolicy = 2;
+    public static int HeteroCpuImportantShortPolicy = 3;
+    public static int HeteroCpuPolicyMask = 7;
+    public static int HeteroCpuImportantPriority = 8;
     public static string AutoFanProtect = "on";
     public static string CustomLogoPath = "";
     public static string CustomBgPath = "";
@@ -111,6 +122,7 @@ namespace OmenSuperHub.Services {
     public static string SysKbType = "";
     public static int SysValidation = 0; // 0=unknown, 1=unsupported, 2=gaming
     public static int SysKbRaw = 0;
+    public static string SysPawnIoText = "";
 
     // ═══════════════════════════════════════════════════════
     // Save Configuration
@@ -138,6 +150,7 @@ namespace OmenSuperHub.Services {
             key.SetValue("SysNvidiaPowerMax", SysNvidiaPowerMax);
             key.SetValue("SysKbType", SysKbType);
             key.SetValue("SysValidation", SysValidation);
+            key.SetValue("SysPawnIoText", SysPawnIoText);
             key.SetValue("CustomLogoPath", CustomLogoPath);
             key.SetValue("CustomBgPath", CustomBgPath);
             key.SetValue("CustomBgOpacity", CustomBgOpacity);
@@ -165,6 +178,8 @@ namespace OmenSuperHub.Services {
             case "FloatingBarLoc": key.SetValue("FloatingBarLoc", FloatingBarLoc); break;
             case "FloatingBarScreen": key.SetValue("FloatingBarScreen", FloatingBarScreen); break;
             case "FloatingBar": key.SetValue("FloatingBar", FloatingBar); break;
+            case "FloatingPosLeft": key.SetValue("FloatingPosLeft", FloatingPosLeft); break;
+            case "FloatingPosTop": key.SetValue("FloatingPosTop", FloatingPosTop); break;
             case "MonitorCPU": key.SetValue("MonitorCPU", MonitorCPU); break;
             case "Preset": key.SetValue("Preset", Preset); break;
             case "Language": key.SetValue("Language", Language); break;
@@ -176,7 +191,6 @@ namespace OmenSuperHub.Services {
             case "LightingAnimation": key.SetValue("LightingAnimation", LightingAnimation); break;
             case "DisplayMode": key.SetValue("DisplayMode", DisplayMode); break;
             case "MonRefreshInterval": key.SetValue("MonRefreshInterval", MonRefreshInterval); break;
-            case "GraphicMode": key.SetValue("GraphicMode", GraphicMode); break;
             case "IccMax": key.SetValue("IccMax", IccMax); break;
             case "AcLoadLine": key.SetValue("AcLoadLine", AcLoadLine); break;
             case "Tpp": key.SetValue("Tpp", Tpp); break;
@@ -190,6 +204,13 @@ namespace OmenSuperHub.Services {
             case "FloatingBarOpacity": key.SetValue("FloatingOpacity", FloatingOpacity); break;
             case "FloatingTextOpacity": key.SetValue("FloatingTextOpacity", FloatingTextOpacity); break;
             case "VerboseLogging": key.SetValue("VerboseLogging", VerboseLogging); break;
+            case "HeteroCpuSmallMask": key.SetValue("HeteroCpuSmallMask", HeteroCpuSmallMask); break;
+            case "HeteroCpuDefaultPolicy": key.SetValue("HeteroCpuDefaultPolicy", HeteroCpuDefaultPolicy); break;
+            case "HeteroCpuExpectedRuntime": key.SetValue("HeteroCpuExpectedRuntime", HeteroCpuExpectedRuntime); break;
+            case "HeteroCpuImportantPolicy": key.SetValue("HeteroCpuImportantPolicy", HeteroCpuImportantPolicy); break;
+            case "HeteroCpuImportantShortPolicy": key.SetValue("HeteroCpuImportantShortPolicy", HeteroCpuImportantShortPolicy); break;
+            case "HeteroCpuPolicyMask": key.SetValue("HeteroCpuPolicyMask", HeteroCpuPolicyMask); break;
+            case "HeteroCpuImportantPriority": key.SetValue("HeteroCpuImportantPriority", HeteroCpuImportantPriority); break;
             case "AutoFanProtect": key.SetValue("AutoFanProtect", AutoFanProtect); break;
             case "GpuPowerTgp": key.SetValue("GpuPowerTgp", GpuPowerTgp); break;
             case "GpuPowerPpab": key.SetValue("GpuPowerPpab", GpuPowerPpab); break;
@@ -386,6 +407,8 @@ namespace OmenSuperHub.Services {
           FloatingBarLoc = RegStr(key, "FloatingBarLoc", "left");
           FloatingBarScreen = RegStr(key, "FloatingBarScreen", "");
           FloatingBar = RegStr(key, "FloatingBar", "off");
+          FloatingPosLeft = RegDouble(key, "FloatingPosLeft", 100);
+          FloatingPosTop = RegDouble(key, "FloatingPosTop", 100);
           Preset = RegStr(key, "Preset", "");
           Language = RegStr(key, "Language", "SimplifiedChinese");
           DataLocalize = RegStr(key, "DataLocalize", "off");
@@ -396,7 +419,6 @@ namespace OmenSuperHub.Services {
           LightingAnimation = RegStr(key, "LightingAnimation", "None");
           DisplayMode = RegStr(key, "DisplayMode", "smoothed");
           MonRefreshInterval = RegInt(key, "MonRefreshInterval", 1000);
-          GraphicMode = RegStr(key, "GraphicMode", "");
           IccMax = RegInt(key, "IccMax", 0);
           AcLoadLine = RegInt(key, "AcLoadLine", 0);
           Tpp = RegInt(key, "Tpp", 0);
@@ -409,6 +431,13 @@ namespace OmenSuperHub.Services {
           FloatingOpacity = RegDouble(key, "FloatingOpacity", 0.85);
           FloatingTextOpacity = RegDouble(key, "FloatingTextOpacity", 1.0);
           VerboseLogging = RegBool(key, "VerboseLogging", false);
+          HeteroCpuSmallMask = RegStr(key, "HeteroCpuSmallMask", "FFFF0000");
+          HeteroCpuDefaultPolicy = RegInt(key, "HeteroCpuDefaultPolicy", 2);
+          HeteroCpuExpectedRuntime = RegInt(key, "HeteroCpuExpectedRuntime", 1450);
+          HeteroCpuImportantPolicy = RegInt(key, "HeteroCpuImportantPolicy", 2);
+          HeteroCpuImportantShortPolicy = RegInt(key, "HeteroCpuImportantShortPolicy", 3);
+          HeteroCpuPolicyMask = RegInt(key, "HeteroCpuPolicyMask", 7);
+          HeteroCpuImportantPriority = RegInt(key, "HeteroCpuImportantPriority", 8);
           AutoFanProtect = RegStr(key, "AutoFanProtect", "on");
           GpuPowerTgp = RegStr(key, "GpuPowerTgp", "on");
           GpuPowerPpab = RegStr(key, "GpuPowerPpab", "on");
@@ -454,6 +483,7 @@ namespace OmenSuperHub.Services {
           SysNvidiaPowerMax = RegStr(key, "SysNvidiaPowerMax", "");
           SysKbType = RegStr(key, "SysKbType", "");
           SysValidation = RegInt(key, "SysValidation", 0);
+          SysPawnIoText = RegStr(key, "SysPawnIoText", "");
           CustomLogoPath = RegStr(key, "CustomLogoPath", "");
           CustomBgPath = RegStr(key, "CustomBgPath", "");
           CustomBgOpacity = RegDouble(key, "CustomBgOpacity", 0.5);
@@ -498,6 +528,7 @@ namespace OmenSuperHub.Services {
       ConfigService.SysKbType = "";
       ConfigService.SysValidation = 0;
       ConfigService.SysKbRaw = 0;
+      ConfigService.SysPawnIoText = "";
     }
   }
 

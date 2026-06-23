@@ -48,7 +48,6 @@ namespace OmenSuperHub.Pages {
       OmenKeyAppPathText.Text = !string.IsNullOrEmpty(ConfigService.OmenKeyAppPath)
         ? ConfigService.OmenKeyAppPath : Strings.OmenKeyNoAppSelected;
       OsdToggle.IsChecked = ConfigService.ShowOsd;
-      LockKeysToggle.IsChecked = ConfigService.ShowLockKeys;
       DataLocalizeToggle.IsChecked = ConfigService.DataLocalize == "on";
       DebugLogToggle.IsChecked = ConfigService.VerboseLogging;
       switch (ConfigService.CustomIcon) {
@@ -228,10 +227,6 @@ namespace OmenSuperHub.Pages {
       ConfigService.Save("ShowOsd");
     }
 
-    void LockKeysToggle_Changed(object sender, RoutedEventArgs e) {
-      ConfigService.ShowLockKeys = LockKeysToggle.IsChecked == true;
-      ConfigService.Save("ShowLockKeys");
-    }
 
     void TrayIcon_SelectionChanged(object s, SelectionChangedEventArgs e) {
       if (_loading) return;

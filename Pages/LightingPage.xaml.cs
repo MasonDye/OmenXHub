@@ -91,5 +91,43 @@ namespace OmenSuperHub.Pages {
       } catch { }
     }
 
+    bool _lightExpanded = true;
+    const double LightCollapseWidth = 1000;
+
+    void LightingPage_SizeChanged(object sender, SizeChangedEventArgs e) {
+      if (!e.WidthChanged) return;
+      if (e.NewSize.Width > LightCollapseWidth) {
+        if (!_lightExpanded) { _lightExpanded = true; ExpandLightGrid(); }
+      } else {
+        if (_lightExpanded) { _lightExpanded = false; CollapseLightGrid(); }
+      }
+    }
+
+    void ExpandLightGrid() {
+      LightGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
+      Thickness[] expandMargins = { new(0, 0, 6, 8), new(6, 0, 0, 8), new(0, 0, 6, 0), new(6, 0, 0, 0) };
+      for (int i = 0; i < 4 && i < LightGrid.Children.Count; i++) {
+        var c = LightGrid.Children[i] as FrameworkElement;
+        if (c == null) continue;
+        int row = i / 2;
+        int col = i % 2;
+        Grid.SetRow(c, row);
+        Grid.SetColumn(c, col);
+        Grid.SetColumnSpan(c, 1);
+        c.Margin = expandMargins[i];
+      }
+    }
+
+    void CollapseLightGrid() {
+      LightGrid.ColumnDefinitions[1].Width = new GridLength(0, GridUnitType.Pixel);
+      for (int i = 0; i < 4 && i < LightGrid.Children.Count; i++) {
+        var c = LightGrid.Children[i] as FrameworkElement;
+        if (c == null) continue;
+        Grid.SetRow(c, i);
+        Grid.SetColumn(c, 0);
+        Grid.SetColumnSpan(c, 1);
+        c.Margin = new Thickness(0, 0, 0, 8);
+      }
+    }
   }
 }

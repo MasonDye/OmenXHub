@@ -73,11 +73,31 @@ namespace OmenSuperHub.Services {
       if (colorDict != null) dicts.Remove(colorDict);
       dicts.Insert(0, new ResourceDictionary { Source = new Uri(targetSource, UriKind.Relative) });
 
-      // Switch WPF-UI base theme
+      // Switch WPF-UI base theme (no accent update — we handle it ourselves)
       ApplicationThemeManager.Apply(
         isLightTheme ? ApplicationTheme.Light : ApplicationTheme.Dark,
         updateAccent: false
       );
+
+      // Read real Windows accent color from registry and expose as a brush
+      try {
+        using (var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\DWM")) {
+          if (key != null) {
+            object val = key.GetValue("AccentColor");
+            if (val is int dwmColor) {
+              // DWM format: 0x00BBGGRR → convert to 0xAARRGGBB
+              byte r = (byte)(dwmColor & 0xFF);
+              byte g = (byte)((dwmColor >> 8) & 0xFF);
+              byte b = (byte)((dwmColor >> 16) & 0xFF);
+              var accentColor = Color.FromRgb(r, g, b);
+              var accentBrush = new SolidColorBrush(accentColor);
+              // Override WPF-UI's accent brushes so the indicator follows system accent
+              Application.Current.Resources["SystemAccentColorSecondaryBrush"] = accentBrush;
+              Application.Current.Resources["SystemAccentColorSecondary"] = accentColor;
+            }
+          }
+        }
+      } catch { }
 
       // Refresh OmenBrand to force DynamicResource re-evaluation with new palette
       ResourceDictionary omenBrand = null;

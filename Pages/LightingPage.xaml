@@ -3,18 +3,21 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:app="clr-namespace:OmenSuperHub"
-      Title="{x:Static app:Strings.PageLighting}">
+      Title="{x:Static app:Strings.PageLighting}"
+      SizeChanged="LightingPage_SizeChanged">
 
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
       <TextBlock x:Name="HeadingLighting" Text="{x:Static app:Strings.LightingControl}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
 
-      <Grid>
+      <Grid x:Name="LightGrid">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>

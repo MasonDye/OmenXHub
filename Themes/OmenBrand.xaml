@@ -73,7 +73,7 @@
   <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="{DynamicResource AccentFillColorTertiary}"/>
   <SolidColorBrush x:Key="AccentFillColorDisabledBrush" Color="{DynamicResource AccentFillColorDisabled}"/>
   <SolidColorBrush x:Key="AccentFillColorSelectedTextBackgroundBrush" Color="{DynamicResource AccentOmen}"/>
-  <SolidColorBrush x:Key="SystemAccentColor" Color="{DynamicResource AccentOmen}"/>
+
 
   <!-- Divider -->
   <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="{DynamicResource BorderSubtle}"/>

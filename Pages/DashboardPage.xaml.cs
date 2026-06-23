@@ -42,28 +42,32 @@ namespace OmenSuperHub.Pages {
     void RefreshDashboard() {
       int cpuTemp = (int)HardwareService.CPUTemp;
       CpuTempText.Text = cpuTemp.ToString();
-      CpuTempText.Foreground = GetTempBrush(cpuTemp);
+      CpuTempBar.Foreground = GetTempBrush(cpuTemp);
       AnimateBar(CpuTempBar, cpuTemp);
       CpuUtilText.Text = HardwareService.CPUUsage.ToString("F0") + "%";
       CpuUtilBar.Foreground = GetUtilBrush(HardwareService.CPUUsage);
       AnimateBar(CpuUtilBar, HardwareService.CPUUsage);
       CpuFanText.Text = (HardwareService.FanSpeedNow[0] * 100) + " RPM";
+      CpuFanBar.Foreground = GetFanBrush(HardwareService.FanSpeedNow[0] * 100);
       AnimateBar(CpuFanBar, HardwareService.FanSpeedNow[0] * 100);
       CpuPowerText.Text = HardwareService.CPUPower.ToString("F1") + " W";
+      CpuPowerBar.Foreground = GetPowerBrush(HardwareService.CPUPower, 150);
       AnimateBar(CpuPowerBar, HardwareService.CPUPower);
 
       bool gpuOn = ConfigService.MonitorGPU;
       if (gpuOn) {
         int gpuTemp = (int)HardwareService.GPUTemp;
         GpuTempText.Text = gpuTemp.ToString();
-        GpuTempText.Foreground = GetTempBrush(gpuTemp);
+        GpuTempBar.Foreground = GetTempBrush(gpuTemp);
         AnimateBar(GpuTempBar, gpuTemp);
         GpuUtilText.Text = HardwareService.GPUUsage.ToString("F0") + "%";
         GpuUtilBar.Foreground = GetUtilBrush(HardwareService.GPUUsage);
         AnimateBar(GpuUtilBar, HardwareService.GPUUsage);
         GpuFanText.Text = (HardwareService.FanSpeedNow[1] * 100) + " RPM";
+        GpuFanBar.Foreground = GetFanBrush(HardwareService.FanSpeedNow[1] * 100);
         AnimateBar(GpuFanBar, HardwareService.FanSpeedNow[1] * 100);
         GpuPowerText.Text = HardwareService.GPUPower.ToString("F1") + " W";
+        GpuPowerBar.Foreground = GetPowerBrush(HardwareService.GPUPower, 300);
         AnimateBar(GpuPowerBar, HardwareService.GPUPower);
       }
       GpuDetailPanel.Visibility = gpuOn ? Visibility.Visible : Visibility.Collapsed;
@@ -110,11 +114,26 @@ namespace OmenSuperHub.Pages {
       return _brushAccentOmen;
     }
 
-    Brush GetTempBrush(int temp) {
-      if (temp >= 80) return FindResource("SystemFillColorCriticalBrush") as Brush;
-      if (temp >= 60) return FindResource("SystemFillColorAttentionBrush") as Brush;
-      return FindResource("TextFillColorPrimaryBrush") as Brush;
+    Brush GetTempBrush(double temp) {
+      if (temp >= 85) return _brushAccentRed;
+      if (temp >= 70) return _brushAccentYellow;
+      if (temp >= 50) return _brushAccentOmen;
+      return new SolidColorBrush(Color.FromRgb(100, 180, 255)); // 浅蓝色
     }
+
+    Brush GetFanBrush(int rpm) {
+      if (rpm >= 5000) return _brushAccentRed;
+      if (rpm >= 3000) return _brushAccentYellow;
+      return new SolidColorBrush(Color.FromRgb(100, 180, 255)); // 浅蓝色
+    }
+
+    Brush GetPowerBrush(double power, double maxPower) {
+      double percent = power / maxPower * 100;
+      if (percent >= 80) return _brushAccentRed;
+      if (percent >= 50) return _brushAccentYellow;
+      return new SolidColorBrush(Color.FromRgb(255, 165, 0)); // 橙色
+    }
+
 
     void SetBrandLogos() {
       string cpuPath = null;
@@ -189,10 +208,6 @@ namespace OmenSuperHub.Pages {
 
     void OnPresetCycled(string preset) {
       Dispatcher.Invoke(() => {
-        PresetManager.SwitchPreset(preset);
-        if (Application.Current.MainWindow is Views.MainWindow mainWindow)
-          mainWindow.ApplyPresetHardware();
-        Views.OsdWindow.ShowPresetOsd(preset);
         _loading = true;
         string[] slots = { "Extreme", "GpuPriority", "LightUse", "Custom1", "Custom2", "Custom3" };
         int idx = Array.IndexOf(slots, preset);
@@ -268,5 +283,47 @@ namespace OmenSuperHub.Pages {
     }
 
     void Billboard() { }
+
+    bool _dashExpanded = true;
+    const double DashCollapseWidth = 1000;
+
+    void DashboardPage_SizeChanged(object sender, SizeChangedEventArgs e) {
+      if (!e.WidthChanged) return;
+      if (e.NewSize.Width > DashCollapseWidth) {
+        if (!_dashExpanded) { _dashExpanded = true; ExpandDashGrids(); }
+      } else {
+        if (_dashExpanded) { _dashExpanded = false; CollapseDashGrids(); }
+      }
+    }
+
+    void ExpandDashGrids() {
+      LayoutDashGrid(MetricsGrid, 0, 2);
+      LayoutDashGrid(StatusGrid, 0, 2);
+    }
+
+    void CollapseDashGrids() {
+      LayoutDashGrid(MetricsGrid, 0, 1);
+      LayoutDashGrid(StatusGrid, 0, 1);
+    }
+
+    void LayoutDashGrid(Grid grid, int cpuCol, int gpuCol) {
+      var gapDef = grid.ColumnDefinitions[1];
+      var gpuDef = grid.ColumnDefinitions[2];
+      if (cpuCol == 0 && gpuCol == 2) {
+        gapDef.Width = new GridLength(12, GridUnitType.Pixel);
+        gpuDef.Width = new GridLength(1, GridUnitType.Star);
+        var cpuChild = grid.Children[0] as FrameworkElement;
+        var gpuChild = grid.Children[1] as FrameworkElement;
+        if (cpuChild != null) { Grid.SetRow(cpuChild, 0); Grid.SetColumn(cpuChild, 0); Grid.SetColumnSpan(cpuChild, 1); cpuChild.Margin = new Thickness(0); }
+        if (gpuChild != null) { Grid.SetRow(gpuChild, 0); Grid.SetColumn(gpuChild, 2); Grid.SetColumnSpan(gpuChild, 1); gpuChild.Margin = new Thickness(0); }
+      } else {
+        gapDef.Width = new GridLength(0, GridUnitType.Pixel);
+        gpuDef.Width = new GridLength(0, GridUnitType.Pixel);
+        var cpuChild = grid.Children[0] as FrameworkElement;
+        var gpuChild = grid.Children[1] as FrameworkElement;
+        if (cpuChild != null) { Grid.SetRow(cpuChild, 0); Grid.SetColumn(cpuChild, 0); Grid.SetColumnSpan(cpuChild, 3); cpuChild.Margin = new Thickness(0, 0, 0, 8); }
+        if (gpuChild != null) { Grid.SetRow(gpuChild, 1); Grid.SetColumn(gpuChild, 0); Grid.SetColumnSpan(gpuChild, 3); gpuChild.Margin = new Thickness(0); }
+      }
+    }
   }
 }

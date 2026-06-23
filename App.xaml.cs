@@ -113,6 +113,12 @@ namespace OmenSuperHub {
           Views.OsdWindow.StartLockKeyMonitor();
         }), System.Windows.Threading.DispatcherPriority.Background);
 
+        // Floating window in separate BeginInvoke so it runs even if RestoreConfig throws
+        Dispatcher.BeginInvoke(new Action(() => {
+          if (ConfigService.FloatingBar == "on")
+            Views.FloatingWindow.ShowInstances();
+        }), System.Windows.Threading.DispatcherPriority.Background);
+
         // Show help for new version
         if (ConfigService.AlreadyRead != alreadyReadCode) {
           Views.HelpWindow.ShowInstance();

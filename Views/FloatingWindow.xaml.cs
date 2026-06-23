@@ -49,6 +49,12 @@ namespace OmenSuperHub.Views {
 
     private void ContentBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) {
       this.DragMove();
+      if (ConfigService.FloatingBarLoc == "free") {
+        ConfigService.FloatingPosLeft = this.Left;
+        ConfigService.FloatingPosTop = this.Top;
+        ConfigService.Save("FloatingPosLeft");
+        ConfigService.Save("FloatingPosTop");
+      }
     }
 
     private void ApplyWindowStyles() {
@@ -105,14 +111,34 @@ namespace OmenSuperHub.Views {
       }
     }
 
+    static Color GetTempColor(float temp) {
+      if (temp < 40f) return Color.FromRgb(255, 255, 255);
+      if (temp < 55f) return LerpColor(Color.FromRgb(255,255,255), Color.FromRgb(102, 187, 106), (temp - 40f) / 15f);
+      if (temp < 70f) return LerpColor(Color.FromRgb(102, 187, 106), Color.FromRgb(255, 235, 59), (temp - 55f) / 15f);
+      if (temp < 85f) return LerpColor(Color.FromRgb(255, 235, 59), Color.FromRgb(255, 107, 107), (temp - 70f) / 15f);
+      if (temp < 95f) return LerpColor(Color.FromRgb(255, 107, 107), Color.FromRgb(180, 0, 0), (temp - 85f) / 10f);
+      return Color.FromRgb(0, 0, 0);
+    }
+
+    static Color LerpColor(Color a, Color b, float t) {
+      if (t < 0f) t = 0f;
+      if (t > 1f) t = 1f;
+      return Color.FromRgb(
+        (byte)(a.R + (b.R - a.R) * t),
+        (byte)(a.G + (b.G - a.G) * t),
+        (byte)(a.B + (b.B - a.B) * t));
+    }
+
     private static void DoUpdateText(FloatingWindow w) {
       if (w == null) return;
 
       if (HardwareService.MonitorCPU) {
         w.CpuRow.Visibility = Visibility.Visible;
         float cpuTemp = HardwareService.CPUTemp;
+        var tempColor = new SolidColorBrush(GetTempColor(cpuTemp));
+        tempColor.Freeze();
+        w.CpuTempText.Foreground = tempColor;
         w.CpuTempText.Text = $"{cpuTemp:F1}°C";
-        w.CpuTempText.Foreground = GetTempBrush(cpuTemp);
         w.CpuPowerText.Text = $"{HardwareService.CPUPower:F1}W";
       } else {
         w.CpuRow.Visibility = Visibility.Collapsed;
@@ -121,8 +147,10 @@ namespace OmenSuperHub.Views {
       if (HardwareService.MonitorGPU) {
         w.GpuRow.Visibility = Visibility.Visible;
         float gpuTemp = HardwareService.GPUTemp;
+        var gpuTempColor = new SolidColorBrush(GetTempColor(gpuTemp));
+        gpuTempColor.Freeze();
+        w.GpuTempText.Foreground = gpuTempColor;
         w.GpuTempText.Text = $"{gpuTemp:F1}°C";
-        w.GpuTempText.Foreground = GetTempBrush(gpuTemp);
         w.GpuPowerText.Text = $"{HardwareService.GPUPower:F1}W";
       } else {
         w.GpuRow.Visibility = Visibility.Collapsed;
@@ -222,7 +250,11 @@ namespace OmenSuperHub.Views {
     }
 
     private void UpdatePosition() {
-      if (ConfigService.FloatingBarLoc == "free") return;
+      if (ConfigService.FloatingBarLoc == "free") {
+        this.Left = ConfigService.FloatingPosLeft;
+        this.Top = ConfigService.FloatingPosTop;
+        return;
+      }
       var match = Forms.Screen.AllScreens.FirstOrDefault(s => s.DeviceName == _deviceName);
       var wa = match?.WorkingArea ?? Forms.Screen.PrimaryScreen.WorkingArea;
       // Convert physical pixels to WPF device-independent pixels
@@ -243,24 +275,5 @@ namespace OmenSuperHub.Views {
       this.Top = wpfTop + 10;
     }
 
-    private static SolidColorBrush GetTempBrush(float temp) {
-      if (temp < 50) {
-        return new SolidColorBrush(Color.FromRgb(0x00, 0xC8, 0x53));
-      } else if (temp < 70) {
-        double ratio = (temp - 50) / 20.0;
-        byte r = (byte)(0x00 + ratio * 0xFF);
-        byte g = (byte)(0xC8 + ratio * (0xC1 - 0xC8));
-        byte b = (byte)(0x53 - ratio * 0x53);
-        return new SolidColorBrush(Color.FromRgb(r, g, b));
-      } else if (temp < 85) {
-        double ratio = (temp - 70) / 15.0;
-        byte r = (byte)0xFF;
-        byte g = (byte)(0xC1 - ratio * 0xC1);
-        byte b = (byte)(0x07 - ratio * 0x07);
-        return new SolidColorBrush(Color.FromRgb(r, g, b));
-      } else {
-        return new SolidColorBrush(Color.FromRgb(0xFF, 0x44, 0x44));
-      }
-    }
   }
 }

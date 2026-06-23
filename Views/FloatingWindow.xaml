@@ -10,69 +10,65 @@
         Left="0" Top="0">
 
   <Grid Background="Transparent" MouseLeftButtonDown="ContentBorder_MouseLeftButtonDown">
-    <Border x:Name="ContentBorder" CornerRadius="8" Padding="14,10"
-            Background="{DynamicResource BgElevatedBrush}"
-            BorderBrush="{DynamicResource BorderDefaultBrush}"
-            BorderThickness="1">
+    <Border x:Name="ContentBorder" CornerRadius="6" Padding="12,8"
+            Background="{DynamicResource ContextMenuBackground}" BorderBrush="{DynamicResource ContextMenuBorderBrush}" BorderThickness="1">
       <Border.Effect>
-        <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270"
-                          Color="#60000000" Opacity="0.4"/>
+        <DropShadowEffect BlurRadius="12" Direction="270"
+                          Opacity="0.3" ShadowDepth="4"
+                          Color="#000000"/>
       </Border.Effect>
     </Border>
 
-    <StackPanel x:Name="DataPanel" Margin="14,10">
+    <StackPanel x:Name="DataPanel" Margin="12,8">
       <!-- CPU Row -->
-      <WrapPanel x:Name="CpuRow" Margin="0,2">
-        <TextBlock Text="CPU" FontFamily="Consolas, Microsoft YaHei UI"
-                   FontWeight="ExtraBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"
-                   x:Name="CpuLabel">
-          <TextBlock.Effect><DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.6"/></TextBlock.Effect>
+      <WrapPanel x:Name="CpuRow" Margin="0,1">
+        <TextBlock Text="CPU" FontFamily="Consolas"
+                   FontWeight="ExtraBold" FontSize="13"
+                   Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="CpuLabel">
+          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
         </TextBlock>
         <TextBlock x:Name="CpuTempText" FontFamily="Consolas"
-                   FontWeight="ExtraBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.6"/></TextBlock.Effect>
+                   FontWeight="Bold" FontSize="13"
+                   Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center">
+          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
         </TextBlock>
         <TextBlock x:Name="CpuPowerText" FontFamily="Consolas"
-                   FontWeight="ExtraBold"
-                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.6"/></TextBlock.Effect>
+                   FontWeight="Bold" FontSize="13"
+                   Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center">
+          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
         </TextBlock>
       </WrapPanel>
 
       <!-- GPU Row -->
-      <WrapPanel x:Name="GpuRow" Margin="0,2">
-        <TextBlock Text="GPU" FontFamily="Consolas, Microsoft YaHei UI"
-                   FontWeight="ExtraBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"
-                   x:Name="GpuLabel">
-          <TextBlock.Effect><DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.6"/></TextBlock.Effect>
+      <WrapPanel x:Name="GpuRow" Margin="0,1">
+        <TextBlock Text="GPU" FontFamily="Consolas"
+                   FontWeight="ExtraBold" FontSize="13"
+                   Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="GpuLabel">
+          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
         </TextBlock>
         <TextBlock x:Name="GpuTempText" FontFamily="Consolas"
-                   FontWeight="ExtraBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.6"/></TextBlock.Effect>
+                   FontWeight="Bold" FontSize="13"
+                   Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center">
+          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
         </TextBlock>
         <TextBlock x:Name="GpuPowerText" FontFamily="Consolas"
-                   FontWeight="ExtraBold"
-                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.6"/></TextBlock.Effect>
+                   FontWeight="Bold" FontSize="13"
+                   Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center">
+          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
         </TextBlock>
       </WrapPanel>
 
       <!-- Fan Row -->
-      <WrapPanel x:Name="FanRow" Margin="0,2">
-        <TextBlock Text="FAN" FontFamily="Consolas, Microsoft YaHei UI"
-                   FontWeight="ExtraBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"
-                   x:Name="FanLabel">
-          <TextBlock.Effect><DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.6"/></TextBlock.Effect>
+      <WrapPanel x:Name="FanRow" Margin="0,1">
+        <TextBlock Text="FAN" FontFamily="Consolas"
+                   FontWeight="ExtraBold" FontSize="13"
+                   Foreground="#4FC3F7" VerticalAlignment="Center" x:Name="FanLabel">
+          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
         </TextBlock>
         <TextBlock x:Name="FanSpeedText" FontFamily="Consolas"
-                   FontWeight="ExtraBold"
-                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="1" Opacity="0.6"/></TextBlock.Effect>
+                   FontWeight="Bold" FontSize="13"
+                   Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center">
+          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
         </TextBlock>
       </WrapPanel>
     </StackPanel>

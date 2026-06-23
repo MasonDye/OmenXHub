@@ -3,19 +3,24 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:app="clr-namespace:OmenSuperHub"
-      Title="{x:Static app:Strings.SysInfoHeading}">
+      Title="{x:Static app:Strings.SysInfoHeading}"
+      SizeChanged="SysInfoPage_SizeChanged">
 
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
       <TextBlock x:Name="HeadingSysInfo" Text="{x:Static app:Strings.SysInfoHeading}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
 
-      <Grid>
+      <Grid x:Name="SysInfoGrid">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-        <StackPanel Grid.Column="0" Margin="0,0,4,0">
+        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,4,0">
           <ui:CardControl Margin="0,0,0,8">
           <ui:CardControl.Header>
             <StackPanel>
@@ -68,7 +73,7 @@
           </ui:CardControl>
         </StackPanel>
 
-        <StackPanel Grid.Column="1" Margin="4,0,0,0">
+        <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,0">
           <ui:CardControl Margin="0,0,0,8">
             <ui:CardControl.Header>
               <StackPanel>
@@ -77,6 +82,29 @@
                   <TextBlock Text="{x:Static app:Strings.SysPawnTitle}" Tag="SysPawnTitle" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock x:Name="SysPawnIoText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              </StackPanel>
+            </ui:CardControl.Header>
+          </ui:CardControl>
+
+          <ui:CardControl Margin="0,0,0,8">
+            <ui:CardControl.Header>
+              <StackPanel>
+                <Grid Margin="0,0,0,10">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Info24" FontSize="18" Margin="0,0,8,0"/>
+                    <TextBlock Text="HP 驱动下载 / HP Driver Download" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <Button Grid.Column="1" Width="26" Height="20" Padding="0" Click="HpDriverSearch_Click">
+                    <ui:SymbolIcon Symbol="ArrowRight24" FontSize="14"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="SysDriverModelText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Text="点击右侧按钮打开 HP 官方驱动页面"/>
               </StackPanel>
             </ui:CardControl.Header>
           </ui:CardControl>

@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32;
+using Windows.Devices.Radios;
 using static OmenSuperHub.OmenHardware;
 
 namespace OmenSuperHub.Services {
@@ -164,10 +165,7 @@ namespace OmenSuperHub.Services {
           break;
         case "Notification":
           if (TrayService.TrayIcon != null && !string.IsNullOrEmpty(step.Value)) {
-            TrayService.TrayIcon.BalloonTipTitle = "OmenXHub Automation";
-            TrayService.TrayIcon.BalloonTipText = step.Value;
-            TrayService.TrayIcon.BalloonTipIcon = System.Windows.Forms.ToolTipIcon.Info;
-            TrayService.TrayIcon.ShowBalloonTip(3000);
+            TrayService.TrayIcon.ShowBalloonTip("OmenXHub Automation", step.Value, 3000);
           }
           break;
         case "SetIccMax":
@@ -289,6 +287,7 @@ namespace OmenSuperHub.Services {
       // Apply refresh rate from preset config
       if (ConfigService.RefreshRate > 0)
         ApplyRefreshRate(ConfigService.RefreshRate);
+      Views.OsdWindow.ShowPresetOsd(preset);
       ConfigService.FirePresetCycled(preset);
     }
 
@@ -550,30 +549,28 @@ namespace OmenSuperHub.Services {
         }
       }
 
-      internal static void SetWiFi(bool enable) {
+      internal static async void SetWiFi(bool enable) {
         try {
-          string op = enable ? "Enable" : "Disable";
-          using (var searcher = new ManagementObjectSearcher(@"root\CIMV2",
-              "SELECT * FROM Win32_NetworkAdapter WHERE NetEnabled = " + (enable ? "false" : "true") +
-              " AND (Name LIKE '%Wi-Fi%' OR Name LIKE '%Wireless%' OR Name LIKE '%WLAN%' OR AdapterType LIKE '%Wireless%')")) {
-            foreach (ManagementObject mo in searcher.Get()) {
-              mo.InvokeMethod(op, null);
-            }
+          var access = await Radio.RequestAccessAsync();
+          if (access != RadioAccessStatus.Allowed) return;
+          var radios = await Radio.GetRadiosAsync();
+          foreach (var r in radios) {
+            if (r.Kind == RadioKind.WiFi)
+              await r.SetStateAsync(enable ? RadioState.On : RadioState.Off);
           }
         } catch (Exception ex) {
           Logger.Error("SetWiFi failed: " + ex.Message);
         }
       }
 
-      internal static void SetBluetooth(bool enable) {
+      internal static async void SetBluetooth(bool enable) {
         try {
-          string op = enable ? "Enable" : "Disable";
-          using (var searcher = new ManagementObjectSearcher(@"root\CIMV2",
-              "SELECT * FROM Win32_PnPEntity WHERE Status = 'OK' AND (PNPClass = 'Bluetooth' OR Name LIKE '%Bluetooth%')" +
-              " AND (Name LIKE '%Radio%' OR Name LIKE '%Adapter%' OR Service = 'BTHUSB' OR Service = 'BTUSB' OR Service = 'RFCOMM')")) {
-            foreach (ManagementObject mo in searcher.Get()) {
-              mo.InvokeMethod(op, null);
-            }
+          var access = await Radio.RequestAccessAsync();
+          if (access != RadioAccessStatus.Allowed) return;
+          var radios = await Radio.GetRadiosAsync();
+          foreach (var r in radios) {
+            if (r.Kind == RadioKind.Bluetooth)
+              await r.SetStateAsync(enable ? RadioState.On : RadioState.Off);
           }
         } catch (Exception ex) {
           Logger.Error("SetBluetooth failed: " + ex.Message);

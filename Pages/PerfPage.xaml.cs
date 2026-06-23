@@ -638,19 +638,21 @@ namespace OmenSuperHub.Pages {
             MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (confirm != MessageBoxResult.Yes) { LoadState(); return; }
       }
-      if (mode >= 0) {
-        if (SetGfxMode(mode)) {
+      if (mode >= 0 && SetGfxMode(mode)) {
+        GetGfxMode(out int current);
+        if (current == mode) {
           System.Windows.MessageBox.Show(Strings.GfxSwitchedTo(
               mode == 0 ? "NVIDIA Advanced Optimus" :
               mode == 1 ? Strings.GfxDiscreteMode :
               mode == 2 ? Strings.GfxHybridMode : Strings.GfxUMALabel), Strings.Hint,
               MessageBoxButton.OK, MessageBoxImage.Information);
-          GetGfxMode(out int current);
-          if (current != mode) {
-            System.Windows.MessageBox.Show(Strings.GfxUnsupported, Strings.Error,
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-            LoadState();
-          }
+        } else {
+          System.Windows.MessageBox.Show(Strings.GfxSwitchedTo(
+              mode == 0 ? "NVIDIA Advanced Optimus" :
+              mode == 1 ? Strings.GfxDiscreteMode :
+              mode == 2 ? Strings.GfxHybridMode : Strings.GfxUMALabel) +
+              "\n" + Strings.PerfGfxReboot, Strings.Hint,
+              MessageBoxButton.OK, MessageBoxImage.Information);
         }
       }
     }
@@ -899,6 +901,53 @@ namespace OmenSuperHub.Pages {
       if (ret != 0) {
         dm.dmDisplayFrequency = prevHz;
         NativeMethods_Display.ChangeDisplaySettings(ref dm, 0);
+      }
+    }
+
+    bool _perfExpanded = true;
+    const double PerfCollapseWidth = 1000;
+
+    void PerfPage_SizeChanged(object sender, SizeChangedEventArgs e) {
+      if (!e.WidthChanged) return;
+      if (e.NewSize.Width > PerfCollapseWidth) {
+        if (!_perfExpanded) { _perfExpanded = true; ExpandPerfGrids(); }
+      } else {
+        if (_perfExpanded) { _perfExpanded = false; CollapsePerfGrids(); }
+      }
+    }
+
+    void ExpandPerfGrids() {
+      LayoutPerfGrid(CpuPerfGrid, expand: true);
+      LayoutPerfGrid(GpuPerfGrid, expand: true);
+    }
+
+    void CollapsePerfGrids() {
+      LayoutPerfGrid(CpuPerfGrid, expand: false);
+      LayoutPerfGrid(GpuPerfGrid, expand: false);
+    }
+
+    void LayoutPerfGrid(Grid grid, bool expand) {
+      int childCount = grid.Children.Count;
+      if (childCount == 0) return;
+      bool isCpu = (childCount == 7);
+      grid.ColumnDefinitions[1].Width = expand
+        ? new GridLength(1, GridUnitType.Star)
+        : new GridLength(0, GridUnitType.Pixel);
+      for (int i = 0; i < childCount; i++) {
+        if (!(grid.Children[i] is FrameworkElement c)) continue;
+        if (expand) {
+          Thickness expandMargin = (i % 2 == 0) ? new Thickness(0, 0, 4, 8) : new Thickness(4, 0, 0, 8);
+          if (isCpu && i == 6) {
+            Grid.SetRow(c, 3); Grid.SetColumn(c, 0); Grid.SetColumnSpan(c, 2);
+            c.Margin = new Thickness(0, 0, 0, 8);
+          } else {
+            Grid.SetRow(c, i / 2); Grid.SetColumn(c, i % 2); Grid.SetColumnSpan(c, 1);
+            c.Margin = expandMargin;
+          }
+        } else {
+          Grid.SetRow(c, i); Grid.SetColumn(c, 0); Grid.SetColumnSpan(c, 1);
+          c.Margin = new Thickness(0, 0, 0, 8);
+        }
       }
     }
   }

@@ -837,7 +837,18 @@ namespace OmenSuperHub {
                 if (lower.Contains("name") && !lower.Contains("password")) inParams[pd.Name] = settingName;
                 else if (lower.Contains("value")) inParams[pd.Name] = settingValue;
                 else if (setPassword && lower.Contains("password")) inParams[pd.Name] = "";
-              } catch { }
+          } catch {
+            try {
+              using (var searcher = new System.Management.ManagementObjectSearcher("SELECT Model FROM Win32_ComputerSystem"))
+              using (var results = searcher.Get()) {
+                foreach (System.Management.ManagementObject mo in results) {
+                  string model = mo["Model"]?.ToString() ?? "";
+                  if (model.Contains("OMEN") || model.Contains("VICTUS") || model.Contains("PAVILION"))
+                    _isGamingProduct = true;
+                }
+              }
+            } catch { }
+          }
             }
             var result = cls.InvokeMethod("SetBIOSSetting", inParams, new InvokeMethodOptions());
             var ret = result?["ReturnValue"];

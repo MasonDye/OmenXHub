@@ -95,7 +95,10 @@
                 <ComboBoxItem Content="{x:Static app:Strings.FanCurveGPULabel}"/>
               </ComboBox>
             </Grid>
-            <TextBlock x:Name="FanCurveTipText" Text="{x:Static app:Strings.FanCurveTip}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,12,0,12"/>
+            <StackPanel Margin="0,12,0,12">
+              <TextBlock x:Name="FanCurveTipText" Text="{x:Static app:Strings.FanCurveTip}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+              <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Text="可右键创建或删除控制点"/>
+            </StackPanel>
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="45"/>

@@ -19,24 +19,24 @@ namespace OmenSuperHub.Pages
 {
     public partial class SysInfoPage : Page
     {
-        DispatcherTimer _refreshTimer;
         bool _loading;
+        Action<string> _presetCycledHandler;
 
         public SysInfoPage()
         {
             InitializeComponent();
+            _presetCycledHandler = presetName => { _ = RefreshNvidiaPowerLimitAsync(); };
             Loaded += (s, e) =>
             {
                 _loading = true;
                 LoadState();
                 _loading = false;
                 RefreshSysInfo();
-                _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-                _refreshTimer.Tick += (s2, e2) => RefreshSensors();
-                _refreshTimer.Start();
-                RefreshGpuAppList();
+                Dispatcher.BeginInvoke(new Action(RefreshGpuAppList), DispatcherPriority.Background);
+                _ = RefreshNvidiaPowerLimitAsync();
+                ConfigService.OnPresetCycled += _presetCycledHandler;
             };
-            Unloaded += (s, e) => _refreshTimer?.Stop();
+            Unloaded += (s, e) => ConfigService.OnPresetCycled -= _presetCycledHandler;
         }
 
         void LoadState()
@@ -73,13 +73,18 @@ namespace OmenSuperHub.Pages
                     ? Strings.SysNvidiaPowerLimitText(ConfigService.SysNvidiaPowerMin + " / " + ConfigService.SysNvidiaPowerMax)
                     : "";
                 SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyboardLightingType)ConfigService.SysKbRaw);
-                UpdateSysInfoFooter();
+                SysPawnIoText.Text = ConfigService.SysPawnIoText;
                 return;
             }
             Task.Run(() =>
             {
                 string mfr = null, model = null, bios = null, cpu = null, gpu = null;
                 int adapterW = 0;
+                string pn = null, board = null;
+                int validation = 0, tj = 0, nvidiaTj = 0;
+                float[] powerLimits = null;
+                string kb = null;
+                string pawnIoText = "", cpuTemp = "", gpuTemp = "", irTemp = "", ambTemp = "", pchTemp = "", vrTemp = "";
                 try
                 {
                     using (var searcher = new ManagementObjectSearcher("SELECT Manufacturer, Model FROM Win32_ComputerSystem"))
@@ -101,60 +106,84 @@ namespace OmenSuperHub.Pages
                 {
                     Logger.Error("RefreshSysInfo WMI error: " + ex.Message);
                 }
-                var capturedMfr = mfr; var capturedModel = model; var capturedBios = bios;
-                var capturedCpu = cpu; var capturedGpu = gpu; var capturedAdapterW = adapterW;
+                try { pn = DeviceModel.OmenPlatform.DisplayName; } catch { }
+                try { board = DeviceModel.ThisSystemID; } catch { }
+                try { validation = Validation(); } catch { }
+                try { tj = GetCpuTjmax(); } catch { }
+                try { nvidiaTj = GpuAppManager.GetGpuTemperatureTarget(); } catch { }
+                try { powerLimits = GpuAppManager.GetGpuPowerLimits(); } catch { }
+                int kbRaw = 0;
+                try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboardType())); } catch { }
+                try
+                {
+                    pawnIoText = LibreHardwareMonitor.PawnIo.PawnIo.IsInstalled
+                        ? "✔ " + Strings.SysPawnInstalled + " v" + LibreHardwareMonitor.PawnIo.PawnIo.Version().ToString()
+                        : "✘ " + Strings.SysPawnMissing;
+                }
+                catch { pawnIoText = "✘ " + Strings.SysPawnMissing; }
+                try
+                {
+                    cpuTemp = Strings.SysCPUTemp + ": " + (int)HardwareService.CPUTemp + " °C";
+                    gpuTemp = Strings.SysGPUTemp + ": " + (int)HardwareService.GPUTemp + " °C";
+                    irTemp = Strings.SysIRSensor + ": " + GetSensorTemperature(0) + " °C";
+                    ambTemp = Strings.SysAmbient + ": " + GetSensorTemperature(1) + " °C";
+                    pchTemp = Strings.SysPCH + ": " + GetSensorTemperature(2) + " °C";
+                    vrTemp = Strings.SysVR + ": " + GetSensorTemperature(3) + " °C";
+                }
+                catch { }
+                string _pn = pn, _board = board;
+                int _validation = validation, _tj = tj, _nvidiaTj = nvidiaTj, _kbRaw = kbRaw;
+                string _kb = kb;
+                float[] _powerLimits = powerLimits;
                 Dispatcher.InvokeAsync(() =>
                 {
-                    if (capturedMfr != null)
+                    if (mfr != null)
                     {
-                        SysManufacturerText.Text = Strings.SysManufacturer + ": " + capturedMfr;
-                        SysModelText.Text = Strings.SysModel + ": " + capturedModel;
-                        ConfigService.SysManufacturer = capturedMfr;
-                        ConfigService.SysModel = capturedModel;
-                        SysBiosText.Text = Strings.SysBiosVersion + ": " + capturedBios;
-                        ConfigService.SysBios = capturedBios;
-                        SysCpuText.Text = Strings.SysCpuModel + ": " + capturedCpu;
-                        ConfigService.SysCpu = capturedCpu;
-                        SysGpuText.Text = Strings.SysGpuList + ": " + capturedGpu;
-                        ConfigService.SysGpu = capturedGpu;
-                        SysAdapterText.Text = Strings.SysAdapterPower + ": " + capturedAdapterW + " W";
-                        ConfigService.SysAdapterPower = capturedAdapterW;
+                        SysManufacturerText.Text = Strings.SysManufacturer + ": " + mfr;
+                        SysModelText.Text = Strings.SysModel + ": " + model;
+                        ConfigService.SysManufacturer = mfr;
+                        ConfigService.SysModel = model;
+                        SysBiosText.Text = Strings.SysBiosVersion + ": " + bios;
+                        ConfigService.SysBios = bios;
+                        SysCpuText.Text = Strings.SysCpuModel + ": " + cpu;
+                        ConfigService.SysCpu = cpu;
+                        SysGpuText.Text = Strings.SysGpuList + ": " + gpu;
+                        ConfigService.SysGpu = gpu;
+                        SysAdapterText.Text = Strings.SysAdapterPower + ": " + adapterW + " W";
+                        ConfigService.SysAdapterPower = adapterW;
+                        SysDriverModelText.Text = Strings.SysModel + ": " + model;
                     }
-                    string pn = null, board = null;
-                    int validation = 0, tj = 0, nvidiaTj = 0;
-                    try { pn = DeviceModel.OmenPlatform.DisplayName; } catch { }
-                    try { board = DeviceModel.ThisSystemID; } catch { }
-                    try { validation = Validation(); } catch { }
-                    try { tj = GetCpuTjmax(); } catch { }
-                    try { nvidiaTj = GpuAppManager.GetGpuTemperatureTarget(); } catch { }
-                    var powerLimits = new float[2];
-                    try { powerLimits = GpuAppManager.GetGpuPowerLimits(); } catch { }
-                    string kb = null;
-                    try { kb = GetKeyboardTypeName(GetKeyboardType()); } catch { }
-                    SysProductNameText.Text = Strings.SysModelName + ": " + (pn ?? Strings.SysUnknown);
-                    ConfigService.SysProductName = pn ?? Strings.SysUnknown;
+                    SysProductNameText.Text = Strings.SysModelName + ": " + (_pn ?? Strings.SysUnknown);
+                    ConfigService.SysProductName = _pn ?? Strings.SysUnknown;
                     SysValidationText.Text = Strings.SysModelValidation + ": " + (
-                        validation >= 2 ? Strings.ValidationGamingProduct :
-                        validation == 1 ? Strings.ValidationUnsupported : Strings.ValidationUnsupported);
-                    ConfigService.SysValidation = validation;
-                    SysBoardText.Text = Strings.SysBoardProduct + ": " + (board ?? Strings.SysUnknown);
-                    ConfigService.SysBoardProduct = board ?? Strings.SysUnknown;
-                    SysCpuTjmaxText.Text = Strings.SysCpuTjMax + ": " + tj + " °C";
-                    ConfigService.SysCpuTjmax = tj;
-                    SysNvidiaTjmaxText.Text = nvidiaTj > 0 ? Strings.SysNvidiaTjMax + ": " + nvidiaTj + " °C" : "";
-                    ConfigService.SysNvidiaTjmax = nvidiaTj;
-                    if (powerLimits[0] > 0)
+                        _validation >= 2 ? Strings.ValidationGamingProduct :
+                        _validation == 1 ? Strings.ValidationUnsupported : Strings.ValidationUnsupported);
+                    ConfigService.SysValidation = _validation;
+                    SysBoardText.Text = Strings.SysBoardProduct + ": " + (_board ?? Strings.SysUnknown);
+                    ConfigService.SysBoardProduct = _board ?? Strings.SysUnknown;
+                    SysCpuTjmaxText.Text = Strings.SysCpuTjMax + ": " + _tj + " °C";
+                    ConfigService.SysCpuTjmax = _tj;
+                    SysNvidiaTjmaxText.Text = _nvidiaTj > 0 ? Strings.SysNvidiaTjMax + ": " + _nvidiaTj + " °C" : "";
+                    ConfigService.SysNvidiaTjmax = _nvidiaTj;
+                    if (_powerLimits != null && _powerLimits[0] > 0)
                     {
-                        SysNvidiaPowerText.Text = Strings.SysNvidiaPowerLimitText($"{powerLimits[0]:F0}W / {powerLimits[1]:F0}W");
-                        ConfigService.SysNvidiaPowerMin = $"{powerLimits[0]:F0}W";
-                        ConfigService.SysNvidiaPowerMax = $"{powerLimits[1]:F0}W";
+                        SysNvidiaPowerText.Text = Strings.SysNvidiaPowerLimitText($"{_powerLimits[0]:F0}W / {_powerLimits[1]:F0}W");
+                        ConfigService.SysNvidiaPowerMin = $"{_powerLimits[0]:F0}W";
+                        ConfigService.SysNvidiaPowerMax = $"{_powerLimits[1]:F0}W";
                     }
-                    SysKbLightTypeText.Text = Strings.SysKbType + ": " + (kb ?? Strings.SysUnknown);
-                    ConfigService.SysKbType = kb ?? Strings.SysUnknown;
-                    try { ConfigService.SysKbRaw = (int)GetKeyboardType(); } catch { }
+                    SysKbLightTypeText.Text = Strings.SysKbType + ": " + (_kb ?? Strings.SysUnknown);
+                    ConfigService.SysKbType = _kb ?? Strings.SysUnknown;
+                    ConfigService.SysKbRaw = _kbRaw;
+                    SysPawnIoText.Text = pawnIoText;
+                    ConfigService.SysPawnIoText = pawnIoText;
+                    SysCpuTempText.Text = cpuTemp;
+                    SysGpuTempText.Text = gpuTemp;
+                    SysIrSensorText.Text = irTemp;
+                    SysAmbientText.Text = ambTemp;
+                    SysPchText.Text = pchTemp;
+                    SysVrText.Text = vrTemp;
                     ConfigService.Save();
-                    UpdateSysInfoFooter();
-                });
+                }, DispatcherPriority.Background);
             });
         }
 
@@ -198,6 +227,7 @@ namespace OmenSuperHub.Pages
             SysPchText.Text = Strings.SysPCH + ": " + pch + " °C";
             int vr = GetSensorTemperature(3);
             SysVrText.Text = Strings.SysVR + ": " + vr + " °C";
+            _ = RefreshNvidiaPowerLimitAsync();
         }
 
         int GetCpuTjmax()
@@ -244,9 +274,7 @@ namespace OmenSuperHub.Pages
 
         void SysInfoRefresh_Click(object sender, RoutedEventArgs e)
         {
-            MachineInfoCache.Invalidate();
-            ConfigService.SysManufacturer = "";
-            RefreshSysInfo();
+            RefreshSensors();
         }
 
         void MonCpu_SelectionChanged(object s, SelectionChangedEventArgs e)
@@ -283,10 +311,7 @@ namespace OmenSuperHub.Pages
         void MonRefresh_SelectionChanged(object s, SelectionChangedEventArgs e)
         {
             if (_loading) return;
-            bool high = MonRefreshCombo.SelectedIndex == 0;
-            int interval = high ? 250 : 1000;
-            if (_refreshTimer != null)
-                _refreshTimer.Interval = TimeSpan.FromMilliseconds(interval);
+            int interval = MonRefreshCombo.SelectedIndex == 0 ? 250 : 1000;
             ConfigService.MonRefreshInterval = interval;
             ConfigService.Save("MonRefreshInterval");
         }
@@ -393,5 +418,41 @@ namespace OmenSuperHub.Pages
             return null;
         }
 
+        void HpDriverSearch_Click(object sender, RoutedEventArgs e)
+        {
+            try { Process.Start(new ProcessStartInfo("https://support.hp.com/cn-zh/product/detect?source=swd") { UseShellExecute = true }); } catch { }
+        }
+
+        bool _sysInfoExpanded = true;
+        const double SysInfoCollapseWidth = 1000;
+
+        void SysInfoPage_SizeChanged(object sender, SizeChangedEventArgs e) {
+            if (!e.WidthChanged) return;
+            if (e.NewSize.Width > SysInfoCollapseWidth) {
+                if (!_sysInfoExpanded) { _sysInfoExpanded = true; ExpandSysInfo(); }
+            } else {
+                if (_sysInfoExpanded) { _sysInfoExpanded = false; CollapseSysInfo(); }
+            }
+        }
+
+        void ExpandSysInfo() {
+            var col1 = SysInfoGrid.ColumnDefinitions[1];
+            col1.Width = new GridLength(1, GridUnitType.Star);
+
+            var left = SysInfoGrid.Children[0] as FrameworkElement;
+            var right = SysInfoGrid.Children[1] as FrameworkElement;
+            if (left != null) { Grid.SetRow(left, 0); Grid.SetColumn(left, 0); Grid.SetColumnSpan(left, 1); left.Margin = new Thickness(0, 0, 4, 0); }
+            if (right != null) { Grid.SetRow(right, 0); Grid.SetColumn(right, 1); Grid.SetColumnSpan(right, 1); right.Margin = new Thickness(4, 0, 0, 0); }
+        }
+
+        void CollapseSysInfo() {
+            var col1 = SysInfoGrid.ColumnDefinitions[1];
+            col1.Width = new GridLength(0, GridUnitType.Pixel);
+
+            var left = SysInfoGrid.Children[0] as FrameworkElement;
+            var right = SysInfoGrid.Children[1] as FrameworkElement;
+            if (left != null) { Grid.SetRow(left, 0); Grid.SetColumn(left, 0); Grid.SetColumnSpan(left, 2); left.Margin = new Thickness(0); }
+            if (right != null) { Grid.SetRow(right, 1); Grid.SetColumn(right, 0); Grid.SetColumnSpan(right, 2); right.Margin = new Thickness(0); }
+        }
     }
 }

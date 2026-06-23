@@ -18,7 +18,7 @@
                      Margin="-2,0,0,0" HorizontalAlignment="Left"
                      VerticalAlignment="Center" Opacity="0"
                      RadiusX="2" RadiusY="2"
-                     Fill="{DynamicResource SystemAccentColorSecondaryBrush}"/>
+                      Fill="{DynamicResource SystemAccentColorSecondaryBrush}"/>
           <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
             <ContentPresenter x:Name="IconPresenter"
                               Content="{TemplateBinding Icon}" Margin="0,6,0,0"

@@ -3,8 +3,13 @@ using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Interop;
 using OmenSuperHub.Services;
+using OmenSuperHub.Views;
 using Wpf.Ui.Controls;
 
 namespace OmenSuperHub.Utils {
@@ -16,56 +21,120 @@ namespace OmenSuperHub.Utils {
 
     private readonly Action _bringToForeground;
     private System.Windows.Controls.ContextMenu _contextMenu;
-    private NotifyIcon _notifyIcon;
     private System.Timers.Timer _tooltipUpdateTimer;
+    private CancellationTokenSource _popupCts;
+    private TrayPopupWindow _popupWindow;
+    private NativeTrayIcon _trayIcon;
 
-    public TrayHelper(Action bringToForeground, NotifyIcon existingIcon = null) {
+    public TrayHelper(Action bringToForeground, NativeTrayIcon sharedIcon) {
       _bringToForeground = bringToForeground;
       _contextMenu = new System.Windows.Controls.ContextMenu();
       BuildContextMenu();
 
-      _notifyIcon = existingIcon ?? CreateDefaultIcon();
-      _notifyIcon.MouseClick += OnMouseClick;
-      _notifyIcon.MouseDoubleClick += (s, e) => _bringToForeground();
+      // Create our own NativeTrayIcon for event handling (visible icon)
+      _trayIcon = new NativeTrayIcon();
+      _trayIcon.SetIcon(sharedIcon.Icon);
+      _trayIcon.MouseEnter += OnMouseEnter;
+      _trayIcon.MouseLeave += OnMouseLeave;
+      _trayIcon.Click += OnClick;
+      _trayIcon.RightClick += OnRightClick;
 
       _tooltipUpdateTimer = new System.Timers.Timer(1000) { AutoReset = true };
       _tooltipUpdateTimer.Elapsed += (_, _) => UpdateTooltip();
       _tooltipUpdateTimer.Start();
     }
 
-    NotifyIcon CreateDefaultIcon() {
-      var icon = new NotifyIcon { Icon = LoadLogoIcon(), Text = "OMEN X Hub" };
-      return icon;
+    void OnMouseEnter() {
+      System.Windows.Application.Current?.Dispatcher.Invoke(() => {
+        if (_popupWindow != null) return;
+        try {
+          var w = new TrayPopupWindow();
+          w.UpdateContent();
+          w.WindowStartupLocation = WindowStartupLocation.Manual;
+          MoveToCursor(w);
+          _popupWindow = w;
+          w.Show();
+        } catch { }
+      });
     }
 
-    void OnMouseClick(object s, MouseEventArgs e) {
-      if (e.Button == MouseButtons.Right) {
-        System.Windows.Application.Current?.Dispatcher.Invoke(() => {
-          var mw = System.Windows.Application.Current.MainWindow;
-          if (mw != null) {
-            var handle = new System.Windows.Interop.WindowInteropHelper(mw).Handle;
-            SetForegroundWindow(handle);
-          }
-          _contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
-          _contextMenu.IsOpen = true;
-        });
+    void OnMouseLeave() {
+      System.Windows.Application.Current?.Dispatcher.Invoke(() => {
+        if (_popupWindow != null) {
+          var w = _popupWindow;
+          _popupWindow = null;
+          w.Close();
+        }
+      });
+    }
+
+    void OnClick() {
+      HidePopup();
+      _bringToForeground();
+    }
+
+    void OnRightClick() {
+      HidePopup();
+      System.Windows.Application.Current?.Dispatcher.Invoke(() => {
+        var mw = System.Windows.Application.Current.MainWindow;
+        if (mw != null) {
+          var handle = new System.Windows.Interop.WindowInteropHelper(mw).Handle;
+          SetForegroundWindow(handle);
+        }
+        _contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        _contextMenu.IsOpen = true;
+      });
+    }
+
+    void MoveToCursor(Window w) {
+      try {
+        var mouse = Control.MousePosition;
+        var screen = Screen.FromPoint(mouse).WorkingArea;
+        int cw = 220, ch = 110;
+        int gap = 30;
+        int left = mouse.X - cw - gap;
+        int top = mouse.Y - ch - 110;
+        if (left < screen.Left) left = mouse.X;
+        if (top < screen.Top) top = mouse.Y;
+        if (left + cw > screen.Right) left = screen.Right - cw;
+        if (top + ch > screen.Bottom) top = screen.Bottom - ch;
+
+        float dpiX = 96f, dpiY = 96f;
+        using (var g = Graphics.FromHwnd(IntPtr.Zero)) {
+          dpiX = g.DpiX;
+          dpiY = g.DpiY;
+        }
+        w.Left = left * 96.0 / dpiX;
+        w.Top = top * 96.0 / dpiY;
+      } catch {
+        w.Left = SystemParameters.WorkArea.Right - 230;
+        w.Top = SystemParameters.WorkArea.Bottom - 93;
       }
+    }
+
+    public void UpdatePopupIfOpen() {
+      var w = _popupWindow;
+      if (w != null && w.IsLoaded) {
+        System.Windows.Application.Current?.Dispatcher.Invoke(() => w.UpdateContent());
+      }
+    }
+
+    void HidePopup() {
+      _popupCts?.Cancel();
+      var w = _popupWindow;
+      if (w == null) return;
+      _popupWindow = null;
+      w.Close();
     }
 
     void BuildContextMenu() {
       _contextMenu.Items.Clear();
-
-      // Quick actions (from enabled pipelines without triggers)
       var qas = AutomationService.GetQuickActions();
       if (qas.Count > 0) {
-        // RemoveAll is needed because GetQuickActions may have changed since last build
-        foreach (var qa in qas) {
+        foreach (var qa in qas)
           AddMenuItem(qa.Name, () => AutomationProcessor.ExecutePipeline(qa), SymbolRegular.Play24);
-        }
         _contextMenu.Items.Add(new System.Windows.Controls.Separator());
       }
-
-      // Navigation items (icons matching sidebar navigation)
       AddNavMenuItem(Strings.SidebarDashboard, "Dashboard", SymbolRegular.Home24);
       AddNavMenuItem(Strings.SidebarFan, "Fan", SymbolRegular.ArrowSync24);
       AddNavMenuItem(Strings.SidebarPerf, "Perf", SymbolRegular.Gauge24);
@@ -74,13 +143,8 @@ namespace OmenSuperHub.Utils {
       AddNavMenuItem(Strings.SidebarOther, "Other", SymbolRegular.MoreHorizontal24);
       AddNavMenuItem(Strings.SidebarSysInfo, "SysInfo", SymbolRegular.Info24);
       AddNavMenuItem(Strings.SidebarSettings, "Settings", SymbolRegular.Settings24);
-
       _contextMenu.Items.Add(new System.Windows.Controls.Separator());
-
-      // Open control panel
       AddMenuItem(Strings.OmenKeyShowMain, () => _bringToForeground(), SymbolRegular.Window24);
-
-      // Language submenu
       var langMenu = new System.Windows.Controls.MenuItem {
         Header = Strings.LanguageMenu,
         Icon = new SymbolIcon { Symbol = SymbolRegular.Globe24 }
@@ -89,13 +153,8 @@ namespace OmenSuperHub.Utils {
       langMenu.Items.Add(CreateLangMenuItem("繁體中文", AppLanguage.TraditionalChinese));
       langMenu.Items.Add(CreateLangMenuItem("English", AppLanguage.English));
       _contextMenu.Items.Add(langMenu);
-
-      // Help
       AddMenuItem(Strings.Help, () => Views.HelpWindow.ShowInstance(), SymbolRegular.QuestionCircle24);
-
       _contextMenu.Items.Add(new System.Windows.Controls.Separator());
-
-      // Exit
       AddMenuItem(Strings.Exit, () => TrayService.Exit(), SymbolRegular.SignOut24);
     }
 
@@ -104,26 +163,20 @@ namespace OmenSuperHub.Utils {
         Header = header,
         Icon = new SymbolIcon { Symbol = icon }
       };
-      item.Click += (s, e) => {
-        _contextMenu.IsOpen = false;
-        Views.MainWindow.NavigateToPage(pageTag);
-      };
+      item.Click += (s, e) => { _contextMenu.IsOpen = false; Views.MainWindow.NavigateToPage(pageTag); };
       _contextMenu.Items.Add(item);
     }
 
     void AddMenuItem(string header, Action action, SymbolRegular? icon = null) {
       var item = new System.Windows.Controls.MenuItem { Header = header };
-      if (icon.HasValue)
-        item.Icon = new SymbolIcon { Symbol = icon.Value };
+      if (icon.HasValue) item.Icon = new SymbolIcon { Symbol = icon.Value };
       item.Click += (s, e) => { _contextMenu.IsOpen = false; action(); };
       _contextMenu.Items.Add(item);
     }
 
     System.Windows.Controls.MenuItem CreateLangMenuItem(string header, AppLanguage lang) {
       var item = new System.Windows.Controls.MenuItem {
-        Header = header,
-        IsCheckable = true,
-        IsChecked = Strings.Current == lang
+        Header = header, IsCheckable = true, IsChecked = Strings.Current == lang
       };
       item.Click += (s, e) => {
         Strings.SetLanguage(lang);
@@ -143,20 +196,25 @@ namespace OmenSuperHub.Utils {
       HardwareService.QueryHardware();
       if (HardwareService.MonitorFan)
         HardwareService.FanSpeedNow = OmenHardware.GetFanLevel();
-      string text = HardwareService.GetMonitorText();
-      if (_notifyIcon != null) _notifyIcon.Text = text;
+      try {
+        var tip = $"OMEN X Hub · CPU {(int)HardwareService.CPUTemp}°C";
+        if (ConfigService.MonitorGPU)
+          tip += $" · GPU {(int)HardwareService.GPUTemp}°C";
+        _trayIcon?.SetTip(tip);
+      } catch { }
     }
 
-    public void MakeVisible() {
-      if (_notifyIcon != null) _notifyIcon.Visible = true;
-    }
+    public void MakeVisible() { _trayIcon.Show(); }
 
     public void Dispose() {
       GC.SuppressFinalize(this);
+      HidePopup();
+      _popupCts?.Dispose();
       _tooltipUpdateTimer?.Stop();
       _tooltipUpdateTimer?.Dispose();
       _tooltipUpdateTimer = null;
-      _notifyIcon = null; // TrayService owns the icon lifetime
+      _trayIcon?.Dispose();
+      _trayIcon = null;
     }
 
     public static Icon LoadLogoIcon(int size = 0) {

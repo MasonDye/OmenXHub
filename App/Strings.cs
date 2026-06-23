@@ -918,5 +918,60 @@ namespace OmenSuperHub {
     public static string AutomationStepCount(int count) => T($"{count} 个步骤", $"{count} 個步驟", $"{count} steps");
     public static string AutomationExecuting => T(" [执行中...]", " [執行中...]", " [Executing...]");
 
+    // ═══ Hetero CPU (AMD dual-CCD hybrid scheduling) ═══
+    public static string HeteroCpuHeading => T("异构调度 (AMD双CCD)", "異構調度 (AMD雙CCD)", "Hetero CPU (AMD Dual-CCD)");
+    public static string HeteroCpuToggleLabel => T("启用异构调度", "啟用異構調度", "Enable Hetero Scheduling");
+    public static string HeteroCpuToggleDesc => T("模拟Intel大小核调度，需重启生效", "模擬Intel大小核調度，需重啟生效", "Simulate Intel hybrid scheduling. Reboot required.");
+    public static string HeteroCpuMaskLabel => T("SmallProcessorMask", "SmallProcessorMask", "SmallProcessorMask");
+    public static string HeteroCpuMaskDesc => T("小核掩码 (十六进制，如 FFFF0000)", "小核遮罩 (十六進制，如 FFFF0000)", "Small core mask (hex, e.g. FFFF0000)");
+    public static string HeteroCpuDetectAuto => T("自动检测拓扑", "自動檢測拓撲", "Auto Detect");
+    public static string HeteroCpuDefaultPolicyLabel => T("默认调度策略", "預設調度策略", "Default Policy");
+    public static string HeteroCpuDefaultPolicyDesc => T("DefaultDynamicHeteroCpuPolicy", "DefaultDynamicHeteroCpuPolicy", "DefaultDynamicHeteroCpuPolicy");
+    public static string HeteroCpuRuntimeLabel => T("预期运行时间 (ms)", "預期運行時間 (ms)", "Expected Runtime (ms)");
+    public static string HeteroCpuRuntimeDesc => T("DynamicCpuPolicyExpectedRuntime", "DynamicCpuPolicyExpectedRuntime", "DynamicCpuPolicyExpectedRuntime");
+    public static string HeteroCpuImportantPolicyLabel => T("重要任务调度策略", "重要任務調度策略", "Important Task Policy");
+    public static string HeteroCpuImportantPolicyDesc => T("DynamicHeteroCpuPolicyImportant", "DynamicHeteroCpuPolicyImportant", "DynamicHeteroCpuPolicyImportant");
+    public static string HeteroCpuImportantShortLabel => T("重要短任务调度策略", "重要短任務調度策略", "Important Short Task Policy");
+    public static string HeteroCpuImportantShortDesc => T("DynamicHeteroCpuPolicyImportantShort", "DynamicHeteroCpuPolicyImportantShort", "DynamicHeteroCpuPolicyImportantShort");
+    public static string HeteroCpuPolicyMaskLabel => T("重要任务判断依据", "重要任務判斷依據", "Policy Mask");
+    public static string HeteroCpuPolicyMaskDesc => T("DynamicHeteroCpuPolicyMask", "DynamicHeteroCpuPolicyMask", "DynamicHeteroCpuPolicyMask");
+    public static string HeteroCpuPriorityLabel => T("重要任务优先级阈值", "重要任務優先級閾值", "Important Priority Threshold");
+    public static string HeteroCpuPriorityDesc => T("DynamicHeteroCpuPolicyImportantPriority", "DynamicHeteroCpuPolicyImportantPriority", "DynamicHeteroCpuPolicyImportantPriority");
+    public static string HeteroCpuApplyBtn => T("应用设置", "應用設定", "Apply");
+    public static string HeteroCpuRestoreBtn => T("恢复默认", "恢復預設", "Restore Defaults");
+
+    // Hetero CPU policy ComboBox labels
+    public static string HeteroPolicyAny => T("0 - 任何核心", "0 - 任何核心", "0 - Any Core");
+    public static string HeteroPolicyBig => T("1 - 大核", "1 - 大核", "1 - Big Core");
+    public static string HeteroPolicyBigOrIdle => T("2 - 大核或闲置", "2 - 大核或閒置", "2 - Big or Idle");
+    public static string HeteroPolicySmall => T("3 - 小核", "3 - 小核", "3 - Small Core");
+    public static string HeteroPolicySmallOrIdle => T("4 - 小核或闲置", "4 - 小核或閒置", "4 - Small or Idle");
+    public static string HeteroPolicyAuto => T("5 - 自动", "5 - 自動", "5 - Auto");
+    public static string HeteroPolicyPreferSmall => T("6 - 偏向小核", "6 - 偏向小核", "6 - Prefer Small");
+    public static string HeteroPolicyPreferBig => T("7 - 偏向大核", "7 - 偏向大核", "7 - Prefer Big");
+
+    // Hetero CPU mask ComboBox labels
+    public static string HeteroMaskForeground => T("1 - 前台状态", "1 - 前台狀態", "1 - Foreground");
+    public static string HeteroMaskPriority => T("2 - 优先级", "2 - 優先級", "2 - Priority");
+    public static string HeteroMaskFgPriority => T("3 - 前台+优先级", "3 - 前台+優先級", "3 - Foreground+Priority");
+    public static string HeteroMaskRuntime => T("4 - 预期运行时间", "4 - 預期運行時間", "4 - Expected Runtime");
+    public static string HeteroMaskFgRuntime => T("5 - 前台+时间", "5 - 前台+時間", "5 - Foreground+Runtime");
+    public static string HeteroMaskPriRuntime => T("6 - 优先级+时间", "6 - 優先級+時間", "6 - Priority+Runtime");
+    public static string HeteroMaskAll => T("7 - 全部", "7 - 全部", "7 - All");
+
+    // Dialog messages
+    public static string HeteroCpuNotDetected => T("未检测到 AMD 双 CCD CPU，请手动填写掩码。", "未檢測到 AMD 雙 CCD CPU，請手動填寫遮罩。", "No AMD dual-CCD CPU detected. Please enter mask manually.");
+    public static string HeteroCpuDetectTitle => T("自动检测拓扑", "自動檢測拓撲", "Auto Detect Topology");
+    public static string HeteroCpuApplyResult => T("异构调度设置已写入注册表，重启后生效。", "異構調度設定已寫入註冊表，重啟後生效。", "Hetero scheduling settings have been written to registry. Reboot to apply.");
+    public static string HeteroCpuApplyTitle => T("应用设置", "應用設定", "Apply");
+    public static string HeteroCpuRestoreResult => T("异构调度设置已清除并恢复默认。", "異構調度設定已清除並恢復預設。", "Hetero scheduling settings cleared and restored to defaults.");
+    public static string HeteroCpuRestoreTitle => T("恢复默认", "恢復預設", "Restore Defaults");
+    public static string HeteroCpuDetectResult => T("已应用检测结果，重启后生效。", "已應用檢測結果，重啟後生效。", "Auto-detect results applied. Reboot to apply.");
+
+    public static string HeteroCpuDetectConfirm(string total, string ccd0, string ccd1, string mask) =>
+        T($"检测到双 CCD CPU\n总逻辑处理器: {total}\nCCD0: {ccd0} LP | CCD1: {ccd1} LP\n推荐掩码: {mask}\n\n是否应用此掩码并设置各调度策略?",
+          $"檢測到雙 CCD CPU\n總邏輯處理器: {total}\nCCD0: {ccd0} LP | CCD1: {ccd1} LP\n推薦遮罩: {mask}\n\n是否應用此遮罩並設定各調度策略?",
+          $"Dual CCD CPU detected\nTotal logical processors: {total}\nCCD0: {ccd0} LP | CCD1: {ccd1} LP\nSuggested mask: {mask}\n\nApply this mask and default policies?");
+
   }
 }

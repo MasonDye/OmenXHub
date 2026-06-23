@@ -8,12 +8,14 @@
         SizeToContent="WidthAndHeight"
         Left="0" Top="0" Opacity="0">
 
-  <Border x:Name="OsdBorder" CornerRadius="10" Padding="16,12"
-          Background="{DynamicResource BgCardBrush}" Opacity="0.95"
-          BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1">
+  <Border x:Name="OsdBorder" CornerRadius="8" Padding="16,12"
+          Background="{DynamicResource ContextMenuBackground}"
+          BorderBrush="{DynamicResource ContextMenuBorderBrush}"
+          BorderThickness="1">
     <Border.Effect>
-      <DropShadowEffect BlurRadius="16" ShadowDepth="3" Direction="270"
-                        Color="#80000000" Opacity="0.5"/>
+      <DropShadowEffect BlurRadius="20" Direction="270"
+                        Opacity="0.135" ShadowDepth="10"
+                        Color="#202020"/>
     </Border.Effect>
     <Grid>
       <Grid.ColumnDefinitions>
@@ -22,9 +24,11 @@
       </Grid.ColumnDefinitions>
       <ui:SymbolIcon x:Name="OsdIcon" Grid.Column="0" FontSize="28"
                      VerticalAlignment="Center" Margin="0,0,12,0"
+                     Foreground="{DynamicResource ContextMenuForeground}"
                      Visibility="Collapsed"/>
       <TextBlock x:Name="OsdText" Grid.Column="1" FontSize="20" FontWeight="SemiBold"
-                 Foreground="{DynamicResource TextPrimaryBrush}" TextAlignment="Left"
+                 Foreground="{DynamicResource ContextMenuForeground}"
+                 TextAlignment="Left"
                  VerticalAlignment="Center" MaxWidth="400" TextWrapping="NoWrap"
                  FontFamily="Microsoft YaHei UI, Segoe UI"/>
     </Grid>

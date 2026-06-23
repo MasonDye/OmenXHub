@@ -35,6 +35,9 @@ packages.config
 # Keys
 *.pfx
 
+# Agent context (not for repo)
+AGENTS.md
+
 # OS
 Thumbs.db
 .DS_Store

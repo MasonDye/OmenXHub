@@ -3,7 +3,8 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:app="clr-namespace:OmenSuperHub"
-      Title="{x:Static app:Strings.PagePerf}">
+      Title="{x:Static app:Strings.PagePerf}"
+      SizeChanged="PerfPage_SizeChanged">
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
 
@@ -14,12 +15,17 @@
         <TextBlock Text="{x:Static app:Strings.PerfGroupCpu}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
       </StackPanel>
 
-      <Grid>
+      <Grid x:Name="CpuPerfGrid">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
@@ -316,12 +322,17 @@
         <TextBlock Text="{x:Static app:Strings.PerfGroupGpu}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
       </StackPanel>
 
-      <Grid>
+      <Grid x:Name="GpuPerfGrid">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
