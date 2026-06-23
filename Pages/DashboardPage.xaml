@@ -8,18 +8,17 @@
 
   <Page.Resources>
     <Style TargetType="ProgressBar">
-      <Setter Property="Height" Value="10"/>
-      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Height" Value="8"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ProgressBar">
-            <Border CornerRadius="6" ClipToBounds="True">
-              <Grid>
-                <Rectangle x:Name="PART_Track" Fill="{DynamicResource ControlElevationBrush}" RadiusX="6" RadiusY="6"/>
-                <Rectangle x:Name="PART_Indicator" Fill="{TemplateBinding Foreground}"
-                           HorizontalAlignment="Left" RadiusX="6" RadiusY="6"/>
-              </Grid>
-            </Border>
+            <Grid>
+              <Rectangle x:Name="PART_Track" RadiusX="4" RadiusY="4"
+                         Fill="{DynamicResource ControlElevationBrush}"/>
+              <Rectangle x:Name="PART_Indicator" RadiusX="4" RadiusY="4"
+                         Fill="{TemplateBinding Foreground}" 
+                         HorizontalAlignment="Left"/>
+            </Grid>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
@@ -68,9 +67,9 @@
               <StackPanel Grid.Row="1" Margin="0,8,0,0">
                 <Grid Margin="0,0,0,6">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="36"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{x:Static app:Strings.TempCelsius}" FontSize="11"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -83,9 +82,9 @@
                 </Grid>
                 <Grid Margin="0,0,0,6">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="36"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{x:Static app:Strings.UtilizationLabel}" FontSize="11"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -98,9 +97,9 @@
                 </Grid>
                 <Grid Margin="0,0,0,6">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="36"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{x:Static app:Strings.FanLabel}" FontSize="11"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -113,9 +112,9 @@
                 </Grid>
                 <Grid>
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="36"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{x:Static app:Strings.PowerLabel}" FontSize="11"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -157,9 +156,9 @@
               <StackPanel x:Name="GpuDetailPanel" Grid.Row="1" Margin="0,8,0,0">
                 <Grid Margin="0,0,0,6">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="36"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{x:Static app:Strings.TempCelsius}" FontSize="11"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -172,9 +171,9 @@
                 </Grid>
                 <Grid Margin="0,0,0,6">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="36"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{x:Static app:Strings.UtilizationLabel}" FontSize="11"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -187,9 +186,9 @@
                 </Grid>
                 <Grid Margin="0,0,0,6">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="36"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{x:Static app:Strings.FanLabel}" FontSize="11"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -202,9 +201,9 @@
                 </Grid>
                 <Grid>
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="36"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{x:Static app:Strings.PowerLabel}" FontSize="11"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}"

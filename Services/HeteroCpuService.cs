@@ -1,3 +1,5 @@
+// HeteroCpuService.cs - AMD 异构 CPU 调度管理
+// 通过注册表配置双 CCD CPU 亲和性掩码，检测 NUMA 拓扑和内核调度策略
 using System;
 using System.Linq;
 using System.Management;

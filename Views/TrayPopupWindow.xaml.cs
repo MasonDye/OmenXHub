@@ -1,9 +1,9 @@
+// TrayPopupWindow.xaml.cs - 托盘悬停弹窗
+// 鼠标悬停托盘图标时显示 CPU/GPU/风扇简要数据的轻量级弹窗
 using System;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using OmenSuperHub.Services;
-using Wpf.Ui.Controls;
 
 namespace OmenSuperHub.Views {
   public partial class TrayPopupWindow : Window {
@@ -12,7 +12,8 @@ namespace OmenSuperHub.Views {
     }
 
     public void UpdateContent() {
-      // ── Preset / performance mode header ──
+      MetricPanel.Children.Clear();
+
       string preset = ConfigService.Preset;
       string display;
       switch (preset) {
@@ -24,68 +25,32 @@ namespace OmenSuperHub.Views {
         case "Custom3": display = ConfigService.CustomPreset3Name; break;
         default: display = preset; break;
       }
-      PresetText.Text = string.IsNullOrEmpty(display)
-        ? $"{Strings.PerfModeLabel}: --"
-        : $"{Strings.PerfModeLabel}: {display}";
 
-      // ── Metric rows ──
-      MetricPanel.Children.Clear();
+      AddRow(MetricPanel, string.IsNullOrEmpty(display) ? $"{Strings.PerfModeLabel}: --" : $"{Strings.PerfModeLabel}: {display}");
 
-      string cpuVal = HardwareService.CPUTemp > 0.01f
-        ? $"{HardwareService.CPUTemp:F0}°C  ·  {HardwareService.CPUPower:F0}W"
-        : "--";
-      AddRow(SymbolRegular.DeveloperBoard24, Strings.MonitorCpuLabel, cpuVal);
+      if (HardwareService.CPUTemp > 0.01f)
+        AddRow(MetricPanel, $"CPU: {HardwareService.CPUTemp:F1}°C, {HardwareService.CPUPower:F1}W");
+      else
+        AddRow(MetricPanel, "CPU: --");
 
       if (ConfigService.MonitorGPU) {
-        string gpuVal = HardwareService.GPUPower >= 0.01f
-          ? $"{HardwareService.GPUTemp:F0}°C  ·  {HardwareService.GPUPower:F0}W"
-          : "--";
-        AddRow(SymbolRegular.DeviceEq24, Strings.MonitorGpuLabel, gpuVal);
+        AddRow(MetricPanel, HardwareService.GPUPower >= 0.01f
+          ? $"GPU: {HardwareService.GPUTemp:F1}°C, {HardwareService.GPUPower:F1}W"
+          : "GPU: --");
       }
 
       if (HardwareService.MonitorFan && HardwareService.FanSpeedNow != null) {
-        string fanVal = $"{HardwareService.FanSpeedNow[0] * 100} / {HardwareService.FanSpeedNow[1] * 100} RPM";
-        AddRow(SymbolRegular.ArrowSync24, Strings.MonitorFanLabel, fanVal);
+        AddRow(MetricPanel, $"{Strings.FanLabel}: {HardwareService.FanSpeedNow[0] * 100}, {HardwareService.FanSpeedNow[1] * 100} RPM");
       }
     }
 
-    // Build a single metric row: [icon] [label] .... [value]
-    void AddRow(SymbolRegular icon, string label, string value) {
-      var secondary = Application.Current.TryFindResource("TextFillColorSecondaryBrush") as Brush ?? Brushes.Gray;
-      var primary = Application.Current.TryFindResource("ContextMenuForeground") as Brush ?? Brushes.White;
-      var font = new FontFamily("Microsoft YaHei UI, Segoe UI");
-
-      var row = new Grid { Margin = new Thickness(0, 4, 0, 4) };
-      row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-      row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-      row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-      row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-      var sym = new SymbolIcon {
-        Symbol = icon, FontSize = 14,
-        VerticalAlignment = VerticalAlignment.Center,
-        Margin = new Thickness(0, 0, 8, 0),
-        Foreground = secondary
-      };
-      Grid.SetColumn(sym, 0);
-      row.Children.Add(sym);
-
-      var lbl = new System.Windows.Controls.TextBlock {
-        Text = label, FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
-        Foreground = secondary, FontFamily = font
-      };
-      Grid.SetColumn(lbl, 1);
-      row.Children.Add(lbl);
-
-      var val = new System.Windows.Controls.TextBlock {
-        Text = value, FontSize = 12, FontWeight = FontWeights.SemiBold,
-        VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right,
-        Foreground = primary, FontFamily = font
-      };
-      Grid.SetColumn(val, 3);
-      row.Children.Add(val);
-
-      MetricPanel.Children.Add(row);
+    void AddRow(Panel parent, string text) {
+      parent.Children.Add(new TextBlock {
+        Text = text,
+        FontSize = 12,
+        Foreground = TryFindResource("ContextMenuForeground") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.White,
+        Margin = new Thickness(0, 1, 0, 1)
+      });
     }
   }
 }

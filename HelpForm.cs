@@ -1,3 +1,5 @@
+// HelpForm.cs - [已弃用] WinForms 帮助对话框
+// 旧版中文帮助文本，已被 HelpWindow.xaml 替代，不参与编译
 using System;
 using System.Diagnostics;
 using System.Drawing;

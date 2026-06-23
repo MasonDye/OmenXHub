@@ -1,3 +1,5 @@
+// MainWindow.xaml.cs - 主窗口逻辑
+// WPF-UI NavigationView 侧边栏导航、鼠标滚轮处理、页面切换动画、窗口拖拽
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

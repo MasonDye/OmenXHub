@@ -1,3 +1,5 @@
+// HWiNFOService.cs - HWiNFO64 传感器集成
+// 将风扇/温度/功耗自定义传感器值写入注册表，供 HWiNFO64 读取显示
 using System;
 using System.Globalization;
 using System.Threading;

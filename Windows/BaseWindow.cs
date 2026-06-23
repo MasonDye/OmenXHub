@@ -1,3 +1,5 @@
+// BaseWindow.cs - 基础窗口类
+// FluentWindow 封装，启用 Mica 背景效果、DPI 变化处理和标题栏扩展
 using System.Windows;
 using System.Windows.Media;
 using Wpf.Ui.Controls;

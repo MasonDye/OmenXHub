@@ -1,4 +1,6 @@
-﻿using System;
+// MainForm.cs - [已弃用] WinForms 主窗口
+// 旧版风扇曲线图表编辑器，支持拖拽编辑，已被 WPF 版本替代，不参与编译
+using System;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;

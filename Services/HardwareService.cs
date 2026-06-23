@@ -1,3 +1,5 @@
+// HardwareService.cs - 硬件监控服务
+// LibreHardwareMonitor 集成，CPU/GPU 温度/功耗/利用率/时钟轮询，GPU 自动启停
 using System;
 using System.Collections.Generic;
 using System.Linq;

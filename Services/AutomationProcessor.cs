@@ -1,3 +1,5 @@
+// AutomationProcessor.cs - 自动化执行引擎
+// 事件驱动触发器检测（进程/电源/会话/显示/温度/电池/计划），步骤执行（预设/风扇/功耗/WiFi/蓝牙等）
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

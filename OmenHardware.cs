@@ -1,4 +1,6 @@
-﻿using System;
+// OmenHardware.cs - HP OMEN 硬件通信抽象层
+// WMI BIOS 通信、风扇控制、性能模式、CPU/GPU 功耗、灯效、BIOS 设置、GPU 检测
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management;

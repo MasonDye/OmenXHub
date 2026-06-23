@@ -26,7 +26,7 @@
         </Grid.ColumnDefinitions>
         <ui:SymbolIcon Grid.Column="0" Symbol="Gauge24" FontSize="16"
                        VerticalAlignment="Center" Margin="0,0,8,0"
-                       Foreground="{DynamicResource AccentOmenBrush}"/>
+                       Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"/>
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
           <TextBlock Text="OMEN X HUB" FontSize="9" FontWeight="SemiBold"
                      Opacity="0.55"

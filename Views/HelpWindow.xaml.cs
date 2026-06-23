@@ -1,3 +1,5 @@
+// HelpWindow.xaml.cs - 帮助/关于对话框
+// 显示更新日志、功能指南、致谢信息、GitHub 链接和更新检查
 using System;
 using System.Diagnostics;
 using System.Reflection;

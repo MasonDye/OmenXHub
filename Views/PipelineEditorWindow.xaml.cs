@@ -1,3 +1,5 @@
+// PipelineEditorWindow.xaml.cs - 自动化流水线编辑器
+// 卡片式 UI 编辑触发器和步骤，支持展开/折叠、拖拽排序、选择器对话框
 using System;
 using System.Collections.Generic;
 using System.Windows;

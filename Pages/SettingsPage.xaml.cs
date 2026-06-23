@@ -1,3 +1,5 @@
+// SettingsPage.xaml.cs - 设置页面
+// Windows 11 风格布局，覆盖浮窗/Omen键/托盘图标/自启动/主题/语言/自定义背景/调试日志
 using System;
 using System.Linq;
 using System.Windows;
@@ -8,7 +10,7 @@ using Forms = System.Windows.Forms;
 
 namespace OmenSuperHub.Pages {
   public partial class SettingsPage : Page {
-    bool _loading;
+    bool _loading = true;
     public SettingsPage() { InitializeComponent(); Loaded += SettingsPage_Loaded; }
     private void SettingsPage_Loaded(object sender, RoutedEventArgs e) { _loading = true; LoadState(); BuildScreenOptions(); _loading = false; }
 

@@ -1,3 +1,5 @@
+// MacroPage.cs - 键盘宏管理页面
+// 宏序列的录制、播放、编辑、删除，支持触发键绑定和重复次数配置
 using System;
 using System.Windows;
 using System.Windows.Controls;

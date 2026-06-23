@@ -31,12 +31,16 @@ battery-report.html
 temp_*.svg
 temp_*.txt
 packages.config
+nul
+TempBuild2/
+E TempBuild2/
 
-# Keys
-*.pfx
+# Backup / misc
+backup/
 
 # Agent context (not for repo)
 AGENTS.md
+PROJECT_SUMMARY.md
 
 # OS
 Thumbs.db

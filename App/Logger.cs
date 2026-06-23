@@ -1,3 +1,5 @@
+// Logger.cs - 日志记录器
+// 写入 OmenXHub.log 文件，支持 Info/Warn/Error/Verbose 级别，30秒去重节流
 using System;
 using System.IO;
 

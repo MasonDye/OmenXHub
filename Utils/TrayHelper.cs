@@ -1,3 +1,5 @@
+// TrayHelper.cs - 托盘图标高级逻辑
+// 管理右键上下文菜单（导航、快捷操作、语言切换）、悬停弹窗定位、工具提示更新
 using System;
 using System.Drawing;
 using System.IO;
@@ -7,7 +9,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
-using System.Windows.Interop;
 using OmenSuperHub.Services;
 using OmenSuperHub.Views;
 using Wpf.Ui.Controls;
@@ -93,7 +94,7 @@ namespace OmenSuperHub.Utils {
         int cw = 220, ch = 110;
         int gap = 30;
         int left = mouse.X - cw - gap;
-        int top = mouse.Y - ch - 110;
+        int top = mouse.Y - ch - 130;
         if (left < screen.Left) left = mouse.X;
         if (top < screen.Top) top = mouse.Y;
         if (left + cw > screen.Right) left = screen.Right - cw;
@@ -109,13 +110,6 @@ namespace OmenSuperHub.Utils {
       } catch {
         w.Left = SystemParameters.WorkArea.Right - 230;
         w.Top = SystemParameters.WorkArea.Bottom - 93;
-      }
-    }
-
-    public void UpdatePopupIfOpen() {
-      var w = _popupWindow;
-      if (w != null && w.IsLoaded) {
-        System.Windows.Application.Current?.Dispatcher.Invoke(() => w.UpdateContent());
       }
     }
 

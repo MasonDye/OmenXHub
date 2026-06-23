@@ -1,3 +1,5 @@
+// ThemeService.cs - 主题管理服务
+// 处理 Dark/Light/System 主题切换、Windows 着色器提取、自定义强调色
 using Microsoft.Win32;
 using System;
 using System.Windows;

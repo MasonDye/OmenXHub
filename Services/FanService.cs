@@ -1,3 +1,5 @@
+// FanService.cs - 风扇曲线管理
+// 加载/保存 OSH 兼容双曲线文件，温度-转速插值，按预设持久化曲线
 using System;
 using System.Collections.Generic;
 using System.IO;

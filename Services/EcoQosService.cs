@@ -1,3 +1,5 @@
+// EcoQosService.cs - 进程功耗节流管理
+// 使用 ProcessPowerThrottling API 控制前台/后台进程的功耗限制，支持白名单/黑名单
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

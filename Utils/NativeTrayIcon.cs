@@ -1,3 +1,5 @@
+// NativeTrayIcon.cs - 原生系统托盘图标
+// 使用 P/Invoke (Shell_NotifyIconW) 实现托盘图标，通过光标位置轮询合成 MouseEnter/Leave 事件
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;

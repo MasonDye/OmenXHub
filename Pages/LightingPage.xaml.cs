@@ -1,3 +1,5 @@
+// LightingPage.cs - 键盘灯效页面
+// 设备/协议选择，区域颜色设置，亮度/动画速度调节
 using System;
 using System.Collections.Generic;
 using System.Windows;

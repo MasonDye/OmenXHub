@@ -1,3 +1,5 @@
+// ComboBoxWheelHelper.cs - ComboBox 鼠标滚轮支持
+// 递归遍历可视化树，为所有 ComboBox 绑定鼠标滚轮事件实现滚轮切换选项
 using System;
 using System.Windows;
 using System.Windows.Controls;

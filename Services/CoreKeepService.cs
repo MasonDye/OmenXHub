@@ -1,3 +1,5 @@
+// CoreKeepService.cs - 进程亲和性与优先级管理
+// 通过 P/Invoke 设置进程 CPU 亲和性掩码和优先级类，监听进程启动自动应用规则
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

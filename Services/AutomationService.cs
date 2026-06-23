@@ -1,3 +1,5 @@
+// AutomationService.cs - 自动化数据模型与持久化
+// Pipeline/Trigger/Step 数据契约定义，JSON 序列化存储，步骤类型注册表
 using System;
 using System.Collections.Generic;
 using System.IO;

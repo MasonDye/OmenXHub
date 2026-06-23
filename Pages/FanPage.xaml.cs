@@ -1,3 +1,5 @@
+// FanPage.cs - 风扇控制页面
+// 风扇模式/灵敏度/曲线选择，自定义风扇曲线编辑，自动保护和除尘功能
 using System;
 using System.Collections.Generic;
 using System.Linq;

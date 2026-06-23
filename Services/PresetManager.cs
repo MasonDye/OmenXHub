@@ -1,3 +1,5 @@
+// PresetManager.cs - 预设管理服务
+// 内置默认预设 (Extreme/GpuPriority/LightUse)，自定义预设保存/加载，预设切换逻辑
 using System;
 using Microsoft.Win32;
 

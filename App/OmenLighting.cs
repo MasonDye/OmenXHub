@@ -1,3 +1,5 @@
+// OmenLighting.cs - 键盘灯效控制
+// 封装 HP McuSDK2 实现逐键 RGB 和四区域灯效，支持 Basic/Dojo/PerKey 协议
 using System;
 using System.Collections.Generic;
 using System.Linq;

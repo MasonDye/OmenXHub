@@ -1,3 +1,5 @@
+// FloatingWindow.xaml.cs - 硬件浮窗
+// 透明置顶窗口显示 CPU/GPU/风扇实时数据，支持拖拽和鼠标穿透
 using System;
 using System.Collections.Generic;
 using System.Linq;

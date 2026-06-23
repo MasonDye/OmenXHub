@@ -1,3 +1,5 @@
+// PerfPage.cs - 性能调优页面
+// CPU 功耗 (PL1/PL2)、GPU 设置 (TGP/PPAB/dState/DB/时钟)、电源方案、热切换、刷新率
 using System;
 using System.Collections.Generic;
 using System.Linq;

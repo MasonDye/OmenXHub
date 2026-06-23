@@ -1,3 +1,5 @@
+// MacroService.cs - 宏序列数据模型与持久化
+// 定义 MacroEvent/MacroSequence 数据契约，JSON 序列化存储到本地文件
 using System;
 using System.Collections.Generic;
 using System.IO;

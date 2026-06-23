@@ -1,3 +1,5 @@
+// OsdWindow.xaml.cs - 屏幕提示窗口
+// 预设切换、功耗变化、锁定键、刷新率等的 Toast 通知显示
 using System;
 using System.Windows;
 using System.Windows.Interop;

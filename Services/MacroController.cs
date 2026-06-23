@@ -1,3 +1,5 @@
+// MacroController.cs - 键盘宏录制与回放引擎
+// 使用低级键盘/鼠标钩子 (WH_KEYBOARD_LL/WH_MOUSE_LL) 实现宏录制和回放
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

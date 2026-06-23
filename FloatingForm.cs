@@ -1,4 +1,6 @@
-﻿using System;
+// FloatingForm.cs - [已弃用] WinForms 浮窗
+// 旧版 GDI+ 超采样文本渲染浮窗，已被 FloatingWindow.xaml 替代，不参与编译
+using System;
 using System.Drawing;
 using System.Globalization;
 using System.Runtime.InteropServices;

@@ -1,3 +1,5 @@
+// Strings.cs - 多语言字符串资源管理
+// 提供简体中文、繁体中文、英文三种语言的UI字符串，支持运行时切换
 using System;
 
 namespace OmenSuperHub {

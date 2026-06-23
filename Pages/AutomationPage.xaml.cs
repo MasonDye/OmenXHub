@@ -1,3 +1,5 @@
+// AutomationPage.cs - 自动化页面
+// 流水线列表管理、快捷操作、主开关，支持触发器和步骤的增删改查
 using System;
 using System.Collections.Generic;
 using System.Windows;

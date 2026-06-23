@@ -1,3 +1,5 @@
+// OtherPage.cs - 其他功能开关页面
+// 电池充电限制、锁定键、触控板、HWiNFO 集成、HTTP API 等杂项开关
 using System;
 using System.Diagnostics;
 using System.Management;

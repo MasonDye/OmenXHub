@@ -1,3 +1,5 @@
+// SysInfoPage.cs - 系统信息页面
+// 显示硬件详情、PawnIO 状态、传感器温度、监控选项配置
 using System;
 using System.Diagnostics;
 using System.Linq;

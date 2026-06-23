@@ -1,3 +1,5 @@
+// GpuAppManager.cs - GPU 进程与超频管理
+// 使用 nvidia-smi 和 NvAPIWrapper.Net 查询 GPU 应用、时钟偏移、功耗限制，支持超频调节
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

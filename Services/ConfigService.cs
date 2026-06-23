@@ -1,3 +1,5 @@
+// ConfigService.cs - 配置管理服务
+// 100+ 静态配置字段，Windows 注册表持久化 (HKCU\Software\OmenXHub)，预设保存/加载
 using System;
 using System.Collections.Generic;
 using Microsoft.Win32;

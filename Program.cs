@@ -1,4 +1,6 @@
-﻿using System;
+// Program.cs - [已弃用] WinForms 入口点
+// 旧版 WinForms 启动代码，已被 App.xaml.cs 替代，不参与编译
+using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;

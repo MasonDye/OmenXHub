@@ -1,3 +1,5 @@
+// AmdGpuSwitcher.cs - AMD SmartAccess Graphics 模式切换
+// 通过反射调用 HP.Omen.Core.Common 实现 AMD GPU 混合模式/独显直连切换
 using System;
 using System.Linq;
 using System.Reflection;

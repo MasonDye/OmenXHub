@@ -1,3 +1,5 @@
+// TrayService.cs - 系统托盘核心服务
+// 托盘图标管理、WPF 右键菜单、定时器更新、自动风扇保护、DB 解锁、电源恢复、Omen 键监听
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -359,7 +361,6 @@ namespace OmenSuperHub.Services {
       }
 
       Views.FloatingWindow.UpdateAllText();
-      _trayHelperRef?.UpdatePopupIfOpen();
 
       if (ConfigService.CustomIcon == "dynamic")
         GenerateDynamicIcon((int)HardwareService.CPUTemp);
@@ -727,28 +728,6 @@ namespace OmenSuperHub.Services {
         Views.FloatingWindow.CloseAll();
         UpdateCheckedState("floatingBarGroup", "关闭浮窗");
       }
-
-      // ── Auto-apply saved preset on startup ──
-      string savedPreset = ConfigService.Preset;
-      if (string.IsNullOrEmpty(savedPreset)) {
-        savedPreset = "GpuPriority";
-        ConfigService.Preset = savedPreset;
-        ConfigService.Save("Preset");
-      }
-      PresetManager.SwitchPreset(savedPreset);
-      // Apply hardware in background (no UI needed)
-      System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        int gpuClock = ConfigService.GpuClock;
-        bool tgp = ConfigService.TgpEnabled;
-        bool ppab = ConfigService.PpabEnabled;
-        int dState = ConfigService.DState == 2 ? 2 : 1;
-        string cpuPwr = ConfigService.CpuPower;
-        if (gpuClock > 0) SetGPUClockLimit(gpuClock);
-        OmenHardware.SetGpuPowerState(tgp, ppab, dState);
-        if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254);
-        else if (int.TryParse(cpuPwr?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
-          OmenHardware.SetCpuPowerLimit((byte)cpuVal);
-      });
     }
 
     // ══════════════════════════════════════════════════════

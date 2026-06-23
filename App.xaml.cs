@@ -1,3 +1,5 @@
+// App.xaml.cs - 应用程序入口
+// 互斥锁单实例、Logger 初始化、ConfigService 加载、主题/托盘/HWiNFO/API 启动、窗口管理
 using System;
 using System.Diagnostics;
 using System.Reflection;
@@ -5,6 +7,8 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Media;
 
 using OmenSuperHub.Services;
 using Microsoft.Win32;
@@ -16,6 +20,7 @@ namespace OmenSuperHub {
     static int alreadyReadCode = 1000;
 
     protected override void OnStartup(StartupEventArgs e) {
+      RenderOptions.ProcessRenderMode = RenderMode.Default;
       base.OnStartup(e);
 
       // Dispatcher exception handler — log and prevent crash loop

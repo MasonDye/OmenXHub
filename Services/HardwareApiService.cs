@@ -1,3 +1,5 @@
+// HardwareApiService.cs - 本地 HTTP REST API 服务
+// HttpListener 监听 localhost:5000，提供 30+ 端点读写硬件设置（风扇/CPU/GPU/灯效/系统）
 using System;
 using System.Collections.Generic;
 using System.IO;
