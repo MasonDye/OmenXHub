@@ -36,15 +36,15 @@ namespace OmenSuperHub.Views {
     }
 
     private void BtnGitHub_Click(object sender, RoutedEventArgs e) {
-      Process.Start("https://github.com/breadeding/OmenSuperHub");
+        Process.Start("https://github.com/breadeding/OmenSuperHub")?.Dispose();
     }
 
     private void BtnUpdate_Click(object sender, RoutedEventArgs e) {
-      Process.Start("https://github.com/breadeding/OmenSuperHub/releases");
+        Process.Start("https://github.com/breadeding/OmenSuperHub/releases")?.Dispose();
     }
 
     private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e) {
-      Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri));
+        Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri))?.Dispose();
       e.Handled = true;
     }
 

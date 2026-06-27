@@ -25,7 +25,7 @@
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="AutoEnableToggle" Grid.Column="1" VerticalAlignment="Center"
-                            IsChecked="True"/>
+                            Checked="AutoEnableToggle_Checked" Unchecked="AutoEnableToggle_Unchecked"/>
           </Grid>
         </ui:CardControl.Header>
       </ui:CardControl>

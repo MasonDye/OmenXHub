@@ -94,31 +94,7 @@
         </ui:CardControl.Header>
       </ui:CardControl>
 
-      <!-- 背景不透明度 -->
-      <ui:CardControl Margin="0,0,0,8">
-        <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.BgOpacityHeading}" FontSize="13" FontWeight="SemiBold"/>
-            </StackPanel>
-            <Grid Grid.Column="1" VerticalAlignment="Center" Width="160">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <Slider x:Name="FloatOpacitySlider" Minimum="0.0" Maximum="1.0" Value="0.85"
-                      SmallChange="0.05" LargeChange="0.1" TickFrequency="0.1"
-                      ValueChanged="FloatOpacity_Changed"/>
-              <TextBlock x:Name="FloatOpacityVal" Grid.Column="1" Text="85%"
-                         FontSize="12" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
-            </Grid>
-          </Grid>
-        </ui:CardControl.Header>
-      </ui:CardControl>
+
 
       <!-- 文字不透明度 -->
       <ui:CardControl Margin="0,0,0,8">

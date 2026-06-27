@@ -1,4 +1,4 @@
-// Strings.cs - 多语言字符串资源管理
+﻿// Strings.cs - 多语言字符串资源管理
 // 提供简体中文、繁体中文、英文三种语言的UI字符串，支持运行时切换
 using System;
 
@@ -45,7 +45,6 @@ namespace OmenSuperHub {
         "Some features may not be compatible with this model. Please note!");
 
     // Menus
-    public static string SysInfo => T("本机信息", "本機資訊", "System Info");
     public static string FanConfig => T("风扇配置", "風扇配置", "Fan Config");
     public static string FanControl => T("风扇控制", "風扇控制", "Fan Control");
     public static string PerfControl => T("性能控制", "效能控制", "Performance");
@@ -109,6 +108,7 @@ namespace OmenSuperHub {
     public static string FanMax => T("最大风扇", "最大風扇", "Max Fan");
     public static string FanCustomCurve => T("自定义曲线", "自訂曲線", "Custom Curve");
     public static string FanManualMode => T("手动模式", "手動模式", "Manual Mode");
+    public static string FanSmartMode => T("智能风扇", "智能風扇", "Smart Fan");
     public static string FanModePerformance => T("狂暴模式", "狂暴模式", "Performance Mode");
     public static string FanModeDefault => T("平衡模式", "平衡模式", "Default Mode");
     public static string GpuClockReset => T("GPU 频率已重置", "GPU 頻率已重置", "GPU Clock Reset");
@@ -470,7 +470,6 @@ namespace OmenSuperHub {
     public static string SidebarFan => T("风扇", "風扇", "Fan");
     public static string SidebarPerf => T("性能", "效能", "Performance");
     public static string SidebarLighting => T("灯光", "燈光", "Lighting");
-    public static string SidebarSysInfo => T("关于", "關於", "About");
     public static string SidebarSettings => T("设置", "設定", "Settings");
     public static string SidebarOther => T("其他", "其他", "Other");
 
@@ -479,7 +478,6 @@ namespace OmenSuperHub {
     public static string PageFan => T("风扇控制", "風扇控制", "Fan Control");
     public static string PagePerf => T("性能控制", "效能控制", "Performance Control");
     public static string PageLighting => T("灯光", "燈光", "Lighting");
-    public static string PageSysInfo => T("系统信息", "系統資訊", "System Info");
     public static string PageAutomation => T("自动化", "自動化", "Automation");
     public static string PageOther => T("其他设置", "其他設定", "Other Settings");
     public static string PageSettings => T("设置", "設定", "Settings");
@@ -520,6 +518,15 @@ namespace OmenSuperHub {
     public static string DustCleanDesc => T("反转风扇清除内部灰尘", "反轉風扇清除內部灰塵", "Reverse fans to clean internal dust");
     public static string CleanCreekStartBtn => T("开始除尘 (30秒)", "開始除塵 (30秒)", "Start Cleaning (30s)");
     public static string AutoFanProtectDesc => T("CPU温度>90°C且固定转速时自动切换为降温模式", "CPU溫度>90°C且固定轉速時自動切換為降溫模式", "Switches to Cool mode when CPU >90°C with fixed fan speed");
+    public static string FanSync => T("风扇一致性", "風扇一致性", "Fan Consistency");
+    public static string FanSyncDesc => T("所有风扇转速与CPU风扇保持一致", "所有風扇轉速與CPU風扇保持一致", "Keep all fan speeds synchronized with CPU fan");
+    public static string FanSmartSettings => T("智能风扇设置", "智能風扇設置", "Smart Fan Settings");
+    public static string FanSmartEmaAlpha => T("温度平滑系数", "溫度平滑係數", "Temp Smoothing (EMA)");
+    public static string FanSmartEmaAlphaDesc => T("新温度读数的权重，越低越平滑但响应越慢", "新溫度讀數的權重，越低越平滑但響應越慢", "Weight of new temp readings. Lower = smoother but slower");
+    public static string FanSmartStepDown => T("降速保护 (RPM/s)", "降速保護 (RPM/s)", "Step-Down Rate (RPM/s)");
+    public static string FanSmartStepDownDesc => T("风扇降温时的最大RPM下降速率", "風扇降溫時的最大RPM下降速率", "Max RPM drop per second while cooling down");
+    public static string FanSmartHysteresis => T("滞后死区 (°C)", "滯後死區 (°C)", "Hysteresis (°C)");
+    public static string FanSmartHysteresisDesc => T("温度变化阈值，低于此值不触发调速", "溫度變化閾值，低於此值不觸發調速", "Min temp change to trigger recalculation");
 
     // Performance page headings
     public static string DbVersionHeading => T("DB 版本", "DB 版本", "DB Version");
@@ -748,7 +755,7 @@ namespace OmenSuperHub {
     public static string SidebarMacro => T("宏", "巨集", "Macro");
     public static string PageMacro => T("键盘宏", "鍵盤巨集", "Keyboard Macros");
     public static string MacroHeading => T("键盘宏管理", "鍵盤巨集管理", "Keyboard Macro Manager");
-    public static string MacroEnabled => T("宏功能已启用", "巨集功能已啟用", "Macro Enabled");
+    public static string MacroEnabled => T("宏功能", "巨集功能", "Macro");
     public static string MacroMasterDesc => T("全局启用/禁用宏触发键拦截", "全域啟用/禁用巨集觸發鍵攔截", "Enable/disable global macro trigger key interception");
     public static string MacroAddMacro => T("添加宏", "添加巨集", "Add Macro");
     public static string MacroName => T("宏名称:", "巨集名稱:", "Macro Name:");
@@ -805,6 +812,8 @@ namespace OmenSuperHub {
     public static string AutomationTriggerGpuTempAbove => T("GPU温度高于", "GPU溫度高於", "GPU Temp Above (C)");
     public static string AutomationTriggerDisplayConnect => T("外接显示器已连接", "外接顯示器已連接", "External Display Connected");
     public static string AutomationTriggerDisplayDisconnect => T("外接显示器已断开", "外接顯示器已斷開", "External Display Disconnected");
+    public static string AutomationTriggerHotkey => T("快捷键", "快捷鍵", "Hotkey");
+    public static string AutomationHotkeyHint => T("例如 Ctrl+Shift+F12", "例如 Ctrl+Shift+F12", "e.g. Ctrl+Shift+F12");
     public static string AutomationTriggersHeading => T("触发器:", "觸發器:", "Triggers:");
     public static string AutomationAddTrigger => T("添加触发器", "添加觸發器", "Add Trigger");
     public static string AutomationNoTriggers => T("未配置触发器", "未配置觸發器", "No triggers configured");
@@ -832,6 +841,7 @@ namespace OmenSuperHub {
     public static string TempSmoothedShort => T("平滑", "平滑", "Smoothed");
     public static string TempRawShort => T("实时", "即時", "Real-time");
     public static string GpuAppLocate => T("定位文件", "定位文件", "Locate File");
+    public static string GpuAppEndTask => T("结束进程", "結束進程", "End Task");
     public static string GpuPrefHeading => T("图形首选项", "圖形首選項", "Graphics Preference");
     public static string GpuPrefAuto => T("让 Windows 决定", "讓Windows決定", "Let Windows Decide");
     public static string GpuPrefPowerSave => T("节能", "節能", "Power Save");

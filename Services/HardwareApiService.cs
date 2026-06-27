@@ -81,7 +81,7 @@ namespace OmenSuperHub.Services {
         string path = req.Url.AbsolutePath.TrimEnd('/').ToLowerInvariant();
         string method = req.HttpMethod.ToUpperInvariant();
 
-        if (method == "POST" && path != "/ping") {
+        if (path != "/ping") {
           if (!ValidateRequest(req, path)) {
             statusCode = 403;
             responseText = MakeError("Forbidden: invalid token or origin");
@@ -728,7 +728,7 @@ namespace OmenSuperHub.Services {
         if (param == null || !param.confirm)
           return (400, MakeError("confirm must be true"));
         Logger.Info("API: System restart requested");
-        System.Diagnostics.Process.Start("shutdown", "/r /t 5 /c \"OmenXHub API restart\"");
+        System.Diagnostics.Process.Start("shutdown", "/r /t 5 /c \"OmenXHub API restart\"")?.Dispose();
         return (200, "{\"success\":true,\"message\":\"System will restart in 5 seconds\"}");
       } catch (Exception ex) { Logger.Error($"HandleSystemRestart: {ex.Message}"); return (500, MakeError(ex.Message)); }
     }
@@ -739,7 +739,7 @@ namespace OmenSuperHub.Services {
         if (param == null || !param.confirm)
           return (400, MakeError("confirm must be true"));
         Logger.Info("API: System shutdown requested");
-        System.Diagnostics.Process.Start("shutdown", "/s /t 5 /c \"OmenXHub API shutdown\"");
+        System.Diagnostics.Process.Start("shutdown", "/s /t 5 /c \"OmenXHub API shutdown\"")?.Dispose();
         return (200, "{\"success\":true,\"message\":\"System will shutdown in 5 seconds\"}");
       } catch (Exception ex) { Logger.Error($"HandleSystemShutdown: {ex.Message}"); return (500, MakeError(ex.Message)); }
     }
@@ -854,25 +854,31 @@ namespace OmenSuperHub.Services {
         "{\"method\":\"POST\",\"path\":\"/api/system/restart\",\"description\":\"Restart system\"}",
         "{\"method\":\"POST\",\"path\":\"/api/system/shutdown\",\"description\":\"Shutdown system\"}"
       };
-      return $"{{\"status\":\"running\",\"version\":\"1.0.0\",\"token\":\"{_apiToken}\",\"endpoints\":[{string.Join(",",endpoints)}]}}";
+      return $"{{\"status\":\"running\",\"version\":\"1.0.0\",\"endpoints\":[{string.Join(",",endpoints)}]}}";
     }
 
     // ═══════════════════════════════════════════════════════
     // Security
     // ═══════════════════════════════════════════════════════
 
+    private static bool IsLocalhostUri(string uriStr) {
+      if (string.IsNullOrEmpty(uriStr)) return true;
+      if (Uri.TryCreate(uriStr, UriKind.Absolute, out var uri)) {
+        return uri.IsLoopback;
+      }
+      return false;
+    }
+
     private static bool ValidateRequest(HttpListenerRequest req, string path) {
-      if (path == "/api/system/restart" || path == "/api/system/shutdown") {
-        string origin = req.Headers["Origin"];
-        string referer = req.UrlReferrer?.ToString();
-        if (!string.IsNullOrEmpty(origin) && !origin.StartsWith("http://localhost") && !origin.StartsWith("https://localhost")) {
-          Logger.Error($"API: Blocked cross-origin request from {origin}");
-          return false;
-        }
-        if (!string.IsNullOrEmpty(referer) && !referer.StartsWith("http://localhost") && !referer.StartsWith("https://localhost")) {
-          Logger.Error($"API: Blocked cross-referer request from {referer}");
-          return false;
-        }
+      string origin = req.Headers["Origin"];
+      string referer = req.UrlReferrer?.ToString();
+      if (!string.IsNullOrEmpty(origin) && !IsLocalhostUri(origin)) {
+        Logger.Error($"API: Blocked cross-origin request from {origin}");
+        return false;
+      }
+      if (!string.IsNullOrEmpty(referer) && !IsLocalhostUri(referer)) {
+        Logger.Error($"API: Blocked cross-referer request from {referer}");
+        return false;
       }
 
       string authHeader = req.Headers["Authorization"];

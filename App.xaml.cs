@@ -47,6 +47,12 @@ namespace OmenSuperHub {
         // Load language config
         ConfigService.Load();
         CustomPresetNames.Load(); // file fallback for custom preset names
+        // Re-apply saved preset so its values populate ConfigService fields before RestoreConfig
+        if (!string.IsNullOrEmpty(ConfigService.Preset)) {
+          PresetManager.SwitchPreset(ConfigService.Preset);
+          // Apply GPU power state via WMI (SwitchPreset only updates in-memory ConfigService)
+          try { OmenHardware.SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled, ConfigService.DState == 2 ? 2 : 1); } catch { }
+        }
         if (!string.IsNullOrEmpty(ConfigService.Language)) {
           switch (ConfigService.Language) {
             case "TraditionalChinese": Strings.Current = AppLanguage.TraditionalChinese; break;
@@ -94,6 +100,7 @@ namespace OmenSuperHub {
           HardwareService.LibreComputer.Open();
           System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => {
             TrayService.StartTimers();
+            TrayService.StartTrayHelperTimers();
           }), System.Windows.Threading.DispatcherPriority.Background);
         });
 
@@ -138,19 +145,18 @@ namespace OmenSuperHub {
     }
 
     static void ShowExistingWindow() {
-      var self = Process.GetCurrentProcess();
-      foreach (var p in Process.GetProcessesByName(self.ProcessName)) {
-        if (p.Id == self.Id) continue;
-        p.WaitForInputIdle(3000);
-        p.Refresh();
-        IntPtr hWnd = p.MainWindowHandle;
-        if (hWnd == IntPtr.Zero)
-          hWnd = FindWindowForProcess(p.Id);
-        if (hWnd != IntPtr.Zero) {
-          // Tell the first instance to show its window via WPF ShowInstance(),
-          // bypassing Win32 ShowWindow which breaks WPF internal state
-          PostMessage(hWnd, WM_SHOW_MAIN, IntPtr.Zero, IntPtr.Zero);
-          return;
+      using (var self = Process.GetCurrentProcess()) {
+        foreach (var p in Process.GetProcessesByName(self.ProcessName)) {
+          if (p.Id == self.Id) continue;
+          p.WaitForInputIdle(3000);
+          p.Refresh();
+          IntPtr hWnd = p.MainWindowHandle;
+          if (hWnd == IntPtr.Zero)
+            hWnd = FindWindowForProcess(p.Id);
+          if (hWnd != IntPtr.Zero) {
+            PostMessage(hWnd, WM_SHOW_MAIN, IntPtr.Zero, IntPtr.Zero);
+            return;
+          }
         }
       }
     }
@@ -213,6 +219,7 @@ namespace OmenSuperHub {
       try { HardwareApiService.Stop(); } catch { }
       try { HWiNFOService.Stop(); } catch { }
       try { ThemeService.Cleanup(); } catch { }
+      try { EcoQosService.Cleanup(); } catch { }
       try { AutomationProcessor.Stop(); } catch { }
       try { SystemEvents.PowerModeChanged -= TrayService.OnPowerChange; } catch { }
       try { _mutex?.ReleaseMutex(); } catch { }

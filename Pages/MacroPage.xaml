@@ -19,7 +19,7 @@
               <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
               <TextBlock x:Name="MacroEnabledText" Text="{x:Static app:Strings.MacroEnabled}" FontWeight="SemiBold" VerticalAlignment="Center"/>
             </StackPanel>
-            <ui:ToggleSwitch Grid.Column="1" x:Name="MacroMasterToggle" IsChecked="True"
+            <ui:ToggleSwitch Grid.Column="1" x:Name="MacroMasterToggle"
                              Checked="MacroMasterToggle_Checked" Unchecked="MacroMasterToggle_Unchecked"/>
           </Grid>
         </ui:CardControl.Header>

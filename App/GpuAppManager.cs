@@ -25,19 +25,37 @@ namespace OmenSuperHub {
     public static List<GpuAppInfo> GetGpuApps() {
       var apps = new List<GpuAppInfo>();
       try {
+        // ponytail: try --query-compute-apps first, fall back to parsing standard output
         string command = "nvidia-smi --query-compute-apps=pid,process_name --format=csv,noheader";
         var result = ExecuteCommand(command);
-        if (result.ExitCode == 0) {
+        if (result.ExitCode == 0 && !string.IsNullOrWhiteSpace(result.Output)) {
           string[] lines = result.Output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
           foreach (string line in lines) {
             string[] parts = line.Split(',');
             if (parts.Length >= 2 && int.TryParse(parts[0].Trim(), out int pid)) {
-              string procName = parts[1].Trim();
+              try { using (var p = Process.GetProcessById(pid)) { } } catch { continue; }
+              string fullPath = parts[1].Trim();
               apps.Add(new GpuAppInfo {
                 ProcessId = pid,
-                ProcessName = procName,
-                FilePath = GetProcessPath(pid, procName)
+                ProcessName = System.IO.Path.GetFileName(fullPath),
+                FilePath = GetProcessPath(pid, fullPath) ?? fullPath
               });
+            }
+          }
+        }
+        if (apps.Count == 0) {
+          // fallback: parse standard nvidia-smi Processes section
+          result = ExecuteCommand("nvidia-smi");
+          if (result.ExitCode == 0) {
+            var m = Regex.Match(result.Output, @"\|(\s+\d+\s+\S+\s+\S+\s+)(\d+)(\s+)(\S+)(\s+\S[^|]*)\|");
+            // simpler: find all "PID" lines
+            foreach (Match match in Regex.Matches(result.Output, @"^\|\s+\d+\s+N/A\s+N/A\s+(\d+)\s+\S+\s+(\S[^|]*?)\s+\S+\s*\|", RegexOptions.Multiline)) {
+              if (int.TryParse(match.Groups[1].Value, out int pid)) {
+                try { using (var p = Process.GetProcessById(pid)) { } } catch { continue; }
+                string name = match.Groups[2].Value.Trim();
+                if (!string.IsNullOrEmpty(name) && !apps.Any(a => a.ProcessId == pid))
+                  apps.Add(new GpuAppInfo { ProcessId = pid, ProcessName = name, FilePath = GetProcessPath(pid, name) });
+              }
             }
           }
         }
@@ -352,17 +370,62 @@ namespace OmenSuperHub {
       return 0;
     }
 
+    private static readonly HashSet<string> _allowedCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+      "nvidia-smi", "pnputil", "sc", "schtasks", "rd", "del", "reg", "cmd", "taskkill"
+    };
+
+    private static bool IsCommandSafe(string command) {
+      string trimmed = command.TrimStart();
+      if (trimmed.StartsWith("\"")) {
+        int end = trimmed.IndexOf("\"", 1);
+        if (end < 0) return false;
+      }
+      string exe = trimmed.Contains(" ") ? trimmed.Substring(0, trimmed.IndexOf(" ")) : trimmed;
+      exe = exe.Trim('"');
+      string exeName = System.IO.Path.GetFileName(exe);
+      if (!_allowedCommands.Contains(exeName)) return false;
+      if (command.Contains("&") || command.Contains("|") || command.Contains(";") ||
+          command.Contains("`") || command.Contains("$(") || command.Contains("\n") || command.Contains("\r"))
+        return false;
+      return true;
+    }
+
     public static ProcessResult ExecuteCommand(string command) {
-      var processStartInfo = new ProcessStartInfo {
-        FileName = "cmd.exe",
-        Arguments = $"/c {command}",
+      if (!IsCommandSafe(command)) {
+        Logger.Error($"GpuAppManager: blocked unsafe command");
+        return new ProcessResult { ExitCode = -1, Output = "", Error = "Blocked: unsafe command" };
+      }
+      string exe = command.TrimStart().Contains(" ") ? command.TrimStart().Substring(0, command.TrimStart().IndexOf(" ")) : command.TrimStart();
+      string args = command.TrimStart().Contains(" ") ? command.TrimStart().Substring(command.TrimStart().IndexOf(" ") + 1) : "";
+      exe = exe.Trim('"');
+      if (exe.Equals("cmd", StringComparison.OrdinalIgnoreCase) || exe.EndsWith("\\cmd.exe", StringComparison.OrdinalIgnoreCase)) {
+        var processStartInfo = new ProcessStartInfo {
+          FileName = "cmd.exe",
+          Arguments = args,
+          RedirectStandardOutput = true,
+          RedirectStandardError = true,
+          UseShellExecute = false,
+          CreateNoWindow = true,
+          WindowStyle = ProcessWindowStyle.Hidden
+        };
+        using (var process = new Process { StartInfo = processStartInfo }) {
+          process.Start();
+          string output = process.StandardOutput.ReadToEnd();
+          string error = process.StandardError.ReadToEnd();
+          process.WaitForExit();
+          return new ProcessResult { ExitCode = process.ExitCode, Output = output, Error = error };
+        }
+      }
+      var psi = new ProcessStartInfo {
+        FileName = exe,
+        Arguments = args,
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false,
         CreateNoWindow = true,
         WindowStyle = ProcessWindowStyle.Hidden
       };
-      using (var process = new Process { StartInfo = processStartInfo }) {
+      using (var process = new Process { StartInfo = psi }) {
         process.Start();
         string output = process.StandardOutput.ReadToEnd();
         string error = process.StandardError.ReadToEnd();

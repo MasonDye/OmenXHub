@@ -319,6 +319,225 @@
 
       </Grid>
 
+      <!-- ══════ 系统信息 / Device Info (migrated from SysInfoPage) ══════ -->
+      <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,8,0,16" Opacity="0.3"/>
+
+      <Grid x:Name="SysInfoGrid">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,4,0">
+          <ui:CardControl Margin="0,0,0,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <ui:SymbolIcon Symbol="Info24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.SysInfoHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="SysManufacturerText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysModelText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysProductNameText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysValidationText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysBoardText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysBiosText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysCpuText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysCpuTjmaxText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysGpuText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysNvidiaTjmaxText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysNvidiaPowerText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysAdapterText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysKbLightTypeText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+          <ui:CardControl>
+            <ui:CardControl.Header>
+              <StackPanel>
+                <Grid Margin="0,0,0,10">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Info24" FontSize="18" Margin="0,0,8,0"/>
+                    <TextBlock Text="{x:Static app:Strings.SensorTempsHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}"/>
+                  </StackPanel>
+                  <Button x:Name="SysInfoRefreshBtn" Grid.Column="1"
+                          Width="26" Height="20" Padding="0" Click="SysInfoRefresh_Click">
+                    <ui:SymbolIcon Symbol="ArrowReset24" FontSize="14"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="SysCpuTempText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                <TextBlock x:Name="SysGpuTempText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                <TextBlock x:Name="SysIrSensorText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                <TextBlock x:Name="SysAmbientText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                <TextBlock x:Name="SysPchText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                <TextBlock x:Name="SysVrText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+            </ui:CardControl.Header>
+          </ui:CardControl>
+        </StackPanel>
+
+        <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,0">
+          <ui:CardControl Margin="0,0,0,8">
+            <ui:CardControl.Header>
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                  <ui:SymbolIcon Symbol="Settings24" FontSize="18" Margin="0,0,8,0"/>
+                  <TextBlock Text="{x:Static app:Strings.SysPawnTitle}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock x:Name="SysPawnIoText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+              </StackPanel>
+            </ui:CardControl.Header>
+          </ui:CardControl>
+
+          <ui:CardControl Margin="0,0,0,8">
+            <ui:CardControl.Header>
+              <StackPanel>
+                <Grid Margin="0,0,0,10">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Info24" FontSize="18" Margin="0,0,8,0"/>
+                    <TextBlock Text="HP 驱动下载 / HP Driver Download" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <Button Grid.Column="1" Width="26" Height="20" Padding="0" Click="HpDriverSearch_Click">
+                    <ui:SymbolIcon Symbol="ArrowRight24" FontSize="14"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="SysDriverModelText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Text="点击右侧按钮打开 HP 官方驱动页面"/>
+              </StackPanel>
+            </ui:CardControl.Header>
+          </ui:CardControl>
+
+          <ui:CardControl>
+            <ui:CardControl.Header>
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                  <ui:SymbolIcon Symbol="LeafOne24" FontSize="18" Margin="0,0,8,0"/>
+                  <TextBlock Text="{x:Static app:Strings.HwMonitorHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Static app:Strings.MonitorCpuLabel}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="MonCpuCombo" Grid.Column="1" MinWidth="100"
+                              SelectionChanged="MonCpu_SelectionChanged">
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorCpuOn}"/>
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorCpuOff}"/>
+                    </ComboBox>
+                  </Grid>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Static app:Strings.MonitorGpuLabel}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="MonGpuCombo" Grid.Column="1" MinWidth="100"
+                              SelectionChanged="MonGpu_SelectionChanged">
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorGpuOn}"/>
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorGpuOff}"/>
+                    </ComboBox>
+                  </Grid>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Static app:Strings.FanLabel}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="MonFanCombo" Grid.Column="1" MinWidth="100"
+                              SelectionChanged="MonFan_SelectionChanged">
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorFanOn}"/>
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorFanOff}"/>
+                    </ComboBox>
+                  </Grid>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Static app:Strings.MonitorRefresh}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="MonRefreshCombo" Grid.Column="1" MinWidth="100"
+                              SelectionChanged="MonRefresh_SelectionChanged">
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorRefreshHigh}"/>
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorRefreshLow}"/>
+                    </ComboBox>
+                  </Grid>
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Static app:Strings.TempDisplayMode}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="TempDispCombo" Grid.Column="1" MinWidth="100"
+                              SelectionChanged="TempDisplay_SelectionChanged">
+                      <ComboBoxItem Content="{x:Static app:Strings.TempSmoothedShort}"/>
+                      <ComboBoxItem Content="{x:Static app:Strings.TempRawShort}"/>
+                    </ComboBox>
+                  </Grid>
+              </StackPanel>
+            </ui:CardControl.Header>
+          </ui:CardControl>
+        </StackPanel>
+      </Grid>
+
+      <ui:CardControl Margin="0,8,0,0">
+        <ui:CardControl.Header>
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+              <ui:SymbolIcon Symbol="DeviceEq24" FontSize="18" Margin="0,0,8,0"/>
+              <TextBlock Text="{x:Static app:Strings.GpuAppsMenu}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <ListBox x:Name="GpuAppList"
+                     Height="120" Margin="{StaticResource CardMargin}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     PreviewMouseWheel="GpuAppList_PreviewMouseWheel">
+              <ListBox.ContextMenu>
+                <ContextMenu>
+                  <MenuItem x:Name="GpuAppLocateMenu" Header="{x:Static app:Strings.GpuAppLocate}"
+                             Click="GpuAppLocate_Click"/>
+                  <MenuItem x:Name="GpuAppEndTaskMenu" Header="{x:Static app:Strings.GpuAppEndTask}"
+                             Click="GpuAppEndTask_Click"/>
+                  <MenuItem x:Name="GpuPrefHeading" Header="{x:Static app:Strings.GpuPrefHeading}" >
+                    <MenuItem x:Name="GpuPrefAuto" Header="{x:Static app:Strings.GpuPrefAuto}" 
+                              Click="GpuAppPrefAuto_Click"/>
+                    <MenuItem x:Name="GpuPrefPowerSave" Header="{x:Static app:Strings.GpuPrefPowerSave}" 
+                              Click="GpuAppPrefPowerSave_Click"/>
+                    <MenuItem x:Name="GpuPrefHighPerf" Header="{x:Static app:Strings.GpuPrefHighPerf}" 
+                              Click="GpuAppPrefHighPerf_Click"/>
+                  </MenuItem>
+                </ContextMenu>
+              </ListBox.ContextMenu>
+            </ListBox>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <WrapPanel Grid.Column="1">
+                <Button Content="{x:Static app:Strings.ButtonRefresh}"
+                        MinWidth="80" Click="RefreshGpuApps_Click"/>
+                <Button Content="{x:Static app:Strings.GpuRestartMenu}"
+                        MinWidth="100" Margin="8,0,0,0" Click="RestartGpu_Click"/>
+              </WrapPanel>
+            </Grid>
+          </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
     </StackPanel>
   </ScrollViewer>
 </Page>

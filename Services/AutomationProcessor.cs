@@ -3,10 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Input;
+using System.Windows.Interop;
 using Microsoft.Win32;
 using Windows.Devices.Radios;
 using static OmenSuperHub.OmenHardware;
@@ -27,9 +30,20 @@ namespace OmenSuperHub.Services {
     private static float _lastCpuTemp;
     private static float _lastGpuTemp;
     private static int _lastBatteryPercent = -1;
-    // Per-trigger latch (keyed by pipeline + trigger) so independent temp
-    // pipelines at different thresholds don't reset each other's fired state.
-    private static readonly HashSet<string> _firedTempTriggers = new HashSet<string>();
+    private static readonly HashSet<string> _tempTriggerFired = new HashSet<string>();
+
+    // Hotkey support
+    [DllImport("user32.dll")]
+    static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+    [DllImport("user32.dll")]
+    static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+    const int WM_HOTKEY = 0x0312;
+    const uint MOD_ALT = 0x0001;
+    const uint MOD_CONTROL = 0x0002;
+    const uint MOD_SHIFT = 0x0004;
+    const uint MOD_WIN = 0x0008;
+    static HwndSource _hotkeyHwndSource;
+    static System.Collections.Concurrent.ConcurrentDictionary<int, string> _registeredHotkeys;
 
     public static bool IsExecuting => _executing;
     public static string CurrentPipelineName => _currentPipelineName;
@@ -47,6 +61,10 @@ namespace OmenSuperHub.Services {
       StartScheduleTimer();
       StartTempPollTimer();
 
+      // Init hotkey message window
+      InitHotkeyHwnd();
+      RefreshHotkeys();
+
       FireTrigger("Startup", "");
 
       Logger.Info("AutomationProcessor started");
@@ -61,6 +79,9 @@ namespace OmenSuperHub.Services {
       SystemEvents.PowerModeChanged -= OnPowerModeChanged;
       if (_sessionSwitchHandler != null) { SystemEvents.SessionSwitch -= _sessionSwitchHandler; _sessionSwitchHandler = null; }
       if (_displaySettingsHandler != null) { SystemEvents.DisplaySettingsChanged -= _displaySettingsHandler; _displaySettingsHandler = null; }
+      _tempTriggerFired.Clear();
+      UnregisterAllHotkeys();
+      if (_hotkeyHwndSource != null) { _hotkeyHwndSource.Dispose(); _hotkeyHwndSource = null; }
       Logger.Info("AutomationProcessor stopped");
     }
 
@@ -143,19 +164,23 @@ namespace OmenSuperHub.Services {
             SetMaxFanSpeedOff();
             TrayService.fanControlTimer.Change(0, 1000);
             Views.OsdWindow.ShowFanModeOsd("cool");
+          } else if (step.Value == "smart") {
+            ConfigService.FanControl = "smart";
+            FanService.LoadFanConfig(ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt");
+            FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
+            SetMaxFanSpeedOff();
+            TrayService.fanControlTimer.Change(0, 1000);
+            Views.OsdWindow.ShowFanModeOsd("smart");
           } else if (step.Value == "custom") {
             ConfigService.FanControl = "custom";
             SetMaxFanSpeedOff();
             TrayService.fanControlTimer.Change(0, 1000);
             Views.OsdWindow.ShowFanModeOsd("custom");
-          } else if (!string.IsNullOrEmpty(step.Value) && step.Value.StartsWith("manual")) {
-            // Value format is "manual:NN" (percent). A bare "manual" with no
-            // percent leaves pct = -1 so we never silently drive the fans to 0%.
+          } else if (step.Value != null && step.Value.StartsWith("manual")) {
             int pct = -1;
-            int colon = step.Value.IndexOf(':');
-            if (colon >= 0) {
-              string pctStr = step.Value.Substring(colon + 1).Trim().TrimEnd('%');
-              if (!int.TryParse(pctStr, out pct)) pct = -1;
+            if (step.Value.Contains(":")) {
+              string pctStr = step.Value.Split(':')[1].Trim().TrimEnd('%');
+              int.TryParse(pctStr, out pct);
             }
             if (pct >= 0 && pct <= 100) {
               ConfigService.FanControl = pct + "%";
@@ -172,16 +197,15 @@ namespace OmenSuperHub.Services {
               Process.Start(new ProcessStartInfo {
                 FileName = step.Value,
                 UseShellExecute = true
-              });
+              })?.Dispose();
             } catch (Exception ex) {
               Logger.Error("Automation RunProgram failed: " + ex.Message);
             }
           }
           break;
         case "Notification":
-          if (!string.IsNullOrEmpty(step.Value)) {
-            TrayService.ShowNotification("OmenXHub Automation", step.Value);
-          }
+          if (!string.IsNullOrEmpty(step.Value))
+            Views.OsdWindow.ShowTextOsd(step.Value, force: true);
           break;
         case "SetIccMax":
           if (int.TryParse(step.Value, out int iccVal) && iccVal > 0 && iccVal <= 255) {
@@ -191,8 +215,11 @@ namespace OmenSuperHub.Services {
           break;
         case "SetAcLoadLine":
           if (int.TryParse(step.Value, out int acllVal) && acllVal > 0) {
-            ConfigService.AcLoadLine = acllVal;
-            OmenHardware.SetLoadLine(acllVal);
+            int level = (180 - acllVal) / 10; // ponytail: mOhm→level, display formula is 180-10*level
+            if (level >= 1 && level <= 3) {
+              ConfigService.AcLoadLine = level;
+              OmenHardware.SetLoadLine(level);
+            }
           }
           break;
         case "SetTpp":
@@ -202,11 +229,21 @@ namespace OmenSuperHub.Services {
           }
           break;
         case "SetGpuPower":
-          if (int.TryParse(step.Value, out int tgpVal) && tgpVal > 0) {
-            ConfigService.TgpEnabled = true;
-            ConfigService.PpabEnabled = true;
-            ConfigService.DState = 1;
+          if (step.Value == "max") {
+            ConfigService.GpuPower = "max";
+            ConfigService.TgpEnabled = true; ConfigService.PpabEnabled = true; ConfigService.DState = 1;
             OmenHardware.SetGpuPowerState(true, true, 1);
+            Views.OsdWindow.ShowTextOsd("GPU: CTGP开+DB开");
+          } else if (step.Value == "med") {
+            ConfigService.GpuPower = "med";
+            ConfigService.TgpEnabled = true; ConfigService.PpabEnabled = false; ConfigService.DState = 1;
+            OmenHardware.SetGpuPowerState(true, false, 1);
+            Views.OsdWindow.ShowTextOsd("GPU: CTGP开+DB关");
+          } else if (step.Value == "min") {
+            ConfigService.GpuPower = "min";
+            ConfigService.TgpEnabled = false; ConfigService.PpabEnabled = false; ConfigService.DState = 1;
+            OmenHardware.SetGpuPowerState(false, false, 1);
+            Views.OsdWindow.ShowTextOsd("GPU: CTGP关+DB关");
           }
           break;
         case "SetTempSensitivity":
@@ -233,7 +270,7 @@ namespace OmenSuperHub.Services {
           break;
         case "SetGPUHybridMode":
           if (!string.IsNullOrEmpty(step.Value))
-            AutomationActions.SetGPUHybridMode(step.Value == "on");
+            AutomationActions.SetGPUHybridMode(step.Value == "enable");
           break;
         case "SetBrightness":
           if (int.TryParse(step.Value, out int brightness))
@@ -252,8 +289,14 @@ namespace OmenSuperHub.Services {
             AutomationActions.SetBluetooth(step.Value == "on");
           break;
         case "PlaySound":
-          if (!string.IsNullOrEmpty(step.Value))
-            AutomationActions.PlaySound(step.Value);
+          // ponytail: inline — same as RunProgram, user confirmed RunProgram works
+          if (!string.IsNullOrEmpty(step.Value)) {
+            try {
+              Process.Start(new ProcessStartInfo { FileName = step.Value, UseShellExecute = true })?.Dispose();
+            } catch (Exception ex) {
+              Logger.Error("PlaySound failed: " + ex.Message);
+            }
+          }
           break;
         case "RunMacro":
           if (!string.IsNullOrEmpty(step.Value)) {
@@ -318,6 +361,105 @@ namespace OmenSuperHub.Services {
         dm.dmDisplayFrequency = prevHz;
         NativeMethods_Display.ChangeDisplaySettings(ref dm, 0);
       }
+    }
+
+    // ── Hotkey support ──
+
+    static void InitHotkeyHwnd() {
+      if (_hotkeyHwndSource != null) return;
+      var win = System.Windows.Application.Current?.MainWindow;
+      if (win == null) return;
+      // ponytail: use main window handle instead of a hidden HwndSource
+      var helper = new System.Windows.Interop.WindowInteropHelper(win);
+      var hwnd = helper.Handle;
+      if (hwnd == IntPtr.Zero) return;
+      var source = System.Windows.Interop.HwndSource.FromHwnd(hwnd);
+      if (source == null) return;
+      source.AddHook(HotkeyWndProc);
+      _hotkeyHwndSource = source;
+    }
+
+    static IntPtr HotkeyWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled) {
+      try {
+        if (msg == WM_HOTKEY) {
+          int id = wParam.ToInt32();
+          if (_registeredHotkeys != null && _registeredHotkeys.TryGetValue(id, out string value)) {
+            FireTrigger("Hotkey", value);
+            handled = true;
+          }
+        }
+      } catch (Exception ex) { Logger.Error("HotkeyWndProc error: " + ex.Message); }
+      return IntPtr.Zero;
+    }
+
+    static uint ParseHotkeyModifiers(string[] parts, out string keyPart) {
+      uint mods = 0;
+      keyPart = parts[parts.Length - 1];
+      for (int i = 0; i < parts.Length - 1; i++) {
+        switch (parts[i].ToLowerInvariant()) {
+          case "alt": mods |= MOD_ALT; break;
+          case "ctrl": case "control": mods |= MOD_CONTROL; break;
+          case "shift": mods |= MOD_SHIFT; break;
+          case "win": case "windows": mods |= MOD_WIN; break;
+        }
+      }
+      return mods;
+    }
+
+    static Key HotkeyStringToKey(string hotkey) {
+      string[] parts = hotkey.Split('+');
+      string keyName = parts[parts.Length - 1].Trim();
+      try { return (Key)Enum.Parse(typeof(Key), keyName, ignoreCase: true); } catch { }
+      return FriendlyToKey(keyName);
+    }
+
+    static Key FriendlyToKey(string name) {
+      if (name.Length == 1 && name[0] >= '0' && name[0] <= '9')
+        return Key.D0 + (name[0] - '0');
+      switch (name) {
+        case ".": return Key.OemPeriod;    case ",": return Key.OemComma;
+        case "-": return Key.OemMinus;     case "+": return Key.OemPlus;
+        case "/": return Key.OemQuestion;  case ";": return Key.OemSemicolon;
+        case "'": return Key.OemQuotes;    case "[": return Key.OemOpenBrackets;
+        case "]": return Key.OemCloseBrackets;
+        case "\\": return Key.OemPipe;     case "`": return Key.OemTilde;
+        default: return Key.None;
+      }
+    }
+
+    static void UnregisterAllHotkeys() {
+      if (_registeredHotkeys == null) return;
+      IntPtr hwnd = _hotkeyHwndSource?.Handle ?? IntPtr.Zero;
+      foreach (int id in _registeredHotkeys.Keys)
+        UnregisterHotKey(hwnd, id);
+      _registeredHotkeys.Clear();
+    }
+
+    public static void RefreshHotkeys() {
+      if (!_running) return;
+      InitHotkeyHwnd();
+      UnregisterAllHotkeys();
+      if (_registeredHotkeys == null) _registeredHotkeys = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+      IntPtr hwnd = _hotkeyHwndSource.Handle;
+      int nextId = 1;
+      var pipelines = AutomationService.GetEnabledPipelines();
+      foreach (var p in pipelines) {
+        foreach (var t in p.Triggers) {
+          if (!t.Enabled || t.Type != "Hotkey" || string.IsNullOrEmpty(t.Value)) continue;
+          Key key = HotkeyStringToKey(t.Value);
+          if (key == Key.None) continue;
+          string[] parts = t.Value.Split('+');
+          if (parts.Length < 2) continue;
+          uint mods = ParseHotkeyModifiers(parts, out _);
+          uint vk = (uint)KeyInterop.VirtualKeyFromKey(key);
+          if (RegisterHotKey(hwnd, nextId, mods, vk))
+            _registeredHotkeys.TryAdd(nextId, t.Value);
+          else
+            Logger.Warn($"RegisterHotKey failed for {t.Value}");
+          nextId++;
+        }
+      }
+      if (nextId > 1) Logger.Info($"Hotkeys: registered {_registeredHotkeys.Count} shortcut(s)");
     }
 
     // ── Trigger detection ──
@@ -398,8 +540,8 @@ namespace OmenSuperHub.Services {
     private static void SubscribeLidEvents() {
       try {
         var query = new WqlEventQuery("SELECT * FROM Win32_SystemLaunchCondition");
-        // Fallback: use power events to detect lid close via battery report
-      } catch { }
+        GC.KeepAlive(query);
+      } catch (Exception ex) { Logger.Verbose($"SubscribeLidEvents: {ex.Message}"); }
     }
 
     private static void StartTempPollTimer() {
@@ -419,19 +561,22 @@ namespace OmenSuperHub.Services {
             p.EnsureTriggers();
             foreach (var t in p.Triggers) {
               if (!t.Enabled) continue;
+              string latchKey = (p.Name ?? "") + ":" + t.Type;
               if (t.Type == "CpuTempAbove" && int.TryParse(t.Value, out int cpuThresh)) {
-                string key = p.Name + "|CpuTempAbove|" + t.Value;
-                if (cpuTemp >= cpuThresh) {
-                  if (_firedTempTriggers.Add(key)) ExecutePipeline(p);
-                } else if (cpuTemp < cpuThresh - 2) {
-                  _firedTempTriggers.Remove(key);
+                bool above = cpuTemp >= cpuThresh;
+                if (above && !_tempTriggerFired.Contains(latchKey)) {
+                  _tempTriggerFired.Add(latchKey);
+                  ExecutePipeline(p);
+                } else if (!above && cpuTemp < cpuThresh - 2) {
+                  _tempTriggerFired.Remove(latchKey);
                 }
               } else if (t.Type == "GpuTempAbove" && int.TryParse(t.Value, out int gpuThresh)) {
-                string key = p.Name + "|GpuTempAbove|" + t.Value;
-                if (gpuTemp >= gpuThresh) {
-                  if (_firedTempTriggers.Add(key)) ExecutePipeline(p);
-                } else if (gpuTemp < gpuThresh - 2) {
-                  _firedTempTriggers.Remove(key);
+                bool above = gpuTemp >= gpuThresh;
+                if (above && !_tempTriggerFired.Contains(latchKey)) {
+                  _tempTriggerFired.Add(latchKey);
+                  ExecutePipeline(p);
+                } else if (!above && gpuTemp < gpuThresh - 2) {
+                  _tempTriggerFired.Remove(latchKey);
                 }
               }
             }
@@ -552,7 +697,7 @@ namespace OmenSuperHub.Services {
           using (var searcher = new ManagementObjectSearcher(@"root\WMI",
               "SELECT * FROM WmiMonitorBrightnessMethods")) {
             foreach (ManagementObject mo in searcher.Get()) {
-              mo.InvokeMethod("WmiSetBrightness", new object[] { (uint)brightness, 1 });
+              mo.InvokeMethod("WmiSetBrightness", new object[] { 1, (uint)brightness });
             }
           }
         } catch (Exception ex) {
@@ -613,29 +758,48 @@ namespace OmenSuperHub.Services {
 
       internal static void SetMicrophoneMute(bool mute) {
         try {
-          // Core Audio API requires STA thread — dispatch to UI thread
           System.Windows.Application.Current.Dispatcher.Invoke(() => {
             var devEnumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
-            IMMDeviceCollection devices = null;
+            IMMDevice defaultDev = null;
             try {
-              devEnumerator.EnumAudioEndpoints(1, 1, out devices);
-              if (devices != null) {
-                devices.GetCount(out uint count);
-                for (uint i = 0; i < count; i++) {
-                  devices.Item(i, out IMMDevice device);
-                  if (device != null) {
-                    Guid iid = typeof(IAudioEndpointVolume).GUID;
-                    device.Activate(ref iid, 0, IntPtr.Zero, out object epVolObj);
-                    if (epVolObj is IAudioEndpointVolume epVol) {
-                      Guid ctx = Guid.Empty;
-                      epVol.SetMute(mute, ref ctx);
-                    }
-                    Marshal.ReleaseComObject(device);
+              devEnumerator.GetDefaultAudioEndpoint(1, 0, out defaultDev);
+              if (defaultDev != null) {
+                Guid iid = typeof(IAudioEndpointVolume).GUID;
+                defaultDev.Activate(ref iid, 23, IntPtr.Zero, out object epVolObj);
+                if (epVolObj is IAudioEndpointVolume epVol) {
+                  Guid ctx = Guid.Empty;
+                  epVol.SetMute(mute, ref ctx);
+                  Marshal.ReleaseComObject(epVolObj);
+                }
+                Marshal.ReleaseComObject(defaultDev);
+              }
+            } catch {
+              // try enumerating all devices as fallback
+              IMMDeviceCollection devices = null;
+              try {
+                devEnumerator.EnumAudioEndpoints(2, 0x1F, out devices);
+                if (devices != null) {
+                  devices.GetCount(out uint count);
+                  for (uint i = 0; i < count; i++) {
+                    try {
+                      devices.Item(i, out IMMDevice device);
+                      if (device != null) {
+                        Guid iid2 = typeof(IAudioEndpointVolume).GUID;
+                        device.Activate(ref iid2, 23, IntPtr.Zero, out object epv);
+                        if (epv is IAudioEndpointVolume ev) {
+                          Guid ctx2 = Guid.Empty;
+                          ev.SetMute(mute, ref ctx2);
+                          Marshal.ReleaseComObject(epv);
+                        }
+                        Marshal.ReleaseComObject(device);
+                      }
+                    } catch { }
                   }
                 }
+              } finally {
+                if (devices != null) Marshal.ReleaseComObject(devices);
               }
             } finally {
-              if (devices != null) Marshal.ReleaseComObject(devices);
               if (devEnumerator != null) Marshal.ReleaseComObject(devEnumerator);
             }
           });
@@ -646,13 +810,12 @@ namespace OmenSuperHub.Services {
 
       internal static void PlaySound(string filePath) {
         try {
-          if (!System.IO.File.Exists(filePath)) {
-            Logger.Error("PlaySound: file not found: " + filePath);
-            return;
+          Logger.Info("PlaySound: " + (filePath ?? "(null)"));
+          if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath)) {
+            Logger.Error("PlaySound: file not found"); return;
           }
-          using (var player = new System.Media.SoundPlayer(filePath)) {
-            player.PlaySync();
-          }
+          // ponytail: shell-open via default player — same as RunProgram, works for any format
+          Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true })?.Dispose();
         } catch (Exception ex) {
           Logger.Error("PlaySound failed: " + ex.Message);
         }

@@ -44,7 +44,7 @@ namespace OmenSuperHub.Services {
     public static void Start() {
       _kbProc = LowLevelKeyboardProc;
       _mouseProc = LowLevelMouseProc;
-      _kbHookId = SetWindowsHookEx(WH_KEYBOARD_LL, _kbProc, GetModuleHandle(Process.GetCurrentProcess().MainModule.ModuleName), 0);
+      _kbHookId = SetWindowsHookEx(WH_KEYBOARD_LL, _kbProc, GetModuleHandle(null), 0);
       if (_kbHookId == IntPtr.Zero)
         Logger.Error("MacroController: Failed to install keyboard hook");
       else
@@ -56,6 +56,8 @@ namespace OmenSuperHub.Services {
       if (_mouseHookId != IntPtr.Zero) { UnhookWindowsHookEx(_mouseHookId); _mouseHookId = IntPtr.Zero; }
       StopRecording();
       _playCts?.Cancel();
+      _playCts?.Dispose();
+      _playCts = null;
     }
 
     public static void SetEnabled(bool enabled) { _enabled = enabled; }
@@ -69,7 +71,7 @@ namespace OmenSuperHub.Services {
       _lastRecordedEventTime = DateTime.Now;
       _recording = true;
       if (captureMouse && _mouseHookId == IntPtr.Zero) {
-        _mouseHookId = SetWindowsHookEx(WH_MOUSE_LL, _mouseProc, GetModuleHandle(Process.GetCurrentProcess().MainModule.ModuleName), 0);
+        _mouseHookId = SetWindowsHookEx(WH_MOUSE_LL, _mouseProc, GetModuleHandle(null), 0);
       }
       Logger.Info("MacroController: Recording started");
     }
@@ -225,70 +227,54 @@ namespace OmenSuperHub.Services {
 
     public static string GetKeyName(uint vk) {
       if (vk == 0) return "(无)";
-      long scan = MapVirtualKey((int)vk, 0);
-      int result = ToUnicodeEx((uint)vk, (uint)scan, new byte[256], new char[256], 256, 0, GetKeyboardLayout(0));
-      if (result > 0) return new string(new char[256], 0, result).Trim();
+      if (vk >= 0x30 && vk <= 0x39) return ((char)vk).ToString();
+      if (vk >= 0x41 && vk <= 0x5A) return ((char)vk).ToString();
+      // ponytail: direct mapping for OEM keys (layout-independent)
       switch (vk) {
-        case 0x08: return "Backspace";
-        case 0x09: return "Tab";
-        case 0x0D: return "Enter";
-        case 0x10: return "Shift";
-        case 0x11: return "Ctrl";
-        case 0x12: return "Alt";
-        case 0x13: return "Pause";
-        case 0x14: return "Caps Lock";
-        case 0x1B: return "Escape";
-        case 0x20: return "Space";
-        case 0x21: return "Page Up";
-        case 0x22: return "Page Down";
-        case 0x23: return "End";
-        case 0x24: return "Home";
-        case 0x25: return "Left";
-        case 0x26: return "Up";
-        case 0x27: return "Right";
-        case 0x28: return "Down";
-        case 0x2C: return "Print Screen";
-        case 0x2D: return "Insert";
-        case 0x2E: return "Delete";
-        case 0x5B: return "LWin";
+        case 0x08: return "Backspace";  case 0x09: return "Tab";
+        case 0x0D: return "Enter";      case 0x10: return "Shift";
+        case 0x11: return "Ctrl";       case 0x12: return "Alt";
+        case 0x13: return "Pause";      case 0x14: return "Caps Lock";
+        case 0x1B: return "Escape";     case 0x20: return "Space";
+        case 0x21: return "Page Up";    case 0x22: return "Page Down";
+        case 0x23: return "End";        case 0x24: return "Home";
+        case 0x25: return "Left";       case 0x26: return "Up";
+        case 0x27: return "Right";      case 0x28: return "Down";
+        case 0x2C: return "Print Scrn"; case 0x2D: return "Insert";
+        case 0x2E: return "Delete";     case 0x5B: return "LWin";
         case 0x5C: return "RWin";
-        case 0x60: return "Num 0";
-        case 0x61: return "Num 1";
-        case 0x62: return "Num 2";
-        case 0x63: return "Num 3";
-        case 0x64: return "Num 4";
-        case 0x65: return "Num 5";
-        case 0x66: return "Num 6";
-        case 0x67: return "Num 7";
-        case 0x68: return "Num 8";
-        case 0x69: return "Num 9";
-        case 0x6A: return "Num *";
-        case 0x6B: return "Num +";
-        case 0x6C: return "Num Enter";
-        case 0x6D: return "Num -";
-        case 0x6E: return "Num .";
-        case 0x6F: return "Num /";
-        case 0x70: return "F1";
-        case 0x71: return "F2";
-        case 0x72: return "F3";
-        case 0x73: return "F4";
-        case 0x74: return "F5";
-        case 0x75: return "F6";
-        case 0x76: return "F7";
-        case 0x77: return "F8";
-        case 0x78: return "F9";
-        case 0x79: return "F10";
-        case 0x7A: return "F11";
-        case 0x7B: return "F12";
-        case 0x90: return "Num Lock";
-        case 0x91: return "Scroll Lock";
-        case 0xA0: return "LShift";
-        case 0xA1: return "RShift";
-        case 0xA2: return "LCtrl";
-        case 0xA3: return "RCtrl";
-        case 0xA4: return "LAlt";
-        case 0xA5: return "RAlt";
-        default: return "0x" + vk.ToString("X2");
+        case 0x60: return "Num 0";      case 0x61: return "Num 1";
+        case 0x62: return "Num 2";      case 0x63: return "Num 3";
+        case 0x64: return "Num 4";      case 0x65: return "Num 5";
+        case 0x66: return "Num 6";      case 0x67: return "Num 7";
+        case 0x68: return "Num 8";      case 0x69: return "Num 9";
+        case 0x6A: return "Num *";      case 0x6B: return "Num +";
+        case 0x6C: return "Num Enter";  case 0x6D: return "Num -";
+        case 0x6E: return "Num .";      case 0x6F: return "Num /";
+        case 0x70: return "F1";         case 0x71: return "F2";
+        case 0x72: return "F3";         case 0x73: return "F4";
+        case 0x74: return "F5";         case 0x75: return "F6";
+        case 0x76: return "F7";         case 0x77: return "F8";
+        case 0x78: return "F9";         case 0x79: return "F10";
+        case 0x7A: return "F11";        case 0x7B: return "F12";
+        case 0x90: return "Num Lock";   case 0x91: return "Scroll Lock";
+        case 0xA0: return "LShift";     case 0xA1: return "RShift";
+        case 0xA2: return "LCtrl";      case 0xA3: return "RCtrl";
+        case 0xA4: return "LAlt";       case 0xA5: return "RAlt";
+        // OEM symbol keys (US layout)
+        case 0xBA: return ";";  case 0xBB: return "=";
+        case 0xBC: return ",";  case 0xBD: return "-";
+        case 0xBE: return ".";  case 0xBF: return "/";
+        case 0xC0: return "`";  case 0xDB: return "[";
+        case 0xDC: return "\\"; case 0xDD: return "]";
+        case 0xDE: return "'";  case 0xE2: return "\\";
+        default: {
+          // try ToUnicodeEx as last resort
+          long scan = MapVirtualKey((int)vk, 0);
+          int result = ToUnicodeEx(vk, (uint)scan, new byte[256], new char[256], 256, 0, GetKeyboardLayout(0));
+          if (result > 0) return new string(new char[256], 0, result).Trim();
+          return "0x" + vk.ToString("X2");
+        }
       }
     }
 

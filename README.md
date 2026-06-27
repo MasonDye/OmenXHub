@@ -1,396 +1,288 @@
-<div align="center">
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png">
+    <img src="assets/logo.png" width="220" alt="Ponytail, the lazy senior dev">
+  </picture>
+</p>
 
-# OMEN X Hub
+<h1 align="center">Ponytail</h1>
 
-![OMEN X Hub](Preview/Dashboard.png)
+<p align="center">
+  <em>He says nothing. He writes one line. It works.</em>
+</p>
 
-**OMEN X Hub** — A lightweight, offline replacement for HP OMEN Gaming Hub.
-No advertisements · No wallpapers · No network connections.
+<p align="center">
+  <img src="https://img.shields.io/github/stars/DietrichGebert/ponytail?style=flat-square&color=111111&label=stars" alt="Stars">
+  <img src="https://img.shields.io/github/v/release/DietrichGebert/ponytail?style=flat-square&color=111111&label=release" alt="Release">
+  <img src="https://img.shields.io/npm/v/@dietrichgebert/ponytail?style=flat-square&color=111111&label=npm" alt="npm">
+  <img src="https://img.shields.io/badge/works%20with-14%20agents-111111?style=flat-square" alt="Works with 14 agents">
+  <img src="https://img.shields.io/badge/license-MIT-111111?style=flat-square" alt="MIT license">
+</p>
 
-[简体中文](#简体中文) · [繁體中文](#繁體中文) · [English](#english)
+<p align="center">
+  <strong>~54% less code (up to 94%) &middot; ~20% cheaper &middot; ~27% faster &middot; 100% safe</strong><br>
+  <sub>Measured on real Claude Code sessions editing a real open-source repo (FastAPI + React), against the same agent with no skill. ~54% is the mean across 12 feature tasks (Haiku 4.5, n=4); it reaches 94% where an agent over-builds (a date picker) and is near zero where the code is already minimal. ponytail keeps every safety guard while a bare "write one-liners" prompt drops one. (The earlier single-shot benchmark reported 80-94% as a flat figure; against a fair agentic baseline that is the per-task ceiling, not the average.) <a href="benchmarks/results/2026-06-18-agentic.md">Full writeup</a> &middot; <a href="benchmarks/">reproduce it</a>.</sub>
+</p>
 
-</div>
-
----
-
-# 简体中文
-
-> 轻量、离线的 HP OMEN Gaming Hub 替代品 —— 无广告、无壁纸、无联网。
-
-**OMEN X Hub**（原名 OmenSuperHub）是一个基于 WPF 的 OMEN / VICTUS 游戏本控制中心，提供全面的硬件监控、风扇控制、性能调优、键盘灯光和系统诊断功能，无需安装臃肿的官方 OGH 软件。
-
-## 功能一览
-
-### 仪表板 (Dashboard)
-
-实时显示 CPU/GPU 温度、使用率、频率、功耗、风扇转速、内存占用、网速。颜色编码进度条（绿→黄→红）直观反映负载状态。
-
-![仪表板](Preview/Dashboard.png)
-
-### 性能控制 (Performance)
-
-CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、电源模式/计划、EcoQoS 效率模式、Core Keep 核心保持。GPU 频率限制、核心超频、显存超频、TGP/PPAB、dState、DB 版本、图形模式切换、热切换、屏幕刷新率、最大帧率。
-
-| CPU 控制 | GPU 控制 |
-|:---:|:---:|
-| ![CPU](Preview/Perf-CPU.png) | ![GPU](Preview/Perf-GPU.png) |
-
-### 风扇控制 (Fan)
-
-风扇模式（自动/最大/固定 RPM）、温度灵敏度、自定义风扇曲线（拖拽控制点）、高温自动保护、风扇除尘。
-
-![风扇](Preview/Fan.png)
-
-### 灯光控制 (Lighting)
-
-键盘/灯条设备，Basic/Dojo 四分区协议。10 种动画效果、4 区独立颜色、亮度与速度控制。
-
-![灯光](Preview/Lighting.png)
-
-### 自动化 (Automation)
-
-16 种触发条件（进程启动/停止、锁定/解锁、电源插拔、外接显示器、定时、CPU/GPU 温度、电池电量等）+ 23 种执行步骤（预设、刷新率、电源、WiFi/蓝牙、亮度、音频、宏等）。快捷操作可从托盘一键触发。
-
-| 流水线列表 | 编辑管道 |
-|:---:|:---:|
-| ![自动化](Preview/Automation.png) | ![编辑](Preview/Automation-Edit.png) |
-
-### 键盘宏 (Macro)
-
-录制/回放键盘操作序列，支持触发快捷键、事件编辑。
-
-![宏](Preview/Macro.png)
-
-### 其他 (Other)
-
-智能充电、数字锁定、大写锁定、触摸板锁定、HWiNFO64 集成、HTTP API 服务。
-
-![其他](Preview/Other.png)
-
-### 系统信息 (SysInfo)
-
-系统硬件详情、PawnIO 驱动状态、传感器温度、GPU 进程管理、监控选项。
-
-![系统信息](Preview/SysInfo.png)
-
-### 设置 (Settings)
-
-浮窗显示（位置/字体/透明度/多显示器）、Omen 键（5 种行为）、OSD 提示、托盘图标（原版/自定义/动态）、开机自启、自定义主界面 LOGO、主题（系统/深色/亮色）、语言、自定义背景（透明度/高斯模糊）、数据本地化、调试日志。
-
-| 浮窗 & Omen 键 | 主题 & 背景 |
-|:---:|:---:|
-| ![设置](Preview/Settings.png) | ![系统](Preview/Settings-System.png) |
-
-## 预设管理
-
-| 预设 | PL1 | PL2 | 风扇 | TGP/PPAB | GPU 频率上限 |
-|------|-----|-----|------|----------|-------------|
-| 极致性能 (Extreme) | 254W | 254W | Cool | 255W | 无限制 |
-| GPU 优先 (GpuPriority) | 45W | 45W | Cool | 255W | 无限制 |
-| 轻度使用 (LightUse) | 25W | 25W | Silent | 关闭 | 无限制 |
-| 自定义 (Custom 1-3) | 用户保存 | 用户保存 | 用户保存 | 用户保存 | 用户保存 |
-
-仅 CPU 功率、电源计划、GPU 频率上限、TGP+PPAB、dState 跟随预设绑定；灯光、宏、音频等参数独立保存。
-
-## 支持硬件
-
-| 状态 | 型号 |
-|------|------|
-| 已确认 | 暗影精灵 8 Plus · 8 Plus Plus · 9 · 9 Plus · 10 · 光影精灵 10 · 光影精灵 10 (Victus) · OMEN 16 (Ryzen) · OMEN 15 · OMEN Phantom Gaming |
-| 不支持 | 暗影精灵 6 |
-
-> 主要针对 **OMEN 10 Intel (i7-13650HX + RTX 4070)** 开发，兼容性不保证适用于所有平台。
-
-### 环境要求
-
-- HP OMEN / VICTUS 游戏本，具有 WMI BIOS 接口
-- Windows 10/11 64-bit · .NET Framework 4.8
-- 管理员权限（WMI、风扇控制、驱动安装所需）
-
-## 快速开始
-
-1. **关闭 OGH** — 结束 `OmenCommandCenterBackground.exe` 或卸载 OGH 以避免冲突。
-2. **以管理员身份运行** — 硬件控制需要提权。
-3. **启动 `OmenXHub.exe`** — 程序在系统托盘运行。
-4. **右键托盘图标** 切换性能模式或打开控制面板。
-5. **在设置中启用开机自启** 以长期替代 OGH。
-
-> ⚠️ DB (Dynamic Boost) 解锁需要 NVIDIA 驱动版本 ≥ 537.42 且 < 610.47。50 系列 GPU 不支持解锁。
-
-## 构建
-
-```cmd
-dotnet restore OmenSuperHub.csproj
-set MSBuildSDKsPath=C:\Program Files\dotnet\sdk\8.0.418\Sdks
-set MSBuildEnableWorkloadResolver=false
-MSBuild.exe OmenSuperHub.csproj /t:Build /p:Configuration=Release /p:Platform=x64
-```
-
-输出：`bin\x64\Release\OmenXHub.exe`（单文件 — 所有 DLL 通过 Costura.Fody 嵌入）
-
-## 致谢
-
-- **MasonDye** — GUI 设计与 WPF 前端开发
-- **breadeding** — [OmenSuperHub](https://github.com/breadeding/OmenSuperHub)（原始框架与代码）
-- **GeographicCone** — [OmenMon](https://github.com/GeographicCone) / [OmenHwCtl](https://github.com/GeographicCone)（灵感来源与 OGH 交互研究）
-- **OpenHardwareMonitor** — [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)（硬件监控核心库）
-
-## 免责声明
-
-OMEN X Hub **与 HP 或 OMEN 无关联**。品牌名称仅作参考。本软件直接与硬件交互，可能存在潜在风险。**使用风险自负。**
+<p align="center">
+  <sub><a href="README.es.md">Español</a> &middot; <a href="README.ko.md">한국어</a></sub>
+</p>
 
 ---
 
-# 繁體中文
+You know him. Long ponytail. Oval glasses. Has been at the company longer than the version control. You show him fifty lines; he looks at them, says nothing, and replaces them with one.
 
-> 輕量、離線的 HP OMEN Gaming Hub 替代品 —— 無廣告、無牆紙、無聯網。
+Ponytail puts him inside your AI agent.
 
-**OMEN X Hub**（原名 OmenSuperHub）是一個基於 WPF 的 OMEN / VICTUS 遊戲筆電控制中心，提供全面的硬體監控、風扇控制、效能調校、鍵盤燈光和系統診斷功能，無需安裝臃腫的官方 OGH 軟體。
+## Before / after
 
-## 功能一覽
+You ask for a date picker. Your agent installs flatpickr, writes a wrapper component, adds a stylesheet, and starts a discussion about timezones.
 
-### 儀表板 (Dashboard)
+With ponytail:
 
-即時顯示 CPU/GPU 溫度、使用率、頻率、功耗、風扇轉速、記憶體佔用、網速。顏色編碼進度條（綠→黃→紅）直觀反映負載狀態。
-
-![儀表板](Preview/Dashboard.png)
-
-### 效能控制 (Performance)
-
-CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、電源模式/計畫、EcoQoS 效率模式、Core Keep 核心保持。GPU 頻率限制、核心超頻、記憶體超頻、TGP/PPAB、dState、DB 版本、圖形模式切換、熱切換、螢幕更新率、最大幀率。
-
-| CPU 控制 | GPU 控制 |
-|:---:|:---:|
-| ![CPU](Preview/Perf-CPU.png) | ![GPU](Preview/Perf-GPU.png) |
-
-### 風扇控制 (Fan)
-
-風扇模式（自動/最大/固定 RPM）、溫度靈敏度、自訂風扇曲線（拖曳控制點）、高溫自動保護、風扇除塵。
-
-![風扇](Preview/Fan.png)
-
-### 燈光控制 (Lighting)
-
-鍵盤/燈條裝置，Basic/Dojo 四分區協議。10 種動畫效果、4 區獨立顏色、亮度與速度控制。
-
-![燈光](Preview/Lighting.png)
-
-### 自動化 (Automation)
-
-16 種觸發條件（程序啟動/停止、鎖定/解鎖、電源插拔、外接顯示器、定時、CPU/GPU 溫度、電池電量等）+ 23 種執行步驟（預設、更新率、電源、WiFi/藍牙、亮度、音訊、巨集等）。快捷操作可從匣標（系統列）一鍵觸發。
-
-| 流水線清單 | 編輯管道 |
-|:---:|:---:|
-| ![自動化](Preview/Automation.png) | ![編輯](Preview/Automation-Edit.png) |
-
-### 鍵盤巨集 (Macro)
-
-錄製/回放鍵盤操作序列，支援觸發快捷鍵、事件編輯。
-
-![巨集](Preview/Macro.png)
-
-### 其他 (Other)
-
-智慧充電、數字鎖定、大寫鎖定、觸控板鎖定、HWiNFO64 整合、HTTP API 服務。
-
-![其他](Preview/Other.png)
-
-### 系統資訊 (SysInfo)
-
-系統硬體詳情、PawnIO 驅動狀態、感測器溫度、GPU 程序管理、監控選項。
-
-![系統資訊](Preview/SysInfo.png)
-
-### 設定 (Settings)
-
-浮窗顯示（位置/字型/透明度/多顯示器）、Omen 鍵（5 種行為）、OSD 提示、匣標圖示（原版/自訂/動態）、開機自啟、自訂主介面 LOGO、主題（跟隨系統/深色/亮色）、語言、自訂背景（透明度/高斯模糊）、資料本地化、除錯日誌。
-
-| 浮窗 & Omen 鍵 | 主題 & 背景 |
-|:---:|:---:|
-| ![設定](Preview/Settings.png) | ![系統](Preview/Settings-System.png) |
-
-## 預設管理
-
-| 預設 | PL1 | PL2 | 風扇 | TGP/PPAB | GPU 頻率上限 |
-|------|-----|-----|------|----------|-------------|
-| 極致效能 (Extreme) | 254W | 254W | Cool | 255W | 無限制 |
-| GPU 優先 (GpuPriority) | 45W | 45W | Cool | 255W | 無限制 |
-| 輕度使用 (LightUse) | 25W | 25W | Silent | 關閉 | 無限制 |
-| 自訂 (Custom 1-3) | 使用者儲存 | 使用者儲存 | 使用者儲存 | 使用者儲存 | 使用者儲存 |
-
-僅 CPU 功率、電源計畫、GPU 頻率上限、TGP+PPAB、dState 跟隨預設綁定；燈光、巨集、音訊等參數獨立儲存。
-
-## 支援硬體
-
-| 狀態 | 型號 |
-|------|------|
-| 已確認 | 暗影精靈 8 Plus · 8 Plus Plus · 9 · 9 Plus · 10 · 光影精靈 10 · 光影精靈 10 (Victus) · OMEN 16 (Ryzen) · OMEN 15 · OMEN Phantom Gaming |
-| 不支援 | 暗影精靈 6 |
-
-> 主要針對 **OMEN 10 Intel (i7-13650HX + RTX 4070)** 開發，相容性不保證適用於所有平台。
-
-### 環境要求
-
-- HP OMEN / VICTUS 遊戲筆電，具有 WMI BIOS 介面
-- Windows 10/11 64-bit · .NET Framework 4.8
-- 管理員權限（WMI、風扇控制、驅動安裝所需）
-
-## 快速開始
-
-1. **關閉 OGH** — 結束 `OmenCommandCenterBackground.exe` 或解除安裝 OGH 以避免衝突。
-2. **以管理員身份執行** — 硬體控制需要提權。
-3. **啟動 `OmenXHub.exe`** — 程式在匣標（系統列）運行。
-4. **右鍵匣標圖示** 切換效能模式或開啟控制面板。
-5. **在設定中啟用開機自啟** 以長期替代 OGH。
-
-> ⚠️ DB (Dynamic Boost) 解鎖需要 NVIDIA 驅動版本 ≥ 537.42 且 < 610.47。50 系列 GPU 不支援解鎖。
-
-## 建置
-
-```cmd
-dotnet restore OmenSuperHub.csproj
-set MSBuildSDKsPath=C:\Program Files\dotnet\sdk\8.0.418\Sdks
-set MSBuildEnableWorkloadResolver=false
-MSBuild.exe OmenSuperHub.csproj /t:Build /p:Configuration=Release /p:Platform=x64
+```html
+<!-- ponytail: browser has one -->
+<input type="date">
 ```
 
-輸出：`bin\x64\Release\OmenXHub.exe`（單一檔案 — 所有 DLL 透過 Costura.Fody 嵌入）
+More survivors in [examples/](examples/).
 
-## 致謝
+## Numbers
 
-- **MasonDye** — GUI 設計與 WPF 前端開發
-- **breadeding** — [OmenSuperHub](https://github.com/breadeding/OmenSuperHub)（原始框架與程式碼）
-- **GeographicCone** — [OmenMon](https://github.com/GeographicCone) / [OmenHwCtl](https://github.com/GeographicCone)（靈感來源與 OGH 互動研究）
-- **OpenHardwareMonitor** — [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)（硬體監控核心庫）
+The honest measurement is a real agent doing real work: a headless Claude Code session editing [tiangolo's full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template) (a real FastAPI + React repo), scored on the `git diff` it leaves behind. Twelve feature tickets, the same agent with and without the skill, n=4, Haiku 4.5.
 
-## 免責聲明
+<p align="center">
+  <img src="assets/benchmark-agentic.svg" width="860" alt="Each arm as a percent of the no-skill baseline across LOC, tokens, cost and time (Haiku 4.5). ponytail is lowest on every metric (LOC 46%, tokens 78%, cost 80%, time 73%); caveman rises above 100% on tokens, cost and time; yagni-oneliner LOC 67%. Safety, separate adversarial tier: baseline, caveman and ponytail 100%, yagni-oneliner 95%.">
+</p>
 
-OMEN X Hub **與 HP 或 OMEN 無關聯**。品牌名稱僅作參考。本軟體直接與硬體互動，可能存在潛在風險。**使用風險自負。**
+| vs no-skill baseline | LOC | tokens | cost | time | safe |
+|---|--:|--:|--:|--:|--:|
+| **ponytail** | **-54%** | **-22%** | **-20%** | **-27%** | **100%** |
+| caveman (terse-prose control) | -20% | +7% | +3% | +2% | 100% |
+| "YAGNI + one-liners" prompt | -33% | -14% | -21% | -30% | 95% |
 
----
+ponytail is the only arm that cuts every metric, and the only one that stays fully safe while doing it. The cut is biggest where there is a real over-build trap (date picker 404 to 23 lines, color picker 287 to 23, because it reaches for a native `<input>` instead of a component) and near zero on code that is already minimal. Full method, per-task tables, and limitations: [benchmarks/results/2026-06-18-agentic.md](benchmarks/results/2026-06-18-agentic.md).
 
-# English
+<details>
+<summary><strong>Older single-shot numbers (isolated generation)</strong></summary>
 
-> A lightweight, offline replacement for HP OMEN Gaming Hub — no advertisements, no wallpapers, no network connections.
+Five everyday tasks, three models, three arms (no skill, [caveman](https://github.com/JuliusBrussee/caveman), ponytail), ten runs, median reported. One prompt, one completion, counting lines of the answer:
 
-**OMEN X Hub** (formerly OmenSuperHub) is a WPF-based control center for HP OMEN / VICTUS gaming laptops. It provides comprehensive hardware monitoring, fan control, performance tuning, keyboard lighting, and system diagnostics — all without the bloat of the official OGH software.
+<p align="center">
+  <img src="assets/benchmark-3model.svg" width="860" alt="Median lines of code per arm across Haiku, Sonnet and Opus">
+</p>
 
-## Features
+This showed **80-94% less code**. [#126](https://github.com/DietrichGebert/ponytail/issues/126) fairly pointed out that the bare-model baseline pads its answer with prose and options, so that gap is partly a conversational-baseline artifact. The agentic numbers above are the corrected, defensible version. Reproduce the single-shot run with `npx promptfoo eval -c benchmarks/promptfooconfig.yaml`.
 
-### Dashboard
+</details>
 
-Real-time CPU/GPU temperature, usage, frequency, power, fan speed, RAM usage, and network speed. Color-coded progress bars (green → yellow → red) reflect load at a glance.
+**The rule was never "fewest tokens."** It is: write only what the task needs, and never cut validation, error handling, security, or accessibility. The code ends up small because it is necessary, not golfed. Lower cost and latency are a side effect on the models that follow the ladder; a terse reasoning model that spends thinking tokens deliberating the rungs can go the other way (on GPT-5.5 it does).
 
-![Dashboard](Preview/Dashboard.png)
+## How it works
 
-### Performance Control
+Before writing code, the agent stops at the first rung that holds:
 
-CPU power limits (PL1/PL2), IccMax, AC Load Line, power plan/mode, EcoQoS efficiency mode, Core Keep. GPU frequency lock, core/memory overclock, TGP/PPAB, dState, DB version, graphics mode switching, hot switch, display refresh rate, max frame rate.
-
-| CPU Control | GPU Control |
-|:---:|:---:|
-| ![CPU](Preview/Perf-CPU.png) | ![GPU](Preview/Perf-GPU.png) |
-
-### Fan Control
-
-Fan modes (Auto / Max / Fixed RPM), temperature sensitivity, custom fan curve (drag-and-drop), high-temp auto-protection, fan dust removal.
-
-![Fan](Preview/Fan.png)
-
-### Lighting Control
-
-Keyboard / light bar devices, Basic/Dojo 4-zone protocols. 10 animation effects, per-zone colors, brightness and speed control.
-
-![Lighting](Preview/Lighting.png)
-
-### Automation
-
-16 trigger types (process start/stop, session lock/unlock, AC/DC, display connect/disconnect, schedule, CPU/GPU temp, battery level) + 23 step types (preset, refresh rate, power, WiFi/Bluetooth, brightness, audio, macro, etc.). Quick actions triggerable from tray menu.
-
-| Pipeline List | Edit Pipeline |
-|:---:|:---:|
-| ![Automation](Preview/Automation.png) | ![Edit](Preview/Automation-Edit.png) |
-
-### Keyboard Macro
-
-Record and replay keyboard sequences, with trigger hotkey support and event editing.
-
-![Macro](Preview/Macro.png)
-
-### Other
-
-Smart charging, Num Lock, Caps Lock, touchpad lock, HWiNFO64 integration, HTTP API service.
-
-![Other](Preview/Other.png)
-
-### System Info
-
-Hardware details, PawnIO driver status, sensor temperatures, GPU process management, monitoring options.
-
-![SysInfo](Preview/SysInfo.png)
-
-### Settings
-
-Overlay display (position / font / opacity / multi-monitor), Omen Key (5 behaviors), OSD toast, tray icon (default / custom / dynamic), auto-start, custom main logo, theme (system / dark / light), language, custom background (opacity / Gaussian blur), data localization, debug log.
-
-| Overlay & Omen Key | Theme & Background |
-|:---:|:---:|
-| ![Settings](Preview/Settings.png) | ![System](Preview/Settings-System.png) |
-
-## Preset Management
-
-| Preset | PL1 | PL2 | Fan | TGP/PPAB | GPU Freq Limit |
-|--------|-----|-----|-----|----------|----------------|
-| Extreme | 254W | 254W | Cool | 255W | Unlimited |
-| GpuPriority | 45W | 45W | Cool | 255W | Unlimited |
-| LightUse | 25W | 25W | Silent | Off | Unlimited |
-| Custom 1-3 | User saved | User saved | User saved | User saved | User saved |
-
-Only CPU power, power plan, GPU frequency limit, TGP+PPAB, and dState are bound to presets; lighting, macros, audio, and other params persist independently.
-
-## Supported Hardware
-
-| Status | Models |
-|--------|--------|
-| Confirmed | 暗影精灵 8 Plus · 8 Plus Plus · 9 · 9 Plus · 10 · 光影精灵 10 · 光影精灵 10 (Victus) · OMEN 16 (Ryzen) · OMEN 15 · OMEN Phantom Gaming |
-| Not supported | 暗影精灵 6 |
-
-> Primarily developed for **OMEN 10 Intel (i7-13650HX + RTX 4070)**. Compatibility not guaranteed on all platforms.
-
-### Requirements
-
-- HP OMEN / VICTUS gaming laptop with WMI BIOS interface
-- Windows 10/11 64-bit · .NET Framework 4.8
-- Administrative privileges (required for WMI, fan control, driver installation)
-
-## Getting Started
-
-1. **Close OGH** — shut down `OmenCommandCenterBackground.exe` or uninstall OGH to avoid conflicts.
-2. **Run as Administrator** — all hardware control requires elevated privileges.
-3. **Launch** `OmenXHub.exe` — the app runs from the system tray.
-4. **Right-click tray icon** to switch performance modes or open the control panel.
-5. **Enable auto-start** in settings for long-term OGH replacement.
-
-> ⚠️ DB (Dynamic Boost) unlock requires NVIDIA driver version ≥ 537.42 and < 610.47. 50-series GPUs are not supported for unlock.
-
-## Build
-
-```cmd
-dotnet restore OmenSuperHub.csproj
-set MSBuildSDKsPath=C:\Program Files\dotnet\sdk\8.0.418\Sdks
-set MSBuildEnableWorkloadResolver=false
-MSBuild.exe OmenSuperHub.csproj /t:Build /p:Configuration=Release /p:Platform=x64
+```
+1. Does this need to exist?   → no: skip it (YAGNI)
+2. Already in this codebase?  → reuse it, don't rewrite
+3. Stdlib does it?            → use it
+4. Native platform feature?   → use it
+5. Installed dependency?      → use it
+6. One line?                  → one line
+7. Only then: the minimum that works
 ```
 
-Output: `bin\x64\Release\OmenXHub.exe` (single-file — all DLLs embedded via Costura.Fody)
+The ladder runs *after* it understands the problem, not instead of it: it reads the code the change touches and traces the real flow before picking a rung. Lazy about the solution, never about reading.
 
-## Acknowledgments
+Lazy, not negligent: trust-boundary validation, data-loss handling, security, and accessibility are never on the chopping block.
 
-- **MasonDye** — GUI design & WPF front-end development
-- **breadeding** — [OmenSuperHub](https://github.com/breadeding/OmenSuperHub) (original framework & code)
-- **GeographicCone** — [OmenMon](https://github.com/GeographicCone) / [OmenHwCtl](https://github.com/GeographicCone) (inspiration & OGH interaction research)
-- **OpenHardwareMonitor** — [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (hardware monitoring core)
+## Install
 
-## Disclaimer
+The most effort ponytail will ever ask of you:
 
-OMEN X Hub is **not affiliated with HP or OMEN**. Brand names are used for reference only. This software interacts directly with hardware and may carry potential risks. **Use at your own risk.**
+The Claude Code and Codex plugins run two tiny Node.js lifecycle hooks, so `node` needs to be on your PATH (note for Nix/nvm users: it must be on the non-interactive shell's PATH). If it isn't, the skills still work, the always-on activation just stays quiet instead of erroring on every prompt.
+
+### Claude Code
+
+```
+/plugin marketplace add DietrichGebert/ponytail
+```
+```
+/plugin install ponytail@ponytail
+```
+(You have to send two separate prompts for the install to work) 
+
+The desktop app has no `/plugin` command. Install it from the UI instead: Customize, the + by personal plugins, Create plugin and add marketplace, Add from repository, then enter the repo URL (thanks @NiklasDHahn, #98).
+
+### Codex
+
+```bash
+codex plugin marketplace add DietrichGebert/ponytail
+codex
+```
+
+Open `/plugins`, select the Ponytail marketplace, and install Ponytail. Then
+open `/hooks`, review and trust its two lifecycle hooks, and start a new thread.
+
+This same install also covers the Codex desktop app: restart the app after installing and it picks up the plugin.
+
+### GitHub Copilot CLI
+
+```bash
+copilot plugin marketplace add DietrichGebert/ponytail
+copilot plugin install ponytail@ponytail
+```
+
+In an interactive Copilot CLI session, use the slash equivalents:
+
+```
+/plugin marketplace add DietrichGebert/ponytail
+/plugin install ponytail@ponytail
+```
+
+Copilot CLI namespaces plugin commands by plugin name. For example:
+
+```text
+/ponytail:ponytail ultra
+/ponytail:ponytail-review
+```
+
+### Pi agent harness
+
+```
+pi install git:github.com/DietrichGebert/ponytail
+```
+
+### OpenCode
+
+Add to `opencode.json`:
+
+```json
+{ "plugin": ["@dietrichgebert/ponytail"] }
+```
+
+Run from a checkout instead (the plugin reuses `hooks/` and `skills/`):
+
+```json
+{ "plugin": ["./.opencode/plugins/ponytail.mjs"] }
+```
+
+Injects the ruleset every turn at the active level; adds the `/ponytail` commands (see [Commands](#commands)). OpenCode also auto-loads this repo's `AGENTS.md`, so the rules hold even without the plugin. The plugin adds the `lite/full/ultra/off` levels.
+
+The `./` path resolves against your project's `opencode.json`; to share one checkout across projects, point it at the absolute path of the `.mjs` instead (it finds its `hooks/` and `skills/` relative to its own file).
+
+### Gemini CLI
+
+```bash
+gemini extensions install https://github.com/DietrichGebert/ponytail
+```
+
+Loads the ruleset as always-on context every session and registers the `/ponytail` commands; the `skills/` ship too, activated when a task needs them.
+The Gemini adapter intentionally does not ship a root `hooks/hooks.json`: Gemini auto-loads that path, while Ponytail's lifecycle hooks use Claude/Codex event names.
+
+### Antigravity CLI
+
+Google is renaming Gemini CLI to Antigravity CLI (the `agy` binary); the same extension installs there:
+
+```bash
+agy plugin install https://github.com/DietrichGebert/ponytail
+```
+
+It reuses this repo's `gemini-extension.json`. One difference: Antigravity converts the `/ponytail` commands into skills, so you type them into the chat (e.g. `/ponytail-review` as a message) instead of picking them from a slash menu. Until the migration completes (around June 18, 2026), `gemini extensions install` still works too. To run it as an always-on rule instead, drop the ruleset into `.agents/rules/`.
+
+### CodeWhale
+
+Reads `AGENTS.md` from the project root, zero setup. Copy [`AGENTS.md`](AGENTS.md) to your project, or run `codewhale` from a checkout of this repo. That's it.
+
+### Swival
+
+Stage the collection in your library first, then add the skills you want:
+
+```bash
+swival skills add --global https://github.com/DietrichGebert/ponytail  # stage into ~/.config/swival/library
+swival skills add ponytail                                             # install the collection into this project
+swival skills add --global ponytail                                    # or activate it in every project
+```
+
+Swival also reads `AGENTS.md` from the project root and `~/.config/swival/AGENTS.md` globally, the instruction-only fallback.
+
+On the command line, use a `$` prefix to explicitly activate a skill. For example: `$ponytail-review`.
+
+### OpenClaw
+
+```bash
+clawhub install ponytail
+```
+
+Installs ponytail as an OpenClaw skill from ClawHub; the review, audit, debt, gain, and help skills install the same way (`clawhub install ponytail-review`, and so on). OpenClaw applies it on coding tasks and also exposes it as a `/ponytail` command. Without ClawHub, copy [`.openclaw/skills/ponytail`](.openclaw/skills/) into `~/.openclaw/skills/`.
+
+That was it. He'd be proud. He won't say it.
+
+Active every session, with a handful of commands (see [Commands](#commands)). `/ponytail ultra` exists for when the codebase has wronged you personally. Startup and mode-change text shows the current mode.
+
+Set the level for every new session with the `PONYTAIL_DEFAULT_MODE` env var (`lite`/`full`/`ultra`/`off`), or a `defaultMode` field in `~/.config/ponytail/config.json` (`%APPDATA%\ponytail\config.json` on Windows). The default is `full`.
+
+Cursor, Windsurf, Cline, GitHub Copilot (editor), Aider, Kiro, Zed, CodeWhale, Swival: copy the matching rules file from this repo ([`.cursor/rules/`](.cursor/rules/), [`.windsurf/rules/`](.windsurf/rules/), [`.clinerules/`](.clinerules/), [`.github/copilot-instructions.md`](.github/copilot-instructions.md), [`AGENTS.md`](AGENTS.md), [`.kiro/steering/`](.kiro/steering/)).
+
+Kiro: copy `.kiro/steering/ponytail.md` to `~/.kiro/steering/` (global) or `.kiro/steering/` in your project.
+
+GitHub Copilot CLI fallback (instruction-only mode): it reads `AGENTS.md` and `.github/copilot-instructions.md` in a project, or copy the rules into `~/.copilot/copilot-instructions.md` to run ponytail in every project. This path keeps always-on guidance, but does not add plugin mode switches or hooks.
+
+VS Code with the Codex extension reads `AGENTS.md`, which this repo ships, so it works from the repo root with no setup (`~/.codex/AGENTS.md` makes Codex global).
+
+Which files map to which agent: [Agent portability](docs/agent-portability.md).
+
+### Uninstall
+
+| Host | Command |
+|------|---------|
+| Claude Code | `/plugin remove ponytail` |
+| Codex | `codex plugin remove ponytail` |
+| Pi agent | `pi uninstall ponytail` |
+| Cursor / Windsurf / Cline / etc. | Delete the copied rule file |
+
+These remove the plugin's own files. They leave behind a small amount of state ponytail writes outside the plugin folder: the mode flag, `~/.config/ponytail/config.json`, and (if you accepted the setup nudge) a `statusLine` entry in `~/.claude/settings.json`. Run `node scripts/uninstall.js` to clean those up too. **Run it before the host remove command above** — the script is itself a plugin file, so removing the plugin first deletes it (or run it from a separate clone of this repo). It only removes the statusLine entry if it points at ponytail's own script, so a statusline you set up yourself is left untouched.
+
+## Commands
+
+| Command | What it does |
+|---------|--------------|
+| `/ponytail [lite \| full \| ultra \| off]` | Set the intensity, or turn it off. No argument reports the current level. |
+| `/ponytail-review` | Review the current diff for over-engineering, hands back a delete-list. |
+| `/ponytail-audit` | Audit the whole repo for over-engineering, not just the diff. |
+| `/ponytail-debt` | Harvest the `ponytail:` shortcuts you've deferred into a ledger, so "later" doesn't become "never". |
+| `/ponytail-gain` | Show the measured impact scoreboard (less code, less cost, more speed) from the benchmark. |
+| `/ponytail-help` | Quick reference for the commands above. |
+
+Commands need a skill-capable host (Claude Code, Codex, OpenCode, Gemini, pi, Swival). In Codex they're skills, invoke with `@` (`@ponytail-review`). The instruction-only adapters (Cursor, Windsurf, Cline, Copilot, Kiro, Antigravity) load the always-on ruleset without the commands.
+
+## Development
+
+When changing the compact rule text, keep the agent copies aligned:
+
+```bash
+node scripts/check-rule-copies.js
+npm test
+```
+
+The OpenClaw skill package (`.openclaw/skills/`) is generated from `skills/`; rerun `node scripts/build-openclaw-skills.js` after changing a skill, the test suite fails if it is stale. To publish the skills to ClawHub, run `clawhub login` once, then `node scripts/publish-openclaw-skills.js` (it publishes all six at the `package.json` version; pass `--dry-run` to preview).
+
+The correctness benchmark spawns Python for email and CSV checks; `python3` is tried before `python`. CSV checks need `pandas` installed locally.
+
+## FAQ
+
+**Does it need a config file?**
+No. An optional `~/.config/ponytail/config.json` or `PONYTAIL_DEFAULT_MODE` env var can set the default level, but nothing is required.
+
+**What if I really need the 120-line cache class?**
+You don't. Insist anyway and he'll build it. Slowly. Correctly. While looking at you.
+
+**Does it scale?**
+The code you never wrote scales infinitely. Zero bugs, zero CVEs, 100% uptime since forever.
+
+**Why "ponytail"?**
+You know exactly why.
+
+## License
+
+[MIT](LICENSE). The shortest license that works.

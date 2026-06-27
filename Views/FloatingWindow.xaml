@@ -10,67 +10,43 @@
         Left="0" Top="0">
 
   <Grid Background="Transparent" MouseLeftButtonDown="ContentBorder_MouseLeftButtonDown">
-    <Border x:Name="ContentBorder" CornerRadius="6" Padding="12,8"
-            Background="{DynamicResource ContextMenuBackground}" BorderBrush="{DynamicResource ContextMenuBorderBrush}" BorderThickness="1">
-      <Border.Effect>
-        <DropShadowEffect BlurRadius="12" Direction="270"
-                          Opacity="0.3" ShadowDepth="4"
-                          Color="#000000"/>
-      </Border.Effect>
+    <!-- ponytail: no background — text floats on desktop directly -->
+    <Border CornerRadius="4" Padding="4">
+      <StackPanel x:Name="DataPanel">
+        <!-- CPU Row -->
+        <WrapPanel x:Name="CpuRow" Margin="0,1">
+          <TextBlock Text="CPU" FontFamily="Consolas"
+                     FontWeight="ExtraBold" FontSize="13"
+                     Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="CpuLabel"/>
+          <TextBlock x:Name="CpuTempText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="CpuPowerText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
+        </WrapPanel>
+        <!-- GPU Row -->
+        <WrapPanel x:Name="GpuRow" Margin="0,1">
+          <TextBlock Text="GPU" FontFamily="Consolas"
+                     FontWeight="ExtraBold" FontSize="13"
+                     Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="GpuLabel"/>
+          <TextBlock x:Name="GpuTempText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="GpuPowerText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
+        </WrapPanel>
+        <!-- Fan Row -->
+        <WrapPanel x:Name="FanRow" Margin="0,1">
+          <TextBlock Text="FAN" FontFamily="Consolas"
+                     FontWeight="ExtraBold" FontSize="13"
+                     Foreground="#4FC3F7" VerticalAlignment="Center" x:Name="FanLabel"/>
+          <TextBlock x:Name="FanSpeedText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
+        </WrapPanel>
+      </StackPanel>
     </Border>
-
-    <StackPanel x:Name="DataPanel" Margin="12,8">
-      <!-- CPU Row -->
-      <WrapPanel x:Name="CpuRow" Margin="0,1">
-        <TextBlock Text="CPU" FontFamily="Consolas"
-                   FontWeight="ExtraBold" FontSize="13"
-                   Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="CpuLabel">
-          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
-        </TextBlock>
-        <TextBlock x:Name="CpuTempText" FontFamily="Consolas"
-                   FontWeight="Bold" FontSize="13"
-                   Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
-        </TextBlock>
-        <TextBlock x:Name="CpuPowerText" FontFamily="Consolas"
-                   FontWeight="Bold" FontSize="13"
-                   Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
-        </TextBlock>
-      </WrapPanel>
-
-      <!-- GPU Row -->
-      <WrapPanel x:Name="GpuRow" Margin="0,1">
-        <TextBlock Text="GPU" FontFamily="Consolas"
-                   FontWeight="ExtraBold" FontSize="13"
-                   Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="GpuLabel">
-          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
-        </TextBlock>
-        <TextBlock x:Name="GpuTempText" FontFamily="Consolas"
-                   FontWeight="Bold" FontSize="13"
-                   Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
-        </TextBlock>
-        <TextBlock x:Name="GpuPowerText" FontFamily="Consolas"
-                   FontWeight="Bold" FontSize="13"
-                   Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
-        </TextBlock>
-      </WrapPanel>
-
-      <!-- Fan Row -->
-      <WrapPanel x:Name="FanRow" Margin="0,1">
-        <TextBlock Text="FAN" FontFamily="Consolas"
-                   FontWeight="ExtraBold" FontSize="13"
-                   Foreground="#4FC3F7" VerticalAlignment="Center" x:Name="FanLabel">
-          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
-        </TextBlock>
-        <TextBlock x:Name="FanSpeedText" FontFamily="Consolas"
-                   FontWeight="Bold" FontSize="13"
-                   Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center">
-          <TextBlock.Effect><DropShadowEffect BlurRadius="2" Opacity="0.8" ShadowDepth="1" Color="#000000"/></TextBlock.Effect>
-        </TextBlock>
-      </WrapPanel>
-    </StackPanel>
   </Grid>
 </Window>

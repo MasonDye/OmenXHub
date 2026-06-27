@@ -29,8 +29,6 @@ namespace OmenSuperHub.Pages {
       FloatingToggle.IsChecked = ConfigService.FloatingBar == "on";
       FloatSizeSlider.Value = ConfigService.TextSize;
       FloatSizeVal.Text = ConfigService.TextSize.ToString();
-      FloatOpacitySlider.Value = ConfigService.FloatingOpacity;
-      FloatOpacityVal.Text = (int)(ConfigService.FloatingOpacity * 100) + "%";
       FloatTextOpacitySlider.Value = ConfigService.FloatingTextOpacity;
       FloatTextOpacityVal.Text = (int)(ConfigService.FloatingTextOpacity * 100) + "%";
       switch (ConfigService.FloatingBarLoc) {
@@ -139,16 +137,6 @@ namespace OmenSuperHub.Pages {
       }
     }
 
-    void FloatOpacity_Changed(object s, RoutedPropertyChangedEventArgs<double> e) {
-      double val = e.NewValue;
-      if (FloatOpacityVal != null) FloatOpacityVal.Text = (int)(val * 100) + "%";
-      if (!_loading) {
-        ConfigService.FloatingOpacity = val;
-        ConfigService.Save("FloatingBarOpacity");
-        Views.FloatingWindow.ApplyAllOpacity();
-        Views.FloatingWindow.UpdateAllText();
-      }
-    }
 
     void FloatTextOpacity_Changed(object s, RoutedPropertyChangedEventArgs<double> e) {
       double val = e.NewValue;
@@ -227,6 +215,7 @@ namespace OmenSuperHub.Pages {
     void OsdToggle_Changed(object sender, RoutedEventArgs e) {
       ConfigService.ShowOsd = OsdToggle.IsChecked == true;
       ConfigService.Save("ShowOsd");
+      if (!ConfigService.ShowOsd) Views.OsdWindow.Dismiss();
     }
 
 
@@ -236,6 +225,7 @@ namespace OmenSuperHub.Pages {
       int idx = TrayIconCombo.SelectedIndex;
       ConfigService.CustomIcon = idx >= 0 && idx < icons.Length ? icons[idx] : "original";
       ConfigService.Save("CustomIcon");
+      TrayService.ApplyIconStyle();
       TrayService.RebuildMenu();
     }
 

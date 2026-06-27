@@ -31,12 +31,15 @@ namespace OmenSuperHub.Pages {
     int _initRpm;
 
     public FanPage() {
-      InitializeComponent();
+      try { InitializeComponent(); } catch (Exception ex) {
+        System.Windows.MessageBox.Show("FanPage Init: " + ex.GetType().Name + "\n" + ex.Message + "\n" + (ex.InnerException?.Message ?? ""));
+      }
       FanCurveCanvas.SizeChanged += (s, e) => { if (_curvePoints != null) DrawFanCurve(); };
       Loaded += FanPage_Loaded;
     }
 
     private void FanPage_Loaded(object sender, RoutedEventArgs e) {
+      try {
       BuildFanRpmOptions();
       LoadCurvePoints();
       _loading = true;
@@ -44,6 +47,9 @@ namespace OmenSuperHub.Pages {
       _loading = false;
       UpdateFanModeUI();
       if (_initRpm > 0 && FanModeCombo.SelectedIndex == 3) SelectRpmComboItem(_initRpm);
+      } catch (Exception ex) {
+        System.Windows.MessageBox.Show("FanPage error: " + ex.GetType().Name + "\n" + ex.Message + "\n" + (ex.InnerException?.Message ?? ""));
+      }
     }
 
     void LoadCurvePoints() {
@@ -57,25 +63,27 @@ namespace OmenSuperHub.Pages {
     }
 
     void LoadConfigState() {
+      try {
       string fc = ConfigService.FanControl;
       if (fc == "custom") FanModeCombo.SelectedIndex = 2;
+      else if (fc == "smart") FanModeCombo.SelectedIndex = 3;
       else if (fc == "" || fc == "auto" || fc == "silent" || fc == "cool") {
         FanModeCombo.SelectedIndex = ConfigService.FanTable == "cool" ? 1 : 0;
       } else if (fc.Contains(" RPM")) {
-        FanModeCombo.SelectedIndex = 3;
+        FanModeCombo.SelectedIndex = 4;
         _initRpm = int.Parse(fc.Replace(" RPM", "").Trim());
         FanRpmSlider.Value = _initRpm;
         if (FanRpmInput != null) FanRpmInput.Text = _initRpm.ToString();
         if (FanRpmSliderVal != null) FanRpmSliderVal.Text = _initRpm + " RPM";
       } else if (fc.EndsWith("%")) {
-        FanModeCombo.SelectedIndex = 3;
+        FanModeCombo.SelectedIndex = 4;
         int pct = int.Parse(fc.TrimEnd('%'));
         _initRpm = pct * 100;
         FanRpmSlider.Value = _initRpm;
         if (FanRpmInput != null) FanRpmInput.Text = _initRpm.ToString();
         if (FanRpmSliderVal != null) FanRpmSliderVal.Text = _initRpm + " RPM";
       } else {
-        FanModeCombo.SelectedIndex = 3;
+        FanModeCombo.SelectedIndex = 4;
         _initRpm = 2500;
         FanRpmSlider.Value = _initRpm;
         if (FanRpmInput != null) FanRpmInput.Text = _initRpm.ToString();
@@ -89,14 +97,26 @@ namespace OmenSuperHub.Pages {
         default: SensitivityCombo.SelectedIndex = 2; break;
       }
       AutoFanProtectToggle.IsChecked = ConfigService.AutoFanProtect == "on";
+      FanSyncToggle.IsChecked = ConfigService.FanSync;
+      float ea = ConfigService.SmartFanEmaAlpha;
+      int eaIdx = ea <= 0.15f ? 0 : ea <= 0.4f ? 1 : 2;
+      SmartEmaAlphaCombo.SelectedIndex = eaIdx;
+      int sd = ConfigService.SmartFanStepDownRate;
+      SmartStepDownCombo.SelectedIndex = sd <= 100 ? 0 : sd <= 300 ? 1 : sd <= 500 ? 2 : 3;
+      float hy = ConfigService.SmartFanHysteresis;
+      SmartHysteresisCombo.SelectedIndex = hy <= 0.2f ? 0 : hy <= 0.5f ? 1 : 2;
+      SmartCurvePreset.SelectedIndex = eaIdx;
+      } catch { }
     }
 
     void UpdateFanModeUI() {
       int mode = FanModeCombo.SelectedIndex;
       bool isCustom = mode == 2;
-      bool isManual = mode == 3;
+      bool isSmart = mode == 3;
+      bool isManual = mode == 4;
       bool isAuto = (mode == 0 || mode == 1);
       FanCurveCard.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
+      SmartFanCard.Visibility = isSmart ? Visibility.Visible : Visibility.Collapsed;
       ManualControlCard.Visibility = isManual ? Visibility.Visible : Visibility.Collapsed;
       TempSensCard.Visibility = (isAuto || isCustom) ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -114,6 +134,13 @@ namespace OmenSuperHub.Pages {
       } else if (mode == 2) {
         ConfigService.FanControl = "custom";
       } else if (mode == 3) {
+        ConfigService.FanControl = "smart";
+        string curveFile = ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt";
+        FanService.LoadFanConfig(curveFile);
+        FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
+        SetMaxFanSpeedOff();
+        TrayService.fanControlTimer.Change(0, 1000);
+      } else if (mode == 4) {
         ConfigService.FanControl = "2500 RPM";
         SetMaxFanSpeedOff();
         TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -147,6 +174,8 @@ namespace OmenSuperHub.Pages {
           TrayService.fanControlTimer.Change(0, 1000);
         }), DispatcherPriority.Background);
       } else if (mode == 3) {
+        Views.OsdWindow.ShowFanModeOsd("smart");
+      } else if (mode == 4) {
         Views.OsdWindow.ShowFanModeOsd(ConfigService.FanControl);
         TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
         int rpm = 2500;
@@ -175,6 +204,54 @@ namespace OmenSuperHub.Pages {
     void AutoFanProtectToggle_Changed(object sender, RoutedEventArgs e) {
       ConfigService.AutoFanProtect = AutoFanProtectToggle.IsChecked == true ? "on" : "off";
       ConfigService.Save("AutoFanProtect");
+    }
+
+    void FanSyncToggle_Changed(object sender, RoutedEventArgs e) {
+      ConfigService.FanSync = FanSyncToggle.IsChecked == true;
+      ConfigService.Save("FanSync");
+    }
+
+    void SmartCurvePreset_Changed(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      int idx = SmartCurvePreset.SelectedIndex;
+      float[] alphas = { 0.1f, 0.3f, 0.5f };
+      int[] stepDowns = { 100, 300, 500 };
+      float[] hysts = { 0.2f, 0.5f, 1.0f };
+      if (idx >= 0 && idx < alphas.Length) {
+        ConfigService.SmartFanEmaAlpha = alphas[idx];
+        ConfigService.SmartFanStepDownRate = stepDowns[idx];
+        ConfigService.SmartFanHysteresis = hysts[idx];
+        ConfigService.Save("SmartFanEmaAlpha");
+        ConfigService.Save("SmartFanStepDownRate");
+        ConfigService.Save("SmartFanHysteresis");
+        FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
+        _loading = true;
+        SmartEmaAlphaCombo.SelectedIndex = idx;
+        SmartStepDownCombo.SelectedIndex = idx;
+        SmartHysteresisCombo.SelectedIndex = idx;
+        _loading = false;
+      }
+    }
+
+    void SmartEmaAlpha_Changed(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      float[] vals = { 0.1f, 0.3f, 0.5f };
+      int idx = SmartEmaAlphaCombo.SelectedIndex;
+      if (idx >= 0) { ConfigService.SmartFanEmaAlpha = vals[idx]; ConfigService.Save("SmartFanEmaAlpha"); FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha); }
+    }
+
+    void SmartStepDown_Changed(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      int[] vals = { 100, 300, 500, 1000 };
+      int idx = SmartStepDownCombo.SelectedIndex;
+      if (idx >= 0) { ConfigService.SmartFanStepDownRate = vals[idx]; ConfigService.Save("SmartFanStepDownRate"); }
+    }
+
+    void SmartHysteresis_Changed(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      float[] vals = { 0.2f, 0.5f, 1.0f };
+      int idx = SmartHysteresisCombo.SelectedIndex;
+      if (idx >= 0) { ConfigService.SmartFanHysteresis = vals[idx]; ConfigService.Save("SmartFanHysteresis"); }
     }
 
     void BuildFanRpmOptions() {

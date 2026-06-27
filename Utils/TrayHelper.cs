@@ -34,7 +34,8 @@ namespace OmenSuperHub.Utils {
 
       // Create our own NativeTrayIcon for event handling (visible icon)
       _trayIcon = new NativeTrayIcon();
-      _trayIcon.SetIcon(sharedIcon.Icon);
+      if (sharedIcon.Icon != null)
+        _trayIcon.SetIcon((Icon)sharedIcon.Icon.Clone());
       _trayIcon.MouseEnter += OnMouseEnter;
       _trayIcon.MouseLeave += OnMouseLeave;
       _trayIcon.Click += OnClick;
@@ -42,7 +43,6 @@ namespace OmenSuperHub.Utils {
 
       _tooltipUpdateTimer = new System.Timers.Timer(1000) { AutoReset = true };
       _tooltipUpdateTimer.Elapsed += (_, _) => UpdateTooltip();
-      _tooltipUpdateTimer.Start();
     }
 
     void OnMouseEnter() {
@@ -135,7 +135,6 @@ namespace OmenSuperHub.Utils {
       AddNavMenuItem(Strings.SidebarLighting, "Lighting", SymbolRegular.Lightbulb24);
       AddNavMenuItem(Strings.SidebarAutomation, "Automation", SymbolRegular.Rocket24);
       AddNavMenuItem(Strings.SidebarOther, "Other", SymbolRegular.MoreHorizontal24);
-      AddNavMenuItem(Strings.SidebarSysInfo, "SysInfo", SymbolRegular.Info24);
       AddNavMenuItem(Strings.SidebarSettings, "Settings", SymbolRegular.Settings24);
       _contextMenu.Items.Add(new System.Windows.Controls.Separator());
       AddMenuItem(Strings.OmenKeyShowMain, () => _bringToForeground(), SymbolRegular.Window24);
@@ -199,6 +198,11 @@ namespace OmenSuperHub.Utils {
     }
 
     public void MakeVisible() { _trayIcon.Show(); }
+    public void SetIcon(Icon icon) { _trayIcon.Icon = (Icon)icon.Clone(); }
+    public void StartTooltipTimer() {
+      UpdateTooltip();
+      _tooltipUpdateTimer?.Start();
+    }
 
     public void ShowBalloonTip(string title, string text, int timeoutMs) {
       _trayIcon?.ShowBalloonTip(title, text, timeoutMs);

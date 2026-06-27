@@ -59,6 +59,7 @@ namespace OmenSuperHub.Utils {
     bool _visible;
     Icon _icon;
     string _tipText;
+    System.Windows.Forms.Timer _retryTimer;
 
     // ── Hover detection state ───────────────────────────────
     // Windows 11's notification area does NOT reliably deliver
@@ -77,7 +78,7 @@ namespace OmenSuperHub.Utils {
     public event Action Click;
     public event Action RightClick;
 
-    public Icon Icon { get => _icon; set { _icon = value; Update(); } }
+    public Icon Icon { get => _icon; set { var old = _icon; _icon = value; old?.Dispose(); Update(); } }
 
     public void ShowBalloonTip(string title, string text, int timeoutMs, uint iconType = NIIF_INFO) {
       if (!_added) return;
@@ -118,16 +119,54 @@ namespace OmenSuperHub.Utils {
       if (!_visible && _added) {
         Shell_NotifyIconW(NIM_DELETE, ref data);
         _added = false;
+        StopRetry();
         return;
       }
       if (!_visible) return;
       if (!_added) {
-        Shell_NotifyIconW(NIM_ADD, ref data);
-        data.uTimeout = 4; // uVersion = NOTIFYICON_VERSION_4
+        if (!Shell_NotifyIconW(NIM_ADD, ref data)) {
+          StartRetry();
+          return;
+        }
+        data.uTimeout = 4;
         Shell_NotifyIconW(NIM_SETVERSION, ref data);
         _added = true;
+        StopRetry();
       } else {
         Shell_NotifyIconW(NIM_MODIFY, ref data);
+      }
+    }
+
+    void StartRetry() {
+      if (_retryTimer != null) return;
+      _retryTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+      _retryTimer.Tick += (s, e) => {
+        if (!_visible) { StopRetry(); return; }
+        IntPtr hIcon;
+        try { hIcon = _icon?.Handle ?? IntPtr.Zero; } catch (ObjectDisposedException) { StopRetry(); return; }
+        var data = new NOTIFYICONDATAW {
+          cbSize = (uint)Marshal.SizeOf<NOTIFYICONDATAW>(),
+          hWnd = Handle, uID = _id,
+          uFlags = NIF_MESSAGE | NIF_TIP | NIF_ICON,
+          uCallbackMessage = TRAY_CALLBACK,
+          szTip = _tipText ?? "OMEN X Hub",
+          hIcon = hIcon
+        };
+        if (Shell_NotifyIconW(NIM_ADD, ref data)) {
+          data.uTimeout = 4;
+          Shell_NotifyIconW(NIM_SETVERSION, ref data);
+          _added = true;
+          StopRetry();
+        }
+      };
+      _retryTimer.Start();
+    }
+
+    void StopRetry() {
+      if (_retryTimer != null) {
+        _retryTimer.Stop();
+        _retryTimer.Dispose();
+        _retryTimer = null;
       }
     }
 
@@ -197,10 +236,15 @@ namespace OmenSuperHub.Utils {
       //     cursor is on the icon (rejects fast fly-bys).
       //   - leaving   = cursor has left the recorded point; close after a
       //     short grace period so micro-movements don't flicker the popup.
+      // ponytail: also verify cursor is near screen edge (taskbar area)
+      // to avoid false triggers from UI element hover inside the app window.
       if (_lastMoveTick == 0) return; // never seen the cursor on the icon
 
       var cur = System.Windows.Forms.Cursor.Position;
-      bool nearIcon = Math.Abs(cur.X - _iconX) <= 14 && Math.Abs(cur.Y - _iconY) <= 14;
+      var scr = Screen.FromPoint(cur).Bounds;
+      bool nearEdge = cur.X <= scr.Left + 100 || cur.X >= scr.Right - 100 ||
+                      cur.Y <= scr.Top + 100 || cur.Y >= scr.Bottom - 100;
+      bool nearIcon = nearEdge && Math.Abs(cur.X - _iconX) <= 14 && Math.Abs(cur.Y - _iconY) <= 14;
 
       if (nearIcon) {
         _leaveTick = 0;
@@ -232,6 +276,7 @@ namespace OmenSuperHub.Utils {
       var t = _hoverTimer;
       _hoverTimer = null;
       if (t != null) { t.Stop(); t.Dispose(); }
+      StopRetry();
       _visible = false;
       if (_added) Update();
       if (Handle != IntPtr.Zero) ReleaseHandle();

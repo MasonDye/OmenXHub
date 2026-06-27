@@ -38,7 +38,11 @@ namespace OmenSuperHub.Services {
     static string _savedFanControl;
     static string _savedFanTable;
     static bool _autoProtectActive;
-    public static void ResetAutoProtect() { _autoProtectActive = false; _savedFanControl = null; _savedFanTable = null; }
+    static bool _gpuProtectActive;
+    static string _savedProtectPreset;
+    static bool _savedProtectTgp;
+    static bool _savedProtectPpab;
+    public static void ResetAutoProtect() { _autoProtectActive = false; _gpuProtectActive = false; _savedFanControl = null; _savedFanTable = null; }
     static System.Windows.Controls.ContextMenu wpfContextMenu;
     public static int countDB = 0, countDBInit = 5, tryTimes = 0, CPULimitDB = 25;
     static int countRestore = 0;
@@ -69,16 +73,8 @@ namespace OmenSuperHub.Services {
       SetDefaultLogoIcon();
       // TrayHelper creates and shows its own visible NativeTrayIcon
 
-      // Apply icon
-      switch (ConfigService.CustomIcon) {
-        case "custom":
-          SetCustomIcon();
-          break;
-        case "dynamic":
-          GenerateDynamicIcon((int)HardwareService.CPUTemp);
-          break;
-        // "original" uses default icon
-      }
+      // Apply icon (TrayHelper will clone it when created)
+      ApplyIconStyle();
 
       BuildWpfContextMenu(); // required by UpdateCheckedState / RestoreConfig
 
@@ -111,11 +107,6 @@ namespace OmenSuperHub.Services {
         var menuStyle = themeDict["OmenContextMenu"] as System.Windows.Style;
         if (menuStyle != null) wpfContextMenu.Style = menuStyle;
       }
-
-      // ── 关于界面 ──
-      wpfContextMenu.Items.Add(CreateMenuItem(Strings.SysInfo, null, () => {
-        Views.MainWindow.NavigateToSysInfo();
-      }, false, Wpf.Ui.Controls.SymbolRegular.Info24));
 
       // ── 宏 ──
       wpfContextMenu.Items.Add(CreateMenuItem(Strings.SidebarMacro, null, () => {
@@ -167,6 +158,10 @@ namespace OmenSuperHub.Services {
 
     internal static void RegisterTrayHelper(Utils.TrayHelper helper) {
       _trayHelperRef = helper;
+    }
+
+    internal static void StartTrayHelperTimers() {
+      _trayHelperRef?.StartTooltipTimer();
     }
 
     internal static void ShowNotification(string title, string text, int timeoutMs = 3000) {
@@ -364,6 +359,57 @@ namespace OmenSuperHub.Services {
         }
       }
 
+      // High-temp GPU protection: if temp >90°C, switch to GpuPriority preset
+      // (or disable TGP/PPAB if already on GpuPriority); restore on cooldown <80°C
+      float maxTemp = Math.Max(HardwareService.CPUTemp, HardwareService.GPUTemp);
+      if (maxTemp > 0) {
+        if (!_gpuProtectActive && maxTemp > 90) {
+          _gpuProtectActive = true;
+          _savedProtectPreset = ConfigService.Preset;
+          _savedProtectTgp = ConfigService.TgpEnabled;
+          _savedProtectPpab = ConfigService.PpabEnabled;
+          if (ConfigService.Preset == "GpuPriority") {
+            ConfigService.TgpEnabled = false;
+            ConfigService.PpabEnabled = false;
+            OmenHardware.SetGpuPowerState(false, false, 1);
+            Logger.Info("GPU protect: high temp on GpuPriority, disabled TGP/PPAB");
+            _trayHelperRef?.ShowBalloonTip("高温保护", "GPU优先模式下温度过高，已关闭TGP/PPAB", 3000);
+          } else {
+            PresetManager.SwitchPreset("GpuPriority");
+            // Apply hardware via WMI (SwitchPreset only updates in-memory ConfigService)
+            TrayService.SetGPUClockLimit(ConfigService.GpuClock);
+            OmenHardware.SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled,
+                ConfigService.DState == 2 ? 2 : 1);
+            string cpuPwr = ConfigService.CpuPower;
+            if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254);
+            else if (int.TryParse(cpuPwr?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
+              OmenHardware.SetCpuPowerLimit((byte)cpuVal);
+            Logger.Info($"GPU protect: high temp, switched from {_savedProtectPreset} to GpuPriority, WMI applied");
+            _trayHelperRef?.ShowBalloonTip("高温保护", "温度过高，已自动切换为GPU优先预设", 3000);
+          }
+        }
+        if (_gpuProtectActive && maxTemp < 80) {
+          _gpuProtectActive = false;
+          if (_savedProtectPreset == "GpuPriority") {
+            ConfigService.TgpEnabled = _savedProtectTgp;
+            ConfigService.PpabEnabled = _savedProtectPpab;
+            OmenHardware.SetGpuPowerState(_savedProtectTgp, _savedProtectPpab, 1);
+          } else if (!string.IsNullOrEmpty(_savedProtectPreset)) {
+            PresetManager.SwitchPreset(_savedProtectPreset);
+            // Apply hardware via WMI on restore too
+            TrayService.SetGPUClockLimit(ConfigService.GpuClock);
+            OmenHardware.SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled,
+                ConfigService.DState == 2 ? 2 : 1);
+            string cpuPwr = ConfigService.CpuPower;
+            if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254);
+            else if (int.TryParse(cpuPwr?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
+              OmenHardware.SetCpuPowerLimit((byte)cpuVal);
+          }
+          _savedProtectPreset = null;
+          Logger.Info("GPU protect: cooled below 80°C, restored previous state");
+        }
+      }
+
       Views.FloatingWindow.UpdateAllText();
 
       if (ConfigService.CustomIcon == "dynamic")
@@ -466,8 +512,14 @@ namespace OmenSuperHub.Services {
       HardwareService.RefreshPawnIOState();
       // Fan control timer
       fanControlTimer = new System.Threading.Timer((e) => {
-        int fanSpeed1 = FanService.GetFanSpeedForTemperature(0) / 100;
-        int fanSpeed2 = FanService.GetFanSpeedForTemperature(1) / 100;
+        int fanSpeed1, fanSpeed2;
+        if (ConfigService.FanControl == "smart") {
+          fanSpeed1 = FanService.GetSmartFanSpeed(0) / 100;
+          fanSpeed2 = ConfigService.FanSync ? fanSpeed1 : FanService.GetSmartFanSpeed(1) / 100;
+        } else {
+          fanSpeed1 = FanService.GetFanSpeedForTemperature(0) / 100;
+          fanSpeed2 = ConfigService.FanSync ? fanSpeed1 : FanService.GetFanSpeedForTemperature(1) / 100;
+        }
         if (HardwareService.MonitorFan) {
           if (fanSpeed1 != HardwareService.FanSpeedNow[0] || fanSpeed2 != HardwareService.FanSpeedNow[1]) {
             SetFanLevel(fanSpeed1, fanSpeed2);
@@ -522,6 +574,11 @@ namespace OmenSuperHub.Services {
     public static void RestoreConfig() {
       ConfigService.Load();
 
+      // 重新应用预设，确保 ConfigService 字段反映预设值而非陈旧注册表独立值
+      if (!string.IsNullOrEmpty(ConfigService.Preset)) {
+        PresetManager.SwitchPreset(ConfigService.Preset);
+      }
+
       // Fan table
       if (ConfigService.FanTable.Contains("cool")) {
         FanService.LoadFanConfig("cool.txt");
@@ -545,6 +602,13 @@ namespace OmenSuperHub.Services {
         SetMaxFanSpeedOff();
         if (fanControlTimer != null) fanControlTimer.Change(0, 1000);
         UpdateCheckedState("fanControlGroup", ConfigService.FanTable == "cool" ? "降温模式" : "安静模式");
+      } else if (ConfigService.FanControl == "smart") {
+        string curveFile = ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt";
+        FanService.LoadFanConfig(curveFile);
+        FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
+        SetMaxFanSpeedOff();
+        if (fanControlTimer != null) fanControlTimer.Change(0, 1000);
+        UpdateCheckedState("fanControlGroup", "智能风扇");
       } else if (ConfigService.FanControl == "custom") {
         SetMaxFanSpeedOff();
         var pts = FanService.LoadCustomCurve();
@@ -647,10 +711,11 @@ namespace OmenSuperHub.Services {
       }
 
       // Icon
+      ApplyIconStyle();
       switch (ConfigService.CustomIcon) {
-        case "original": SetDefaultLogoIcon(); UpdateCheckedState("customIconGroup", "原版"); break;
-        case "custom": SetCustomIcon(); UpdateCheckedState("customIconGroup", "自定义图标"); break;
-        case "dynamic": GenerateDynamicIcon((int)HardwareService.CPUTemp); UpdateCheckedState("customIconGroup", "动态图标"); break;
+        case "original": UpdateCheckedState("customIconGroup", "原版"); break;
+        case "custom": UpdateCheckedState("customIconGroup", "自定义图标"); break;
+        case "dynamic": UpdateCheckedState("customIconGroup", "动态图标"); break;
       }
 
       // Omen key
@@ -812,30 +877,42 @@ namespace OmenSuperHub.Services {
       string currentPath = AppDomain.CurrentDomain.BaseDirectory;
       string iconPath = Path.Combine(currentPath, "custom.ico");
       if (File.Exists(iconPath)) {
+        var old = TrayIcon.Icon;
         TrayIcon.Icon = new Icon(iconPath);
+        old?.Dispose();
       } else {
         System.Windows.MessageBox.Show("不存在自定义图标custom.ico", "提示",
             System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
       }
     }
 
+    internal static void ApplyIconStyle() {
+      switch (ConfigService.CustomIcon) {
+        case "custom": SetCustomIcon(); break;
+        case "dynamic": GenerateDynamicIcon((int)HardwareService.CPUTemp); break;
+        default: SetDefaultLogoIcon(); break;
+      }
+      _trayHelperRef?.SetIcon(TrayIcon.Icon);
+    }
+
     public static void GenerateDynamicIcon(int number) {
-      using (Bitmap bitmap = new Bitmap(128, 128)) {
-        using (Graphics graphics = Graphics.FromImage(bitmap)) {
-          graphics.Clear(System.Drawing.Color.Transparent);
-          graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+      using (Bitmap bitmap = new Bitmap(128, 128))
+      using (Graphics graphics = Graphics.FromImage(bitmap))
+      using (System.Drawing.Font font = new System.Drawing.Font("Arial", 52, System.Drawing.FontStyle.Bold)) {
+        graphics.Clear(System.Drawing.Color.Transparent);
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-          string text = number.ToString("00");
-          System.Drawing.Font font = new System.Drawing.Font("Arial", 52, System.Drawing.FontStyle.Bold);
-          SizeF textSize = graphics.MeasureString(text, font);
-          float x = (bitmap.Width - textSize.Width) / 2;
-          float y = (bitmap.Height - textSize.Height) / 8;
-          graphics.DrawString(text, font, System.Drawing.Brushes.Tan, new PointF(x, y));
+        string text = number.ToString("00");
+        SizeF textSize = graphics.MeasureString(text, font);
+        float x = (bitmap.Width - textSize.Width) / 2;
+        float y = (bitmap.Height - textSize.Height) / 8;
+        graphics.DrawString(text, font, System.Drawing.Brushes.Tan, new PointF(x, y));
 
-          IntPtr hIcon = bitmap.GetHicon();
-          TrayIcon.Icon = Icon.FromHandle(hIcon);
-          DestroyIcon(hIcon);
+        IntPtr hIcon = bitmap.GetHicon();
+        using (var temp = Icon.FromHandle(hIcon)) {
+          TrayIcon.Icon = (Icon)temp.Clone();
         }
+        DestroyIcon(hIcon);
       }
     }
 
@@ -1036,32 +1113,90 @@ namespace OmenSuperHub.Services {
       public int ExitCode;
     }
 
+    private static readonly HashSet<string> _allowedCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+      "nvidia-smi", "pnputil", "sc", "schtasks", "rd", "del", "reg", "cmd"
+    };
+
+    private static bool IsCommandSafe(string command) {
+      string trimmed = command.TrimStart();
+      if (trimmed.StartsWith("\"")) {
+        int end = trimmed.IndexOf("\"", 1);
+        if (end < 0) return false;
+      }
+      string exe = trimmed.Contains(" ") ? trimmed.Substring(0, trimmed.IndexOf(" ")) : trimmed;
+      exe = exe.Trim('"');
+      string exeName = System.IO.Path.GetFileName(exe);
+      if (!_allowedCommands.Contains(exeName)) return false;
+      if (command.Contains("&") || command.Contains("|") || command.Contains(";") ||
+          command.Contains("`") || command.Contains("$(") || command.Contains("\n") || command.Contains("\r"))
+        return false;
+      return true;
+    }
+
     public static ProcessResult ExecuteCommand(string command) {
-      var process = new Process {
-        StartInfo = new ProcessStartInfo {
+      if (!IsCommandSafe(command)) {
+        Logger.Error($"TrayService: blocked unsafe command: {command}");
+        return new ProcessResult { Output = "", Error = "Blocked: unsafe command", ExitCode = -1 };
+      }
+      string trimmed = command.TrimStart();
+      string exe = trimmed.Contains(" ") ? trimmed.Substring(0, trimmed.IndexOf(" ")) : trimmed;
+      string args = trimmed.Contains(" ") ? trimmed.Substring(trimmed.IndexOf(" ") + 1) : "";
+      exe = exe.Trim('"');
+      if (exe.Equals("cmd", StringComparison.OrdinalIgnoreCase) || exe.EndsWith("\\cmd.exe", StringComparison.OrdinalIgnoreCase)) {
+        var psi = new ProcessStartInfo {
           FileName = "cmd.exe",
-          Arguments = "/c " + command,
+          Arguments = args,
           RedirectStandardOutput = true,
           RedirectStandardError = true,
           UseShellExecute = false,
           CreateNoWindow = true
+        };
+        using (var process = new Process { StartInfo = psi }) {
+          process.Start();
+          string output = process.StandardOutput.ReadToEnd();
+          string error = process.StandardError.ReadToEnd();
+          process.WaitForExit();
+          return new ProcessResult { Output = output, Error = error, ExitCode = process.ExitCode };
         }
+      }
+      var psi2 = new ProcessStartInfo {
+        FileName = exe,
+        Arguments = args,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true
       };
-      process.Start();
-      string output = process.StandardOutput.ReadToEnd();
-      string error = process.StandardError.ReadToEnd();
-      process.WaitForExit();
-      return new ProcessResult { Output = output, Error = error, ExitCode = process.ExitCode };
+      using (var process = new Process { StartInfo = psi2 }) {
+        process.Start();
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        return new ProcessResult { Output = output, Error = error, ExitCode = process.ExitCode };
+      }
     }
 
     // Named pipe for Omen Key
     static int _cyclePresetIndex = -1;
 
+    static System.IO.Pipes.PipeSecurity CreateOmenKeyPipeSecurity() {
+      var ps = new System.IO.Pipes.PipeSecurity();
+      var sid = System.Security.Principal.WindowsIdentity.GetCurrent().User;
+      ps.SetAccessRule(new System.IO.Pipes.PipeAccessRule(sid, System.IO.Pipes.PipeAccessRights.Read, System.Security.AccessControl.AccessControlType.Allow));
+      ps.SetAccessRule(new System.IO.Pipes.PipeAccessRule(sid, System.IO.Pipes.PipeAccessRights.Write, System.Security.AccessControl.AccessControlType.Allow));
+      return ps;
+    }
+
+    static CancellationTokenSource _omenKeyCts;
     public static void GetOmenKeyTask() {
+      _omenKeyCts?.Cancel();
+      _omenKeyCts = new CancellationTokenSource();
+      var token = _omenKeyCts.Token;
+      var pipeSecurity = CreateOmenKeyPipeSecurity();
       System.Threading.Tasks.Task.Run(async () => {
-        while (true) {
+        while (!token.IsCancellationRequested) {
           try {
-            using (var pipeServer = new System.IO.Pipes.NamedPipeServerStream("OmenXHubPipe", System.IO.Pipes.PipeDirection.In)) {
+            using (var pipeServer = new System.IO.Pipes.NamedPipeServerStream("OmenXHubPipe", System.IO.Pipes.PipeDirection.In, 1, System.IO.Pipes.PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.Asynchronous, 1024, 1024, pipeSecurity)) {
               pipeServer.WaitForConnection();
               using (var reader = new StreamReader(pipeServer)) {
                 string message = reader.ReadToEnd();
@@ -1112,7 +1247,7 @@ namespace OmenSuperHub.Services {
           UseShellExecute = true,
           WorkingDirectory = System.IO.Path.GetDirectoryName(path)
         };
-        System.Diagnostics.Process.Start(psi);
+        System.Diagnostics.Process.Start(psi)?.Dispose();
       } catch (Exception ex) {
         Logger.Error("LaunchOmenKeyApp error: " + ex.Message);
       }
@@ -1126,10 +1261,17 @@ namespace OmenSuperHub.Services {
         wpfContextMenu.IsOpen = false;
       AutomationProcessor.Stop();
       try { MacroController.Stop(); } catch { }
+      _omenKeyCts?.Cancel();
+      _omenKeyCts?.Dispose();
+      _omenKeyCts = null;
       if (ConfigService.OmenKey == "custom" || ConfigService.OmenKey == "showMain" || ConfigService.OmenKey == "cyclePresets" || ConfigService.OmenKey == "app") {
         OmenKeyOff();
       }
       tooltipUpdateTimer?.Stop();
+      tooltipUpdateTimer?.Dispose();
+      fanControlTimer?.Dispose();
+      optimiseTimer?.Stop();
+      checkFloatingTimer?.Stop();
       HardwareService.Close();
       try {
         TrayIcon.Hide();
@@ -1158,13 +1300,13 @@ namespace OmenSuperHub.Services {
     public const int DM_PELSHEIGHT = 0x100000;
     public const int CDS_UPDATEREGISTRY = 0x00000001;
 
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
     public static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
 
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
     public static extern int ChangeDisplaySettings(ref DEVMODE lpDevMode, int dwFlags);
 
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
     public struct DEVMODE {
       [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
       public string dmDeviceName;

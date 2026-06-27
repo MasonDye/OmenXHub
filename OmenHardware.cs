@@ -11,24 +11,40 @@ using HP.Omen.Core.Model.Device.Enums;
 
 namespace OmenSuperHub {
   internal class OmenHardware {
+    static readonly byte[] Sign = { 0x53, 0x45, 0x43, 0x55 };
+    static ManagementScope _wmiScope;
+    static readonly object _scopeLock = new object();
+
+    // ponytail: cache ManagementScope to reuse WMI connection across calls
+    static ManagementScope GetWmiScope() {
+      if (_wmiScope == null) {
+        lock (_scopeLock) {
+          if (_wmiScope == null) {
+            _wmiScope = new ManagementScope(@"root\wmi");
+            _wmiScope.Connect();
+          }
+        }
+      }
+      return _wmiScope;
+    }
 
     // ─── WMI Communication ────────────────────────────────────────────
     public static byte[] SendOmenBiosWmi(uint commandType, byte[] data, int outputSize, uint command = 0x20008) {
-      const string namespaceName = @"root\wmi";
       const string className = "hpqBIntM";
       string methodName = "hpqBIOSInt" + outputSize.ToString();
-      byte[] sign = { 0x53, 0x45, 0x43, 0x55 };
+      var scope = GetWmiScope();
 
-      // Verbose: log every WMI call
-      string dataHex = data != null ? BitConverter.ToString(data).Replace("-", " ") : "null";
-      Logger.Verbose($"SendOmenBiosWmi: CmdType=0x{commandType:X2} Cmd=0x{command:X} Method={methodName} Data=[{dataHex}]");
+      if (Services.ConfigService.VerboseLogging) {
+        string dataHex = data != null ? BitConverter.ToString(data).Replace("-", " ") : "null";
+        Logger.Verbose($"SendOmenBiosWmi: CmdType=0x{commandType:X2} Cmd=0x{command:X} Method={methodName} Data=[{dataHex}]");
+      }
 
       try {
-        using (var biosDataInClass = new ManagementClass(namespaceName, "hpqBDataIn", null))
+        using (var biosDataInClass = new ManagementClass(scope, new ManagementPath("hpqBDataIn"), null))
         using (var biosDataIn = biosDataInClass.CreateInstance()) {
           biosDataIn["Command"] = command;
           biosDataIn["CommandType"] = commandType;
-          biosDataIn["Sign"] = sign;
+          biosDataIn["Sign"] = Sign;
           if (data != null) {
             biosDataIn["hpqBData"] = data;
             biosDataIn["Size"] = (uint)data.Length;
@@ -36,9 +52,10 @@ namespace OmenSuperHub {
             biosDataIn["Size"] = (uint)0;
           }
 
-          using (var localSearcher = new ManagementObjectSearcher(namespaceName, $"SELECT * FROM {className}"))
+          using (var localSearcher = new ManagementObjectSearcher(scope, new ObjectQuery($"SELECT * FROM {className}")))
           using (var collection = localSearcher.Get()) {
-            ManagementObject biosMethods = collection.Cast<ManagementObject>().FirstOrDefault();
+            ManagementObject biosMethods = null;
+            foreach (ManagementObject mo in collection) { biosMethods = mo; break; }
             if (biosMethods == null) {
               Logger.Error($"SendOmenBiosWmi: {className} WMI class not found!");
               return null;
@@ -593,8 +610,69 @@ namespace OmenSuperHub {
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr LoadLibrary(string lpFileName);
 
+    [DllImport("wintrust.dll", SetLastError = true)]
+    private static extern uint WinVerifyTrust(IntPtr hwnd, ref Guid pgActionID, IntPtr pWinTrustData);
+
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int NvidiaAPI_SYS_UIControl_Delegate(bool on);
+
+    private struct WINTRUST_FILE_INFO {
+      public uint cbStruct;
+      public IntPtr pcwszFilePath;
+      public IntPtr hFile;
+      public IntPtr pgKnownSubject;
+    }
+
+    private struct WINTRUST_DATA {
+      public uint cbStruct;
+      public IntPtr pPolicyCallbackData;
+      public IntPtr pSIPClientData;
+      public uint dwUIChoice;
+      public uint fdwRevocationChecks;
+      public uint dwUnionChoice;
+      public IntPtr pFile;
+      public uint dwStateAction;
+      public IntPtr hWVTStateData;
+      public IntPtr pwszURLReference;
+      public uint dwProvFlags;
+      public uint dwUIContext;
+    }
+
+    static bool VerifyAuthenticodeSignature(string filePath) {
+      try {
+        var actionGuid = new Guid("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
+        var fileInfo = new WINTRUST_FILE_INFO {
+          cbStruct = (uint)Marshal.SizeOf<WINTRUST_FILE_INFO>(),
+          pcwszFilePath = Marshal.StringToCoTaskMemAuto(filePath),
+          hFile = IntPtr.Zero,
+          pgKnownSubject = IntPtr.Zero
+        };
+        var data = new WINTRUST_DATA {
+          cbStruct = (uint)Marshal.SizeOf<WINTRUST_DATA>(),
+          pPolicyCallbackData = IntPtr.Zero,
+          pSIPClientData = IntPtr.Zero,
+          dwUIChoice = 2,
+          fdwRevocationChecks = 0,
+          dwUnionChoice = 1,
+          pFile = Marshal.AllocCoTaskMem(Marshal.SizeOf<WINTRUST_FILE_INFO>()),
+          dwStateAction = 0,
+          hWVTStateData = IntPtr.Zero,
+          pwszURLReference = IntPtr.Zero,
+          dwProvFlags = 0x00000010,
+          dwUIContext = 0
+        };
+        Marshal.StructureToPtr(fileInfo, data.pFile, false);
+        IntPtr pData = Marshal.AllocCoTaskMem(Marshal.SizeOf<WINTRUST_DATA>());
+        Marshal.StructureToPtr(data, pData, false);
+        uint result = WinVerifyTrust(IntPtr.Zero, ref actionGuid, pData);
+        Marshal.FreeCoTaskMem(fileInfo.pcwszFilePath);
+        Marshal.FreeCoTaskMem(data.pFile);
+        Marshal.FreeCoTaskMem(pData);
+        return result == 0;
+      } catch {
+        return false;
+      }
+    }
 
     public static void ExtractAndPreloadNativeDll(string dllName) {
       var currentAssembly = Assembly.GetExecutingAssembly();
@@ -611,6 +689,11 @@ namespace OmenSuperHub {
         using (var fs = new System.IO.FileStream(outputPath, System.IO.FileMode.Create, System.IO.FileAccess.Write)) {
           stream.CopyTo(fs);
         }
+      }
+      if (!VerifyAuthenticodeSignature(outputPath)) {
+        Logger.Error($"DLL signature verification failed: {dllName}");
+        if (System.IO.File.Exists(outputPath)) System.IO.File.Delete(outputPath);
+        return;
       }
       IntPtr handle = LoadLibrary(outputPath);
       if (handle == IntPtr.Zero) {
@@ -839,18 +922,7 @@ namespace OmenSuperHub {
                 if (lower.Contains("name") && !lower.Contains("password")) inParams[pd.Name] = settingName;
                 else if (lower.Contains("value")) inParams[pd.Name] = settingValue;
                 else if (setPassword && lower.Contains("password")) inParams[pd.Name] = "";
-          } catch {
-            try {
-              using (var searcher = new System.Management.ManagementObjectSearcher("SELECT Model FROM Win32_ComputerSystem"))
-              using (var results = searcher.Get()) {
-                foreach (System.Management.ManagementObject mo in results) {
-                  string model = mo["Model"]?.ToString() ?? "";
-                  if (model.Contains("OMEN") || model.Contains("VICTUS") || model.Contains("PAVILION"))
-                    _isGamingProduct = true;
-                }
-              }
-            } catch { }
-          }
+              } catch (Exception ex) { Logger.Verbose($"SetBIOSSetting param assign: {ex.Message}"); }
             }
             var result = cls.InvokeMethod("SetBIOSSetting", inParams, new InvokeMethodOptions());
             var ret = result?["ReturnValue"];
@@ -877,9 +949,15 @@ namespace OmenSuperHub {
     }
 
     static string QueryBiosSettingValue(string settingName) {
+      if (string.IsNullOrEmpty(settingName)) return null;
+      if (!System.Text.RegularExpressions.Regex.IsMatch(settingName, @"^[a-zA-Z0-9 _\-\.]+$")) {
+        Logger.Error($"QueryBiosSettingValue: invalid setting name blocked");
+        return null;
+      }
       try {
         var scope = GetBiosScope();
         foreach (string table in new[] { "HP_BIOSSetting", "HPBIOS_BIOSSetting" }) {
+          if (table != "HP_BIOSSetting" && table != "HPBIOS_BIOSSetting") continue;
           try {
             var query = new ObjectQuery($"SELECT * FROM {table} WHERE Name='{settingName.Replace("'", "''")}'");
             using (var searcher = new ManagementObjectSearcher(scope, query))
@@ -889,9 +967,9 @@ namespace OmenSuperHub {
                 if (val != null) return val.ToString();
               }
             }
-          } catch { }
+          } catch (Exception ex) { Logger.Verbose($"QueryBiosSettingValue table {table}: {ex.Message}"); }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"QueryBiosSettingValue: {ex.Message}"); }
       return null;
     }
 

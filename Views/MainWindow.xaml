@@ -108,11 +108,6 @@
                                  Content="{x:Static app:Strings.SidebarLighting}">
             <ui:NavigationViewItem.Icon><ui:SymbolIcon Symbol="Lightbulb24" FontSize="28" HorizontalAlignment="Center"/></ui:NavigationViewItem.Icon>
           </ui:NavigationViewItem>
-          <ui:NavigationViewItem x:Name="NavSysInfo" TargetPageType="pages:SysInfoPage" TargetPageTag="SysInfo"
-                                 MinWidth="80" MaxWidth="100" MinHeight="60" Margin="0" Padding="0"
-                                 Content="{x:Static app:Strings.SidebarSysInfo}">
-            <ui:NavigationViewItem.Icon><ui:SymbolIcon Symbol="Info24" FontSize="28" HorizontalAlignment="Center"/></ui:NavigationViewItem.Icon>
-          </ui:NavigationViewItem>
           <ui:NavigationViewItem x:Name="NavAutomation" TargetPageType="pages:AutomationPage" TargetPageTag="Automation"
                                  MinWidth="80" MaxWidth="100" MinHeight="60" Margin="0" Padding="0"
                                  Content="{x:Static app:Strings.SidebarAutomation}">

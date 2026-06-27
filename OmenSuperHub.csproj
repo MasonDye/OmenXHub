@@ -13,7 +13,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <LangVersion>latest</LangVersion>
     <Prefer32Bit>false</Prefer32Bit>
-    <ApplicationVersion>0.9.7.%2a</ApplicationVersion>
+    <ApplicationVersion>4.0.%2a</ApplicationVersion>
     <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
@@ -100,7 +100,6 @@
     <Compile Remove="packages\**" />
     <Compile Remove="backup\**" />
     <Compile Remove="LibreHardwareMonitor-pawnio-squashed\**" />
-    <Compile Remove="Program.cs" />
     <EmbeddedResource Remove="packages\**" />
     <None Remove="packages\**" />
   </ItemGroup>
@@ -109,10 +108,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\fan.ico" />
     <EmbeddedResource Remove="Properties\Resources.resx" />
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
+
     <EmbeddedResource Include="Resources\nvpcf_cat.CAT" />
     <EmbeddedResource Include="Resources\nvpcf_sys.sys" />
     <EmbeddedResource Include="Resources\nvpcf_inf.inf" />

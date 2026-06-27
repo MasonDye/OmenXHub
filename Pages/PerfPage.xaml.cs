@@ -28,9 +28,9 @@ namespace OmenSuperHub.Pages {
     static class NativeMethods_Display {
       public const int ENUM_CURRENT_SETTINGS = -1;
       public const int DM_DISPLAYFREQUENCY = 0x400000;
-      [DllImport("user32.dll")] public static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
-      [DllImport("user32.dll")] public static extern int ChangeDisplaySettings(ref DEVMODE lpDevMode, int dwFlags);
-      [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+      [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
+      [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int ChangeDisplaySettings(ref DEVMODE lpDevMode, int dwFlags);
+      [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
       public struct DEVMODE {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmDeviceName;
         public short dmSpecVersion; public short dmDriverVersion; public short dmSize; public short dmDriverExtra;

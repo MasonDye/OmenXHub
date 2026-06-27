@@ -36,7 +36,7 @@ namespace OmenSuperHub.Views {
       _lastNumLock = Console.NumberLock;
       _lockKeyTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
       _lockKeyTimer.Tick += (s, e) => {
-        if (!ConfigService.ShowLockKeys) return;
+        if (!ConfigService.ShowOsd) return;
         if (Console.CapsLock != _lastCapsLock) {
           _lastCapsLock = Console.CapsLock;
           ShowOsd(_lastCapsLock ? Strings.CapsLockOn : Strings.CapsLockOff,
@@ -49,6 +49,24 @@ namespace OmenSuperHub.Views {
         }
       };
       _lockKeyTimer.Start();
+    }
+
+    public static void StopLockKeyMonitor() {
+      if (_lockKeyTimer != null) {
+        _lockKeyTimer.Stop();
+        _lockKeyTimer = null;
+      }
+    }
+
+    public static void Dismiss() {
+      _lastCapsLock = Console.CapsLock;
+      _lastNumLock = Console.NumberLock;
+      Application.Current?.Dispatcher.Invoke(() => {
+        if (_fadeTimer != null) { _fadeTimer.Stop(); _fadeTimer = null; }
+        if (_instance != null && _instance.IsLoaded) {
+          _instance.Close();
+        }
+      });
     }
 
     public static void ShowPresetOsd(string presetKey) {
@@ -120,16 +138,17 @@ namespace OmenSuperHub.Views {
         ShowOsd("GPU: " + mhz + " MHz", SymbolRegular.Gauge24);
     }
 
-    public static void ShowTextOsd(string text, SymbolRegular icon = SymbolRegular.Info24) {
-      if (!ConfigService.ShowOsd) return;
+    public static void ShowTextOsd(string text, SymbolRegular icon = SymbolRegular.Info24, bool force = false) {
+      if (!force && !ConfigService.ShowOsd) return;
       ShowOsd(text, icon);
     }
 
     private static void ShowOsd(string text, SymbolRegular icon) {
       Application.Current.Dispatcher.Invoke(() => {
         if (_fadeTimer != null) { _fadeTimer.Stop(); _fadeTimer = null; }
-        if (_instance == null || !_instance.IsLoaded) {
+        if (_instance == null) {
           _instance = new OsdWindow();
+          _instance.Closed += (s, e) => _instance = null;
           _instance.OsdText.Text = text;
           _instance.OsdIcon.Symbol = icon;
           _instance.OsdIcon.Visibility = Visibility.Visible;
@@ -182,7 +201,7 @@ namespace OmenSuperHub.Views {
         var fadeOut = new DoubleAnimation(Opacity, 0, TimeSpan.FromMilliseconds(300)) {
           EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
         };
-        fadeOut.Completed += (s2, e2) => { if (IsLoaded) Hide(); };
+        fadeOut.Completed += (s2, e2) => { if (IsLoaded) Close(); };
         BeginAnimation(OpacityProperty, fadeOut);
       };
       _fadeTimer.Start();

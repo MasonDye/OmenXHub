@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Management;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -160,59 +161,67 @@ namespace OmenSuperHub.Services {
       ConfigService.Save("EcoQosBlacklist");
     }
 
+    static readonly Dictionary<uint, bool> _pidState = new Dictionary<uint, bool>();
+    static int _tickRunning;
+
+    static bool TargetThrottle(uint pid, string name, bool shouldThrottle, uint fgPid) {
+      if (Blacklist.Contains(name)) return true;
+      if (!shouldThrottle) return false;
+      if (Whitelist.Contains(name)) return false;
+      if (fgPid > 0 && pid == fgPid) return false;
+      return true;
+    }
+
     static void ThrottleTick() {
+      // ponytail: skip if previous tick still running — prevents ThreadPool inflation
+      if (Interlocked.Exchange(ref _tickRunning, 1) != 0) return;
       try {
-        // Get foreground PID
         uint fgPid = 0;
         try {
           var fgHwnd = GetForegroundWindow();
-          if (fgHwnd != IntPtr.Zero) {
-            GetWindowThreadProcessId(fgHwnd, out fgPid);
-          }
+          if (fgHwnd != IntPtr.Zero) GetWindowThreadProcessId(fgHwnd, out fgPid);
         } catch { }
 
         bool onBattery = System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus ==
                          System.Windows.Forms.PowerLineStatus.Offline;
         bool shouldThrottle = IsEnabled && (onBattery || ThrottleWhenPluggedIn);
 
-        Process[] procs;
-        try { procs = Process.GetProcesses(); } catch { return; }
-        int sessionId = Process.GetCurrentProcess().SessionId;
-
-        foreach (var proc in procs) {
-          try {
-            if (proc.SessionId != sessionId) continue;
-            if (proc.Id == Process.GetCurrentProcess().Id) continue;
-            string name = proc.ProcessName.ToLowerInvariant() + ".exe";
-
-            uint id = (uint)proc.Id;
-            if (Blacklist.Contains(name)) {
-              // Always throttle blacklisted
-              ApplyEcoQos(id, true);
-              continue;
-            }
-
-            if (!shouldThrottle) {
-              ApplyEcoQos(id, false);
-              continue;
-            }
-
-            if (Whitelist.Contains(name)) {
-              ApplyEcoQos(id, false);
-              continue;
-            }
-
-            // Foreground process: unthrottle
-            if (fgPid > 0 && id == fgPid) {
-              ApplyEcoQos(id, false);
-              continue;
-            }
-
-            // Throttle everything else
-            ApplyEcoQos(id, true);
-          } catch { }
+        int sessionId;
+        int myId;
+        using (var self = Process.GetCurrentProcess()) {
+          sessionId = self.SessionId;
+          myId = self.Id;
         }
-      } catch { }
+
+        // ponytail: WMI query fetches only PID/Name/SessionId instead of full Process objects
+        using (var searcher = new ManagementObjectSearcher(
+            $"SELECT ProcessId, Name, SessionId FROM Win32_Process"))
+        using (var procs = searcher.Get()) {
+          var currentPids = new HashSet<uint>();
+          foreach (ManagementObject obj in procs) {
+            try {
+              uint id = Convert.ToUInt32(obj["ProcessId"]);
+              if (id == myId) continue;
+              int sid = Convert.ToInt32(obj["SessionId"]);
+              if (sid != sessionId) continue;
+              string name = (obj["Name"] as string) ?? "";
+              string lower = name.ToLowerInvariant();
+              currentPids.Add(id);
+
+              bool target = TargetThrottle(id, lower, shouldThrottle, fgPid);
+              if (_pidState.TryGetValue(id, out var prev) && prev == target) continue;
+
+              ApplyEcoQos(id, target);
+              _pidState[id] = target;
+            } catch { }
+          }
+          // Cleanup stale PIDs when cache grows significantly
+          if (_pidState.Count > currentPids.Count * 2 + 100) {
+            foreach (var pid in _pidState.Keys.Where(k => !currentPids.Contains(k)).ToArray())
+              _pidState.Remove(pid);
+          }
+        }
+      } finally { Interlocked.Exchange(ref _tickRunning, 0); }
     }
 
     static void ApplyEcoQos(uint pid, bool enable) {

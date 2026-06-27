@@ -55,13 +55,6 @@ namespace OmenSuperHub.Views {
       if (_instance == null) return;
     }
 
-    public static void NavigateToSysInfo() {
-      EnsureWindow();
-      _instance.Dispatcher.BeginInvoke(() =>
-        _instance.NavigationView.Navigate(typeof(SysInfoPage)),
-        System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-    }
-
     public static void NavigateToPage(string pageTag) {
       EnsureWindow();
       if (_instance.Visibility != Visibility.Visible || _instance.WindowState == WindowState.Minimized) {
@@ -86,12 +79,12 @@ namespace OmenSuperHub.Views {
       InitializeComponent();
       _instance = this;
 
-      ThemeService.ThemeChanged += () => Dispatcher.InvokeAsync(() => {
-        WindowBackgroundManager.UpdateBackground(this, ApplicationThemeManager.GetAppTheme(), WindowBackdropType.Mica);
-      });
+      ThemeService.ThemeChanged += OnThemeChanged;
 
       Closing += (s, e) => {
         e.Cancel = true;
+        ThemeService.ThemeChanged -= OnThemeChanged;
+        StopStatusTimer();
         FadeOut(this, () => Hide());
       };
 
@@ -101,14 +94,16 @@ namespace OmenSuperHub.Views {
         }
       };
 
+      // Init tray immediately (not inside Loaded) so --tray mode works
+      _trayHelper = new TrayHelper(BringToForeground, TrayService.TrayIcon);
+      TrayService.RegisterTrayHelper(_trayHelper);
+      _trayHelper.MakeVisible();
+
       Loaded += (s, e) => {
         // Initialize Mica backdrop based on current theme
         WindowBackgroundManager.UpdateBackground(this, ApplicationThemeManager.GetAppTheme(), WindowBackdropType.Mica);
 
         LoadDeviceInfo();
-        _trayHelper = new TrayHelper(BringToForeground, TrayService.TrayIcon);
-        TrayService.RegisterTrayHelper(_trayHelper);
-        _trayHelper.MakeVisible();
         NavigationView.Navigate(typeof(DashboardPage));
         StartStatusTimer();
         ApplyCustomLogo();
@@ -192,11 +187,11 @@ namespace OmenSuperHub.Views {
       });
     }
 
-    void DeviceInfoBadge_Click(object sender, MouseButtonEventArgs e) => NavigateToSysInfo();
+    void DeviceInfoBadge_Click(object sender, MouseButtonEventArgs e) => NavigateToPage("Dashboard");
     void LogBadge_Click(object sender, MouseButtonEventArgs e) {
       try {
         string logDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-        Process.Start("explorer", System.IO.Path.Combine(logDir, "logs"));
+        Process.Start("explorer", System.IO.Path.Combine(logDir, "logs"))?.Dispose();
       } catch { }
     }
 
@@ -204,13 +199,32 @@ namespace OmenSuperHub.Views {
     // Page Navigation (handled by NavigationView + TargetPageType)
     // ══════════════════════════════════════════════════════
     void NavigationView_Navigated(object sender, NavigatedEventArgs e) {
+      // ponytail: clear Frame journal so old pages are GC'd instead of cached
+      // Upgrade: if page switching still accumulates, make NavigationView.Navigate() always pass a unique data token
+      ClearNavJournal(NavigationView);
       if (e.Page is Page page) {
         _activePage = page;
         UpdateTitleBar(page);
         if (page.IsLoaded)
           AttachWheelHandler(page);
         else
-          page.Loaded += (s, args) => AttachWheelHandler(page);
+          page.Loaded += PageOnLoaded;
+
+      void PageOnLoaded(object s, RoutedEventArgs args) {
+        if (s is Page p) p.Loaded -= PageOnLoaded;
+        AttachWheelHandler(page);
+      }
+      }
+    }
+
+    static void ClearNavJournal(System.Windows.DependencyObject root) {
+      for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++) {
+        var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+        if (child is System.Windows.Controls.Frame f) {
+          while (f.CanGoBack) f.RemoveBackEntry();
+          return;
+        }
+        ClearNavJournal(child);
       }
     }
 
@@ -290,7 +304,7 @@ namespace OmenSuperHub.Views {
     static readonly Dictionary<string, Type> _pageTypeMap = new Dictionary<string, Type> {
       { "Dashboard", typeof(DashboardPage) }, { "Fan", typeof(FanPage) },
       { "Perf", typeof(PerfPage) }, { "Lighting", typeof(LightingPage) },
-      { "SysInfo", typeof(SysInfoPage) }, { "Automation", typeof(AutomationPage) },
+      { "Automation", typeof(AutomationPage) },
       { "Macro", typeof(MacroPage) },
       { "Other", typeof(OtherPage) }, { "Settings", typeof(SettingsPage) }
     };
@@ -302,7 +316,6 @@ namespace OmenSuperHub.Views {
       { "Fan", new PageInfo { pageType = typeof(FanPage), title = Strings.PageFan, icon = SymbolRegular.ArrowSync24 } },
       { "Perf", new PageInfo { pageType = typeof(PerfPage), title = Strings.PagePerf, icon = SymbolRegular.Gauge24 } },
       { "Lighting", new PageInfo { pageType = typeof(LightingPage), title = Strings.PageLighting, icon = SymbolRegular.Lightbulb24 } },
-      { "SysInfo", new PageInfo { pageType = typeof(SysInfoPage), title = Strings.PageSysInfo, icon = SymbolRegular.Info24 } },
       { "Automation", new PageInfo { pageType = typeof(AutomationPage), title = Strings.PageAutomation, icon = SymbolRegular.Rocket24 } },
       { "Macro", new PageInfo { pageType = typeof(MacroPage), title = Strings.PageMacro, icon = SymbolRegular.Keyboard24 } },
       { "Other", new PageInfo { pageType = typeof(OtherPage), title = Strings.PageOther, icon = SymbolRegular.MoreHorizontal24 } },
@@ -319,8 +332,6 @@ namespace OmenSuperHub.Views {
       int dState = ConfigService.DState == 2 ? 2 : 1;
       string cpuPwr = ConfigService.CpuPower;
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        // Always call: SetGPUClockLimit(<210) resets/releases the lock, so a
-        // preset with GpuClock=0 ("no limit") correctly clears a prior lock.
         TrayService.SetGPUClockLimit(gpuClock);
         OmenHardware.SetGpuPowerState(tgp, ppab, dState);
         if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254);
@@ -383,9 +394,28 @@ namespace OmenSuperHub.Views {
     System.Timers.Timer _statusTimer;
     void StartStatusTimer() {
       _statusTimer = new System.Timers.Timer(2000);
-      _statusTimer.Elapsed += (s, e) => Dispatcher.InvokeAsync(() => UpdateStatusBar());
+      _statusTimer.Elapsed += OnStatusTimerTick;
       _statusTimer.AutoReset = true;
       _statusTimer.Start();
+    }
+
+    void OnStatusTimerTick(object sender, System.Timers.ElapsedEventArgs e) {
+      Dispatcher.InvokeAsync(() => UpdateStatusBar());
+    }
+
+    void StopStatusTimer() {
+      if (_statusTimer != null) {
+        _statusTimer.Stop();
+        _statusTimer.Elapsed -= OnStatusTimerTick;
+        _statusTimer.Dispose();
+        _statusTimer = null;
+      }
+    }
+
+    void OnThemeChanged() {
+      Dispatcher.InvokeAsync(() => {
+        WindowBackgroundManager.UpdateBackground(this, ApplicationThemeManager.GetAppTheme(), WindowBackdropType.Mica);
+      });
     }
 
     void UpdateStatusBar() {

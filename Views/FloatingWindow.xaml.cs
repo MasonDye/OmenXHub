@@ -8,7 +8,6 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Media.Effects;
 using OmenSuperHub.Services;
 using Forms = System.Windows.Forms;
 
@@ -70,20 +69,6 @@ namespace OmenSuperHub.Views {
     }
 
     private void ApplyOpacity() {
-      double opacity = ConfigService.FloatingOpacity;
-      if (opacity <= 0) {
-        ContentBorder.Background = Brushes.Transparent;
-        ContentBorder.BorderThickness = new Thickness(0);
-        ContentBorder.Effect = null;
-      } else {
-        var bgBrush = TryFindResource("BgElevatedBrush") as SolidColorBrush;
-        if (bgBrush != null) {
-          var c = bgBrush.Color;
-          ContentBorder.Background = new SolidColorBrush(Color.FromArgb((byte)(opacity * 255), c.R, c.G, c.B));
-        }
-        ContentBorder.BorderThickness = new Thickness(1);
-        ContentBorder.Effect = new DropShadowEffect { BlurRadius = 12, ShadowDepth = 2, Direction = 270, Color = Color.FromRgb(0x60, 0x00, 0x00), Opacity = 0.4 };
-      }
       DataPanel.Opacity = ConfigService.FloatingTextOpacity;
       ApplyWindowStyles();
     }
@@ -92,20 +77,6 @@ namespace OmenSuperHub.Views {
       foreach (var w in _instances.ToArray()) {
         if (w != null && w.IsLoaded) {
           try {
-            double opacity = ConfigService.FloatingOpacity;
-            if (opacity <= 0) {
-              w.ContentBorder.Background = Brushes.Transparent;
-              w.ContentBorder.BorderThickness = new Thickness(0);
-              w.ContentBorder.Effect = null;
-            } else {
-              var bgBrush = w.TryFindResource("BgElevatedBrush") as SolidColorBrush;
-              if (bgBrush != null) {
-                var c = bgBrush.Color;
-                w.ContentBorder.Background = new SolidColorBrush(Color.FromArgb((byte)(opacity * 255), c.R, c.G, c.B));
-              }
-              w.ContentBorder.BorderThickness = new Thickness(1);
-              w.ContentBorder.Effect = new DropShadowEffect { BlurRadius = 12, ShadowDepth = 2, Direction = 270, Color = Color.FromRgb(0x60, 0x00, 0x00), Opacity = 0.4 };
-            }
             w.DataPanel.Opacity = ConfigService.FloatingTextOpacity;
             w.ApplyWindowStyles();
           } catch { }
@@ -113,14 +84,17 @@ namespace OmenSuperHub.Views {
       }
     }
 
-    static Color GetTempColor(float temp) {
-      if (temp < 40f) return Color.FromRgb(255, 255, 255);
-      if (temp < 55f) return LerpColor(Color.FromRgb(255,255,255), Color.FromRgb(102, 187, 106), (temp - 40f) / 15f);
-      if (temp < 70f) return LerpColor(Color.FromRgb(102, 187, 106), Color.FromRgb(255, 235, 59), (temp - 55f) / 15f);
-      if (temp < 85f) return LerpColor(Color.FromRgb(255, 235, 59), Color.FromRgb(255, 107, 107), (temp - 70f) / 15f);
-      if (temp < 95f) return LerpColor(Color.FromRgb(255, 107, 107), Color.FromRgb(180, 0, 0), (temp - 85f) / 10f);
-      return Color.FromRgb(0, 0, 0);
-    }
+    // ponytail: pre-built frozen brush palette avoids per-update SolidColorBrush allocation
+    static readonly SolidColorBrush[] TempBrushes = Enumerable.Range(0, 101).Select(i => {
+      float t = i;
+      Color c = t < 40f ? Color.FromRgb(255, 255, 255)
+          : t < 55f ? LerpColor(Color.FromRgb(255, 255, 255), Color.FromRgb(102, 187, 106), (t - 40f) / 15f)
+          : t < 70f ? LerpColor(Color.FromRgb(102, 187, 106), Color.FromRgb(255, 235, 59), (t - 55f) / 15f)
+          : t < 85f ? LerpColor(Color.FromRgb(255, 235, 59), Color.FromRgb(255, 107, 107), (t - 70f) / 15f)
+          : t < 95f ? LerpColor(Color.FromRgb(255, 107, 107), Color.FromRgb(180, 0, 0), (t - 85f) / 10f)
+          : Color.FromRgb(0, 0, 0);
+      var b = new SolidColorBrush(c); b.Freeze(); return b;
+    }).ToArray();
 
     static Color LerpColor(Color a, Color b, float t) {
       if (t < 0f) t = 0f;
@@ -137,9 +111,8 @@ namespace OmenSuperHub.Views {
       if (HardwareService.MonitorCPU) {
         w.CpuRow.Visibility = Visibility.Visible;
         float cpuTemp = HardwareService.CPUTemp;
-        var tempColor = new SolidColorBrush(GetTempColor(cpuTemp));
-        tempColor.Freeze();
-        w.CpuTempText.Foreground = tempColor;
+        int idx = (int)Math.Max(0, Math.Min(100, cpuTemp));
+        w.CpuTempText.Foreground = TempBrushes[idx];
         w.CpuTempText.Text = $"{cpuTemp:F1}°C";
         w.CpuPowerText.Text = $"{HardwareService.CPUPower:F1}W";
       } else {
@@ -149,9 +122,8 @@ namespace OmenSuperHub.Views {
       if (HardwareService.MonitorGPU) {
         w.GpuRow.Visibility = Visibility.Visible;
         float gpuTemp = HardwareService.GPUTemp;
-        var gpuTempColor = new SolidColorBrush(GetTempColor(gpuTemp));
-        gpuTempColor.Freeze();
-        w.GpuTempText.Foreground = gpuTempColor;
+        int idx = (int)Math.Max(0, Math.Min(100, gpuTemp));
+        w.GpuTempText.Foreground = TempBrushes[idx];
         w.GpuTempText.Text = $"{gpuTemp:F1}°C";
         w.GpuPowerText.Text = $"{HardwareService.GPUPower:F1}W";
       } else {

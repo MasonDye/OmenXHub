@@ -9,6 +9,68 @@ using static OmenSuperHub.OmenHardware;
 namespace OmenSuperHub.Services {
   internal static class FanService {
     static readonly string FanCurvesDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FanCurves");
+    static readonly object _fanLock = new object();
+
+    // ═══════════════════════════════════════════════════════
+    // Smart Fan State (EMA smoothing, step-down protection)
+    // ═══════════════════════════════════════════════════════
+    static float _smartEmaCpuTemp = -1f;
+    static float _smartEmaGpuTemp = -1f;
+    static int _smartLastAppliedRpmCpu;
+    static int _smartLastAppliedRpmGpu;
+    static long _smartLastTick;
+    static float _smartAlpha = 0.3f;
+
+    public static void InitSmartFanState(float alpha) {
+      _smartAlpha = alpha;
+      _smartEmaCpuTemp = -1f;
+      _smartEmaGpuTemp = -1f;
+      _smartLastAppliedRpmCpu = 0;
+      _smartLastAppliedRpmGpu = 0;
+      _smartLastTick = Environment.TickCount;
+    }
+
+    public static int GetSmartFanSpeed(int fanIndex) {
+      lock (_fanLock) {
+        float rawTemp = (fanIndex == 0) ? HardwareService.CPUTemp : HardwareService.GPUTemp;
+        if (rawTemp <= 0) rawTemp = (fanIndex == 0) ? HardwareService.CPUTemp : HardwareService.GPUTemp;
+        if (rawTemp <= 0) return _smartLastAppliedRpmCpu > 0 ? _smartLastAppliedRpmCpu : 2000;
+
+        if (_smartEmaCpuTemp < 0) {
+          _smartEmaCpuTemp = HardwareService.CPUTemp;
+          _smartEmaGpuTemp = HardwareService.GPUTemp;
+          _smartLastTick = Environment.TickCount;
+        }
+        float prevEma = (fanIndex == 0) ? _smartEmaCpuTemp : _smartEmaGpuTemp;
+        if (fanIndex == 0)
+          _smartEmaCpuTemp = _smartAlpha * rawTemp + (1f - _smartAlpha) * _smartEmaCpuTemp;
+        else
+          _smartEmaGpuTemp = _smartAlpha * rawTemp + (1f - _smartAlpha) * _smartEmaGpuTemp;
+        float emaTemp = (fanIndex == 0) ? _smartEmaCpuTemp : _smartEmaGpuTemp;
+
+        float hysteresis = ConfigService.SmartFanHysteresis;
+        int lastApplied = (fanIndex == 0) ? _smartLastAppliedRpmCpu : _smartLastAppliedRpmGpu;
+        if (Math.Abs(emaTemp - prevEma) < hysteresis && lastApplied > 0) {
+          return lastApplied;
+        }
+
+        var map = (fanIndex == 0) ? CPUTempFanMap : GPUTempFanMap;
+        if (map.Count == 0) return lastApplied > 0 ? lastApplied : 2000;
+        int rawSpeed = GetFanSpeedForSpecificTemperature(emaTemp, map, fanIndex);
+
+        long now = Environment.TickCount;
+        long dt = now - _smartLastTick;
+        _smartLastTick = now;
+        if (dt > 0 && rawSpeed < lastApplied) {
+          int maxDrop = (int)(ConfigService.SmartFanStepDownRate * dt / 1000f);
+          rawSpeed = Math.Max(lastApplied - maxDrop, rawSpeed);
+        }
+
+        if (fanIndex == 0) _smartLastAppliedRpmCpu = rawSpeed;
+        else _smartLastAppliedRpmGpu = rawSpeed;
+        return rawSpeed;
+      }
+    }
     // ═══════════════════════════════════════════════════════
     // Temperature-Fan Speed Mappings
     // ═══════════════════════════════════════════════════════
@@ -90,21 +152,17 @@ namespace OmenSuperHub.Services {
     // Fan Speed Calculation with Interpolation
     // ═══════════════════════════════════════════════════════
     public static int GetFanSpeedForTemperature(int fanIndex) {
-      if (CPUTempFanMap.Count == 0 || GPUTempFanMap.Count == 0) return 0;
+      lock (_fanLock) {
+        if (CPUTempFanMap.Count == 0 || GPUTempFanMap.Count == 0) return 0;
 
-      // Sensor fitting: in auto mode, CPU-only monitor with no real data → use ambient sensor
-      if (HardwareService.MonitorCPU && !HardwareService.MonitorGPU
-          && HardwareService.CPUPower < 0.01f && HardwareService.IsAmbientSensorSupported) {
-        float fitted = OmenHardware.GetFittingTemperature();
-        int speed = GetFanSpeedForSpecificTemperature(fitted, CPUTempFanMap, fanIndex);
-        return speed;
-      }
+        if (HardwareService.MonitorCPU && !HardwareService.MonitorGPU
+            && HardwareService.CPUPower < 0.01f && HardwareService.IsAmbientSensorSupported) {
+          float fitted = OmenHardware.GetFittingTemperature();
+          return GetFanSpeedForSpecificTemperature(fitted, CPUTempFanMap, fanIndex);
+        }
 
-      if (fanIndex == 0) {
-        // Fan 0 (CPU fan): follow CPU curve based on CPU temperature
-        return GetFanSpeedForSpecificTemperature(HardwareService.CPUTemp, CPUTempFanMap, fanIndex);
-      } else {
-        // Fan 1 (GPU fan): follow GPU curve based on GPU temp if monitoring is on
+        if (fanIndex == 0)
+          return GetFanSpeedForSpecificTemperature(HardwareService.CPUTemp, CPUTempFanMap, fanIndex);
         if (HardwareService.MonitorGPU)
           return GetFanSpeedForSpecificTemperature(HardwareService.GPUTemp, GPUTempFanMap, fanIndex);
         return GetFanSpeedForSpecificTemperature(HardwareService.CPUTemp, CPUTempFanMap, fanIndex);
@@ -123,10 +181,9 @@ namespace OmenSuperHub.Services {
       if (lowerBound == upperBound)
         return tempFanMap[lowerBound][fanIndex];
 
-      int lowerSpeed = tempFanMap[lowerBound][fanIndex];
-      int upperSpeed = tempFanMap[upperBound][fanIndex];
-      float interpolatedSpeed = lowerSpeed + (upperSpeed - lowerSpeed) * (temperature - lowerBound) / (upperBound - lowerBound);
-      return (int)interpolatedSpeed;
+      float lowerSpeed = tempFanMap[lowerBound][fanIndex];
+      float upperSpeed = tempFanMap[upperBound][fanIndex];
+      return (int)(lowerSpeed + (upperSpeed - lowerSpeed) * (temperature - lowerBound) / (upperBound - lowerBound));
     }
 
     // ═══════════════════════════════════════════════════════

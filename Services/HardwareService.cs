@@ -267,28 +267,28 @@ namespace OmenSuperHub.Services {
     // Monitor Text Generation
     // ═══════════════════════════════════════════════════════
     public static string GetMonitorText() {
-      string str = "";
+      var sb = new System.Text.StringBuilder();
       if (CPUPower > 0.01f)
-        str = $"CPU: {CPUTemp:F1}°C, {CPUPower:F1}W";
+        sb.AppendFormat("CPU: {0:F1}°C, {1:F1}W", CPUTemp, CPUPower);
       else {
         if (PawnIOState == "RUNNING")
-          str = $"CPU: {Strings.MonitorPrepareLabel}";
+          sb.Append("CPU: ").Append(Strings.MonitorPrepareLabel);
         else if (!string.IsNullOrEmpty(PawnIOState))
-          str = $"CPU: PawnIO {PawnIOState}";
+          sb.Append("CPU: PawnIO ").Append(PawnIOState);
       }
       if (MonitorGPU) {
-        if (str.Length > 0) str += "\n";
+        if (sb.Length > 0) sb.Append('\n');
         if (PawnIOState == "RUNNING" && GPUPower < 0.01f)
-          str += $"GPU: {Strings.MonitorPrepareLabel}";
+          sb.Append("GPU: ").Append(Strings.MonitorPrepareLabel);
         else
-          str += $"GPU: {GPUTemp:F1}°C, {GPUPower:F1}W";
+          sb.AppendFormat("GPU: {0:F1}°C, {1:F1}W", GPUTemp, GPUPower);
       }
       if (MonitorFan) {
-        if (str.Length > 0) str += "\n";
-        str += $"Fan:  {FanSpeedNow[0] * 100}, {FanSpeedNow[1] * 100}";
+        if (sb.Length > 0) sb.Append('\n');
+        sb.Append("Fan:  ").Append(FanSpeedNow[0] * 100).Append(", ").Append(FanSpeedNow[1] * 100);
       }
-      if (str.Length == 0) str = Strings.MonitorClosed;
-      return str;
+      if (sb.Length == 0) sb.Append(Strings.MonitorClosed);
+      return sb.ToString();
     }
 
     public static void ApplyDisplayMode() {

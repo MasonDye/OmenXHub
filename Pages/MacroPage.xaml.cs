@@ -20,7 +20,11 @@ namespace OmenSuperHub.Pages {
 
     public MacroPage() {
       InitializeComponent();
-      Loaded += (s, e) => RefreshList();
+      Loaded += (s, e) => {
+        MacroMasterToggle.IsChecked = ConfigService.MacroEnabled;
+        MacroController.SetEnabled(ConfigService.MacroEnabled);
+        RefreshList();
+      };
     }
 
     void RefreshList() {
@@ -309,10 +313,14 @@ namespace OmenSuperHub.Pages {
     }
 
     void MacroMasterToggle_Checked(object sender, RoutedEventArgs e) {
+      ConfigService.MacroEnabled = true;
+      ConfigService.Save("MacroEnabled");
       MacroController.SetEnabled(true);
     }
 
     void MacroMasterToggle_Unchecked(object sender, RoutedEventArgs e) {
+      ConfigService.MacroEnabled = false;
+      ConfigService.Save("MacroEnabled");
       MacroController.SetEnabled(false);
     }
 

@@ -25,6 +25,7 @@
                 <ComboBoxItem Content="{x:Static app:Strings.FanSilentMode}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.FanCoolMode}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.FanCustomCurve}"/>
+                <ComboBoxItem Content="智能风扇"/>
                 <ComboBoxItem Content="{x:Static app:Strings.FanManualMode}"/>
               </ComboBox>
             </Grid>
@@ -77,6 +78,7 @@
         </ui:CardControl.Header>
       </ui:CardControl>
 
+
       <ui:CardControl x:Name="FanCurveCard" Margin="{StaticResource CardMargin}" Visibility="Collapsed">
         <ui:CardControl.Header>
           <StackPanel>
@@ -124,6 +126,67 @@
         </ui:CardControl.Header>
       </ui:CardControl>
 
+      <ui:CardControl x:Name="SmartFanCard" Margin="{StaticResource CardMargin}" Visibility="Collapsed">
+        <ui:CardControl.Header>
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Bot24" Margin="0,0,8,0"/>
+                <TextBlock Text="智能风扇" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <ComboBox x:Name="SmartCurvePreset" Grid.Column="1" MinWidth="120" SelectionChanged="SmartCurvePreset_Changed">
+                <ComboBoxItem Content="均衡"/>
+                <ComboBoxItem Content="静音"/>
+                <ComboBoxItem Content="高性能"/>
+              </ComboBox>
+            </Grid>
+            <Grid Margin="0,8,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+              <StackPanel Grid.Row="0" Grid.Column="0">
+                <TextBlock Text="平报警数" FontSize="12" VerticalAlignment="Center"/>
+                <TextBlock Text="值越小响应越灵敏" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="SmartEmaAlphaCombo" Grid.Row="0" Grid.Column="1" MinWidth="100" SelectionChanged="SmartEmaAlpha_Changed">
+                <ComboBoxItem Content="0.1 (快)"/>
+                <ComboBoxItem Content="0.3 (中)" IsSelected="True"/>
+                <ComboBoxItem Content="0.5 (慢)"/>
+              </ComboBox>
+              <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,6,0,0">
+                <TextBlock Text="降速速率" FontSize="12" VerticalAlignment="Center"/>
+                <TextBlock Text="每秒最多下降 RPM" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="SmartStepDownCombo" Grid.Row="1" Grid.Column="1" MinWidth="100" Margin="0,6,0,0" SelectionChanged="SmartStepDown_Changed">
+                <ComboBoxItem Content="100"/>
+                <ComboBoxItem Content="300"/>
+                <ComboBoxItem Content="500" IsSelected="True"/>
+                <ComboBoxItem Content="1000"/>
+              </ComboBox>
+              <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,6,0,0">
+                <TextBlock Text="滞后阈值" FontSize="12" VerticalAlignment="Center"/>
+                <TextBlock Text="温度变化阈值(°C)" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="SmartHysteresisCombo" Grid.Row="2" Grid.Column="1" MinWidth="100" Margin="0,6,0,0" SelectionChanged="SmartHysteresis_Changed">
+                <ComboBoxItem Content="0.2"/>
+                <ComboBoxItem Content="0.5" IsSelected="True"/>
+                <ComboBoxItem Content="1.0"/>
+              </ComboBox>
+            </Grid>
+          </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
       <ui:CardControl Margin="0,0,0,0">
         <ui:CardControl.Header>
           <StackPanel>
@@ -159,6 +222,19 @@
               </StackPanel>
               <ui:ToggleSwitch x:Name="AutoFanProtectToggle" Grid.Column="1"
                               Checked="AutoFanProtectToggle_Changed" Unchecked="AutoFanProtectToggle_Changed"/>
+            </Grid>
+            <Grid Margin="0,6,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.FanSync}" FontSize="12" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.FanSyncDesc}" FontSize="11"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="FanSyncToggle" Grid.Column="1"
+                              Checked="FanSyncToggle_Changed" Unchecked="FanSyncToggle_Changed"/>
             </Grid>
             <Grid x:Name="CleanCreekCard" Visibility="Collapsed">
               <Grid.ColumnDefinitions>

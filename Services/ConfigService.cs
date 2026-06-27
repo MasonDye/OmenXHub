@@ -39,7 +39,7 @@ namespace OmenSuperHub.Services {
     public static double FloatingPosTop = 100;
 
     // New features from OmenSuperHub-master merge
-    public static string Preset = "";
+    public static string Preset = "GpuPriority";
     public static string Language = "SimplifiedChinese";
     public static string DataLocalize = "off";
     public static string LightingDevice = "keyboard";
@@ -107,6 +107,12 @@ namespace OmenSuperHub.Services {
     public static bool BatteryWmiUnsupported = false;
     public static bool HWiNFOEnabled = false;
     public static bool HttpApiEnabled = false;
+    public static bool AutomationEnabled = true;
+    public static bool MacroEnabled = true;
+    public static bool FanSync = false;
+    public static float SmartFanEmaAlpha = 0.3f;
+    public static int SmartFanStepDownRate = 500;
+    public static float SmartFanHysteresis = 0.5f;
 
     // Cached machine info (no WMI re-query on each SysInfo refresh)
     public static string SysManufacturer = "";
@@ -129,6 +135,20 @@ namespace OmenSuperHub.Services {
     // ═══════════════════════════════════════════════════════
     // Save Configuration
     // ═══════════════════════════════════════════════════════
+    public static void BatchSave(Dictionary<string, object> updates) {
+      if (updates == null || updates.Count == 0) return;
+      try {
+        using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RegistryPath)) {
+          if (key == null) return;
+          foreach (var kv in updates) {
+            key.SetValue(kv.Key, kv.Value);
+          }
+        }
+      } catch (Exception ex) {
+        Console.WriteLine($"Error batch saving configuration: {ex.Message}");
+      }
+    }
+
     public static void Save(string setting = null) {
       try {
         using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RegistryPath)) {
@@ -238,6 +258,12 @@ namespace OmenSuperHub.Services {
             case "BatteryWmiUnsupported": key.SetValue("BatteryWmiUnsupported", BatteryWmiUnsupported); break;
             case "HWiNFOEnabled": key.SetValue("HWiNFOEnabled", HWiNFOEnabled); break;
             case "HttpApiEnabled": key.SetValue("HttpApiEnabled", HttpApiEnabled); break;
+            case "AutomationEnabled": key.SetValue("AutomationEnabled", AutomationEnabled); break;
+            case "MacroEnabled": key.SetValue("MacroEnabled", MacroEnabled); break;
+            case "FanSync": key.SetValue("FanSync", FanSync); break;
+            case "SmartFanEmaAlpha": key.SetValue("SmartFanEmaAlpha", SmartFanEmaAlpha); break;
+            case "SmartFanStepDownRate": key.SetValue("SmartFanStepDownRate", SmartFanStepDownRate); break;
+            case "SmartFanHysteresis": key.SetValue("SmartFanHysteresis", SmartFanHysteresis); break;
             case "EcoQosWhitelist": key.SetValue("EcoQosWhitelist", EcoQosWhitelist); break;
             case "EcoQosBlacklist": key.SetValue("EcoQosBlacklist", EcoQosBlacklist); break;
             case "CustomLogoPath": key.SetValue("CustomLogoPath", CustomLogoPath); break;
@@ -411,7 +437,7 @@ namespace OmenSuperHub.Services {
           FloatingBar = RegStr(key, "FloatingBar", "off");
           FloatingPosLeft = RegDouble(key, "FloatingPosLeft", 100);
           FloatingPosTop = RegDouble(key, "FloatingPosTop", 100);
-          Preset = RegStr(key, "Preset", "");
+          Preset = RegStr(key, "Preset", "GpuPriority");
           Language = RegStr(key, "Language", "SimplifiedChinese");
           DataLocalize = RegStr(key, "DataLocalize", "off");
           LightingDevice = RegStr(key, "LightingDevice", "keyboard");
@@ -469,6 +495,12 @@ namespace OmenSuperHub.Services {
           BatteryWmiUnsupported = RegBool(key, "BatteryWmiUnsupported", false);
           HWiNFOEnabled = RegBool(key, "HWiNFOEnabled", false);
           HttpApiEnabled = RegBool(key, "HttpApiEnabled", false);
+          AutomationEnabled = RegBool(key, "AutomationEnabled", true);
+          MacroEnabled = RegBool(key, "MacroEnabled", true);
+          FanSync = RegBool(key, "FanSync", false);
+          SmartFanEmaAlpha = (float)RegDouble(key, "SmartFanEmaAlpha", 0.3);
+          SmartFanStepDownRate = RegInt(key, "SmartFanStepDownRate", 500);
+          SmartFanHysteresis = (float)RegDouble(key, "SmartFanHysteresis", 0.5);
           EcoQosWhitelist = RegStr(key, "EcoQosWhitelist", "");
           EcoQosBlacklist = RegStr(key, "EcoQosBlacklist", "");
           SysManufacturer = RegStr(key, "SysManufacturer", "");

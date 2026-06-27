@@ -12,9 +12,29 @@ namespace OmenSuperHub.Pages {
   public partial class AutomationPage : Page {
     public AutomationPage() {
       InitializeComponent();
-      Loaded += (s, e) => RefreshList();
-      AutomationProcessor.ExecutionStatusChanged += (name) =>
+      EventHandler handler = null;
+      Action<string> execHandler = null;
+      Loaded += (s, e) => {
+        AutoEnableToggle.IsChecked = ConfigService.AutomationEnabled;
+        RefreshList();
+      };
+      Unloaded += (s, e) => {
+        if (execHandler != null)
+          AutomationProcessor.ExecutionStatusChanged -= execHandler;
+      };
+      execHandler = (name) =>
         Dispatcher.InvokeAsync(() => RefreshList());
+      AutomationProcessor.ExecutionStatusChanged += execHandler;
+    }
+
+    void AutoEnableToggle_Checked(object sender, RoutedEventArgs e) {
+      ConfigService.AutomationEnabled = true;
+      ConfigService.Save("AutomationEnabled");
+    }
+
+    void AutoEnableToggle_Unchecked(object sender, RoutedEventArgs e) {
+      ConfigService.AutomationEnabled = false;
+      ConfigService.Save("AutomationEnabled");
     }
 
     void RefreshList() {
@@ -65,7 +85,7 @@ namespace OmenSuperHub.Pages {
       var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
       var runBtn = new Button {
         Content = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Play24, FontSize = 12 },
-        Width = 28, Height = 24, Padding = new Thickness(0)
+        Width = 28, Height = 24, Padding = new Thickness(0), ToolTip = null
       };
       runBtn.Click += (s, e) => AutomationProcessor.ExecutePipeline(p);
       btnPanel.Children.Add(runBtn);
@@ -146,7 +166,7 @@ namespace OmenSuperHub.Pages {
 
       var runBtn = new Button {
         Content = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Play24, FontSize = 12 },
-        Width = 28, Height = 24, Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(0)
+        Width = 28, Height = 24, Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(0), ToolTip = null
       };
       runBtn.Click += (s, e) => AutomationProcessor.ExecutePipeline(p);
       btnPanel.Children.Add(runBtn);
@@ -237,10 +257,11 @@ namespace OmenSuperHub.Pages {
       ("TimeSchedule", Strings.AutomationTriggerTimeSchedule),
       ("BatteryAbove", Strings.AutomationTriggerBatteryAbove),
       ("BatteryBelow", Strings.AutomationTriggerBatteryBelow),
-      ("CpuTempAbove", Strings.AutomationTriggerCpuTempAbove),
-      ("GpuTempAbove", Strings.AutomationTriggerGpuTempAbove),
-      ("QuickAction", Strings.AutomationTriggerQuickAction),
-    };
+       ("CpuTempAbove", Strings.AutomationTriggerCpuTempAbove),
+       ("GpuTempAbove", Strings.AutomationTriggerGpuTempAbove),
+       ("QuickAction", Strings.AutomationTriggerQuickAction),
+       ("Hotkey", Strings.AutomationTriggerHotkey),
+     };
 
     public static string GetDisplayText(AutomationTrigger t) {
       foreach (var a in AllTriggerTypes)
