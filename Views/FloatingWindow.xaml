@@ -1,13 +1,21 @@
 <Window x:Class="OmenSuperHub.Views.FloatingWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         WindowStyle="None" AllowsTransparency="True"
         Background="Transparent" Topmost="True"
         ShowInTaskbar="False" ShowActivated="False"
         SizeToContent="WidthAndHeight"
         ResizeMode="NoResize"
         Left="0" Top="0">
+  <Window.Resources>
+    <Style TargetType="TextBlock">
+      <Setter Property="Effect">
+        <Setter.Value>
+          <DropShadowEffect Color="Black" Opacity="0.85" ShadowDepth="1" BlurRadius="2" Direction="315"/>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
 
   <Grid Background="Transparent" MouseLeftButtonDown="ContentBorder_MouseLeftButtonDown">
     <!-- ponytail: no background — text floats on desktop directly -->

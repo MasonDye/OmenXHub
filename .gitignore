@@ -42,6 +42,8 @@ backup/
 # Agent context (not for repo)
 AGENTS.md
 PROJECT_SUMMARY.md
+.opencode/
+.agent/
 
 # OS
 Thumbs.db
