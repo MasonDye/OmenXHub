@@ -33,6 +33,7 @@ namespace OmenSuperHub.Services {
     public static bool MonitorFan = true;
     public static int TextSize = 48;
     public static string FloatingBarLoc = "left";
+    public static string FloatingBarLayout = "row";
     public static string FloatingBarScreen = "";
     public static string FloatingBar = "off";
     public static double FloatingPosLeft = 100;
@@ -199,6 +200,7 @@ namespace OmenSuperHub.Services {
             case "FloatingBarSize": key.SetValue("FloatingBarSize", TextSize); break;
             case "FloatingBarLoc": key.SetValue("FloatingBarLoc", FloatingBarLoc); break;
             case "FloatingBarScreen": key.SetValue("FloatingBarScreen", FloatingBarScreen); break;
+            case "FloatingBarLayout": key.SetValue("FloatingBarLayout", FloatingBarLayout); break;
             case "FloatingBar": key.SetValue("FloatingBar", FloatingBar); break;
             case "FloatingPosLeft": key.SetValue("FloatingPosLeft", FloatingPosLeft); break;
             case "FloatingPosTop": key.SetValue("FloatingPosTop", FloatingPosTop); break;
@@ -434,6 +436,7 @@ namespace OmenSuperHub.Services {
           TextSize = RegInt(key, "FloatingBarSize", 48);
           FloatingBarLoc = RegStr(key, "FloatingBarLoc", "left");
           FloatingBarScreen = RegStr(key, "FloatingBarScreen", "");
+          FloatingBarLayout = RegStr(key, "FloatingBarLayout", "row");
           FloatingBar = RegStr(key, "FloatingBar", "off");
           FloatingPosLeft = RegDouble(key, "FloatingPosLeft", 100);
           FloatingPosTop = RegDouble(key, "FloatingPosTop", 100);
@@ -517,7 +520,7 @@ namespace OmenSuperHub.Services {
           SysNvidiaPowerMax = RegStr(key, "SysNvidiaPowerMax", "");
           SysKbType = RegStr(key, "SysKbType", "");
           SysValidation = RegInt(key, "SysValidation", 0);
-          SysPawnIoText = RegStr(key, "SysPawnIoText", "");
+          SysPawnIoText = RegStr(key, "SysPawnIoText", "").TrimStart('✔', '✓', '\u2713', '\u2714', '\u2705');
           CustomLogoPath = RegStr(key, "CustomLogoPath", "");
           CustomBgPath = RegStr(key, "CustomBgPath", "");
           CustomBgOpacity = RegDouble(key, "CustomBgOpacity", 0.5);

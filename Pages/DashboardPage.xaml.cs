@@ -437,9 +437,9 @@ namespace OmenSuperHub.Pages {
         try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboardType())); } catch { }
         try {
           pawnIoText = LibreHardwareMonitor.PawnIo.PawnIo.IsInstalled
-              ? "�?" + Strings.SysPawnInstalled + " v" + LibreHardwareMonitor.PawnIo.PawnIo.Version().ToString()
-              : "�?" + Strings.SysPawnMissing;
-        } catch { pawnIoText = "�?" + Strings.SysPawnMissing; }
+              ? Strings.SysPawnInstalled + "v" + LibreHardwareMonitor.PawnIo.PawnIo.Version().ToString()
+              : Strings.SysPawnMissing;
+        } catch { pawnIoText = Strings.SysPawnMissing; }
         try {
           cpuTemp = Strings.SysCPUTemp + ": " + (int)HardwareService.CPUTemp + " °C";
           gpuTemp = Strings.SysGPUTemp + ": " + (int)HardwareService.GPUTemp + " °C";

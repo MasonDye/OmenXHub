@@ -33,9 +33,11 @@ namespace OmenSuperHub.Pages {
       FloatTextOpacityVal.Text = (int)(ConfigService.FloatingTextOpacity * 100) + "%";
       switch (ConfigService.FloatingBarLoc) {
         case "right": FloatLocCombo.SelectedIndex = 1; break;
-        case "free": FloatLocCombo.SelectedIndex = 2; break;
+        case "top": FloatLocCombo.SelectedIndex = 2; break;
+        case "free": FloatLocCombo.SelectedIndex = 3; break;
         default: FloatLocCombo.SelectedIndex = 0; break;
       }
+      FloatLayoutCombo.SelectedIndex = ConfigService.FloatingBarLayout == "col" ? 1 : 0;
       switch (ConfigService.OmenKey) {
         case "custom": OmenKeyCombo.SelectedIndex = 0; break;
         case "showMain": OmenKeyCombo.SelectedIndex = 1; break;
@@ -150,10 +152,17 @@ namespace OmenSuperHub.Pages {
 
     void FloatLoc_SelectionChanged(object s, SelectionChangedEventArgs e) {
       if (_loading) return;
-      string[] locs = { "left", "right", "free" };
+      string[] locs = { "left", "right", "top", "free" };
       int idx = FloatLocCombo.SelectedIndex;
       ConfigService.FloatingBarLoc = idx >= 0 && idx < locs.Length ? locs[idx] : "left";
       ConfigService.Save("FloatingBarLoc");
+      Views.FloatingWindow.UpdateAllText();
+    }
+
+    void FloatLayout_SelectionChanged(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      ConfigService.FloatingBarLayout = FloatLayoutCombo.SelectedIndex == 1 ? "col" : "row";
+      ConfigService.Save("FloatingBarLayout");
       Views.FloatingWindow.UpdateAllText();
     }
 

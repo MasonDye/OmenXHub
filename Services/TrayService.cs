@@ -1182,9 +1182,66 @@ namespace OmenSuperHub.Services {
     static System.IO.Pipes.PipeSecurity CreateOmenKeyPipeSecurity() {
       var ps = new System.IO.Pipes.PipeSecurity();
       var sid = System.Security.Principal.WindowsIdentity.GetCurrent().User;
-      ps.SetAccessRule(new System.IO.Pipes.PipeAccessRule(sid, System.IO.Pipes.PipeAccessRights.Read, System.Security.AccessControl.AccessControlType.Allow));
-      ps.SetAccessRule(new System.IO.Pipes.PipeAccessRule(sid, System.IO.Pipes.PipeAccessRights.Write, System.Security.AccessControl.AccessControlType.Allow));
+      ps.SetAccessRule(new System.IO.Pipes.PipeAccessRule(sid, System.IO.Pipes.PipeAccessRights.ReadWrite, System.Security.AccessControl.AccessControlType.Allow));
+      // ponytail: SYSTEM needs write access because WMI runs cmd as SYSTEM
+      var systemSid = new System.Security.Principal.SecurityIdentifier("S-1-5-18");
+      ps.SetAccessRule(new System.IO.Pipes.PipeAccessRule(systemSid, System.IO.Pipes.PipeAccessRights.Write, System.Security.AccessControl.AccessControlType.Allow));
       return ps;
+    }
+
+    // ponytail: keyboard hook fallback for Omen key if WMI subscription fails
+    const int WH_KEYBOARD_LL = 13;
+    static _LowLevelKeyboardProc _kbHookProc;
+    static IntPtr _kbHookId = IntPtr.Zero;
+
+    delegate IntPtr _LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern IntPtr SetWindowsHookEx(int idHook, _LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    static extern bool UnhookWindowsHookEx(IntPtr hhk);
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern IntPtr GetModuleHandle(string lpModuleName);
+
+    const int WM_KEYDOWN = 0x0100;
+    // ponytail: known Omen key VKs — add more if needed
+    static readonly int[] OmenKeyVKs = { 0x80, 0x8C, 0xB6, 0x5D };
+
+    static IntPtr OmenKeyHookCallback(int nCode, IntPtr wParam, IntPtr lParam) {
+      if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN) {
+        int vkCode = Marshal.ReadInt32(lParam);
+        if (Array.IndexOf(OmenKeyVKs, vkCode) >= 0) {
+          System.Windows.Application.Current?.Dispatcher.BeginInvoke(new System.Action(() => HandleOmenKeyPress()));
+        }
+      }
+      return CallNextHookEx(_kbHookId, nCode, wParam, lParam);
+    }
+
+    static void HandleOmenKeyPress() {
+      string key = ConfigService.OmenKey;
+      if (key == "showMain") {
+        Views.MainWindow.ShowInstance();
+      } else if (key == "cyclePresets") {
+        var candidates = ConfigService.OmenKeyPresetCandidates
+          .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+          .Distinct().ToList();
+        if (candidates.Count == 0) return;
+        int idx = Math.Max(0, candidates.IndexOf(ConfigService.Preset));
+        _cyclePresetIndex = (idx + 1) % candidates.Count;
+        string preset = candidates[_cyclePresetIndex];
+        PresetManager.SwitchPreset(preset);
+        if (System.Windows.Application.Current.MainWindow is Views.MainWindow mw)
+          mw.ApplyPresetHardware();
+        Views.OsdWindow.ShowPresetOsd(preset);
+        ConfigService.FirePresetCycled(preset);
+      } else if (key == "app") {
+        LaunchOmenKeyApp();
+      } else if (key == "custom") {
+        System.Windows.Application.Current?.Dispatcher.Invoke(() => HandleFloatingBarToggle());
+        checkFloating = true;
+      }
     }
 
     static CancellationTokenSource _omenKeyCts;
@@ -1221,7 +1278,8 @@ namespace OmenSuperHub.Services {
                   } else if (ConfigService.OmenKey == "app") {
                     LaunchOmenKeyApp();
                   } else if (ConfigService.OmenKey == "custom") {
-                    if (!checkFloating) checkFloating = true;
+                    System.Windows.Application.Current?.Dispatcher.Invoke(() => HandleFloatingBarToggle());
+                    checkFloating = true;
                   }
                   // "none" does nothing
                 }
@@ -1233,6 +1291,16 @@ namespace OmenSuperHub.Services {
           }
         }
       });
+      // Install low-level keyboard hook as fallback Omen key detection
+      System.Windows.Application.Current?.Dispatcher.BeginInvoke(new System.Action(() => {
+        if (_kbHookId != IntPtr.Zero) return;
+        _kbHookProc = OmenKeyHookCallback;
+        using (var curProcess = Process.GetCurrentProcess())
+        using (var curModule = curProcess.MainModule) {
+          _kbHookId = SetWindowsHookEx(WH_KEYBOARD_LL, _kbHookProc,
+            GetModuleHandle(curModule.ModuleName), 0);
+        }
+      }));
     }
 
     static void LaunchOmenKeyApp() {
@@ -1264,6 +1332,7 @@ namespace OmenSuperHub.Services {
       _omenKeyCts?.Cancel();
       _omenKeyCts?.Dispose();
       _omenKeyCts = null;
+      if (_kbHookId != IntPtr.Zero) { UnhookWindowsHookEx(_kbHookId); _kbHookId = IntPtr.Zero; }
       if (ConfigService.OmenKey == "custom" || ConfigService.OmenKey == "showMain" || ConfigService.OmenKey == "cyclePresets" || ConfigService.OmenKey == "app") {
         OmenKeyOff();
       }

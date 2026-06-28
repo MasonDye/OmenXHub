@@ -42,17 +42,19 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="ArrowSync24" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.FanSpeedRPM}" Tag="SetFanSpeedSlider" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}"/>
+                <ui:SymbolIcon Symbol="ArrowSync24" Margin="0,0,6,0"/>
+                <TextBlock Text="{x:Static app:Strings.FanSpeedRPM}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-              <ToggleButton x:Name="FanRpmExpand" Width="22" Height="18"
-                            Grid.Column="1" 
-                            Checked="FanRpmExpand_Changed" Unchecked="FanRpmExpand_Changed">
-                <TextBlock Text="&#xF2A4;" FontFamily="{DynamicResource FluentSystemIcons}" FontSize="10"/>
-              </ToggleButton>
+              <WrapPanel Grid.Column="1">
+                <ToggleButton x:Name="FanRpmExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                              VerticalAlignment="Top"
+                              Checked="FanRpmExpand_Changed" Unchecked="FanRpmExpand_Changed">
+                  <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12"/>
+                </ToggleButton>
+                <ComboBox x:Name="FanRpmCombo" MinWidth="100" Margin="0,0,0,0"
+                          SelectionChanged="FanRpmCombo_SelectionChanged"/>
+              </WrapPanel>
             </Grid>
-            <ComboBox x:Name="FanRpmCombo" Margin="0,8,0,0"
-                      SelectionChanged="FanRpmCombo_SelectionChanged"/>
             <StackPanel x:Name="FanRpmExtra" Visibility="Collapsed" Margin="0,6,0,0">
               <Grid>
                 <Grid.ColumnDefinitions>

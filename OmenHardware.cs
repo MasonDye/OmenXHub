@@ -576,7 +576,7 @@ namespace OmenSuperHub {
         scope.Connect();
         var consumerClass = new ManagementClass(scope, new ManagementPath("CommandLineEventConsumer"), null);
         var consumer = consumerClass.CreateInstance();
-        consumer["CommandLineTemplate"] = @"cmd /c echo OmenKeyTriggered > \\.\pipe\OmenXHubPipe";
+        consumer["CommandLineTemplate"] = @"%COMSPEC% /c echo OmenKeyTriggered > \\.\pipe\OmenXHubPipe";
         consumer["Name"] = "OmenKeyConsumer";
         consumer.Put();
 

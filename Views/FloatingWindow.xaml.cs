@@ -105,6 +105,14 @@ namespace OmenSuperHub.Views {
         (byte)(a.B + (b.B - a.B) * t));
     }
 
+    private void ApplyLayout() {
+      bool isCol = ConfigService.FloatingBarLayout == "col";
+      DataPanel.Orientation = isCol
+        ? System.Windows.Controls.Orientation.Horizontal
+        : System.Windows.Controls.Orientation.Vertical;
+      Sep1.Visibility = Sep2.Visibility = isCol ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private static void DoUpdateText(FloatingWindow w) {
       if (w == null) return;
 
@@ -145,7 +153,7 @@ namespace OmenSuperHub.Views {
       Application.Current?.Dispatcher.Invoke(() => {
         foreach (var w in _instances.ToArray()) {
           if (w != null && w.IsLoaded) {
-            w.ApplyTextSize();
+            w.ApplyLayoutAndTextSize();
             DoUpdateText(w);
           }
         }
@@ -166,7 +174,7 @@ namespace OmenSuperHub.Views {
         foreach (string dev in selected) {
           if (!_instances.Any(w => w._deviceName == dev)) {
             var w = new FloatingWindow(dev);
-            w.ApplyTextSize();
+            w.ApplyLayoutAndTextSize();
             _instances.Add(w);
             w.Show();
             w.UpdatePosition();
@@ -210,7 +218,8 @@ namespace OmenSuperHub.Views {
       _instances.Remove(this);
     }
 
-    private void ApplyTextSize() {
+    private void ApplyLayoutAndTextSize() {
+      ApplyLayout();
       double fontSize = ConfigService.TextSize;
       if (fontSize < 8) fontSize = 8;
       CpuLabel.FontSize = fontSize;
@@ -243,6 +252,8 @@ namespace OmenSuperHub.Views {
       double wpfRight = wa.Right / scaleX;
       if (ConfigService.FloatingBarLoc == "right") {
         this.Left = wpfRight - Math.Max(this.ActualWidth, 100) - 10;
+      } else if (ConfigService.FloatingBarLoc == "top") {
+        this.Left = wpfLeft + (wpfRight - wpfLeft - Math.Max(this.ActualWidth, 100)) / 2;
       } else {
         this.Left = wpfLeft + 10;
       }

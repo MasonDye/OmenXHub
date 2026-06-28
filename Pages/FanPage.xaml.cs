@@ -46,7 +46,7 @@ namespace OmenSuperHub.Pages {
       LoadConfigState();
       _loading = false;
       UpdateFanModeUI();
-      if (_initRpm > 0 && FanModeCombo.SelectedIndex == 3) SelectRpmComboItem(_initRpm);
+      if (_initRpm > 0) SelectRpmComboItem(_initRpm);
       } catch (Exception ex) {
         System.Windows.MessageBox.Show("FanPage error: " + ex.GetType().Name + "\n" + ex.Message + "\n" + (ex.InnerException?.Message ?? ""));
       }

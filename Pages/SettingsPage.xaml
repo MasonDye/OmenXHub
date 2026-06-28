@@ -11,7 +11,7 @@
       <!-- ══════ 浮窗设置 ══════ -->
       <TextBlock Text="{x:Static app:Strings.SettingsFloatingHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
 
-      <!-- 浮窗开关 -->
+      <!-- 浮窗显示 -->
       <ui:CardControl Margin="0,0,0,8">
         <ui:CardControl.Header>
           <Grid>
@@ -31,7 +31,65 @@
         </ui:CardControl.Header>
       </ui:CardControl>
 
-      <!-- 浮窗大小 -->
+      <!-- 显示器选择 -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="{x:Static app:Strings.DisplayHeading}" FontSize="13" FontWeight="SemiBold"/>
+            </StackPanel>
+            <WrapPanel x:Name="FloatScreenPanel" Grid.Column="1"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- 浮窗位置 -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="{x:Static app:Strings.PositionHeading}" FontSize="13" FontWeight="SemiBold"/>
+            </StackPanel>
+            <ComboBox x:Name="FloatLocCombo" Grid.Column="1" MinWidth="140"
+                      SelectionChanged="FloatLoc_SelectionChanged">
+              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocLeft}"/>
+              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocRight}"/>
+              <ComboBoxItem Content="上方居中"/>
+              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocFree}"/>
+            </ComboBox>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- 浮窗布局 -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="浮窗布局" FontSize="13" FontWeight="SemiBold"/>
+            </StackPanel>
+            <ComboBox x:Name="FloatLayoutCombo" Grid.Column="1" MinWidth="120"
+                      SelectionChanged="FloatLayout_SelectionChanged">
+              <ComboBoxItem Content="按行排列"/>
+              <ComboBoxItem Content="按列排列"/>
+            </ComboBox>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- 文字大小 -->
       <ui:CardControl Margin="0,0,0,8">
         <ui:CardControl.Header>
           <Grid>
@@ -57,46 +115,7 @@
         </ui:CardControl.Header>
       </ui:CardControl>
 
-      <!-- 浮窗位置 -->
-      <ui:CardControl Margin="0,0,0,8">
-        <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.PositionHeading}" FontSize="13" FontWeight="SemiBold"/>
-            </StackPanel>
-            <ComboBox x:Name="FloatLocCombo" Grid.Column="1" MinWidth="140"
-                      SelectionChanged="FloatLoc_SelectionChanged">
-              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocLeft}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocRight}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocFree}"/>
-            </ComboBox>
-          </Grid>
-        </ui:CardControl.Header>
-      </ui:CardControl>
-
-      <!-- 显示屏幕 -->
-      <ui:CardControl Margin="0,0,0,8">
-        <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.DisplayHeading}" FontSize="13" FontWeight="SemiBold"/>
-            </StackPanel>
-            <WrapPanel x:Name="FloatScreenPanel" Grid.Column="1"/>
-          </Grid>
-        </ui:CardControl.Header>
-      </ui:CardControl>
-
-
-
-      <!-- 文字不透明度 -->
+      <!-- 文字透明度 -->
       <ui:CardControl Margin="0,0,0,8">
         <ui:CardControl.Header>
           <Grid>

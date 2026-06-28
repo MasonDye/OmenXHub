@@ -33,6 +33,8 @@
                      FontWeight="Bold" FontSize="13"
                      Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
         </WrapPanel>
+        <TextBlock x:Name="Sep1" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
+                   Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
         <!-- GPU Row -->
         <WrapPanel x:Name="GpuRow" Margin="0,1">
           <TextBlock Text="GPU" FontFamily="Consolas"
@@ -45,6 +47,8 @@
                      FontWeight="Bold" FontSize="13"
                      Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
         </WrapPanel>
+        <TextBlock x:Name="Sep2" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
+                   Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
         <!-- Fan Row -->
         <WrapPanel x:Name="FanRow" Margin="0,1">
           <TextBlock Text="FAN" FontFamily="Consolas"

@@ -117,9 +117,13 @@
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
-                  <TextBlock Text="{x:Static app:Strings.IccMaxHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
+                    <TextBlock Text="{x:Static app:Strings.IccMaxHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <TextBlock Text="限制电流峰值。⚠️ 过低降频易死机，过高可能触发保护。" FontSize="12"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
                 <WrapPanel Grid.Column="1">
                   <ToggleButton x:Name="IccMaxExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
@@ -158,12 +162,14 @@
 
         <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="AcLoadLineCard">
           <ui:CardControl.Header>
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
-                <TextBlock Text="{x:Static app:Strings.AcLoadLineHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              </StackPanel>
-              <ComboBox x:Name="AcLoadLineCombo"  Margin="0,8,0,0"
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.AcLoadLineHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="调节CPU的电压响应曲线，通常数值越低越好。" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                <ComboBox x:Name="AcLoadLineCombo"  Margin="0,8,0,0"
                         SelectionChanged="AcLoadLine_Changed"/>
             </StackPanel>
           </ui:CardControl.Header>
@@ -176,6 +182,8 @@
                 <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
                 <TextBlock Text="{x:Static app:Strings.PowerModeHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
+              <TextBlock Text="调节系统电源策略性能倾向。" FontSize="12"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
           </ui:CardControl.Header>
           <ComboBox x:Name="PowerModeCombo"  Margin="0,8,0,0"
@@ -189,6 +197,8 @@
                 <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
                 <TextBlock Text="{x:Static app:Strings.PowerPlanHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
+              <TextBlock Text="选择 Windows 系统的电源计划。" FontSize="12"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
           </ui:CardControl.Header>
           <ComboBox x:Name="PowerPlanCombo"  Margin="0,8,0,0"
@@ -389,15 +399,19 @@
 
         <ui:CardControl Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="GpuCoreOCCard">
           <ui:CardControl.Header>
-            <StackPanel>
+              <StackPanel>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="TopSpeed24" Margin="0,0,6,0"/>
-                  <TextBlock Text="{x:Static app:Strings.GpuCoreOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="TopSpeed24" Margin="0,0,6,0"/>
+                    <TextBlock Text="{x:Static app:Strings.GpuCoreOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <TextBlock Text="调节核心频率，影响性能与功耗。⚠️ 超频存在不稳定风险。" FontSize="12"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
                 <WrapPanel Grid.Column="1">
                   <ToggleButton x:Name="GpuCoreOCExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
@@ -436,15 +450,19 @@
 
         <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="GpuMemoryOCCard">
           <ui:CardControl.Header>
-            <StackPanel>
+              <StackPanel>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Clock24" Margin="0,0,6,0"/>
-                  <TextBlock Text="{x:Static app:Strings.GpuMemoryOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Clock24" Margin="0,0,6,0"/>
+                    <TextBlock Text="{x:Static app:Strings.GpuMemoryOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <TextBlock Text="调节显存频率，影响高画质流畅度。⚠️ 过度超频可能导致花屏或闪退。" FontSize="12"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
                 <WrapPanel Grid.Column="1">
                   <ToggleButton x:Name="GpuMemoryOCExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
@@ -514,7 +532,7 @@
                 <ui:SymbolIcon Symbol="ArrowSync24" Margin="0,0,6,0"/>
                 <TextBlock Text="{x:Static app:Strings.HotSwitchHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock Text="{x:Static app:Strings.PerfHotSwitchDesc}" FontSize="12"
+              <TextBlock Text="免重启切换混合/独显模式。" FontSize="12"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               <Button x:Name="HotSwitchBtn" Width="32" Height="34" Padding="0" Margin="0,8,0,0" Click="HotSwitch_Click">
                 <ui:SymbolIcon Symbol="ArrowSync24" FontSize="14"/>
@@ -555,9 +573,13 @@
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
-                  <TextBlock Text="TGP / PPAB" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
+                    <TextBlock Text="TGP / PPAB" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <TextBlock Text="调节显卡总功耗及动态功耗分配策略。" FontSize="12"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
                 <WrapPanel Grid.Column="1">
                   <ToggleButton x:Name="TppExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
