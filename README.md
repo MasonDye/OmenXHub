@@ -21,7 +21,7 @@ No advertisements · No wallpapers · No network connections.
 
 ### 仪表板 (Dashboard)
 
-实时显示 CPU/GPU 温度、使用率、频率、功耗、风扇转速、内存占用、网速。颜色编码进度条（绿→黄→红）直观反映负载状态。
+实时显示 CPU/GPU 温度、使用率、频率、功耗、风扇转速、内存占用。颜色编码进度条（绿→黄→红）直观反映负载状态。
 
 ![仪表板](Preview/Dashboard.png)
 
