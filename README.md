@@ -131,6 +131,7 @@ MSBuild.exe OmenSuperHub.csproj /t:Build /p:Configuration=Release /p:Platform=x6
 ## 致谢
 
 - **MasonDye** — GUI 设计与 WPF 前端开发
+- **One1turn** - WPF-UI Windows 11 样式重写 + 性能优化
 - **breadeding** — [OmenSuperHub](https://github.com/breadeding/OmenSuperHub)（原始框架与代码）
 - **GeographicCone** — [OmenMon](https://github.com/GeographicCone) / [OmenHwCtl](https://github.com/GeographicCone)（灵感来源与 OGH 交互研究）
 - **OpenHardwareMonitor** — [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)（硬件监控核心库）
@@ -259,6 +260,7 @@ MSBuild.exe OmenSuperHub.csproj /t:Build /p:Configuration=Release /p:Platform=x6
 ## 致謝
 
 - **MasonDye** — GUI 設計與 WPF 前端開發
+- **One1turn** - WPF-UI Windows 11 樣式重寫 + 性能優化
 - **breadeding** — [OmenSuperHub](https://github.com/breadeding/OmenSuperHub)（原始框架與程式碼）
 - **GeographicCone** — [OmenMon](https://github.com/GeographicCone) / [OmenHwCtl](https://github.com/GeographicCone)（靈感來源與 OGH 互動研究）
 - **OpenHardwareMonitor** — [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)（硬體監控核心庫）
