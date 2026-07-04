@@ -15,7 +15,7 @@ No advertisements · No wallpapers · No network connections.
 
 > 轻量、离线的 HP OMEN Gaming Hub 替代品 —— 无广告、无壁纸、无联网。
 
-**OMEN X Hub**（原名 OmenSuperHub）是一个基于 WPF 的 OMEN / VICTUS 游戏本控制中心，提供全面的硬件监控、风扇控制、性能调优、键盘灯光和系统诊断功能，无需安装臃肿的官方 OGH 软件。
+**OMEN X Hub**（参考和主要功能来源于 OmenSuperHub）是一个基于 WPF 的 OMEN / VICTUS 游戏本控制中心，提供全面的硬件监控、风扇控制、性能调优、键盘灯光和系统诊断功能，无需安装臃肿的官方 OGH 软件。
 
 ## 功能一览
 
