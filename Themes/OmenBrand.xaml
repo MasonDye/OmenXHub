@@ -24,9 +24,9 @@
   <!-- Card / Surface -->
   <!-- CardControl/CardAction/CardExpander use these non-suffixed keys as DynamicResource -->
   <SolidColorBrush x:Key="CardBackground" Color="{DynamicResource BgCard}"/>
-  <SolidColorBrush x:Key="CardBorderBrush" Color="{DynamicResource BorderDefault}"/>
+  <SolidColorBrush x:Key="CardBorderBrush" Color="{DynamicResource CardBorderColor}"/>
   <SolidColorBrush x:Key="CardForeground" Color="{DynamicResource TextPrimary}"/>
-  <SolidColorBrush x:Key="CardBackgroundPointerOver" Color="{DynamicResource BgHover}"/>
+  <SolidColorBrush x:Key="CardBackgroundPointerOver" Color="{DynamicResource BgElevated}"/>
   <SolidColorBrush x:Key="CardBackgroundPressed" Color="{DynamicResource ControlFillDefault}"/>
   <SolidColorBrush x:Key="CardBackgroundDisabled" Color="{DynamicResource ControlFillDisabled}"/>
   <SolidColorBrush x:Key="CardForegroundPointerOver" Color="{DynamicResource TextPrimary}"/>
@@ -38,8 +38,8 @@
   <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{DynamicResource BgCard}"/>
   <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{DynamicResource BgElevated}"/>
   <SolidColorBrush x:Key="CardBackgroundFillColorTertiaryBrush" Color="{DynamicResource BgCard}"/>
-  <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{DynamicResource BorderDefault}"/>
-  <SolidColorBrush x:Key="CardStrokeColorSecondaryBrush" Color="{DynamicResource BorderSubtle}"/>
+  <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{DynamicResource CardStrokeColor}"/>
+  <SolidColorBrush x:Key="CardStrokeColorSecondaryBrush" Color="{DynamicResource CardStrokeSecondaryColor}"/>
   <SolidColorBrush x:Key="CardBackgroundFillColorQuarternaryBrush" Color="{DynamicResource BgCard}"/>
 
   <!-- Control Fill -->

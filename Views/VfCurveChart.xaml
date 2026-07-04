@@ -1,0 +1,17 @@
+<UserControl x:Class="OmenSuperHub.Views.VfCurveChart"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="root">
+  <Grid>
+    <Canvas x:Name="ChartCanvas" MinWidth="520" MinHeight="280"
+            SizeChanged="ChartCanvas_SizeChanged"
+            MouseDown="Canvas_MouseDown" MouseMove="Canvas_MouseMove"
+            MouseUp="Canvas_MouseUp" MouseLeave="Canvas_MouseLeave" />
+    <!-- Hover tooltip -->
+    <Border x:Name="TooltipBorder" Background="#EE333333" CornerRadius="3"
+            Padding="6,3" Visibility="Collapsed" IsHitTestVisible="False"
+            HorizontalAlignment="Left" VerticalAlignment="Top">
+      <TextBlock x:Name="TooltipText" Foreground="White" FontSize="11" FontFamily="Consolas" />
+    </Border>
+  </Grid>
+</UserControl>

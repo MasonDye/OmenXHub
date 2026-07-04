@@ -277,58 +277,22 @@ namespace OmenSuperHub.Services {
 
     // ── /api/cpu/load ──
     private static string HandleGetCpuLoad() {
-      float cpuLoad = 0;
-      foreach (var hw in HardwareService.LibreComputer.Hardware) {
-        if (hw.HardwareType == LibreHardwareType.Cpu) {
-          hw.Update();
-          foreach (var s in hw.Sensors)
-            if (s.SensorType == LibreSensorType.Load && s.Name == "CPU Total")
-              cpuLoad = (float)s.Value.GetValueOrDefault();
-        }
-      }
-      return $"{{\"avg\":{cpuLoad:F1},\"cores\":{{}}}}";
+      return $"{{\"avg\":{HardwareService.CPUUsage:F1},\"cores\":{{}}}}";
     }
 
     // ── /api/cpu/frequency ──
     private static string HandleGetCpuFrequency() {
-      float freq = 0;
-      foreach (var hw in HardwareService.LibreComputer.Hardware) {
-        if (hw.HardwareType == LibreHardwareType.Cpu) {
-          hw.Update();
-          foreach (var s in hw.Sensors)
-            if (s.SensorType == LibreSensorType.Clock)
-              freq = Math.Max(freq, (float)s.Value.GetValueOrDefault());
-        }
-      }
-      return $"{{\"freq\":{freq:F0}}}";
+      return $"{{\"freq\":{HardwareService.CPUClock:F0}}}";
     }
 
     // ── /api/gpu/load ──
     private static string HandleGetGpuLoad() {
-      float load = 0;
-      foreach (var hw in HardwareService.LibreComputer.Hardware) {
-        if (hw.HardwareType == LibreHardwareType.GpuNvidia || hw.HardwareType == LibreHardwareType.GpuAmd) {
-          hw.Update();
-          foreach (var s in hw.Sensors)
-            if (s.SensorType == LibreSensorType.Load && s.Name == "GPU Core")
-              load = (float)s.Value.GetValueOrDefault();
-        }
-      }
-      return $"{{\"load\":{load:F1}}}";
+      return $"{{\"load\":{HardwareService.GPUUsage:F1}}}";
     }
 
     // ── /api/gpu/frequency ──
     private static string HandleGetGpuFrequency() {
-      float freq = 0;
-      foreach (var hw in HardwareService.LibreComputer.Hardware) {
-        if (hw.HardwareType == LibreHardwareType.GpuNvidia || hw.HardwareType == LibreHardwareType.GpuAmd) {
-          hw.Update();
-          foreach (var s in hw.Sensors)
-            if (s.SensorType == LibreSensorType.Clock && (s.Name == "GPU Core" || s.Name.Contains("Core")))
-              freq = Math.Max(freq, (float)s.Value.GetValueOrDefault());
-        }
-      }
-      return $"{{\"freq\":{freq:F0}}}";
+      return $"{{\"freq\":{HardwareService.GPUClock:F0}}}";
     }
 
     // ── /api/gpu/memory ──
@@ -427,8 +391,8 @@ namespace OmenSuperHub.Services {
         if (param == null)
           return (400, MakeError("Invalid JSON body"));
 
-        if (param.pl1 < 15 || param.pl1 > 120 || param.pl2 < 15 || param.pl2 > 120)
-          return (400, MakeError("pl1 and pl2 must be between 15 and 120"));
+        if (param.pl1 < 5 || param.pl1 > 254 || param.pl2 < 5 || param.pl2 > 254)
+          return (400, MakeError("pl1 and pl2 must be between 5 and 254"));
 
         bool ok = OmenHardware.SetCpuPowerLimit((byte)param.pl1, (byte)param.pl2);
         Logger.Info($"API: SetCpuPowerLimit({param.pl1}, {param.pl2}) => {ok}");
@@ -588,9 +552,11 @@ namespace OmenSuperHub.Services {
         if (param == null) return (400, MakeError("Invalid JSON body"));
         if (param.value < 80 || param.value > 150)
           return (400, MakeError("value must be between 80 and 150"));
+        // Enable TGP via WMI BIOS and set NVIDIA power limit if available
         OmenHardware.SetGpuPowerState(true, ConfigService.PpabEnabled, ConfigService.DState);
-        Logger.Info($"API: SetGpuPowerState(tgp=true, ppab={ConfigService.PpabEnabled})");
-        return (200, "{\"success\":true,\"message\":\"GPU TGP enabled\"}");
+        GpuAppManager.SetPowerLimit(param.value);
+        Logger.Info($"API: SetGpuTgp({param.value}W) => tgp enabled, nvidia limit set");
+        return (200, "{\"success\":true,\"message\":\"GPU TGP updated\"}");
       } catch (Exception ex) { Logger.Error($"HandleSetGpuTgp: {ex.Message}"); return (500, MakeError(ex.Message)); }
     }
 
@@ -609,15 +575,9 @@ namespace OmenSuperHub.Services {
     // ═══════════════════════════════════════════════════════
 
     private static string HandleGetCpuPowerCurrent() {
-      float pl1 = 0, pl2 = 0;
-      try {
-        using (var searcher = new System.Management.ManagementObjectSearcher(
-            @"root\CIMV2", "SELECT * FROM Win32_Processor"))
-        foreach (System.Management.ManagementObject mo in searcher.Get()) {
-          uint? pl1v = (uint?)mo["CurrentClockSpeed"];
-          if (pl1v.HasValue) pl1 = pl1v.Value;
-        }
-      } catch { }
+      // PL1/PL2 cannot be read back from WMI BIOS; return configured values
+      float pl1 = ConfigService.CpuPowerPl1 > 0 ? ConfigService.CpuPowerPl1 : 0;
+      float pl2 = ConfigService.CpuPowerPl2 > 0 ? ConfigService.CpuPowerPl2 : 0;
       return $"{{\"pl1\":{pl1:F0},\"pl2\":{pl2:F0},\"tdp\":{HardwareService.CPUPower:F1},\"iccmax\":{ConfigService.IccMax},\"loadline\":{ConfigService.AcLoadLine}}}";
     }
 
@@ -661,11 +621,13 @@ namespace OmenSuperHub.Services {
         foreach (var p in param.points) {
           if (p.temp < 0 || p.temp > 100 || p.speed < 0 || p.speed > 100)
             return (400, MakeError("temp must be 0-100, speed must be 0-100"));
-          points.Add(((float)p.temp, p.speed));
+          // Convert percentage (0-100) to RPM (0-6400)
+          points.Add(((float)p.temp, p.speed * 64));
         }
 
         FanService.SaveCustomCurve(points);
         FanService.ApplyCustomCurve(points);
+        FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
         Logger.Info($"API: SetFanCurve with {points.Count} points");
         return (200, "{\"success\":true,\"message\":\"Fan curve updated\"}");
       } catch (Exception ex) { Logger.Error($"HandleSetFanCurve: {ex.Message}"); return (500, MakeError(ex.Message)); }
@@ -684,15 +646,31 @@ namespace OmenSuperHub.Services {
       } catch (Exception ex) { Logger.Error($"HandleSetFanMax: {ex.Message}"); return (500, MakeError(ex.Message)); }
     }
 
+    // ── CTS for fan clean task (prevent leak on repeated calls) ──
+    static System.Threading.CancellationTokenSource _fanCleanCts;
+
     private static (int code, string body) HandleSetFanClean(HttpListenerRequest req) {
       try {
+        // Cancel and dispose any previous fan clean task
+        if (_fanCleanCts != null) {
+          _fanCleanCts.Cancel();
+          _fanCleanCts.Dispose();
+        }
+        _fanCleanCts = new System.Threading.CancellationTokenSource();
+        var token = _fanCleanCts.Token;
         System.Threading.Tasks.Task.Run(async () => {
           try {
             OmenHardware.SetFanLevel(100, 100, false, true);
-            await System.Threading.Tasks.Task.Delay(30000);
-            OmenHardware.SetFanLevel(0, 0);
-            Logger.Info("API: Fan clean completed (30s)");
-          } catch (Exception ex) { Logger.Error($"FanClean error: {ex.Message}"); }
+            await System.Threading.Tasks.Task.Delay(30000, token);
+          } catch (OperationCanceledException) {
+            // Expected during shutdown or new fan clean request
+          } catch (Exception ex) {
+            Logger.Error($"FanClean error: {ex.Message}");
+          } finally {
+            // Always restore fan to 0, even on error or cancellation
+            try { OmenHardware.SetFanLevel(0, 0); } catch { }
+            Logger.Info("API: Fan clean completed/restored");
+          }
         });
         Logger.Info("API: Fan clean started (30s)");
         return (200, "{\"success\":true,\"message\":\"Fan clean started for 30 seconds\"}");
@@ -812,49 +790,7 @@ namespace OmenSuperHub.Services {
     // ═══════════════════════════════════════════════════════
 
     private static string HandleGetApiStatus() {
-      var endpoints = new string[] {
-        "{\"method\":\"GET\",\"path\":\"/ping\",\"description\":\"Health check\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/status\",\"description\":\"API endpoint list\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/temperature\",\"description\":\"CPU/GPU temperature\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/fan/speed\",\"description\":\"Fan speed percent\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/fan/rpm\",\"description\":\"Fan speed RPM\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/fan/curve/current\",\"description\":\"Current fan curve\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/mode\",\"description\":\"Current preset mode\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/cpu/load\",\"description\":\"CPU load (per-core)\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/cpu/frequency\",\"description\":\"CPU frequency\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/cpu/power/current\",\"description\":\"CPU power settings\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/gpu/load\",\"description\":\"GPU load\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/gpu/frequency\",\"description\":\"GPU frequency\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/gpu/memory\",\"description\":\"GPU memory usage\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/gpu/offset/current\",\"description\":\"GPU clock offsets\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/battery\",\"description\":\"Battery status\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/hardware/all\",\"description\":\"All hardware data\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/system/info\",\"description\":\"System information\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/system/uptime\",\"description\":\"System uptime\"}",
-        "{\"method\":\"GET\",\"path\":\"/api/lighting/status\",\"description\":\"Keyboard lighting status\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/fan/speed\",\"description\":\"Set fan speed\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/fan/curve\",\"description\":\"Set fan curve\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/fan/max\",\"description\":\"Toggle max fan\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/fan/clean\",\"description\":\"Fan clean (30s)\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/mode\",\"description\":\"Switch preset\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/power/limit\",\"description\":\"Set CPU PL1+PL2\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/cpu/pl1\",\"description\":\"Set CPU PL1\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/cpu/pl2\",\"description\":\"Set CPU PL2\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/cpu/tdp\",\"description\":\"Set CPU TDP\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/cpu/iccmax\",\"description\":\"Set CPU IccMax\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/cpu/loadline\",\"description\":\"Set CPU LoadLine\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/gpu/core/offset\",\"description\":\"Set GPU core offset\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/gpu/memory/offset\",\"description\":\"Set GPU memory offset\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/gpu/tgp\",\"description\":\"Toggle GPU TGP\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/gpu/ppab\",\"description\":\"Toggle GPU PPAB\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/lighting/brightness\",\"description\":\"Set keyboard brightness\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/lighting/color\",\"description\":\"Set keyboard color\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/lighting/effect\",\"description\":\"Set keyboard effect\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/lighting/off\",\"description\":\"Turn off keyboard lighting\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/system/restart\",\"description\":\"Restart system\"}",
-        "{\"method\":\"POST\",\"path\":\"/api/system/shutdown\",\"description\":\"Shutdown system\"}"
-      };
-      return $"{{\"status\":\"running\",\"version\":\"1.0.0\",\"endpoints\":[{string.Join(",",endpoints)}]}}";
+      return _apiStatusJson;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -965,6 +901,63 @@ namespace OmenSuperHub.Services {
       [DataMember] public string effect { get; set; }
     }
 
+    // ── Cached JSON serializers (avoid reflection per request) ──
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, DataContractJsonSerializer> _serializerCache
+      = new System.Collections.Concurrent.ConcurrentDictionary<Type, DataContractJsonSerializer>();
+
+    static DataContractJsonSerializer GetSerializer<T>() {
+      return _serializerCache.GetOrAdd(typeof(T), t => new DataContractJsonSerializer(t));
+    }
+
+    // ── Cached API status response (40+ endpoints, only built once) ──
+    static readonly string _apiStatusJson = BuildApiStatusJson();
+
+    static string BuildApiStatusJson() {
+      var endpoints = new string[] {
+        "{\"method\":\"GET\",\"path\":\"/ping\",\"description\":\"Health check\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/status\",\"description\":\"API endpoint list\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/temperature\",\"description\":\"CPU/GPU temperature\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/fan/speed\",\"description\":\"Fan speed percent\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/fan/rpm\",\"description\":\"Fan speed RPM\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/fan/curve/current\",\"description\":\"Current fan curve\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/mode\",\"description\":\"Current preset mode\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/cpu/load\",\"description\":\"CPU load (per-core)\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/cpu/frequency\",\"description\":\"CPU frequency\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/cpu/power/current\",\"description\":\"CPU power settings\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/gpu/load\",\"description\":\"GPU load\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/gpu/frequency\",\"description\":\"GPU frequency\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/gpu/memory\",\"description\":\"GPU memory usage\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/gpu/offset/current\",\"description\":\"GPU clock offsets\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/battery\",\"description\":\"Battery status\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/hardware/all\",\"description\":\"All hardware data\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/system/info\",\"description\":\"System information\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/system/uptime\",\"description\":\"System uptime\"}",
+        "{\"method\":\"GET\",\"path\":\"/api/lighting/status\",\"description\":\"Keyboard lighting status\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/fan/speed\",\"description\":\"Set fan speed\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/fan/curve\",\"description\":\"Set fan curve\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/fan/max\",\"description\":\"Toggle max fan\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/fan/clean\",\"description\":\"Fan clean (30s)\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/mode\",\"description\":\"Switch preset\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/power/limit\",\"description\":\"Set CPU PL1+PL2\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/cpu/pl1\",\"description\":\"Set CPU PL1\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/cpu/pl2\",\"description\":\"Set CPU PL2\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/cpu/tdp\",\"description\":\"Set CPU TDP\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/cpu/iccmax\",\"description\":\"Set CPU IccMax\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/cpu/loadline\",\"description\":\"Set CPU LoadLine\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/gpu/core/offset\",\"description\":\"Set GPU core offset\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/gpu/memory/offset\",\"description\":\"Set GPU memory offset\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/gpu/tgp\",\"description\":\"Toggle GPU TGP\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/gpu/ppab\",\"description\":\"Toggle GPU PPAB\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/lighting/brightness\",\"description\":\"Set keyboard brightness\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/lighting/color\",\"description\":\"Set keyboard color\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/lighting/effect\",\"description\":\"Set keyboard effect\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/lighting/off\",\"description\":\"Turn off keyboard lighting\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/system/restart\",\"description\":\"Restart system\"}",
+        "{\"method\":\"POST\",\"path\":\"/api/system/shutdown\",\"description\":\"Shutdown system\"}"
+      };
+      return $"{{\"status\":\"running\",\"version\":\"1.0.0\",\"endpoints\":[{string.Join(",",endpoints)}]}}";
+    }
+
     private static string ReadBody(HttpListenerRequest req) {
       using (var reader = new StreamReader(req.InputStream, req.ContentEncoding))
         return reader.ReadToEnd();
@@ -972,7 +965,7 @@ namespace OmenSuperHub.Services {
 
     private static T Deserialize<T>(string json) where T : class {
       if (string.IsNullOrWhiteSpace(json)) return null;
-      var ser = new DataContractJsonSerializer(typeof(T));
+      var ser = GetSerializer<T>();
       using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(json)))
         return ser.ReadObject(ms) as T;
     }

@@ -2,6 +2,7 @@
 // 100+ 静态配置字段，Windows 注册表持久化 (HKCU\Software\OmenXHub)，预设保存/加载
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Win32;
 
 namespace OmenSuperHub.Services {
@@ -28,7 +29,7 @@ namespace OmenSuperHub.Services {
     public static string CustomIcon = "original";
     public static string OmenKey = "none";
     public static string OmenKeyAppPath = "";
-    public static string OmenKeyPresetCandidates = "LightUse;GpuPriority;Extreme;Custom1;Custom2;Custom3";
+    public static string OmenKeyPresetCandidates = "LightUse;GpuPriority;Extreme";
     public static bool MonitorGPU = true;
     public static bool MonitorFan = true;
     public static int TextSize = 48;
@@ -57,9 +58,11 @@ namespace OmenSuperHub.Services {
     public static int DState = 1;
     public static bool TgpEnabled = true;
     public static bool PpabEnabled = true;
-    public static string CustomPreset1Name = "Custom 1";
+    public static string CustomPreset1Name = "Custom 1";  // ponytail: legacy fields kept for migration; replaced by CustomPresetNames dict
     public static string CustomPreset2Name = "Custom 2";
     public static string CustomPreset3Name = "Custom 3";
+    // ponytail: dynamic custom preset names dict — key=preset file key, value=display name
+    public static Dictionary<string, string> CustomPresetNames = new Dictionary<string, string>();
     public static double FloatingOpacity = 0.85;
     public static double FloatingTextOpacity = 1.0;
     public static bool VerboseLogging = false;
@@ -104,12 +107,55 @@ namespace OmenSuperHub.Services {
     public static string EcoQosWhitelist = "";
     public static string EcoQosBlacklist = "";
     public static int DisableDynamicBoost = 0;
+    public static string Resolution = "";   // "WxH" format, "" = don't restore
+    public static int DpiScale = 0;          // 0 = don't restore, 100/125/150/...
+    public static bool HdrEnabled = false;   // HDR state for custom presets
     public static bool BatteryChargeLimit = false;
     public static bool BatteryWmiUnsupported = false;
     public static bool HWiNFOEnabled = false;
     public static bool HttpApiEnabled = false;
     public static bool AutomationEnabled = true;
     public static bool MacroEnabled = true;
+    public static bool AdvancedTuningUnlocked = false; // 点击 logo 5 次解锁
+    // Advanced CPU tuning
+    public static int PboScalar = 0;         // 0=auto, 1-10
+    public static int CoAllCoreOffset = 0;   // -50 to +30
+    public static int FivrCoreOffset = 0;    // -250 to +250 mV
+    public static int FivrCacheOffset = 0;
+    public static int FivrIgpuOffset = 0;
+    public static int FivrSaOffset = 0;
+    public static int ClockRatio = 0;
+    public static string PerCoreRatios = "";
+    public static int PowerBalance = 16;     // 0-31, 16=balanced
+    // Advanced GPU tuning
+    public static int NvVoltCurveOffset = 0; // -1000 to +1000 mV (legacy simple offset)
+    public static int NvPowerLimit = 0;      // 0=unset, 1..max (NVML)
+    public static int NvMaxGpuClock = 0;     // 0=unlocked, 400..4000 MHz (NVML)
+    public static int RtssFrameLimit = 0;    // 0=off, 1-999
+    public static bool AutoOcEnabled = false;
+    // UXTU / PawnIO MSR
+    public static bool PawnTurboEnabled = true;
+    public static int PawnProchotOffset = 0;
+    public static int PawnHwpEpp = 128;
+    public static int PawnCStateLimit = 0;
+    public static int PawnIgpuPower = 0;
+    public static int PawnIgpuRatio = 0;
+    // AMD APU advanced tuning (SMU mailbox)
+    public static int AmdStapmLimit = 0;       // mW, 0=unset
+    public static int AmdFastLimit = 0;        // mW, 0=unset
+    public static int AmdSlowLimit = 0;        // mW, 0=unset
+    public static int AmdStapmTime = 0;        // seconds, 0=unset
+    public static int AmdSlowTime = 0;         // seconds, 0=unset
+    public static int AmdVrmCurrent = 0;       // mA, 0=unset
+    public static int AmdVrmSocCurrent = 0;    // mA, 0=unset
+    public static int AmdVrmMaxCurrent = 0;    // mA, 0=unset
+    public static int AmdVrmSocMaxCurrent = 0; // mA, 0=unset
+    public static int AmdTctlTemp = 0;         // °C, 0=unset
+    public static int AmdSkinTempLimit = 0;    // mW, 0=unset
+    public static int AmdApuSkinTemp = 0;      // °C, 0=unset
+    public static int AmdDgpuSkinTemp = 0;     // °C, 0=unset
+    public static int AmdGfxClk = 0;           // MHz, 0=unset
+
     public static bool FanSync = false;
     public static float SmartFanEmaAlpha = 0.3f;
     public static int SmartFanStepDownRate = 500;
@@ -262,6 +308,41 @@ namespace OmenSuperHub.Services {
             case "HttpApiEnabled": key.SetValue("HttpApiEnabled", HttpApiEnabled); break;
             case "AutomationEnabled": key.SetValue("AutomationEnabled", AutomationEnabled); break;
             case "MacroEnabled": key.SetValue("MacroEnabled", MacroEnabled); break;
+            case "AdvancedTuningUnlocked": key.SetValue("AdvancedTuningUnlocked", AdvancedTuningUnlocked ? 1 : 0); break;
+            case "PboScalar": key.SetValue("PboScalar", PboScalar); break;
+            case "CoAllCoreOffset": key.SetValue("CoAllCoreOffset", CoAllCoreOffset); break;
+            case "FivrCoreOffset": key.SetValue("FivrCoreOffset", FivrCoreOffset); break;
+            case "FivrCacheOffset": key.SetValue("FivrCacheOffset", FivrCacheOffset); break;
+            case "FivrIgpuOffset": key.SetValue("FivrIgpuOffset", FivrIgpuOffset); break;
+            case "FivrSaOffset": key.SetValue("FivrSaOffset", FivrSaOffset); break;
+            case "ClockRatio": key.SetValue("ClockRatio", ClockRatio); break;
+            case "PerCoreRatios": key.SetValue("PerCoreRatios", PerCoreRatios); break;
+            case "PowerBalance": key.SetValue("PowerBalance", PowerBalance); break;
+            case "NvVoltCurveOffset": key.SetValue("NvVoltCurveOffset", NvVoltCurveOffset); break;
+            case "NvPowerLimit": key.SetValue("NvPowerLimit", NvPowerLimit); break;
+            case "NvMaxGpuClock": key.SetValue("NvMaxGpuClock", NvMaxGpuClock); break;
+            case "RtssFrameLimit": key.SetValue("RtssFrameLimit", RtssFrameLimit); break;
+            case "AutoOcEnabled": key.SetValue("AutoOcEnabled", AutoOcEnabled); break;
+            case "PawnTurboEnabled": key.SetValue("PawnTurboEnabled", PawnTurboEnabled); break;
+            case "PawnProchotOffset": key.SetValue("PawnProchotOffset", PawnProchotOffset); break;
+            case "PawnHwpEpp": key.SetValue("PawnHwpEpp", PawnHwpEpp); break;
+            case "PawnCStateLimit": key.SetValue("PawnCStateLimit", PawnCStateLimit); break;
+            case "PawnIgpuPower": key.SetValue("PawnIgpuPower", PawnIgpuPower); break;
+            case "PawnIgpuRatio": key.SetValue("PawnIgpuRatio", PawnIgpuRatio); break;
+            case "AmdStapmLimit": key.SetValue("AmdStapmLimit", AmdStapmLimit); break;
+            case "AmdFastLimit": key.SetValue("AmdFastLimit", AmdFastLimit); break;
+            case "AmdSlowLimit": key.SetValue("AmdSlowLimit", AmdSlowLimit); break;
+            case "AmdStapmTime": key.SetValue("AmdStapmTime", AmdStapmTime); break;
+            case "AmdSlowTime": key.SetValue("AmdSlowTime", AmdSlowTime); break;
+            case "AmdVrmCurrent": key.SetValue("AmdVrmCurrent", AmdVrmCurrent); break;
+            case "AmdVrmSocCurrent": key.SetValue("AmdVrmSocCurrent", AmdVrmSocCurrent); break;
+            case "AmdVrmMaxCurrent": key.SetValue("AmdVrmMaxCurrent", AmdVrmMaxCurrent); break;
+            case "AmdVrmSocMaxCurrent": key.SetValue("AmdVrmSocMaxCurrent", AmdVrmSocMaxCurrent); break;
+            case "AmdTctlTemp": key.SetValue("AmdTctlTemp", AmdTctlTemp); break;
+            case "AmdSkinTempLimit": key.SetValue("AmdSkinTempLimit", AmdSkinTempLimit); break;
+            case "AmdApuSkinTemp": key.SetValue("AmdApuSkinTemp", AmdApuSkinTemp); break;
+            case "AmdDgpuSkinTemp": key.SetValue("AmdDgpuSkinTemp", AmdDgpuSkinTemp); break;
+            case "AmdGfxClk": key.SetValue("AmdGfxClk", AmdGfxClk); break;
             case "FanSync": key.SetValue("FanSync", FanSync); break;
             case "SmartFanEmaAlpha": key.SetValue("SmartFanEmaAlpha", SmartFanEmaAlpha); break;
             case "SmartFanStepDownRate": key.SetValue("SmartFanStepDownRate", SmartFanStepDownRate); break;
@@ -272,6 +353,10 @@ namespace OmenSuperHub.Services {
             case "CustomBgPath": key.SetValue("CustomBgPath", CustomBgPath); break;
             case "CustomBgOpacity": key.SetValue("CustomBgOpacity", CustomBgOpacity); break;
             case "CustomBgBlurEnabled": key.SetValue("CustomBgBlurEnabled", CustomBgBlurEnabled ? 1 : 0); break;
+            case "DisableDynamicBoost": key.SetValue("DisableDynamicBoost", DisableDynamicBoost); break;
+            case "Resolution": key.SetValue("Resolution", Resolution); break;
+            case "DpiScale": key.SetValue("DpiScale", DpiScale); break;
+            case "HdrEnabled": key.SetValue("HdrEnabled", HdrEnabled ? 1 : 0); break;
           }
         }
       } catch (Exception ex) {
@@ -285,21 +370,23 @@ namespace OmenSuperHub.Services {
     static string PresetSubKey(string name) => $@"Software\OmenXHub\Presets\{name}";
 
     public static void InitBuiltInPresetDefaults(string preset) {
+      // ponytail: per spec — only 1.1 global bound params for built-in presets.
+      // DState/1.2 and 1.3 NOT touched. DState defaults to 1 (正常) independently.
       switch (preset) {
         case "Extreme":
-          FanTable = "cool"; FanControl = "auto"; TempSensitivity = "medium";
-          CpuPower = "max"; DState = 1; TgpEnabled = true; PpabEnabled = true;
-          MaxFrameRate = -1; PowerMode = 2; DisableDynamicBoost = 1;
+          FanTable = "cool"; FanControl = "auto";
+          CpuPower = "max"; TgpEnabled = true; PpabEnabled = true;
+          PowerMode = 1; // 平衡
           CpuPowerPl1 = 254; CpuPowerPl2 = 254; GpuClock = 0; Tpp = 255; break;
         case "GpuPriority":
-          FanTable = "cool"; FanControl = "auto"; TempSensitivity = "medium";
-          CpuPower = "45 W"; DState = 1; TgpEnabled = true; PpabEnabled = true;
-          MaxFrameRate = -1; PowerMode = 1; DisableDynamicBoost = 0;
+          FanTable = "cool"; FanControl = "auto";
+          CpuPower = "45 W"; TgpEnabled = true; PpabEnabled = true;
+          PowerMode = 1; // 平衡
           CpuPowerPl1 = 45; CpuPowerPl2 = 45; GpuClock = 0; Tpp = 255; break;
         case "LightUse":
-          FanTable = "silent"; FanControl = "auto"; TempSensitivity = "medium";
-          CpuPower = "25 W"; DState = 1; TgpEnabled = false; PpabEnabled = false;
-          MaxFrameRate = 60; PowerMode = 0; DisableDynamicBoost = 0;
+          FanTable = "silent"; FanControl = "auto";
+          CpuPower = "25 W"; TgpEnabled = false; PpabEnabled = false;
+          PowerMode = 0; // 最佳能效
           CpuPowerPl1 = 25; CpuPowerPl2 = 25; GpuClock = 0; Tpp = 0; break;
       }
     }
@@ -430,7 +517,7 @@ namespace OmenSuperHub.Services {
           CustomIcon = RegStr(key, "CustomIcon", "original");
           OmenKey = RegStr(key, "OmenKey", "none");
           OmenKeyAppPath = RegStr(key, "OmenKeyAppPath", "");
-          OmenKeyPresetCandidates = RegStr(key, "OmenKeyPresetCandidates", "LightUse;GpuPriority;Extreme;Custom1;Custom2;Custom3");
+          OmenKeyPresetCandidates = RegStr(key, "OmenKeyPresetCandidates", "LightUse;GpuPriority;Extreme");
           MonitorGPU = RegBool(key, "MonitorGPU", true);
           MonitorFan = RegBool(key, "MonitorFan", true);
           TextSize = RegInt(key, "FloatingBarSize", 48);
@@ -500,8 +587,43 @@ namespace OmenSuperHub.Services {
           HttpApiEnabled = RegBool(key, "HttpApiEnabled", false);
           AutomationEnabled = RegBool(key, "AutomationEnabled", true);
           MacroEnabled = RegBool(key, "MacroEnabled", true);
-          FanSync = RegBool(key, "FanSync", false);
-          SmartFanEmaAlpha = (float)RegDouble(key, "SmartFanEmaAlpha", 0.3);
+          AdvancedTuningUnlocked = RegInt(key, "AdvancedTuningUnlocked", 0) != 0;
+            PboScalar = RegInt(key, "PboScalar", 0);
+            CoAllCoreOffset = RegInt(key, "CoAllCoreOffset", 0);
+            FivrCoreOffset = RegInt(key, "FivrCoreOffset", 0);
+            FivrCacheOffset = RegInt(key, "FivrCacheOffset", 0);
+            FivrIgpuOffset = RegInt(key, "FivrIgpuOffset", 0);
+            FivrSaOffset = RegInt(key, "FivrSaOffset", 0);
+            ClockRatio = RegInt(key, "ClockRatio", 0);
+            PerCoreRatios = RegStr(key, "PerCoreRatios", "");
+            PowerBalance = RegInt(key, "PowerBalance", 16);
+            NvVoltCurveOffset = RegInt(key, "NvVoltCurveOffset", 0);
+            NvPowerLimit = RegInt(key, "NvPowerLimit", 0);
+            NvMaxGpuClock = RegInt(key, "NvMaxGpuClock", 0);
+            RtssFrameLimit = RegInt(key, "RtssFrameLimit", 0);
+            AutoOcEnabled = RegBool(key, "AutoOcEnabled", false);
+            PawnTurboEnabled = RegBool(key, "PawnTurboEnabled", true);
+            PawnProchotOffset = RegInt(key, "PawnProchotOffset", 0);
+            PawnHwpEpp = RegInt(key, "PawnHwpEpp", 128);
+            PawnCStateLimit = RegInt(key, "PawnCStateLimit", 0);
+            PawnIgpuPower = RegInt(key, "PawnIgpuPower", 0);
+            PawnIgpuRatio = RegInt(key, "PawnIgpuRatio", 0);
+            AmdStapmLimit = RegInt(key, "AmdStapmLimit", 0);
+            AmdFastLimit = RegInt(key, "AmdFastLimit", 0);
+            AmdSlowLimit = RegInt(key, "AmdSlowLimit", 0);
+            AmdStapmTime = RegInt(key, "AmdStapmTime", 0);
+            AmdSlowTime = RegInt(key, "AmdSlowTime", 0);
+            AmdVrmCurrent = RegInt(key, "AmdVrmCurrent", 0);
+            AmdVrmSocCurrent = RegInt(key, "AmdVrmSocCurrent", 0);
+            AmdVrmMaxCurrent = RegInt(key, "AmdVrmMaxCurrent", 0);
+            AmdVrmSocMaxCurrent = RegInt(key, "AmdVrmSocMaxCurrent", 0);
+            AmdTctlTemp = RegInt(key, "AmdTctlTemp", 0);
+            AmdSkinTempLimit = RegInt(key, "AmdSkinTempLimit", 0);
+            AmdApuSkinTemp = RegInt(key, "AmdApuSkinTemp", 0);
+            AmdDgpuSkinTemp = RegInt(key, "AmdDgpuSkinTemp", 0);
+            AmdGfxClk = RegInt(key, "AmdGfxClk", 0);
+            FanSync = RegBool(key, "FanSync", false);
+            SmartFanEmaAlpha = (float)RegDouble(key, "SmartFanEmaAlpha", 0.3);
           SmartFanStepDownRate = RegInt(key, "SmartFanStepDownRate", 500);
           SmartFanHysteresis = (float)RegDouble(key, "SmartFanHysteresis", 0.5);
           EcoQosWhitelist = RegStr(key, "EcoQosWhitelist", "");
@@ -525,6 +647,10 @@ namespace OmenSuperHub.Services {
           CustomBgPath = RegStr(key, "CustomBgPath", "");
           CustomBgOpacity = RegDouble(key, "CustomBgOpacity", 0.5);
           CustomBgBlurEnabled = RegInt(key, "CustomBgBlurEnabled", 1) == 1;
+          DisableDynamicBoost = RegInt(key, "DisableDynamicBoost", 0);
+          Resolution = RegStr(key, "Resolution", "");
+          DpiScale = RegInt(key, "DpiScale", 0);
+          HdrEnabled = RegInt(key, "HdrEnabled", 0) == 1;
         }
       } catch (Exception ex) {
         Console.WriteLine($"Error loading configuration: {ex.Message}");
@@ -543,6 +669,27 @@ namespace OmenSuperHub.Services {
         }
       } catch { }
       return "original";
+    }
+
+    // ponytail: get display name for a preset key. Checks the dict first,
+    // then falls back to the legacy 3-field system for migration compatibility.
+    public static string GetCustomPresetDisplayName(string presetKey) {
+      if (CustomPresetNames.TryGetValue(presetKey, out var name) && !string.IsNullOrEmpty(name))
+        return name;
+      // legacy fallback for migration
+      if (presetKey == "Custom1") return CustomPreset1Name;
+      if (presetKey == "Custom2") return CustomPreset2Name;
+      if (presetKey == "Custom3") return CustomPreset3Name;
+      return presetKey;
+    }
+
+    public static void SetCustomPresetName(string presetKey, string displayName) {
+      if (string.IsNullOrEmpty(presetKey) || string.IsNullOrEmpty(displayName)) return;
+      CustomPresetNames[presetKey] = displayName;
+      if (presetKey == "Custom1") CustomPreset1Name = displayName;
+      else if (presetKey == "Custom2") CustomPreset2Name = displayName;
+      else if (presetKey == "Custom3") CustomPreset3Name = displayName;
+      try { CustomPresetNamesStore.Save(); } catch { }
     }
   }
 
@@ -569,7 +716,7 @@ namespace OmenSuperHub.Services {
     }
   }
 
-  internal static class CustomPresetNames {
+  internal static class CustomPresetNamesStore {
     static string FilePath => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "OmenXHub", "preset_names.txt");
@@ -578,10 +725,18 @@ namespace OmenSuperHub.Services {
       try {
         var dir = System.IO.Path.GetDirectoryName(FilePath);
         if (!System.IO.Directory.Exists(dir)) System.IO.Directory.CreateDirectory(dir);
-        System.IO.File.WriteAllText(FilePath,
-            ConfigService.CustomPreset1Name + "\n" +
-            ConfigService.CustomPreset2Name + "\n" +
-            ConfigService.CustomPreset3Name);
+        // ponytail: one line per key=value; skip empty
+        var lines = ConfigService.CustomPresetNames
+          .Where(kv => !string.IsNullOrEmpty(kv.Key) && !string.IsNullOrEmpty(kv.Value))
+          .Select(kv => kv.Key + "=" + kv.Value)
+          .ToArray();
+        // also emit legacy 3-field lines for backward compat (first 3 lines = Custom1/2/3 names if present)
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(ConfigService.CustomPreset1Name);  // legacy line 1
+        sb.AppendLine(ConfigService.CustomPreset2Name);  // legacy line 2
+        sb.AppendLine(ConfigService.CustomPreset3Name);  // legacy line 3
+        foreach (var l in lines) sb.AppendLine(l);
+        System.IO.File.WriteAllText(FilePath, sb.ToString().TrimEnd());
       } catch { }
     }
 
@@ -589,9 +744,21 @@ namespace OmenSuperHub.Services {
       try {
         if (!System.IO.File.Exists(FilePath)) return;
         var lines = System.IO.File.ReadAllLines(FilePath);
+        // legacy: first 3 lines (0-2) are Custom1/2/3 for backward compat
         if (lines.Length >= 1 && !string.IsNullOrEmpty(lines[0])) ConfigService.CustomPreset1Name = lines[0];
         if (lines.Length >= 2 && !string.IsNullOrEmpty(lines[1])) ConfigService.CustomPreset2Name = lines[1];
         if (lines.Length >= 3 && !string.IsNullOrEmpty(lines[2])) ConfigService.CustomPreset3Name = lines[2];
+        // lines 3+ are key=value pairs for dynamic custom presets
+        for (int i = 3; i < lines.Length; i++) {
+          string line = lines[i];
+          if (string.IsNullOrEmpty(line)) continue;
+          int eq = line.IndexOf('=');
+          if (eq <= 0) continue;
+          string key = line.Substring(0, eq).Trim();
+          string val = line.Substring(eq + 1).Trim();
+          if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(val))
+            ConfigService.CustomPresetNames[key] = val;
+        }
       } catch { }
     }
   }

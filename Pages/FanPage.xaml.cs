@@ -2,6 +2,7 @@
 // 风扇模式/灵敏度/曲线选择，自定义风扇曲线编辑，自动保护和除尘功能
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,10 +26,13 @@ namespace OmenSuperHub.Pages {
 
     bool _loading;
     bool _showGpuCurve;
+    bool _optionsBuilt;
     int _draggingIndex = -1;
     List<(float temp, int rpm)> _curvePoints;
     List<(float temp, int rpm)> _curvePointsGPU;
     int _initRpm;
+    string _currentPresetKey = "balanced";
+    static readonly string[] PresetKeys = { "balanced", "quiet", "performance" };
 
     public FanPage() {
       try { InitializeComponent(); } catch (Exception ex) {
@@ -38,15 +42,69 @@ namespace OmenSuperHub.Pages {
       Loaded += FanPage_Loaded;
     }
 
+    void OnPresetChanged(string preset) {
+      // ponytail: dynamic — find index by tag in combo items
+      int idx = -1;
+      for (int i = 0; i < cbxFanPreset.Items.Count; i++) {
+        if (cbxFanPreset.Items[i] is ComboBoxItem item && item.Tag as string == preset) { idx = i; break; }
+      }
+      if (idx >= 0 && cbxFanPreset.SelectedIndex != idx) {
+        _loading = true;
+        cbxFanPreset.SelectedIndex = idx;
+        _loading = false;
+      }
+      if (!IsLoaded || FanModeCombo.SelectedIndex != 2) return;
+      _currentPresetKey = preset;
+      LoadPresetCurvePoints(_currentPresetKey);
+    }
+
+    // ponytail: synced to PerfPage — use PresetManager.EnumerateAllPresets. Upgrade path = share via PresetManager.
+    void RefreshPresetList() {
+      string current = ConfigService.Preset;
+      if (string.IsNullOrEmpty(current)) current = "GpuPriority";
+      cbxFanPreset.Items.Clear();
+      var all = PresetManager.EnumerateAllPresets();
+      int idx = -1;
+      for (int i = 0; i < all.Count; i++) {
+        var (display, key) = all[i];
+        cbxFanPreset.Items.Add(new ComboBoxItem { Content = display, Tag = key });
+        if (key == current) idx = i;
+      }
+      _loading = true;
+      cbxFanPreset.SelectedIndex = idx >= 0 ? idx : 1;
+      _loading = false;
+    }
+
+    void cbxFanPreset_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      var item = cbxFanPreset.SelectedItem as ComboBoxItem;
+      if (item == null) return;
+      string preset = item.Tag as string;
+      if (string.IsNullOrEmpty(preset)) return;
+      try {
+        PresetManager.SwitchPreset(preset);
+        if (Application.Current.MainWindow is Views.MainWindow mainWindow)
+          mainWindow.ApplyPresetHardware();
+      } catch (Exception ex) { System.Diagnostics.Debug.WriteLine("cbxFanPreset_SelectionChanged: " + ex.Message); }
+    }
+
     private void FanPage_Loaded(object sender, RoutedEventArgs e) {
       try {
-      BuildFanRpmOptions();
+      PresetManager.OnPresetChanged -= OnPresetChanged;
+      PresetManager.OnPresetChanged += OnPresetChanged;
+      if (!_optionsBuilt) { BuildFanRpmOptions(); _optionsBuilt = true; }
+      RefreshPresetList();
       LoadCurvePoints();
       _loading = true;
       LoadConfigState();
-      _loading = false;
       UpdateFanModeUI();
-      if (_initRpm > 0) SelectRpmComboItem(_initRpm);
+      if (FanModeCombo.SelectedIndex == 2) {
+        _currentPresetKey = ConfigService.Preset;
+        LoadPresetCurvePoints(_currentPresetKey);
+      }
+      if (_initRpm > 0) { SelectRpmComboItem(_initRpm); FanRpmSlider.Value = _initRpm; }
+      else FanRpmSlider.Value = 2500;
+      _loading = false;
       } catch (Exception ex) {
         System.Windows.MessageBox.Show("FanPage error: " + ex.GetType().Name + "\n" + ex.Message + "\n" + (ex.InnerException?.Message ?? ""));
       }
@@ -62,32 +120,32 @@ namespace OmenSuperHub.Pages {
       DrawFanCurve();
     }
 
+    void LoadPresetCurvePoints(string presetKey) {
+      var (cpu, gpu) = FanService.ApplyPresetCurve(presetKey);
+      _curvePoints = cpu;
+      _curvePointsGPU = gpu;
+      DrawFanCurve();
+    }
+
     void LoadConfigState() {
       try {
       string fc = ConfigService.FanControl;
-      if (fc == "custom") FanModeCombo.SelectedIndex = 2;
-      else if (fc == "smart") FanModeCombo.SelectedIndex = 3;
+      if (fc == "smart" || fc == "custom") FanModeCombo.SelectedIndex = 2;
       else if (fc == "" || fc == "auto" || fc == "silent" || fc == "cool") {
         FanModeCombo.SelectedIndex = ConfigService.FanTable == "cool" ? 1 : 0;
       } else if (fc.Contains(" RPM")) {
-        FanModeCombo.SelectedIndex = 4;
+        FanModeCombo.SelectedIndex = 3;
         _initRpm = int.Parse(fc.Replace(" RPM", "").Trim());
         FanRpmSlider.Value = _initRpm;
-        if (FanRpmInput != null) FanRpmInput.Text = _initRpm.ToString();
-        if (FanRpmSliderVal != null) FanRpmSliderVal.Text = _initRpm + " RPM";
       } else if (fc.EndsWith("%")) {
-        FanModeCombo.SelectedIndex = 4;
+        FanModeCombo.SelectedIndex = 3;
         int pct = int.Parse(fc.TrimEnd('%'));
         _initRpm = pct * 100;
         FanRpmSlider.Value = _initRpm;
-        if (FanRpmInput != null) FanRpmInput.Text = _initRpm.ToString();
-        if (FanRpmSliderVal != null) FanRpmSliderVal.Text = _initRpm + " RPM";
       } else {
-        FanModeCombo.SelectedIndex = 4;
+        FanModeCombo.SelectedIndex = 3;
         _initRpm = 2500;
         FanRpmSlider.Value = _initRpm;
-        if (FanRpmInput != null) FanRpmInput.Text = _initRpm.ToString();
-        if (FanRpmSliderVal != null) FanRpmSliderVal.Text = _initRpm + " RPM";
       }
       switch (ConfigService.TempSensitivity) {
         case "realtime": SensitivityCombo.SelectedIndex = 0; break;
@@ -105,20 +163,18 @@ namespace OmenSuperHub.Pages {
       SmartStepDownCombo.SelectedIndex = sd <= 100 ? 0 : sd <= 300 ? 1 : sd <= 500 ? 2 : 3;
       float hy = ConfigService.SmartFanHysteresis;
       SmartHysteresisCombo.SelectedIndex = hy <= 0.2f ? 0 : hy <= 0.5f ? 1 : 2;
-      SmartCurvePreset.SelectedIndex = eaIdx;
       } catch { }
     }
 
     void UpdateFanModeUI() {
       int mode = FanModeCombo.SelectedIndex;
-      bool isCustom = mode == 2;
-      bool isSmart = mode == 3;
-      bool isManual = mode == 4;
+      bool isSmartCurve = mode == 2;
+      bool isManual = mode == 3;
       bool isAuto = (mode == 0 || mode == 1);
-      FanCurveCard.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
-      SmartFanCard.Visibility = isSmart ? Visibility.Visible : Visibility.Collapsed;
+      FanCurveCard.Visibility = isSmartCurve ? Visibility.Visible : Visibility.Collapsed;
+      SmartFanCard.Visibility = isSmartCurve ? Visibility.Visible : Visibility.Collapsed;
       ManualControlCard.Visibility = isManual ? Visibility.Visible : Visibility.Collapsed;
-      TempSensCard.Visibility = (isAuto || isCustom) ? Visibility.Visible : Visibility.Collapsed;
+      TempSensCard.Visibility = isAuto ? Visibility.Visible : Visibility.Collapsed;
     }
 
     void FanMode_SelectionChanged(object s, SelectionChangedEventArgs e) {
@@ -132,15 +188,15 @@ namespace OmenSuperHub.Pages {
         ConfigService.FanControl = "";
         ConfigService.FanTable = "cool";
       } else if (mode == 2) {
-        ConfigService.FanControl = "custom";
-      } else if (mode == 3) {
         ConfigService.FanControl = "smart";
         string curveFile = ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt";
         FanService.LoadFanConfig(curveFile);
         FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
+        _currentPresetKey = ConfigService.Preset;
+        LoadPresetCurvePoints(_currentPresetKey);
         SetMaxFanSpeedOff();
         TrayService.fanControlTimer.Change(0, 1000);
-      } else if (mode == 4) {
+      } else if (mode == 3) {
         ConfigService.FanControl = "2500 RPM";
         SetMaxFanSpeedOff();
         TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -166,16 +222,15 @@ namespace OmenSuperHub.Pages {
           TrayService.fanControlTimer.Change(0, 1000);
         }), DispatcherPriority.Background);
       } else if (mode == 2) {
-        Views.OsdWindow.ShowFanModeOsd("custom");
+        Views.OsdWindow.ShowFanModeOsd("smart");
         SetMaxFanSpeedOff();
         Dispatcher.BeginInvoke(new Action(() => {
           LoadCurvePoints();
-          ApplyCustomCurve();
+          FanService.ApplyCustomCurve(_curvePoints);
+          if (_curvePointsGPU != null) FanService.ApplyCustomCurveGPU(_curvePointsGPU);
           TrayService.fanControlTimer.Change(0, 1000);
         }), DispatcherPriority.Background);
       } else if (mode == 3) {
-        Views.OsdWindow.ShowFanModeOsd("smart");
-      } else if (mode == 4) {
         Views.OsdWindow.ShowFanModeOsd(ConfigService.FanControl);
         TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
         int rpm = 2500;
@@ -204,33 +259,14 @@ namespace OmenSuperHub.Pages {
     void AutoFanProtectToggle_Changed(object sender, RoutedEventArgs e) {
       ConfigService.AutoFanProtect = AutoFanProtectToggle.IsChecked == true ? "on" : "off";
       ConfigService.Save("AutoFanProtect");
+      // When turning off, do NOT call ResetAutoProtect() here — that would clear
+      // saved fan/GPU state before the timer can restore it. The timer's restore
+      // logic detects fanProtectOn==false and unwinds the active session naturally.
     }
 
     void FanSyncToggle_Changed(object sender, RoutedEventArgs e) {
       ConfigService.FanSync = FanSyncToggle.IsChecked == true;
       ConfigService.Save("FanSync");
-    }
-
-    void SmartCurvePreset_Changed(object s, SelectionChangedEventArgs e) {
-      if (_loading) return;
-      int idx = SmartCurvePreset.SelectedIndex;
-      float[] alphas = { 0.1f, 0.3f, 0.5f };
-      int[] stepDowns = { 100, 300, 500 };
-      float[] hysts = { 0.2f, 0.5f, 1.0f };
-      if (idx >= 0 && idx < alphas.Length) {
-        ConfigService.SmartFanEmaAlpha = alphas[idx];
-        ConfigService.SmartFanStepDownRate = stepDowns[idx];
-        ConfigService.SmartFanHysteresis = hysts[idx];
-        ConfigService.Save("SmartFanEmaAlpha");
-        ConfigService.Save("SmartFanStepDownRate");
-        ConfigService.Save("SmartFanHysteresis");
-        FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
-        _loading = true;
-        SmartEmaAlphaCombo.SelectedIndex = idx;
-        SmartStepDownCombo.SelectedIndex = idx;
-        SmartHysteresisCombo.SelectedIndex = idx;
-        _loading = false;
-      }
     }
 
     void SmartEmaAlpha_Changed(object s, SelectionChangedEventArgs e) {
@@ -261,40 +297,36 @@ namespace OmenSuperHub.Pages {
         FanRpmCombo.Items.Add(new ComboBoxItem { Content = r + " RPM", Tag = r });
     }
 
-    void FanRpmExpand_Changed(object s, RoutedEventArgs e) {
-      AnimatedExpand(FanRpmExtra, FanRpmExpand.IsChecked == true);
-    }
-
     void FanRpmCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
       if (_loading) return;
+      if (FanModeCombo.SelectedIndex != 3) return;
+      _loading = true;
       var item = FanRpmCombo.SelectedItem as ComboBoxItem;
-      if (item == null) return;
+      if (item == null) { _loading = false; return; }
       int rpm = (int)item.Tag;
       FanRpmSlider.Value = rpm;
-      FanRpmInput.Text = rpm.ToString();
       SetMaxFanSpeedOff();
       SetFanLevel(0, 0);
       SetFanLevel(rpm / 100, rpm / 100);
       ConfigService.FanControl = rpm + " RPM";
       ConfigService.Save("FanControl");
+      _loading = false;
     }
 
-    void FanRpmSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) {
+    void FanRpmNum_ValueChanged(object s, RoutedEventArgs e) {
       if (_loading) return;
-      int rpm = (int)e.NewValue;
-      if (FanRpmSliderVal != null) FanRpmSliderVal.Text = rpm + " RPM";
-      if (FanRpmInput != null) FanRpmInput.Text = rpm.ToString();
-    }
-
-    void FanRpmApply_Click(object sender, RoutedEventArgs e) {
-      if (!int.TryParse(FanRpmInput.Text, out int rpm) || rpm < 500 || rpm > 6000) return;
-      FanRpmSlider.Value = rpm;
-      ConfigService.FanControl = rpm + " RPM";
+      if (FanModeCombo.SelectedIndex != 3) return;
+      _loading = true;
+      double? val = FanRpmNum.Value;
+      if (val == null || val < 500 || val > 6000) { _loading = false; return; }
+      int rpm = (int)val;
       SetMaxFanSpeedOff();
       SetFanLevel(0, 0);
       SetFanLevel(rpm / 100, rpm / 100);
+      ConfigService.FanControl = rpm + " RPM";
       ConfigService.Save("FanControl");
       SelectComboItem(FanRpmCombo, rpm + " RPM");
+      _loading = false;
     }
 
     void FanCurveSel_Changed(object s, SelectionChangedEventArgs e) {
@@ -463,10 +495,149 @@ namespace OmenSuperHub.Pages {
     }
 
     void SaveCurve() {
-      if (_showGpuCurve) FanService.SaveCustomCurveGPU(_curvePointsGPU);
-      else FanService.SaveCustomCurve(_curvePoints);
+      FanService.SavePresetCurve(_currentPresetKey, _curvePoints, false);
+      FanService.SavePresetCurve(_currentPresetKey, _curvePointsGPU, true);
       if (_curvePoints != null) FanService.ApplyCustomCurve(_curvePoints);
       if (_curvePointsGPU != null) FanService.ApplyCustomCurveGPU(_curvePointsGPU);
+    }
+
+    // ── Import / Export / Share ──
+    void FanExportBtn_Click(object sender, RoutedEventArgs e) {
+      var points = _showGpuCurve ? _curvePointsGPU : _curvePoints;
+      if (points == null || points.Count < 2) {
+        System.Windows.MessageBox.Show("当前无可导出的曲线数据", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+        return;
+      }
+      var dlg = new Microsoft.Win32.SaveFileDialog {
+        Title = Strings.FanCurveExportTitle,
+        Filter = Strings.FanCurveFileFilter,
+        DefaultExt = ".json",
+        FileName = $"FanCurve_{( _showGpuCurve ? "GPU" : "CPU")}_{DateTime.Now:yyyyMMdd}.json"
+      };
+      if (dlg.ShowDialog() == true) {
+        string name = _showGpuCurve ? "GPU Fan Curve" : "CPU Fan Curve";
+        string json = FanService.ExportCurveToJson(points, name);
+        if (!string.IsNullOrEmpty(json)) {
+          File.WriteAllText(dlg.FileName, json, System.Text.Encoding.UTF8);
+          System.Windows.MessageBox.Show(Strings.FanCurveExportSuccess + "\n" + dlg.FileName, "OMEN X Hub", MessageBoxButton.OK, MessageBoxImage.Information);
+        } else {
+          System.Windows.MessageBox.Show(Strings.FanCurveExportFailed, "OMEN X Hub", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+      }
+    }
+
+    void FanImportBtn_Click(object sender, RoutedEventArgs e) {
+      // First try clipboard (share code check)
+      string clip = null;
+      try { clip = System.Windows.Clipboard.GetText(); } catch { }
+      bool hasShareCode = !string.IsNullOrEmpty(clip) && clip.StartsWith("OXFC:", StringComparison.OrdinalIgnoreCase);
+
+      if (hasShareCode) {
+        var result = System.Windows.MessageBox.Show(
+            "检测到剪贴板中有分享码：\n" + clip.Substring(0, Math.Min(clip.Length, 40)) + "...\n\n点击「是」从分享码导入\n点击「否」选择文件导入",
+            Strings.FanCurveImportTitle, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        if (result == MessageBoxResult.Yes) {
+          ImportFromCode(clip);
+          return;
+        } else if (result == MessageBoxResult.Cancel) {
+          return;
+        }
+      }
+
+      // File import
+      var dlg = new Microsoft.Win32.OpenFileDialog {
+        Title = Strings.FanCurveImportTitle,
+        Filter = Strings.FanCurveFileFilter,
+        DefaultExt = ".json",
+        Multiselect = false
+      };
+      if (dlg.ShowDialog() == true) {
+        try {
+          string json = File.ReadAllText(dlg.FileName, System.Text.Encoding.UTF8);
+          ImportFromJson(json);
+        } catch {
+          System.Windows.MessageBox.Show(Strings.FanCurveImportFailed, "OMEN X Hub", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+      }
+    }
+
+    void FanShareBtn_Click(object sender, RoutedEventArgs e) {
+      var points = _showGpuCurve ? _curvePointsGPU : _curvePoints;
+      if (points == null || points.Count < 2) {
+        System.Windows.MessageBox.Show("当前无可分享的曲线数据", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+        return;
+      }
+      string name = _showGpuCurve ? "GPU" : "CPU";
+      string code = FanService.GenerateShareCode(points, name);
+      if (string.IsNullOrEmpty(code)) {
+        System.Windows.MessageBox.Show("生成分享码失败", "OMEN X Hub", MessageBoxButton.OK, MessageBoxImage.Error);
+        return;
+      }
+      try {
+        System.Windows.Clipboard.SetText(code);
+        System.Windows.MessageBox.Show(Strings.FanCurveShareCopied + "\n\n" + Strings.FanCurveShareGuide, "OMEN X Hub", MessageBoxButton.OK, MessageBoxImage.Information);
+      } catch {
+        // Clipboard may fail, show dialog with manual copy
+        var dlg = new System.Windows.Window {
+          Title = "分享码",
+          Width = 500, Height = 200,
+          WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner,
+          Owner = System.Windows.Window.GetWindow(this),
+          Content = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) }
+        };
+        var stack = dlg.Content as System.Windows.Controls.StackPanel;
+        stack.Children.Add(new System.Windows.Controls.TextBlock {
+          Text = "手动复制以下分享码：", FontSize = 13, Margin = new System.Windows.Thickness(0, 0, 0, 8)
+        });
+        var box = new System.Windows.Controls.TextBox {
+          Text = code, IsReadOnly = true, FontSize = 11,
+          FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+          TextWrapping = System.Windows.TextWrapping.Wrap
+        };
+        stack.Children.Add(box);
+        var btn = new System.Windows.Controls.Button {
+          Content = "关闭", Width = 60, Height = 28, Margin = new System.Windows.Thickness(0, 8, 0, 0),
+          HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+        };
+        btn.Click += (s2, e2) => dlg.Close();
+        stack.Children.Add(btn);
+        dlg.ShowDialog();
+      }
+    }
+
+    void ImportFromCode(string code) {
+      var parsed = FanService.ParseShareCode(code);
+      if (parsed == null) {
+        System.Windows.MessageBox.Show("无效的分享码", "OMEN X Hub", MessageBoxButton.OK, MessageBoxImage.Error);
+        return;
+      }
+      ApplyImportedCurve(parsed.Value.points, parsed.Value.name);
+    }
+
+    void ImportFromJson(string json) {
+      var parsed = FanService.ImportCurveFromJson(json);
+      if (parsed == null) {
+        System.Windows.MessageBox.Show(Strings.FanCurveImportFailed, "OMEN X Hub", MessageBoxButton.OK, MessageBoxImage.Error);
+        return;
+      }
+      ApplyImportedCurve(parsed.Value.points, parsed.Value.name);
+    }
+
+    void ApplyImportedCurve(List<(float temp, int rpm)> points, string name) {
+      if (_showGpuCurve) {
+        _curvePointsGPU = points;
+        FanService.SavePresetCurve(_currentPresetKey, _curvePointsGPU, true);
+        FanService.ApplyCustomCurveGPU(_curvePointsGPU);
+      } else {
+        _curvePoints = points;
+        FanService.SavePresetCurve(_currentPresetKey, _curvePoints, false);
+        FanService.ApplyCustomCurve(_curvePoints);
+      }
+      DrawFanCurve();
+      System.Windows.MessageBox.Show(
+          Strings.FanCurveImportSuccess + name + $" ({points.Count} 点)\n" +
+          "拖拽控制点可进一步微调", "OMEN X Hub",
+          System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
     }
 
     void CleanCreekBtn_Click(object sender, RoutedEventArgs e) {
@@ -493,27 +664,6 @@ namespace OmenSuperHub.Pages {
       } else {
         System.Windows.MessageBox.Show(Strings.CleanCreekUnsupported, Strings.Hint,
             MessageBoxButton.OK, MessageBoxImage.Information);
-      }
-    }
-
-    void AnimatedExpand(FrameworkElement panel, bool expand) {
-      panel.BeginAnimation(UIElement.OpacityProperty, null);
-      double dur = 0.2;
-      if (expand) {
-        panel.Visibility = Visibility.Visible;
-        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromSeconds(dur)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } };
-        fadeIn.FillBehavior = FillBehavior.HoldEnd;
-        panel.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-      } else {
-        panel.Opacity = 1;
-        var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromSeconds(dur)) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn } };
-        fadeOut.FillBehavior = FillBehavior.HoldEnd;
-        fadeOut.Completed += (s, a) => {
-          panel.Visibility = Visibility.Collapsed;
-          panel.BeginAnimation(UIElement.OpacityProperty, null);
-          panel.Opacity = 1;
-        };
-        panel.BeginAnimation(UIElement.OpacityProperty, fadeOut);
       }
     }
 

@@ -106,7 +106,7 @@ namespace OmenSuperHub {
     public static string FanRespLow => T("低", "低", "Low");
     public static string FanAuto => T("自动", "自動", "Auto");
     public static string FanMax => T("最大风扇", "最大風扇", "Max Fan");
-    public static string FanCustomCurve => T("自定义曲线", "自訂曲線", "Custom Curve");
+    public static string FanCustomCurve => T("智能自定义曲线", "智能自訂曲線", "Smart Custom Curve");
     public static string FanManualMode => T("手动模式", "手動模式", "Manual Mode");
     public static string FanSmartMode => T("智能风扇", "智能風扇", "Smart Fan");
     public static string FanModePerformance => T("狂暴模式", "狂暴模式", "Performance Mode");
@@ -117,6 +117,7 @@ namespace OmenSuperHub {
     public static string UtilizationLabel => T("利用率 ", "使用率 ", "Utilization ");
     public static string ClockLabel => T("频率 ", "频率 ", "Clock ");
     public static string GpuMonitorOff => T("GPU监控已关闭", "GPU監控已關閉", "GPU Monitor Off");
+    public static string CpuMonitorOff => T("CPU监控已关闭", "CPU監控已關閉", "CPU Monitor Off");
     public static string FanAutoProtect => T("高温自动保护", "高溫自動保護", "High-Temp Auto-Protect");
     public static string FanAutoProtectNote => T(
         "💡开启后，若CPU温度过高且风扇处于固定转速且低于80%最大转速，OSH将自动切换为降温模式和自动风扇控制。",
@@ -321,6 +322,10 @@ namespace OmenSuperHub {
     public static string FloatingLocLeft => T("左上角", "左上角", "Top Left");
     public static string FloatingLocRight => T("右上角", "右上角", "Top Right");
     public static string FloatingLocFree => T("自由", "自由", "Free");
+    public static string FloatingLocTopCenter => T("上方居中", "上方居中", "Top Center");
+    public static string FloatLayoutHeading => T("浮窗布局", "浮窗佈局", "Float Layout");
+    public static string FloatLayoutRow => T("按行排列", "按行排列", "Horizontal");
+    public static string FloatLayoutCol => T("按列排列", "按列排列", "Vertical");
     public static string FloatingScreen => T("显示器选择", "顯示器選擇", "Display");
     public static string FloatingScreenPrimary => T("主屏幕", "主螢幕", "Primary");
     public static string FormatScreenLabel(int index, string deviceName) => T(
@@ -508,25 +513,44 @@ namespace OmenSuperHub {
 
     // Fan page headings & labels
     public static string FanConfigHeading => T("风扇配置", "風扇配置", "Fan Config");
-    public static string FanCurveHeading => T("自定义风扇曲线", "自訂風扇曲線", "Custom Fan Curve");
+    public static string FanCurveHeading => T("智能自定义风扇曲线", "智能自訂風扇曲線", "Smart Custom Fan Curve");
     public static string TempSensitivityHeading => T("温度灵敏度", "溫度靈敏度", "Temp Sensitivity");
     public static string FanSpeedControlHeading => T("转速控制", "轉速控制", "Fan Speed Control");
     public static string CleanCreekHeading => T("风扇除尘", "風扇除塵", "Fan Dust Removal");
     public static string FanCurveCPULabel => T("CPU 曲线", "CPU 曲線", "CPU Curve");
     public static string FanCurveGPULabel => T("GPU 曲线", "GPU 曲線", "GPU Curve");
     public static string FanCurveTip => T("拖拽控制点调整不同温度下的风扇转速", "拖拽控制點調整不同溫度下的風扇轉速", "Drag points to adjust fan speed at different temperatures");
+    public static string FanCurveImport => T("导入", "匯入", "Import");
+    public static string FanCurveExport => T("导出", "匯出", "Export");
+    public static string FanCurveShare => T("分享", "分享", "Share");
+    public static string FanCurveImportTitle => T("导入风扇曲线", "匯入風扇曲線", "Import Fan Curve");
+    public static string FanCurveExportTitle => T("导出风扇曲线", "匯出風扇曲線", "Export Fan Curve");
+    public static string FanCurveFileFilter => T("风扇曲线文件 (*.json)|*.json|所有文件 (*.*)|*.*", "風扇曲線檔案 (*.json)|*.json|所有檔案 (*.*)|*.*", "Fan Curve Files (*.json)|*.json|All Files (*.*)|*.*");
+    public static string FanCurveImportSuccess => T("导入成功: ", "匯入成功: ", "Import success: ");
+    public static string FanCurveImportFailed => T("导入失败：文件格式不正确或曲线数据无效", "匯入失敗：檔案格式不正確或曲線資料無效", "Import failed: invalid file format or curve data");
+    public static string FanCurveExportSuccess => T("曲线已导出", "曲線已匯出", "Curve exported");
+    public static string FanCurveExportFailed => T("导出失败", "匯出失敗", "Export failed");
+    public static string FanCurveShareCopied => T("分享码已复制到剪贴板！", "分享碼已複製到剪貼簿！", "Share code copied to clipboard!");
+    public static string FanCurveShareGuide => T("将分享码发送给朋友，对方可通过「导入」→粘贴分享码来加载曲线", "將分享碼發送給朋友，對方可透過「匯入」→貼上分享碼來載入曲線", "Send the code to a friend. They can load it via Import → paste share code");
+    public static string FanCurveImportFromClipboard => T("从剪贴板导入分享码", "從剪貼簿匯入分享碼", "Import from clipboard share code");
     public static string DustCleanDesc => T("反转风扇清除内部灰尘", "反轉風扇清除內部灰塵", "Reverse fans to clean internal dust");
     public static string CleanCreekStartBtn => T("开始除尘 (30秒)", "開始除塵 (30秒)", "Start Cleaning (30s)");
-    public static string AutoFanProtectDesc => T("CPU温度>90°C且固定转速时自动切换为降温模式", "CPU溫度>90°C且固定轉速時自動切換為降溫模式", "Switches to Cool mode when CPU >90°C with fixed fan speed");
+    public static string AutoFanProtectDesc => T("CPU温度>95°C且固定转速时强制切换为降温曲线", "CPU溫度>95°C且固定轉速時強制切換為降溫曲線", "Forces cool curve when CPU >95°C with fixed fan speed");
     public static string FanSync => T("风扇一致性", "風扇一致性", "Fan Consistency");
     public static string FanSyncDesc => T("所有风扇转速与CPU风扇保持一致", "所有風扇轉速與CPU風扇保持一致", "Keep all fan speeds synchronized with CPU fan");
-    public static string FanSmartSettings => T("智能风扇设置", "智能風扇設置", "Smart Fan Settings");
+    public static string FanSmartSettings => T("智能风扇设置", "智能風扇設置", "Smart Curve Settings");
     public static string FanSmartEmaAlpha => T("温度平滑系数", "溫度平滑係數", "Temp Smoothing (EMA)");
     public static string FanSmartEmaAlphaDesc => T("新温度读数的权重，越低越平滑但响应越慢", "新溫度讀數的權重，越低越平滑但響應越慢", "Weight of new temp readings. Lower = smoother but slower");
     public static string FanSmartStepDown => T("降速保护 (RPM/s)", "降速保護 (RPM/s)", "Step-Down Rate (RPM/s)");
     public static string FanSmartStepDownDesc => T("风扇降温时的最大RPM下降速率", "風扇降溫時的最大RPM下降速率", "Max RPM drop per second while cooling down");
     public static string FanSmartHysteresis => T("滞后死区 (°C)", "滯後死區 (°C)", "Hysteresis (°C)");
     public static string FanSmartHysteresisDesc => T("温度变化阈值，低于此值不触发调速", "溫度變化閾值，低於此值不觸發調速", "Min temp change to trigger recalculation");
+    public static string FanSmartBalanced => T("均衡", "均衡", "Balanced");
+    public static string FanSmartQuiet => T("静音", "靜音", "Silent");
+    public static string FanSmartPerformance => T("高性能", "高性能", "Performance");
+    public static string FanSmartEmaHint => T("值越小响应越灵敏", "值越小響應越靈敏", "Smaller = smoother but slower");
+    public static string FanSmartStepDownHint => T("每秒最多下降 RPM", "每秒最多下降 RPM", "Max RPM drop per second");
+    public static string FanSmartHysteresisHint => T("温度变化阈值(°C)", "溫度變化閾值(°C)", "Temperature threshold (°C)");
 
     // Performance page headings
     public static string DbVersionHeading => T("DB 版本", "DB 版本", "DB Version");
@@ -534,6 +558,9 @@ namespace OmenSuperHub {
     public static string CpuPowerHeading => T("CPU 功率", "CPU 功率", "CPU Power");
     public static string CpuPowerPL1 => T("PL1", "PL1", "PL1");
     public static string CpuPowerPL2 => T("PL2", "PL2", "PL2");
+    public static string CpuPowerStatusIdle => T("未写入", "未寫入", "Not set");
+    public static string CpuPowerStatusOk => T("已生效", "已生效", "Applied");
+    public static string CpuPowerStatusFail => T("写入失败", "寫入失敗", "Failed");
     public static string SetCpuPowerPL1Slider => T("拖动滑块设置PL1功率 (W)", "拖動滑桿設定PL1功率 (W)", "Drag slider to set PL1 power (W)");
     public static string SetCpuPowerPL2Slider => T("拖动滑块设置PL2功率 (W)", "拖動滑桿設定PL2功率 (W)", "Drag slider to set PL2 power (W)");
     public static string GpuClockHeading => T("GPU 频率限制", "GPU 頻率限制", "GPU Clock Limit");
@@ -543,6 +570,15 @@ namespace OmenSuperHub {
     public static string MaxFrameRateNote => T("注：需要 NVIDIA 显卡支持", "註：需要 NVIDIA 顯示卡支援", "Note: Requires NVIDIA GPU");
     public static string RefreshRateHeading => T("屏幕刷新率", "屏幕刷新率", "Screen Refresh Rate");
     public static string RefreshRateNote => T("注：需要显示器支持", "註：需要顯示器支援", "Note: Requires monitor support");
+    public static string ResolutionHeading => T("屏幕分辨率", "螢幕解析度", "Screen Resolution");
+    public static string PerfResolutionDesc => T("切换显示器分辨率", "切換顯示器解析度", "Switch display resolution");
+    public static string DpiScaleHeading => T("DPI 缩放", "DPI 縮放", "DPI Scale");
+    public static string PerfDpiDesc => T("调整系统 DPI 缩放比例", "調整系統 DPI 縮放比例", "Adjust system DPI scale");
+    public static string HdrHeading => T("HDR", "HDR", "HDR");
+    public static string PerfHdrDesc => T("高动态范围显示", "高動態範圍顯示", "High Dynamic Range");
+    public static string TurnOffDisplayHeading => T("关闭显示器", "關閉顯示器", "Turn Off Display");
+    public static string PerfTurnOffDisplayDesc => T("关闭屏幕显示", "關閉螢幕顯示", "Turn off screen display");
+    public static string TurnOffDisplayBtn => T("关闭", "關閉", "Turn Off");
     public static string ErrRefreshRateRange => T("请输入 30-360 之间的值", "請輸入 30-360 之間的值", "Please enter a value between 30-360");
     public static string PowerPlanHeading => T("电源计划", "電源計劃", "Power Plan");
     public static string PowerModeHeading => T("电源模式", "電源模式", "Power Mode");
@@ -557,7 +593,7 @@ namespace OmenSuperHub {
     public static string PpabCheckLabel => T("启用 PPAB (Dynamic Boost)", "啟用 PPAB (Dynamic Boost)", "Enable PPAB (Dynamic Boost)");
     public static string DStateHeading => T("dState (GPU 功耗状态)", "dState (GPU 功耗狀態)", "dState (GPU Power State)");
     public static string IccMaxHeading => T("IccMax (CPU 电流限制)", "IccMax (CPU 電流限制)", "IccMax (CPU Current Limit)");
-    public static string AcLoadLineHeading => T("AC Load Line", "AC Load Line", "AC Load Line");
+    public static string AcLoadLineHeading => T("AC Load line（负载线校准）", "AC Load line（負載線校準）", "AC Load Line");
 
     // Combo items
     public static string GpuClockRestore => T("还原", "還原", "Restore Default");
@@ -609,7 +645,7 @@ namespace OmenSuperHub {
     public static string ErrFpsNonNegative => T("请输入非负整数", "請輸入非負整數", "Enter a non-negative integer");
     public static string ErrFpsNotSupported => T("仅支持: 不限,30,60,90,120,144,165,240,300,360,480,1000", "僅支援: 不限,30,60,90,120,144,165,240,300,360,480,1000", "Supported: Unlimited,30,60,90,120,144,165,240,300,360,480,1000");
     public static string ErrTppRange => T("请输入 0-255 之间的数值", "請輸入 0-255 之間的數值", "Enter a value between 0-255");
-    public static string ErrIccMaxRange => T("请输入 0-255 之间的数值", "請輸入 0-255 之間的數值", "Enter a value between 0-255");
+    public static string ErrIccMaxRange => T("请输入 0 或 160-255 之间的数值", "請輸入 0 或 160-255 之間的數值", "Enter 0 or a value between 160-255");
     public static string ErrCpuPowerWmi => T("CPU功率限制设置失败！WMI调用无响应。", "CPU功率限制設定失敗！WMI呼叫無回應。", "CPU power limit failed! WMI call unresponsive.");
     public static string CleanCreekUnsupported => T("当前设备不支持反转除尘功能", "目前裝置不支援反轉除塵功能", "This device does not support reverse dust removal");
 
@@ -864,6 +900,52 @@ namespace OmenSuperHub {
     public static string FanSettings => T("风扇设置", "風扇設定", "Fan Settings");
     public static string TempCelsius => T("温度 (°C)", "溫度 (°C)", "Temperature (°C)");
 
+    // ═══ Advanced CPU Tuning cards ═══
+    public static string PerfGroupCpuAdv => T("CPU 高级调校", "CPU 高級調校", "Advanced CPU Tuning");
+    public static string PerfGroupGpuAdv => T("GPU 高级调校", "GPU 高級調校", "Advanced GPU Tuning");
+    // PBO Scalar (AMD)
+    public static string PboScalarHeading => T("PBO Scalar (AMD)", "PBO Scalar (AMD)", "PBO Scalar (AMD)");
+    public static string PboScalarDesc => T("调节 Precision Boost Overdrive 缩放倍数", "調節 Precision Boost Overdrive 縮放倍數", "Adjust Precision Boost Overdrive scalar multiplier");
+    // Curve Optimiser (AMD)
+    public static string CoHeading => T("Curve Optimiser (AMD)", "Curve Optimiser (AMD)", "Curve Optimiser (AMD)");
+    public static string CoDesc => T("全核电压曲线偏移", "全核電壓曲線偏移", "All-core voltage curve offset");
+    public static string CoAllCoreLabel => T("全核偏移 (mV)", "全核偏移 (mV)", "All-core Offset (mV)");
+    // CCD Affinity (AMD)
+    public static string CcdAffinityHeading => T("CCD 亲和性 (AMD)", "CCD 親和性 (AMD)", "CCD Affinity (AMD)");
+    public static string CcdAffinityDesc => T("双 CCD 调度优化，模拟大小核", "雙 CCD 調度優化，模擬大小核", "Dual-CCD scheduling, simulated hybrid");
+    // FIVR Undervolt (Intel)
+    public static string FivrHeading => T("FIVR 降压 (Intel)", "FIVR 降壓 (Intel)", "FIVR Undervolt (Intel)");
+    public static string FivrDesc => T("调节 CPU 核心/缓存/核显/SA 电压偏移", "調節 CPU 核心/快取/內顯/SA 電壓偏移", "Adjust core/cache/iGPU/SA voltage offsets");
+    public static string FivrCoreLabel => T("核心偏移 (mV)", "核心偏移 (mV)", "Core Offset (mV)");
+    public static string FivrCacheLabel => T("缓存偏移 (mV)", "快取偏移 (mV)", "Cache Offset (mV)");
+    public static string FivrIgpuLabel => T("核显偏移 (mV)", "內顯偏移 (mV)", "iGPU Offset (mV)");
+    public static string FivrSaLabel => T("SA 偏移 (mV)", "SA 偏移 (mV)", "SA Offset (mV)");
+    // Clock Ratio (Intel)
+    public static string ClockRatioHeading => T("时钟比例 (Intel)", "時鐘比例 (Intel)", "Clock Ratio (Intel)");
+    public static string ClockRatioDesc => T("调节 CPU 倍频", "調節 CPU 倍頻", "Adjust CPU multiplier");
+    // Power Balance (Intel)
+    public static string PowerBalanceHeading => T("Power Balance (Intel)", "Power Balance (Intel)", "Power Balance (Intel)");
+    public static string PowerBalanceDesc => T("CPU/GPU 功率分配比例", "CPU/GPU 功率分配比例", "CPU/GPU power distribution");
+    // NVIDIA Voltage Curve
+    public static string NvVoltCurveHeading => T("NVIDIA 电压曲线", "NVIDIA 電壓曲線", "NVIDIA Voltage Curve");
+    public static string NvVoltCurveDesc => T("电压-频率曲线调节（降压超频）", "電壓-頻率曲線調節（降壓超頻）", "Voltage-frequency curve tuning (undervolt)");
+    public static string NvVoltCurveOffsetLabel => T("电压偏移 (mV)", "電壓偏移 (mV)", "Voltage Offset (mV)");
+    public static string NvVoltCurveNote => T("负值为降压，慎用大幅度正值。实时生效。", "負值為降壓，慎用大幅度正值。即時生效。", "Negative = undervolt. Large positive values may cause instability.");
+    // ADLX Radeon (AMD GPU)
+    public static string AdlxHeading => T("Radeon 设置 (AMD GPU)", "Radeon 設定 (AMD GPU)", "Radeon Settings (AMD GPU)");
+    public static string AdlxDesc => T("Anti-Lag / RSR / Boost / Image Sharpening", "Anti-Lag / RSR / Boost / Image Sharpening", "Anti-Lag / RSR / Boost / Image Sharpening");
+    // RTSS Frame Limit
+    public static string RtssHeading => T("RTSS 帧率限制", "RTSS 幀率限制", "RTSS Frame Limit");
+    public static string RtssDesc => T("通过 RivaTuner 精确锁定帧率", "通過 RivaTuner 精確鎖定幀率", "Precise frame rate limiter via RivaTuner");
+    // AutoOC Adaptive Undervolt
+    public static string AutoOcHeading => T("AutoOC 自适应降压", "AutoOC 自適應降壓", "AutoOC Adaptive Undervolt");
+    public static string AutoOcDesc => T("自动稳定性测试的动态电压优化", "自動穩定性測試的動態電壓優化", "Dynamic stability-tested voltage optimisation");
+    // Status messages
+    public static string HwNotSupported => T("当前硬件不支持此功能", "目前硬體不支援此功能", "Not supported on this hardware");
+    public static string HwNotDetected => T("未检测到对应硬件", "未檢測到對應硬體", "Required hardware not detected");
+    public static string DriverWriteNotAvail => T("需要 PawnIO 内核写入权限", "需要 PawnIO 內核寫入權限", "Requires PawnIO kernel write access");
+    public static string FeaturePartialImpl => T("此功能为预览版，部分调节可能无效", "此功能為預覽版，部分調節可能無效", "Preview: some adjustments may not apply");
+
     // Perf page
     public static string PerfAdjustCpuPower => T("调整 CPU 功率限制", "調整 CPU 功率限制", "Adjust CPU Power Limit");
     public static string PerfEcoQosDesc => T("限制未在前台运行的后台进程的CPU性能", "限制未在前臺運行的後臺程序的CPU效能", "Limit CPU performance for background processes");
@@ -979,6 +1061,11 @@ namespace OmenSuperHub {
     public static string HeteroCpuRestoreResult => T("异构调度设置已清除并恢复默认。", "異構調度設定已清除並恢復預設。", "Hetero scheduling settings cleared and restored to defaults.");
     public static string HeteroCpuRestoreTitle => T("恢复默认", "恢復預設", "Restore Defaults");
     public static string HeteroCpuDetectResult => T("已应用检测结果，重启后生效。", "已應用檢測結果，重啟後生效。", "Auto-detect results applied. Reboot to apply.");
+
+    public static string DashboardMemoryLabel => T("运存", "運存", "Memory");
+    public static string DashboardStorageLabel => T("储存", "儲存", "Storage");
+    public static string DashboardMemoryUsedLabel => T("已用/总计", "已用/總計", "Used/Total");
+    public static string DashboardMemoryCleanBtn => T("一键清理", "一鍵清理", "Clean");
 
     public static string HeteroCpuDetectConfirm(string total, string ccd0, string ccd1, string mask) =>
         T($"检测到双 CCD CPU\n总逻辑处理器: {total}\nCCD0: {ccd0} LP | CCD1: {ccd1} LP\n推荐掩码: {mask}\n\n是否应用此掩码并设置各调度策略?",

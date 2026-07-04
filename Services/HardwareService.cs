@@ -43,8 +43,12 @@ namespace OmenSuperHub.Services {
     public static bool IsConnectedToNVIDIA = true;
     static bool _powerOnline = true;
     public static bool PowerOnline { get { lock (_lock) return _powerOnline; } set { lock (_lock) _powerOnline = value; } }
-    static List<int> _fanSpeedNow = new List<int> { 20, 23 };
-    public static List<int> FanSpeedNow { get { lock (_lock) return new List<int>(_fanSpeedNow); } set { lock (_lock) _fanSpeedNow = value; } }
+    static readonly int[] _fanSpeedNow = new int[2] { 20, 23 };
+    public static IReadOnlyList<int> FanSpeedNow => _fanSpeedNow;  // direct ref, no allocation per access
+    public static void UpdateFanSpeed(IReadOnlyList<int> values) {
+      if (values == null || values.Count < 2) return;
+      lock (_lock) { _fanSpeedNow[0] = values[0]; _fanSpeedNow[1] = values[1]; }
+    }
     public static bool IsAmbientSensorSupported;
     public static string PawnIOState = "";
 
@@ -180,6 +184,17 @@ namespace OmenSuperHub.Services {
                 GPUClock = Math.Max(GPUClock, (float)sensor.Value.GetValueOrDefault());
               }
             } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuAmd) {
+              if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
+                GPUTemp = (int)sensor.Value.GetValueOrDefault() * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+              }
+              if (sensor.Name == "GPU Package" && sensor.SensorType == LibreSensorType.Power) {
+                getGPU = true;
+                float pwr = sensor.Value.GetValueOrDefault();
+                if ((int)(pwr * 10) == 5900)
+                  GPUPower = 0;
+                else
+                  GPUPower = pwr;
+              }
               if (sensor.SensorType == LibreSensorType.Load && sensor.Name == "GPU Core") {
                 GPUUsage = (float)sensor.Value.GetValueOrDefault();
               }
@@ -248,16 +263,14 @@ namespace OmenSuperHub.Services {
     public static void SetMonitorGPU(bool enabled) {
       if (enabled) {
         MonitorGPU = true;
-        if (hasStopAuto)
-          AutoStopMonitorGPU = false;
-        hasStartAuto = false;
+        hasStartAuto = hasStopAuto = false;
         AutoStartMonitorGPU = true;
+        AutoStopMonitorGPU = false;  // ponytail: manual on overrides auto-stop
         LibreComputer.IsGpuEnabled = true;
       } else {
         MonitorGPU = false;
-        if (hasStartAuto)
-          AutoStartMonitorGPU = false;
-        hasStopAuto = false;
+        hasStartAuto = hasStopAuto = false;
+        AutoStartMonitorGPU = false;  // ponytail: manual off overrides auto-start
         AutoStopMonitorGPU = true;
         LibreComputer.IsGpuEnabled = false;
       }

@@ -172,10 +172,22 @@ namespace OmenSuperHub.Services {
             TrayService.fanControlTimer.Change(0, 1000);
             Views.OsdWindow.ShowFanModeOsd("smart");
           } else if (step.Value == "custom") {
-            ConfigService.FanControl = "custom";
+            ConfigService.FanControl = "smart";
+            FanService.LoadFanConfig(ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt");
+            FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
             SetMaxFanSpeedOff();
             TrayService.fanControlTimer.Change(0, 1000);
-            Views.OsdWindow.ShowFanModeOsd("custom");
+            Views.OsdWindow.ShowFanModeOsd("smart");
+          } else if (step.Value != null && step.Value.StartsWith("json:")) {
+            string json = step.Value.Substring(5);
+            var result = FanService.ImportCurveFromJson(json);
+            if (result.HasValue) {
+              ConfigService.FanControl = "smart";
+              FanService.ApplyCustomCurve(result.Value.points);
+              SetMaxFanSpeedOff();
+              TrayService.fanControlTimer.Change(0, 1000);
+              Views.OsdWindow.ShowFanModeOsd("custom");
+            }
           } else if (step.Value != null && step.Value.StartsWith("manual")) {
             int pct = -1;
             if (step.Value.Contains(":")) {
@@ -261,7 +273,7 @@ namespace OmenSuperHub.Services {
           if (!string.IsNullOrEmpty(step.Value)) {
             var curve = FanService.LoadPresetCurve(step.Value, false);
             if (curve != null && curve.Count > 0) {
-              ConfigService.FanControl = "custom";
+              ConfigService.FanControl = "smart";
               FanService.ApplyCustomCurve(curve);
               SetMaxFanSpeedOff();
               TrayService.fanControlTimer.Change(0, 1000);
@@ -337,10 +349,10 @@ namespace OmenSuperHub.Services {
         OmenHardware.SetCpuPowerLimit((byte)cpuVal);
       // Apply fan curves
       var cpuCurve = FanService.LoadPresetCurve(preset, false);
-      if (cpuCurve != null && cpuCurve.Count > 0 && ConfigService.FanControl == "custom")
+      if (cpuCurve != null && cpuCurve.Count > 0 && (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom"))
         FanService.ApplyCustomCurve(cpuCurve);
       var gpuCurve = FanService.LoadPresetCurve(preset, true);
-      if (gpuCurve != null && gpuCurve.Count > 0 && ConfigService.FanControl == "custom")
+      if (gpuCurve != null && gpuCurve.Count > 0 && (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom"))
         FanService.ApplyCustomCurveGPU(gpuCurve);
       // Apply refresh rate from preset config
       if (ConfigService.RefreshRate > 0)

@@ -123,6 +123,7 @@
     <EmbeddedResource Include="Resources\HP.Omen.Logger.dll" />
     <EmbeddedResource Include="Resources\HP.Omen.Logger.APIs.dll" />
     <EmbeddedResource Include="Resources\AMDRyzenSDK.dll" />
+    <EmbeddedResource Include="Resources\RyzenSMU.bin" />
     <EmbeddedResource Include="Resources\IntelXTUSDK.dll" />
     <EmbeddedResource Include="Resources\SMBiosSDK.dll" />
     <EmbeddedResource Include="Resources\Utf8Json.dll" />

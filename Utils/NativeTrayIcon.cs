@@ -236,15 +236,16 @@ namespace OmenSuperHub.Utils {
       //     cursor is on the icon (rejects fast fly-bys).
       //   - leaving   = cursor has left the recorded point; close after a
       //     short grace period so micro-movements don't flicker the popup.
-      // ponytail: also verify cursor is near screen edge (taskbar area)
-      // to avoid false triggers from UI element hover inside the app window.
+      // ponytail: dropped the old "near screen edge" guard — the WM_MOUSEMOVE
+      // callback only fires when the cursor crosses the Shell-registered icon,
+      // so _iconX/_iconY is always a real icon point (never an in-app UI point).
+      // The edge guard was a redundant second filter that caused false-negatives
+      // (e.g. multi-monitor, top taskbar, scaled DPI where the icon sits just
+      // inside the 100px band) and made hover fail to open the popup.
       if (_lastMoveTick == 0) return; // never seen the cursor on the icon
 
       var cur = System.Windows.Forms.Cursor.Position;
-      var scr = Screen.FromPoint(cur).Bounds;
-      bool nearEdge = cur.X <= scr.Left + 100 || cur.X >= scr.Right - 100 ||
-                      cur.Y <= scr.Top + 100 || cur.Y >= scr.Bottom - 100;
-      bool nearIcon = nearEdge && Math.Abs(cur.X - _iconX) <= 14 && Math.Abs(cur.Y - _iconY) <= 14;
+      bool nearIcon = Math.Abs(cur.X - _iconX) <= 14 && Math.Abs(cur.Y - _iconY) <= 14;
 
       if (nearIcon) {
         _leaveTick = 0;

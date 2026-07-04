@@ -77,10 +77,11 @@ namespace OmenSuperHub.Views {
         case "Extreme": text = Strings.PresetExtreme; icon = SymbolRegular.Rocket24; break;
         case "GpuPriority": text = Strings.PresetGpuPriority; icon = SymbolRegular.Gauge24; break;
         case "LightUse": text = Strings.PresetLightUse; icon = SymbolRegular.WeatherMoon24; break;
-        case "Custom1": text = ConfigService.CustomPreset1Name; icon = SymbolRegular.Star24; break;
-        case "Custom2": text = ConfigService.CustomPreset2Name; icon = SymbolRegular.Star24; break;
-        case "Custom3": text = ConfigService.CustomPreset3Name; icon = SymbolRegular.Star24; break;
-        default: text = presetKey; break;
+        default:
+          // ponytail: custom preset — use dynamic display name, star icon
+          text = ConfigService.GetCustomPresetDisplayName(presetKey);
+          icon = SymbolRegular.Star24;
+          break;
       }
       ShowOsd(text, icon);
     }
@@ -92,7 +93,8 @@ namespace OmenSuperHub.Views {
       switch (mode) {
         case "silent": text = Strings.FanSilentMode; icon = SymbolRegular.WeatherMoon24; break;
         case "cool": text = Strings.FanCoolMode; icon = SymbolRegular.WeatherSunny24; break;
-        case "custom": text = Strings.FanCustomCurve; icon = SymbolRegular.PaintBrush24; break;
+        case "smart":
+        case "custom": text = Strings.FanCustomCurve; icon = SymbolRegular.Bot24; break;
         default:
           if (mode.EndsWith(" RPM")) { text = Strings.FanManualMode + ": " + mode; icon = SymbolRegular.Gauge24; }
           else if (mode.EndsWith("%")) { text = Strings.FanManualMode + ": " + mode; icon = SymbolRegular.Gauge24; }

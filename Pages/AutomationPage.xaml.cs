@@ -12,29 +12,33 @@ namespace OmenSuperHub.Pages {
   public partial class AutomationPage : Page {
     public AutomationPage() {
       InitializeComponent();
-      EventHandler handler = null;
       Action<string> execHandler = null;
       Loaded += (s, e) => {
         AutoEnableToggle.IsChecked = ConfigService.AutomationEnabled;
         RefreshList();
+        execHandler = (name) => Dispatcher.InvokeAsync(() => RefreshList());
+        AutomationProcessor.ExecutionStatusChanged += execHandler;
       };
       Unloaded += (s, e) => {
-        if (execHandler != null)
+        if (execHandler != null) {
           AutomationProcessor.ExecutionStatusChanged -= execHandler;
+          execHandler = null;
+        }
       };
-      execHandler = (name) =>
-        Dispatcher.InvokeAsync(() => RefreshList());
-      AutomationProcessor.ExecutionStatusChanged += execHandler;
     }
 
     void AutoEnableToggle_Checked(object sender, RoutedEventArgs e) {
       ConfigService.AutomationEnabled = true;
       ConfigService.Save("AutomationEnabled");
+      AutoAddPipelineBtn.IsEnabled = true;
+      AutoAddQuickActionBtn.IsEnabled = true;
     }
 
     void AutoEnableToggle_Unchecked(object sender, RoutedEventArgs e) {
       ConfigService.AutomationEnabled = false;
       ConfigService.Save("AutomationEnabled");
+      AutoAddPipelineBtn.IsEnabled = false;
+      AutoAddQuickActionBtn.IsEnabled = false;
     }
 
     void RefreshList() {

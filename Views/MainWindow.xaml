@@ -69,7 +69,8 @@
           <SolidColorBrush Color="{DynamicResource BgPane}"/>
         </ui:NavigationView.Background>
         <ui:NavigationView.PaneHeader>
-          <StackPanel Margin="0,16,0,16" HorizontalAlignment="Center">
+          <StackPanel Margin="0,16,0,16" HorizontalAlignment="Center" Cursor="Hand"
+                      MouseLeftButtonDown="Logo_MouseLeftButtonDown">
             <Viewbox Width="40" Height="40">
               <Canvas Width="100" Height="100">
                 <Canvas.Resources>
