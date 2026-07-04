@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -19,7 +20,8 @@ namespace OmenSuperHub.Views {
   public partial class MainWindow : OmenSuperHub.Windows.BaseWindow {
     static MainWindow _instance;
     static bool _trayHidden;
-    TrayHelper _trayHelper;
+    static TrayHelper _trayHelper;
+    internal static bool _allowClose;
     Page _activePage;
 
     static void EnsureWindow() {
@@ -28,10 +30,11 @@ namespace OmenSuperHub.Views {
     }
 
     public static void ShowInstance() {
+      bool wasLoaded = _instance != null && _instance.IsLoaded;
       EnsureWindow();
       _instance.BeginAnimation(UIElement.OpacityProperty, null);
       _instance.Opacity = 1;
-      if (_trayHidden) {
+      if (!wasLoaded || _trayHidden) {
         _trayHidden = false;
         _instance.Show();
         FadeIn(_instance, () => _instance.Activate());
@@ -49,6 +52,24 @@ namespace OmenSuperHub.Views {
       if (_instance != null && _instance.IsLoaded) return;
       _instance = new MainWindow();
       _trayHidden = true;
+      // The window must be Show()'d once even in tray-only boot mode so that:
+      //  1) Application.Current.MainWindow is set — the tray context menu host.
+      //     Without it, Application.Current.MainWindow is null, OnRightClick
+      //     skips setting PlacementTarget, and the menu never appears.
+      //  2) Loaded fires → Mica backdrop init, NavigationView, status timer.
+      //     Without it, switching dark/light theme has no visible effect
+      //     (ApplicationThemeManager.Apply has no shown window to update,
+      //      and WindowBackgroundManager.UpdateBackground was never called).
+      //  3) A PresentationSource exists — required by the WPF ContextMenu
+      //     popup to render.
+      // Shown with Opacity=0 + ShowActivated=false + no taskbar → invisible.
+      _instance.ShowInTaskbar = false;
+      _instance.ShowActivated = false;
+      _instance.Opacity = 0;
+      _instance.Show();   // fires Loaded synchronously, creates HWND + PresentationSource
+      _instance.Hide();
+      _instance.ShowInTaskbar = true;
+      _instance.Opacity = 1;
     }
 
     public static void ApplyLanguageToInstance() {
@@ -56,8 +77,9 @@ namespace OmenSuperHub.Views {
     }
 
     public static void NavigateToPage(string pageTag) {
+      bool wasLoaded = _instance != null && _instance.IsLoaded;
       EnsureWindow();
-      if (_instance.Visibility != Visibility.Visible || _instance.WindowState == WindowState.Minimized) {
+      if (!wasLoaded || _instance.Visibility != Visibility.Visible || _instance.WindowState == WindowState.Minimized) {
         _instance.BeginAnimation(UIElement.OpacityProperty, null);
         _instance.Opacity = 0;
         _instance.Show();
@@ -68,24 +90,31 @@ namespace OmenSuperHub.Views {
         _instance.Activate();
       }
       _instance.Dispatcher.BeginInvoke(new Action(() => {
-        if (_pageTypeMap.TryGetValue(pageTag, out var type)) {
+        if (_pageTypeMap.TryGetValue(pageTag, out var type))
           _instance.NavigationView.Navigate(type);
-          _instance.Activate();
-        }
-      }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        _instance.Activate();
+      }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     public MainWindow() {
       InitializeComponent();
       _instance = this;
+      NavigationView.SetPageService(new Services.CachedPageService());
 
       ThemeService.ThemeChanged += OnThemeChanged;
 
       Closing += (s, e) => {
+        if (_allowClose) {
+          ThemeService.ThemeChanged -= OnThemeChanged;
+          if (_wheelHandler != null && _wheelRoot != null)
+            _wheelRoot.RemoveHandler(UIElement.PreviewMouseWheelEvent, _wheelHandler);
+          _wheelHandler = null; _wheelRoot = null;
+          StopStatusTimer();
+          _instance = null;
+          return;
+        }
         e.Cancel = true;
-        ThemeService.ThemeChanged -= OnThemeChanged;
-        StopStatusTimer();
-        FadeOut(this, () => Hide());
+        Hide();
       };
 
       StateChanged += (s, e) => {
@@ -95,9 +124,11 @@ namespace OmenSuperHub.Views {
       };
 
       // Init tray immediately (not inside Loaded) so --tray mode works
-      _trayHelper = new TrayHelper(BringToForeground, TrayService.TrayIcon);
-      TrayService.RegisterTrayHelper(_trayHelper);
-      _trayHelper.MakeVisible();
+      if (_trayHelper == null) {
+        _trayHelper = new TrayHelper(BringToForeground, TrayService.TrayIcon);
+        TrayService.RegisterTrayHelper(_trayHelper);
+        _trayHelper.MakeVisible();
+      }
 
       Loaded += (s, e) => {
         // Initialize Mica backdrop based on current theme
@@ -199,9 +230,8 @@ namespace OmenSuperHub.Views {
     // Page Navigation (handled by NavigationView + TargetPageType)
     // ══════════════════════════════════════════════════════
     void NavigationView_Navigated(object sender, NavigatedEventArgs e) {
-      // ponytail: clear Frame journal so old pages are GC'd instead of cached
-      // Upgrade: if page switching still accumulates, make NavigationView.Navigate() always pass a unique data token
-      ClearNavJournal(NavigationView);
+      // ponytail: keep last 3 pages to avoid re-creation cost for frequently visited pages
+      KeepNavJournal(NavigationView, 3);
       if (e.Page is Page page) {
         _activePage = page;
         UpdateTitleBar(page);
@@ -217,18 +247,27 @@ namespace OmenSuperHub.Views {
       }
     }
 
-    static void ClearNavJournal(System.Windows.DependencyObject root) {
+    static void KeepNavJournal(System.Windows.DependencyObject root, int maxEntries) {
       for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++) {
         var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
         if (child is System.Windows.Controls.Frame f) {
-          while (f.CanGoBack) f.RemoveBackEntry();
+          int cnt = 0;
+          foreach (var _ in f.BackStack) cnt++;
+          while (cnt > maxEntries) { f.RemoveBackEntry(); cnt--; }
           return;
         }
-        ClearNavJournal(child);
+        KeepNavJournal(child, maxEntries);
       }
     }
 
+    System.Windows.Input.MouseWheelEventHandler _wheelHandler;
+    System.Windows.UIElement _wheelRoot;
+
     void AttachWheelHandler(Page page) {
+      // Remove previous handler to prevent accumulation on navigation
+      if (_wheelHandler != null && _wheelRoot != null)
+        _wheelRoot.RemoveHandler(UIElement.PreviewMouseWheelEvent, _wheelHandler);
+
       var root = System.Windows.Media.VisualTreeHelper.GetParent(page);
       while (root != null) {
         var parent = System.Windows.Media.VisualTreeHelper.GetParent(root);
@@ -236,8 +275,8 @@ namespace OmenSuperHub.Views {
         root = parent;
       }
       if (root is System.Windows.UIElement uiRoot) {
-        uiRoot.AddHandler(UIElement.PreviewMouseWheelEvent,
-          new System.Windows.Input.MouseWheelEventHandler((s, ev) => {
+        _wheelRoot = uiRoot;
+        _wheelHandler = new System.Windows.Input.MouseWheelEventHandler((s, ev) => {
             if (ev.Handled) return;
             // Only handle events from within the page's visual tree
             var src = ev.OriginalSource as System.Windows.DependencyObject;
@@ -256,7 +295,8 @@ namespace OmenSuperHub.Views {
             else
               dsv.ScrollToVerticalOffset(Math.Min(dsv.ScrollableHeight, dsv.VerticalOffset + 60));
             ev.Handled = true;
-          }), true);
+          });
+        _wheelRoot.AddHandler(UIElement.PreviewMouseWheelEvent, _wheelHandler, true);
       }
     }
 
@@ -326,35 +366,17 @@ namespace OmenSuperHub.Views {
     // Preset / Hardware (called from pages)
     // ══════════════════════════════════════════════════════
     public void ApplyPresetHardware() {
-      int gpuClock = ConfigService.GpuClock;
-      bool tgp = ConfigService.TgpEnabled;
-      bool ppab = ConfigService.PpabEnabled;
-      int dState = ConfigService.DState == 2 ? 2 : 1;
-      string cpuPwr = ConfigService.CpuPower;
-      System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        TrayService.SetGPUClockLimit(gpuClock);
-        OmenHardware.SetGpuPowerState(tgp, ppab, dState);
-        if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254);
-        else if (int.TryParse(cpuPwr?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
-          OmenHardware.SetCpuPowerLimit((byte)cpuVal);
-      });
+      // ponytail: delegated to PresetManager — applies 1.1 always, 1.2 only for custom presets.
+      // Atomic: all params dispatched on a single thread pool work item.
+      PresetManager.ApplyPresetHardware();
     }
 
     // ══════════════════════════════════════════════════════
     // Tray Integration
     // ══════════════════════════════════════════════════════
-    void BringToForeground() {
-      Dispatcher.Invoke(() => {
-        _instance.BeginAnimation(UIElement.OpacityProperty, null);
-        if (Visibility != Visibility.Visible || _instance.WindowState == WindowState.Minimized) {
-          _instance.Opacity = 0;
-          Show();
-          if (_instance.WindowState == WindowState.Minimized)
-            WindowState = WindowState.Normal;
-          FadeIn(this, () => Activate());
-        } else {
-          Activate();
-        }
+    static void BringToForeground() {
+      System.Windows.Application.Current.Dispatcher.Invoke(() => {
+        ShowInstance();
       });
     }
 
@@ -427,6 +449,33 @@ namespace OmenSuperHub.Views {
       Topmost = !Topmost;
       PinIcon.Symbol = Topmost ? SymbolRegular.Pin24 : SymbolRegular.PinOff24;
       PinButton.ToolTip = Topmost ? "取消顶置" : "顶置";
+    }
+
+    // ── Logo 5-click easter egg: unlock advanced tuning ──
+    int _logoClickCount;
+    DateTime _logoFirstClick;
+
+    void Logo_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) {
+      var now = DateTime.UtcNow;
+      if ((now - _logoFirstClick).TotalSeconds > 3) {
+        _logoClickCount = 0;
+        _logoFirstClick = now;
+      }
+      _logoClickCount++;
+      if (_logoClickCount >= 5) {
+        _logoClickCount = 0;
+        ConfigService.AdvancedTuningUnlocked = !ConfigService.AdvancedTuningUnlocked;
+        ConfigService.Save("AdvancedTuningUnlocked");
+        // Refresh PerfPage if it's the active page
+        if (_activePage is PerfPage perfPage) {
+          perfPage.RefreshAdvancedVisibility();
+        }
+        string msg = ConfigService.AdvancedTuningUnlocked
+          ? "高级调校已解锁！性能页将显示 CPU/GPU 进阶选项。"
+          : "高级调校已隐藏。再次点击 logo 5 次可重新解锁。";
+        // Show a brief status in the status bar
+        StatusBarText.Text = msg;
+      }
     }
   }
 }

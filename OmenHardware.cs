@@ -15,6 +15,16 @@ namespace OmenSuperHub {
     static ManagementScope _wmiScope;
     static readonly object _scopeLock = new object();
 
+    // ── WMI result cache (static hardware info, never changes at runtime) ──
+    static byte[] _cachedDesignData;
+    static string _cachedBiosVersion;
+    static string _cachedCpuModel;
+    static bool? _cachedHasNvidia;
+    static bool? _cachedHasIntelCpu;
+    static bool? _cachedHasAmdCpu;
+    static bool? _cachedHasAmdGpu;
+    static bool? _cachedHasAmdDiscrete;
+
     // ponytail: cache ManagementScope to reuse WMI connection across calls
     static ManagementScope GetWmiScope() {
       if (_wmiScope == null) {
@@ -98,7 +108,9 @@ namespace OmenSuperHub {
 
     // ─── System Design Data ───────────────────────────────────────────
     public static byte[] GetSystemDesignData() {
-      return SendOmenBiosWmi(0x28, new byte[] { 0x00, 0x00, 0x00, 0x00 }, 128);
+      if (_cachedDesignData != null) return _cachedDesignData;
+      _cachedDesignData = SendOmenBiosWmi(0x28, new byte[] { 0x00, 0x00, 0x00, 0x00 }, 128);
+      return _cachedDesignData;
     }
 
     public static int GetAdapterPower() {
@@ -147,7 +159,7 @@ namespace OmenSuperHub {
       capabilities = new List<bool>();
       byte[] sync = SendOmenBiosWmi(44, new byte[4] { 0, 0, 0, 0 }, 128, 0x20008);
       if (sync == null || sync.Length == 0) return;
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < 4 && i < sync.Length; i++) {
         types.Add((FanType)(sync[i] & 0x0F));
         types.Add((FanType)((sync[i] & 0xF0) >> 4));
       }
@@ -712,34 +724,45 @@ namespace OmenSuperHub {
 
     // ─── GPU Detection ──────────────────────────────────────────────
     public static bool HasNvidiaGpu() {
+      if (_cachedHasNvidia.HasValue) return _cachedHasNvidia.Value;
       using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_VideoController WHERE Name LIKE '%NVIDIA%'")) {
-        foreach (var obj in searcher.Get()) return true;
+        foreach (var obj in searcher.Get()) { _cachedHasNvidia = true; return true; }
       }
+      _cachedHasNvidia = false;
       return false;
     }
 
     // ─── BIOS / CPU / System Info ──────────────────────────────────
     public static string GetBiosVersion() {
+      if (_cachedBiosVersion != null) return _cachedBiosVersion;
       try {
         using (var searcher = new ManagementObjectSearcher("SELECT SMBIOSBIOSVersion FROM Win32_BIOS"))
         using (var collection = searcher.Get())
-          foreach (ManagementObject obj in collection)
-            return obj["SMBIOSBIOSVersion"]?.ToString() ?? "未知";
+          foreach (ManagementObject obj in collection) {
+            _cachedBiosVersion = obj["SMBIOSBIOSVersion"]?.ToString() ?? "未知";
+            return _cachedBiosVersion;
+          }
       } catch { }
-      return "未知";
+      _cachedBiosVersion = "未知";
+      return _cachedBiosVersion;
     }
 
     public static string GetCpuModel() {
+      if (_cachedCpuModel != null) return _cachedCpuModel;
       try {
         using (var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_Processor"))
         using (var collection = searcher.Get())
-          foreach (ManagementObject obj in collection)
-            return obj["Name"]?.ToString()?.Trim() ?? "未知";
+          foreach (ManagementObject obj in collection) {
+            _cachedCpuModel = obj["Name"]?.ToString()?.Trim() ?? "未知";
+            return _cachedCpuModel;
+          }
       } catch { }
-      return "未知";
+      _cachedCpuModel = "未知";
+      return _cachedCpuModel;
     }
 
     public static bool HasIntelCpu() {
+      if (_cachedHasIntelCpu.HasValue) return _cachedHasIntelCpu.Value;
       try {
         using (var searcher = new ManagementObjectSearcher(
             "root\\CIMV2", "SELECT Manufacturer, Name FROM Win32_Processor")) {
@@ -748,15 +771,18 @@ namespace OmenSuperHub {
             string name = obj["Name"]?.ToString() ?? "";
             if (manufacturer.IndexOf("GenuineIntel", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 name.IndexOf("Intel", StringComparison.OrdinalIgnoreCase) >= 0) {
+              _cachedHasIntelCpu = true;
               return true;
             }
           }
         }
       } catch { }
+      _cachedHasIntelCpu = false;
       return false;
     }
 
     public static bool HasAmdCpu() {
+      if (_cachedHasAmdCpu.HasValue) return _cachedHasAmdCpu.Value;
       try {
         using (var searcher = new ManagementObjectSearcher(
             "root\\CIMV2", "SELECT Manufacturer, Name FROM Win32_Processor")) {
@@ -765,30 +791,37 @@ namespace OmenSuperHub {
             string name = obj["Name"]?.ToString() ?? "";
             if (manufacturer.IndexOf("Advanced Micro Devices", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 name.IndexOf("AMD", StringComparison.OrdinalIgnoreCase) >= 0) {
+              _cachedHasAmdCpu = true;
               return true;
             }
           }
         }
       } catch { }
+      _cachedHasAmdCpu = false;
       return false;
     }
 
     public static bool HasAmdGpu() {
+      if (_cachedHasAmdGpu.HasValue) return _cachedHasAmdGpu.Value;
       try {
         using (var searcher = new ManagementObjectSearcher(
             "root\\CIMV2", "SELECT Name FROM Win32_VideoController")) {
           foreach (var obj in searcher.Get()) {
             string name = obj["Name"]?.ToString() ?? "";
             if (name.IndexOf("AMD", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                name.IndexOf("Radeon", StringComparison.OrdinalIgnoreCase) >= 0)
+                name.IndexOf("Radeon", StringComparison.OrdinalIgnoreCase) >= 0) {
+              _cachedHasAmdGpu = true;
               return true;
+            }
           }
         }
       } catch { }
+      _cachedHasAmdGpu = false;
       return false;
     }
 
     public static bool HasAmdDiscreteGpu() {
+      if (_cachedHasAmdDiscrete.HasValue) return _cachedHasAmdDiscrete.Value;
       try {
         using (var searcher = new ManagementObjectSearcher(
             "root\\CIMV2",
@@ -801,13 +834,12 @@ namespace OmenSuperHub {
             if (!isAmd) continue;
             bool isIntegrated = name.Contains("Radeon Graphics") && !name.Contains("RX")
                                || name.Contains("AMD Radeon(TM) Graphics");
-            if (!isIntegrated)
-              return true;
-            if (!string.IsNullOrEmpty(processor) && !processor.Contains("Renoir") && !processor.Contains("Cezanne") && !processor.Contains("Rembrandt"))
-              return true;
+            if (!isIntegrated) { _cachedHasAmdDiscrete = true; return true; }
+            if (!string.IsNullOrEmpty(processor) && !processor.Contains("Renoir") && !processor.Contains("Cezanne") && !processor.Contains("Rembrandt")) { _cachedHasAmdDiscrete = true; return true; }
           }
         }
       } catch { }
+      _cachedHasAmdDiscrete = false;
       return false;
     }
 

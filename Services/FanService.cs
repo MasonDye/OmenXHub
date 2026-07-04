@@ -4,6 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
+using System.Text;
 using static OmenSuperHub.OmenHardware;
 
 namespace OmenSuperHub.Services {
@@ -18,7 +21,7 @@ namespace OmenSuperHub.Services {
     static float _smartEmaGpuTemp = -1f;
     static int _smartLastAppliedRpmCpu;
     static int _smartLastAppliedRpmGpu;
-    static long _smartLastTick;
+    static uint _smartLastTick;
     static float _smartAlpha = 0.3f;
 
     public static void InitSmartFanState(float alpha) {
@@ -27,19 +30,19 @@ namespace OmenSuperHub.Services {
       _smartEmaGpuTemp = -1f;
       _smartLastAppliedRpmCpu = 0;
       _smartLastAppliedRpmGpu = 0;
-      _smartLastTick = Environment.TickCount;
+      _smartLastTick = (uint)Environment.TickCount;
     }
 
     public static int GetSmartFanSpeed(int fanIndex) {
       lock (_fanLock) {
         float rawTemp = (fanIndex == 0) ? HardwareService.CPUTemp : HardwareService.GPUTemp;
-        if (rawTemp <= 0) rawTemp = (fanIndex == 0) ? HardwareService.CPUTemp : HardwareService.GPUTemp;
+        if (rawTemp <= 0) rawTemp = OmenHardware.GetFittingTemperature();
         if (rawTemp <= 0) return _smartLastAppliedRpmCpu > 0 ? _smartLastAppliedRpmCpu : 2000;
 
         if (_smartEmaCpuTemp < 0) {
           _smartEmaCpuTemp = HardwareService.CPUTemp;
           _smartEmaGpuTemp = HardwareService.GPUTemp;
-          _smartLastTick = Environment.TickCount;
+          _smartLastTick = (uint)Environment.TickCount;
         }
         float prevEma = (fanIndex == 0) ? _smartEmaCpuTemp : _smartEmaGpuTemp;
         if (fanIndex == 0)
@@ -58,8 +61,8 @@ namespace OmenSuperHub.Services {
         if (map.Count == 0) return lastApplied > 0 ? lastApplied : 2000;
         int rawSpeed = GetFanSpeedForSpecificTemperature(emaTemp, map, fanIndex);
 
-        long now = Environment.TickCount;
-        long dt = now - _smartLastTick;
+        uint now = (uint)Environment.TickCount;
+        uint dt = now - _smartLastTick; // unsigned subtraction handles wraparound
         _smartLastTick = now;
         if (dt > 0 && rawSpeed < lastApplied) {
           int maxDrop = (int)(ConfigService.SmartFanStepDownRate * dt / 1000f);
@@ -134,6 +137,16 @@ namespace OmenSuperHub.Services {
       int[] gpuT = { 35, 45, 55, 63, 73, 82, 92 };
       var cpu = cpuT.Select((t, i) => ((float)t, (int)(speeds[i] * scale))).ToArray();
       var gpu = gpuT.Select((t, i) => ((float)t, (int)(speeds[i] * scale))).ToArray();
+      return (cpu, gpu);
+    }
+
+    /// <summary>Generate aggressive performance dual curve</summary>
+    static ((float temp, int rpm)[] cpu, (float temp, int rpm)[] gpu) GenerateDefaultDualCurvePerf() {
+      int[] cpuT = { 35, 45, 55, 63, 73, 82, 92 };
+      int[] speeds = { 1600, 2500, 3400, 4000, 4800, 5600, 6000 };
+      int[] gpuT = { 30, 40, 50, 58, 68, 77, 87 };
+      var cpu = cpuT.Select((t, i) => ((float)t, speeds[i])).ToArray();
+      var gpu = gpuT.Select((t, i) => ((float)t, speeds[i])).ToArray();
       return (cpu, gpu);
     }
 
@@ -348,6 +361,129 @@ namespace OmenSuperHub.Services {
     public static List<(float temp, int rpm)> LoadPresetCurve(string presetKey, bool gpu) {
       string path = PresetCurvePath(presetKey, gpu);
       return LoadCurveFromFile(path);
+    }
+
+    /// <summary>Get the default dual curve for a preset (balanced / quiet / performance)</summary>
+    public static ((float temp, int rpm)[] cpu, (float temp, int rpm)[] gpu) GetDefaultPresetCurve(string presetKey) {
+      switch (presetKey) {
+        case "quiet": return GenerateDefaultDualCurve(true);
+        case "performance": return GenerateDefaultDualCurvePerf();
+        default: return GenerateDefaultDualCurve(false); // balanced
+      }
+    }
+
+    /// <summary>
+    /// Load preset curve from saved file (or generate default), populate CPUTempFanMap / GPUTempFanMap,
+    /// and return the (cpu, gpu) curve lists for UI display.
+    /// </summary>
+    public static (List<(float temp, int rpm)> cpu, List<(float temp, int rpm)> gpu) ApplyPresetCurve(string presetKey) {
+      var defaultCurve = GetDefaultPresetCurve(presetKey);
+      var cpuSaved = LoadPresetCurve(presetKey, false);
+      var gpuSaved = LoadPresetCurve(presetKey, true);
+      var cpuPoints = (cpuSaved != null && cpuSaved.Count >= 2) ? cpuSaved : defaultCurve.cpu.Select(p => (p.temp, p.rpm)).ToList();
+      var gpuPoints = (gpuSaved != null && gpuSaved.Count >= 2) ? gpuSaved : defaultCurve.gpu.Select(p => (p.temp, p.rpm)).ToList();
+
+      lock (CPUTempFanMap) {
+        CPUTempFanMap.Clear();
+        GPUTempFanMap.Clear();
+        foreach (var pt in cpuPoints) CPUTempFanMap[pt.temp] = new List<int> { pt.rpm, pt.rpm };
+        foreach (var pt in gpuPoints) GPUTempFanMap[pt.temp] = new List<int> { pt.rpm, pt.rpm };
+      }
+
+      return (cpuPoints, gpuPoints);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // Import / Export / Share — JSON file & share code
+    // ═══════════════════════════════════════════════════════
+
+    [DataContract]
+    public class FanCurveExportData {
+      [DataMember(Order = 1)] public int Version { get; set; } = 1;
+      [DataMember(Order = 2)] public string Name { get; set; } = "";
+      [DataMember(Order = 3)] public string Description { get; set; } = "";
+      [DataMember(Order = 4)] public string Device { get; set; } = "";
+      [DataMember(Order = 5)] public string Date { get; set; } = "";
+      [DataMember(Order = 6)] public List<FanCurvePoint> Points { get; set; } = new List<FanCurvePoint>();
+    }
+
+    [DataContract]
+    public class FanCurvePoint {
+      [DataMember(Order = 1)] public float Temp { get; set; }
+      [DataMember(Order = 2)] public int Rpm { get; set; }
+    }
+
+    /// <summary>导出曲线为 JSON 字符串</summary>
+    public static string ExportCurveToJson(List<(float temp, int rpm)> points, string curveName, string description = "", string device = "") {
+      try {
+        if (points == null || points.Count < 2) return null;
+        var sorted = points.OrderBy(p => p.temp).ToList();
+        var data = new FanCurveExportData {
+          Name = string.IsNullOrEmpty(curveName) ? "Custom Fan Curve" : curveName,
+          Description = description ?? "",
+          Device = string.IsNullOrEmpty(device) ? "OMEN X Hub" : device,
+          Date = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+          Points = sorted.Select(p => new FanCurvePoint { Temp = p.temp, Rpm = p.rpm }).ToList()
+        };
+        using (var ms = new MemoryStream()) {
+          var serializer = new DataContractJsonSerializer(typeof(FanCurveExportData));
+          serializer.WriteObject(ms, data);
+          ms.Position = 0;
+          using (var reader = new StreamReader(ms, Encoding.UTF8))
+            return reader.ReadToEnd();
+        }
+      } catch { return null; }
+    }
+
+    /// <summary>从 JSON 字符串导入曲线，返回 (points, name, description)</summary>
+    public static (List<(float temp, int rpm)> points, string name, string desc)? ImportCurveFromJson(string json) {
+      try {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(json))) {
+          var serializer = new DataContractJsonSerializer(typeof(FanCurveExportData));
+          var data = (FanCurveExportData)serializer.ReadObject(ms);
+          if (data == null || data.Points == null || data.Points.Count < 2) return null;
+          var points = data.Points.Select(p => ((float)p.Temp, p.Rpm)).ToList();
+          if (!ValidateCurve(points)) return null;
+          // remap to int temp
+          for (int i = 0; i < points.Count; i++)
+            points[i] = ((float)Math.Round(points[i].Item1), points[i].Item2);
+          return (points, data.Name ?? "", data.Description ?? "");
+        }
+      } catch { return null; }
+    }
+
+    /// <summary>生成分享码（压缩：名称|日期|序列化曲线 → Base64）</summary>
+    public static string GenerateShareCode(List<(float temp, int rpm)> points, string curveName = "") {
+      try {
+        if (points == null || points.Count < 2) return null;
+        string serialized = SerializeCurve(points);
+        string device = "OMEN";
+        string date = DateTime.Now.ToString("yyyyMMdd");
+        string name = string.IsNullOrEmpty(curveName) ? "Curve" : curveName.Replace('|', '-');
+        string payload = $"{name}|{device}|{date}|{serialized}";
+        byte[] bytes = Encoding.UTF8.GetBytes(payload);
+        return "OXFC:" + Convert.ToBase64String(bytes);
+      } catch { return null; }
+    }
+
+    /// <summary>解析分享码，返回 (points, name)</summary>
+    public static (List<(float temp, int rpm)> points, string name)? ParseShareCode(string code) {
+      try {
+        if (string.IsNullOrWhiteSpace(code)) return null;
+        // Strip "OXFC:" prefix if present
+        if (code.StartsWith("OXFC:", StringComparison.OrdinalIgnoreCase))
+          code = code.Substring(5);
+        byte[] bytes = Convert.FromBase64String(code.Trim());
+        string payload = Encoding.UTF8.GetString(bytes);
+        var parts = payload.Split('|');
+        if (parts.Length < 4) return null;
+        string name = parts[0];
+        string serialized = string.Join("|", parts.Skip(3)); // in case serialized contains '|'
+        var points = DeserializeCurve(serialized);
+        if (points == null || points.Count < 2) return null;
+        return (points, name);
+      } catch { return null; }
     }
   }
 }

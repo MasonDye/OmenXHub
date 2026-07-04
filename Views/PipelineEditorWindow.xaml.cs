@@ -2,6 +2,7 @@
 // 卡片式 UI 编辑触发器和步骤，支持展开/折叠、拖拽排序、选择器对话框
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -479,18 +480,15 @@ namespace OmenSuperHub.Views {
       switch (type) {
         case "SetPreset": {
           var cb = new ComboBox { Height = 32, FontSize = 13, IsEditable = true };
-          cb.Items.Add("Extreme");
-          cb.Items.Add("GpuPriority");
-          cb.Items.Add("LightUse");
-          cb.Items.Add(ConfigService.CustomPreset1Name);
-          cb.Items.Add(ConfigService.CustomPreset2Name);
-          cb.Items.Add(ConfigService.CustomPreset3Name);
+          // ponytail: dynamic — populate from PresetManager
+          foreach (var (display, key) in PresetManager.EnumerateAllPresets())
+            cb.Items.Add(display);
           getValue = () => {
             string t = cb.Text;
-            if (t == ConfigService.CustomPreset1Name) return "Custom1";
-            if (t == ConfigService.CustomPreset2Name) return "Custom2";
-            if (t == ConfigService.CustomPreset3Name) return "Custom3";
-            return t;
+            // resolve display name back to preset key
+            foreach (var (display, key) in PresetManager.EnumerateAllPresets())
+              if (display == t) return key;
+            return t; // fallback: raw text as key
           };
           return cb;
         }
@@ -524,12 +522,61 @@ namespace OmenSuperHub.Views {
           return cb;
         }
         case "SetFanMode": {
+          var sp = new StackPanel();
           var cb = new ComboBox { Height = 32, FontSize = 13 };
-          foreach (var v in new[] { "silent", "cool", "custom", "smart", "2500 RPM" })
-            cb.Items.Add(new ComboBoxItem { Content = v, Tag = v });
+          cb.Items.Add(new ComboBoxItem { Content = "安静模式", Tag = "silent" });
+          cb.Items.Add(new ComboBoxItem { Content = "降温模式", Tag = "cool" });
+          cb.Items.Add(new ComboBoxItem { Content = "导入自定义曲线", Tag = "import" });
+          cb.Items.Add(new ComboBoxItem { Content = "手动模式", Tag = "manual" });
           cb.SelectedIndex = 0;
-          getValue = () => ((ComboBoxItem)cb.SelectedItem)?.Tag as string ?? "silent";
-          return cb;
+          sp.Children.Add(cb);
+
+          var extraPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+          sp.Children.Add(extraPanel);
+          string importedJson = null;
+
+          var manualRow = new StackPanel { Orientation = Orientation.Horizontal, Visibility = Visibility.Collapsed };
+          var slider = new Slider { Minimum = 0, Maximum = 100, Value = 50, Width = 140, Height = 28 };
+          var pctLbl = new TextBlock { Text = "50%", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), MinWidth = 36 };
+          slider.ValueChanged += (s, a) => pctLbl.Text = (int)a.NewValue + "%";
+          manualRow.Children.Add(slider);
+          manualRow.Children.Add(pctLbl);
+          extraPanel.Children.Add(manualRow);
+
+          var importRow = new StackPanel { Orientation = Orientation.Horizontal, Visibility = Visibility.Collapsed };
+          var importPath = new TextBox { Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 200, IsReadOnly = true };
+          var importBtn = new Button { Content = "浏览...", Height = 32, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0) };
+          importBtn.Click += (s, a) => {
+            var ofd = new OpenFileDialog { Filter = "风扇曲线 JSON|*.json|所有文件|*.*" };
+            if (ofd.ShowDialog() == true) {
+              try {
+                var json = File.ReadAllText(ofd.FileName);
+                var result = FanService.ImportCurveFromJson(json);
+                if (result != null) {
+                  importedJson = json;
+                  importPath.Text = System.IO.Path.GetFileName(ofd.FileName);
+                } else {
+                  MessageBox.Show("无效的风扇曲线文件", "导入失败");
+                }
+              } catch { MessageBox.Show("读取文件失败", "导入失败"); }
+            }
+          };
+          importRow.Children.Add(importPath);
+          importRow.Children.Add(importBtn);
+          extraPanel.Children.Add(importRow);
+
+          cb.SelectionChanged += (s, a) => {
+            var tag = ((ComboBoxItem)cb.SelectedItem)?.Tag as string;
+            manualRow.Visibility = tag == "manual" ? Visibility.Visible : Visibility.Collapsed;
+            importRow.Visibility = tag == "import" ? Visibility.Visible : Visibility.Collapsed;
+          };
+          getValue = () => {
+            var tag = ((ComboBoxItem)cb.SelectedItem)?.Tag as string ?? "silent";
+            if (tag == "manual") return "manual:" + (int)slider.Value;
+            if (tag == "import") return "json:" + (importedJson ?? "");
+            return tag;
+          };
+          return sp;
         }
         case "SetTempSensitivity": {
           var cb = new ComboBox { Height = 32, FontSize = 13 };

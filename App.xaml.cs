@@ -46,7 +46,7 @@ namespace OmenSuperHub {
 
         // Load language config
         ConfigService.Load();
-        CustomPresetNames.Load(); // file fallback for custom preset names
+        CustomPresetNamesStore.Load(); // file fallback for custom preset names
         // Re-apply saved preset so its values populate ConfigService fields before RestoreConfig
         if (!string.IsNullOrEmpty(ConfigService.Preset)) {
           PresetManager.SwitchPreset(ConfigService.Preset);
@@ -215,6 +215,8 @@ namespace OmenSuperHub {
     static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
     protected override void OnExit(ExitEventArgs e) {
+      // Save current custom preset to its registry subkey before exit — fixes data loss on restart
+      try { if (PresetManager.IsCustom(ConfigService.Preset)) PresetManager.SaveCustomPreset(ConfigService.Preset); } catch { }
       try { MacroController.Stop(); } catch { }
       try { HardwareApiService.Stop(); } catch { }
       try { HWiNFOService.Stop(); } catch { }
@@ -222,6 +224,8 @@ namespace OmenSuperHub {
       try { EcoQosService.Cleanup(); } catch { }
       try { AutomationProcessor.Stop(); } catch { }
       try { SystemEvents.PowerModeChanged -= TrayService.OnPowerChange; } catch { }
+      try { HardwareService.Close(); } catch { }
+      try { AmdSmuService.Shutdown(); } catch { }
       try { _mutex?.ReleaseMutex(); } catch { }
       try { _mutex?.Dispose(); } catch { }
       base.OnExit(e);

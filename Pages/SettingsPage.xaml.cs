@@ -11,8 +11,9 @@ using Forms = System.Windows.Forms;
 namespace OmenSuperHub.Pages {
   public partial class SettingsPage : Page {
     bool _loading = true;
+    bool _screenOptionsBuilt;
     public SettingsPage() { InitializeComponent(); Loaded += SettingsPage_Loaded; }
-    private void SettingsPage_Loaded(object sender, RoutedEventArgs e) { _loading = true; LoadState(); BuildScreenOptions(); _loading = false; }
+    private void SettingsPage_Loaded(object sender, RoutedEventArgs e) { _loading = true; LoadState(); if (!_screenOptionsBuilt) { BuildScreenOptions(); _screenOptionsBuilt = true; } _loading = false; }
 
     void LoadState() {
       switch (Strings.Current) {
@@ -33,9 +34,11 @@ namespace OmenSuperHub.Pages {
       FloatTextOpacityVal.Text = (int)(ConfigService.FloatingTextOpacity * 100) + "%";
       switch (ConfigService.FloatingBarLoc) {
         case "right": FloatLocCombo.SelectedIndex = 1; break;
-        case "free": FloatLocCombo.SelectedIndex = 2; break;
+        case "top": FloatLocCombo.SelectedIndex = 2; break;
+        case "free": FloatLocCombo.SelectedIndex = 3; break;
         default: FloatLocCombo.SelectedIndex = 0; break;
       }
+      FloatLayoutCombo.SelectedIndex = ConfigService.FloatingBarLayout == "col" ? 1 : 0;
       switch (ConfigService.OmenKey) {
         case "custom": OmenKeyCombo.SelectedIndex = 0; break;
         case "showMain": OmenKeyCombo.SelectedIndex = 1; break;
@@ -64,18 +67,36 @@ namespace OmenSuperHub.Pages {
     }
 
     void SyncCycleCandidates() {
-      CycleCustom1.Content = ConfigService.CustomPreset1Name;
-      CycleCustom2.Content = ConfigService.CustomPreset2Name;
-      CycleCustom3.Content = ConfigService.CustomPreset3Name;
       var candidates = ConfigService.OmenKeyPresetCandidates
         .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
         .ToHashSet();
       CycleExtreme.IsChecked = candidates.Contains("Extreme");
       CycleGpuPriority.IsChecked = candidates.Contains("GpuPriority");
       CycleLightUse.IsChecked = candidates.Contains("LightUse");
-      CycleCustom1.IsChecked = candidates.Contains("Custom1");
-      CycleCustom2.IsChecked = candidates.Contains("Custom2");
-      CycleCustom3.IsChecked = candidates.Contains("Custom3");
+
+      // ponytail: build one checkbox per custom preset file. Tag=FileKey.
+      // Also prunes dead keys (custom preset deleted) from the stored list.
+      CycleCustomsHost.Children.Clear();
+      var customs = PresetManager.EnumerateCustomPresets();
+      var liveCustomKeys = new System.Collections.Generic.HashSet<string>();
+      foreach (var (display, key) in customs) {
+        liveCustomKeys.Add(key);
+        var cb = new CheckBox {
+          Content = display,
+          Tag = key,
+          IsChecked = candidates.Contains(key),
+          Margin = new Thickness(0, 0, 12, 0),
+        };
+        cb.Checked += CycleCandidate_Changed;
+        cb.Unchecked += CycleCandidate_Changed;
+        CycleCustomsHost.Children.Add(cb);
+      }
+      // prune dead custom keys from stored candidates (built-ins never pruned)
+      if (candidates.Any(c => !PresetManager.IsBuiltIn(c) && !liveCustomKeys.Contains(c))) {
+        var pruned = candidates.Where(c => PresetManager.IsBuiltIn(c) || liveCustomKeys.Contains(c)).ToList();
+        ConfigService.OmenKeyPresetCandidates = string.Join(";", pruned);
+        ConfigService.Save("OmenKeyPresetCandidates");
+      }
     }
 
     void Lang_SelectionChanged(object s, SelectionChangedEventArgs e) {
@@ -150,10 +171,17 @@ namespace OmenSuperHub.Pages {
 
     void FloatLoc_SelectionChanged(object s, SelectionChangedEventArgs e) {
       if (_loading) return;
-      string[] locs = { "left", "right", "free" };
+      string[] locs = { "left", "right", "top", "free" };
       int idx = FloatLocCombo.SelectedIndex;
       ConfigService.FloatingBarLoc = idx >= 0 && idx < locs.Length ? locs[idx] : "left";
       ConfigService.Save("FloatingBarLoc");
+      Views.FloatingWindow.UpdateAllText();
+    }
+
+    void FloatLayout_SelectionChanged(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      ConfigService.FloatingBarLayout = FloatLayoutCombo.SelectedIndex == 1 ? "col" : "row";
+      ConfigService.Save("FloatingBarLayout");
       Views.FloatingWindow.UpdateAllText();
     }
 
@@ -205,10 +233,12 @@ namespace OmenSuperHub.Pages {
       if (CycleExtreme.IsChecked == true) selected.Add("Extreme");
       if (CycleGpuPriority.IsChecked == true) selected.Add("GpuPriority");
       if (CycleLightUse.IsChecked == true) selected.Add("LightUse");
-      if (CycleCustom1.IsChecked == true) selected.Add("Custom1");
-      if (CycleCustom2.IsChecked == true) selected.Add("Custom2");
-      if (CycleCustom3.IsChecked == true) selected.Add("Custom3");
-      ConfigService.OmenKeyPresetCandidates = string.Join(";", selected);
+      // ponytail: dynamic — collect from custom checkboxes by Tag (FileKey)
+      foreach (var ch in CycleCustomsHost.Children) {
+        if (ch is CheckBox cb && cb.IsChecked == true && cb.Tag is string key)
+          selected.Add(key);
+      }
+      ConfigService.OmenKeyPresetCandidates = string.Join(";", selected.Distinct());
       ConfigService.Save("OmenKeyPresetCandidates");
     }
 

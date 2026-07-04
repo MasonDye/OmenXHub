@@ -38,11 +38,12 @@ namespace OmenSuperHub.Services {
     static string _savedFanControl;
     static string _savedFanTable;
     static bool _autoProtectActive;
-    static bool _gpuProtectActive;
-    static string _savedProtectPreset;
-    static bool _savedProtectTgp;
-    static bool _savedProtectPpab;
-    public static void ResetAutoProtect() { _autoProtectActive = false; _gpuProtectActive = false; _savedFanControl = null; _savedFanTable = null; }
+    static string _dataLocalizeDir;
+    public static void ResetAutoProtect() {
+      _autoProtectActive = false;
+      _savedFanControl = null;
+      _savedFanTable = null;
+    }
     static System.Windows.Controls.ContextMenu wpfContextMenu;
     public static int countDB = 0, countDBInit = 5, tryTimes = 0, CPULimitDB = 25;
     static int countRestore = 0;
@@ -299,22 +300,33 @@ namespace OmenSuperHub.Services {
     static void UpdateTooltip() {
       HardwareService.QueryHardware();
       if (HardwareService.MonitorFan)
-        HardwareService.FanSpeedNow = GetFanLevel();
-      // Tooltip suppressed via NIF_TIP szTip=" " in NativeTrayIcon
+        HardwareService.UpdateFanSpeed(GetFanLevel());
+      // Update tray icon tooltip (consolidated from TrayHelper)
+      try {
+        var tip = "OMEN X Hub";
+        if (HardwareService.MonitorCPU)
+          tip += $" \u00b7 CPU {(int)HardwareService.CPUTemp}\u00b0C";
+        if (ConfigService.MonitorGPU)
+          tip += $" \u00b7 GPU {(int)HardwareService.GPUTemp}\u00b0C";
+        _trayHelperRef?.SetTooltip(tip);
+      } catch { }
 
       if (ConfigService.DataLocalize == "on") {
         try {
-          string exeDir = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
-          System.IO.File.WriteAllText(System.IO.Path.Combine(exeDir, "cpu_temp.txt"), $"{(int)HardwareService.CPUTemp}°C");
-          System.IO.File.WriteAllText(System.IO.Path.Combine(exeDir, "gpu_temp.txt"), $"{(int)HardwareService.GPUTemp}°C");
+          if (_dataLocalizeDir == null)
+            _dataLocalizeDir = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
+          System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "cpu_temp.txt"), $"{(int)HardwareService.CPUTemp}°C");
+          System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "gpu_temp.txt"), $"{(int)HardwareService.GPUTemp}°C");
         } catch { }
       }
 
-      // Auto fan protect: if CPU >90°C and fans are fixed <75%, auto-switch to auto
+      // Auto fan protect: if CPU >95°C and fans are fixed <75%, switch to auto+cool
       // Save previous fan state so it can be restored on cooldown
-      if (ConfigService.AutoFanProtect == "on" && HardwareService.MonitorFan && HardwareService.CPUTemp > 0) {
+      // BUG FIX: Trigger requires toggle ON, but restore runs regardless so active sessions can unwind
+      bool fanProtectOn = ConfigService.AutoFanProtect == "on";
+      if (fanProtectOn && HardwareService.MonitorFan && HardwareService.CPUTemp > 0) {
         if (!_autoProtectActive && ConfigService.FanControl != "auto"
-            && HardwareService.CPUTemp > 90 && HardwareService.FanSpeedNow != null) {
+            && HardwareService.CPUTemp > 95 && HardwareService.FanSpeedNow != null) {
           int maxSpeed = 0;
           foreach (int s in HardwareService.FanSpeedNow) { if (s > maxSpeed) maxSpeed = s; }
           if (maxSpeed > 0 && maxSpeed < 75) {
@@ -324,89 +336,41 @@ namespace OmenSuperHub.Services {
             SetMaxFanSpeedOff();
             fanControlTimer.Change(0, 1000);
             ConfigService.FanControl = "auto";
+            ConfigService.FanTable = "cool";
             ConfigService.Save("FanControl");
-            Logger.Info("Auto fan protect: CPU>90°C with fixed fan, switched to auto");
-            _trayHelperRef?.ShowBalloonTip("高温自动保护", "CPU温度>90°C，已自动切换为自动风扇控制", 3000);
-          }
-        }
-        // Cooldown: restore saved fan config when CPU drops below 80°C
-        if (_autoProtectActive && HardwareService.CPUTemp < 80) {
-          _autoProtectActive = false;
-          if (!string.IsNullOrEmpty(_savedFanControl)) {
-            ConfigService.FanControl = _savedFanControl;
-            ConfigService.FanTable = _savedFanTable;
-            ConfigService.Save("FanControl");
-            // Re-apply the saved fan mode
-            if (_savedFanControl == "silent" || _savedFanControl == "") {
-              FanService.LoadFanConfig((_savedFanTable ?? "silent") + ".txt");
-              SetMaxFanSpeedOff();
-              fanControlTimer.Change(0, 1000);
-            } else if (_savedFanControl == "custom") {
-              SetMaxFanSpeedOff();
-              fanControlTimer.Change(0, 1000);
-            } else if (_savedFanControl.EndsWith("%") || _savedFanControl.EndsWith(" RPM")) {
-              int pct = _savedFanControl.EndsWith("%")
-                ? int.Parse(_savedFanControl.TrimEnd('%'))
-                : int.Parse(_savedFanControl.Replace(" RPM", "").Trim()) / 100;
-              SetMaxFanSpeedOff();
-              OmenHardware.SetFanLevel(pct, pct);
-              fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            }
-            _savedFanControl = null;
-            _savedFanTable = null;
-            Logger.Info("Auto fan protect: CPU cooled to <75°C, restored fan config");
+            ConfigService.Save("FanTable");
+            FanService.LoadFanConfig("cool.txt");
+            Logger.Info("Auto fan protect: CPU>95°C with fixed fan, switched to auto+cool");
+            _trayHelperRef?.ShowBalloonTip("高温自动保护", "CPU温度>95°C，已强制切换为降温曲线", 3000);
           }
         }
       }
-
-      // High-temp GPU protection: if temp >90°C, switch to GpuPriority preset
-      // (or disable TGP/PPAB if already on GpuPriority); restore on cooldown <80°C
-      float maxTemp = Math.Max(HardwareService.CPUTemp, HardwareService.GPUTemp);
-      if (maxTemp > 0) {
-        if (!_gpuProtectActive && maxTemp > 90) {
-          _gpuProtectActive = true;
-          _savedProtectPreset = ConfigService.Preset;
-          _savedProtectTgp = ConfigService.TgpEnabled;
-          _savedProtectPpab = ConfigService.PpabEnabled;
-          if (ConfigService.Preset == "GpuPriority") {
-            ConfigService.TgpEnabled = false;
-            ConfigService.PpabEnabled = false;
-            OmenHardware.SetGpuPowerState(false, false, 1);
-            Logger.Info("GPU protect: high temp on GpuPriority, disabled TGP/PPAB");
-            _trayHelperRef?.ShowBalloonTip("高温保护", "GPU优先模式下温度过高，已关闭TGP/PPAB", 3000);
-          } else {
-            PresetManager.SwitchPreset("GpuPriority");
-            // Apply hardware via WMI (SwitchPreset only updates in-memory ConfigService)
-            TrayService.SetGPUClockLimit(ConfigService.GpuClock);
-            OmenHardware.SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled,
-                ConfigService.DState == 2 ? 2 : 1);
-            string cpuPwr = ConfigService.CpuPower;
-            if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254);
-            else if (int.TryParse(cpuPwr?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
-              OmenHardware.SetCpuPowerLimit((byte)cpuVal);
-            Logger.Info($"GPU protect: high temp, switched from {_savedProtectPreset} to GpuPriority, WMI applied");
-            _trayHelperRef?.ShowBalloonTip("高温保护", "温度过高，已自动切换为GPU优先预设", 3000);
+      // Cooldown/restore: runs even if toggle was turned off mid-protection
+      if (_autoProtectActive && (fanProtectOn == false || HardwareService.CPUTemp < 80)) {
+        _autoProtectActive = false;
+        if (!string.IsNullOrEmpty(_savedFanControl)) {
+          ConfigService.FanControl = _savedFanControl;
+          ConfigService.FanTable = _savedFanTable;
+          ConfigService.Save("FanControl");
+          // Re-apply the saved fan mode
+          if (_savedFanControl == "silent" || _savedFanControl == "") {
+            FanService.LoadFanConfig((_savedFanTable ?? "silent") + ".txt");
+            SetMaxFanSpeedOff();
+            fanControlTimer.Change(0, 1000);
+          } else if (_savedFanControl == "smart" || _savedFanControl == "custom") {
+            SetMaxFanSpeedOff();
+            fanControlTimer.Change(0, 1000);
+          } else if (_savedFanControl.EndsWith("%") || _savedFanControl.EndsWith(" RPM")) {
+            int pct = _savedFanControl.EndsWith("%")
+              ? int.Parse(_savedFanControl.TrimEnd('%'))
+              : int.Parse(_savedFanControl.Replace(" RPM", "").Trim()) / 100;
+            SetMaxFanSpeedOff();
+            OmenHardware.SetFanLevel(pct, pct);
+            fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
           }
-        }
-        if (_gpuProtectActive && maxTemp < 80) {
-          _gpuProtectActive = false;
-          if (_savedProtectPreset == "GpuPriority") {
-            ConfigService.TgpEnabled = _savedProtectTgp;
-            ConfigService.PpabEnabled = _savedProtectPpab;
-            OmenHardware.SetGpuPowerState(_savedProtectTgp, _savedProtectPpab, 1);
-          } else if (!string.IsNullOrEmpty(_savedProtectPreset)) {
-            PresetManager.SwitchPreset(_savedProtectPreset);
-            // Apply hardware via WMI on restore too
-            TrayService.SetGPUClockLimit(ConfigService.GpuClock);
-            OmenHardware.SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled,
-                ConfigService.DState == 2 ? 2 : 1);
-            string cpuPwr = ConfigService.CpuPower;
-            if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254);
-            else if (int.TryParse(cpuPwr?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
-              OmenHardware.SetCpuPowerLimit((byte)cpuVal);
-          }
-          _savedProtectPreset = null;
-          Logger.Info("GPU protect: cooled below 80°C, restored previous state");
+          _savedFanControl = null;
+          _savedFanTable = null;
+          Logger.Info("Auto fan protect: CPU cooled to <80°C (or protection disabled), restored fan config");
         }
       }
 
@@ -513,7 +477,7 @@ namespace OmenSuperHub.Services {
       // Fan control timer
       fanControlTimer = new System.Threading.Timer((e) => {
         int fanSpeed1, fanSpeed2;
-        if (ConfigService.FanControl == "smart") {
+        if (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom") {
           fanSpeed1 = FanService.GetSmartFanSpeed(0) / 100;
           fanSpeed2 = ConfigService.FanSync ? fanSpeed1 : FanService.GetSmartFanSpeed(1) / 100;
         } else {
@@ -554,8 +518,7 @@ namespace OmenSuperHub.Services {
           SetFanLevel(100, 100);
         } else if (ConfigService.FanControl == "" || ConfigService.FanControl == "auto") {
           SetMaxFanSpeedOff();
-        } else if (ConfigService.FanControl == "custom") {
-          // Custom curve: load and apply, timer already running
+        } else if (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom") {
           var pts = FanService.LoadCustomCurve();
           if (pts.Count > 0) FanService.ApplyCustomCurve(pts);
         } else if (ConfigService.FanControl.Contains(" RPM")) {
@@ -572,7 +535,15 @@ namespace OmenSuperHub.Services {
     // Restore Config (applied on startup)
     // ══════════════════════════════════════════════════════
     public static void RestoreConfig() {
-      ConfigService.Load();
+      // ponytail: do NOT call ConfigService.Load() here on startup — it re-reads STALE
+      // registry values that predate the preset apply, overwriting preset values.
+      // App.xaml.cs already called ConfigService.Load() + SwitchPreset before us.
+      // Only reload on power-resume (countRestore path), where fresh values are needed.
+      if (countRestore == 0) {
+        // startup path — ConfigService already loaded and preset applied by App.xaml.cs
+      } else {
+        ConfigService.Load();
+      }
 
       // 重新应用预设，确保 ConfigService 字段反映预设值而非陈旧注册表独立值
       if (!string.IsNullOrEmpty(ConfigService.Preset)) {
@@ -602,25 +573,23 @@ namespace OmenSuperHub.Services {
         SetMaxFanSpeedOff();
         if (fanControlTimer != null) fanControlTimer.Change(0, 1000);
         UpdateCheckedState("fanControlGroup", ConfigService.FanTable == "cool" ? "降温模式" : "安静模式");
-      } else if (ConfigService.FanControl == "smart") {
+      } else if (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom") {
         string curveFile = ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt";
         FanService.LoadFanConfig(curveFile);
         FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
         SetMaxFanSpeedOff();
-        if (fanControlTimer != null) fanControlTimer.Change(0, 1000);
-        UpdateCheckedState("fanControlGroup", "智能风扇");
-      } else if (ConfigService.FanControl == "custom") {
-        SetMaxFanSpeedOff();
-        var pts = FanService.LoadCustomCurve();
-        // If a custom preset is active and has per-preset curves, use those instead
         string preset = ConfigService.Preset;
-        if (preset == "Custom1" || preset == "Custom2" || preset == "Custom3") {
-          var presetPts = FanService.LoadPresetCurve(preset, false);
-          if (presetPts.Count > 0) pts = presetPts;
+        if (PresetManager.IsCustom(preset)) {
+          var cpuPts = FanService.LoadPresetCurve(preset, false);
+          var gpuPts = FanService.LoadPresetCurve(preset, true);
+          if (cpuPts.Count > 0) FanService.ApplyCustomCurve(cpuPts);
+          if (gpuPts.Count > 0) FanService.ApplyCustomCurveGPU(gpuPts);
+        } else {
+          var pts = FanService.LoadCustomCurve();
+          if (pts.Count > 0) FanService.ApplyCustomCurve(pts);
         }
-        if (pts.Count > 0) FanService.ApplyCustomCurve(pts);
         if (fanControlTimer != null) fanControlTimer.Change(0, 1000);
-        UpdateCheckedState("fanControlGroup", "自定义曲线");
+        UpdateCheckedState("fanControlGroup", "智能自定义曲线");
       } else if (ConfigService.FanControl.EndsWith("%")) {
         SetMaxFanSpeedOff();
         if (fanControlTimer != null) fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -701,6 +670,39 @@ namespace OmenSuperHub.Services {
           UpdateCheckedState("DBGroup", "普通版本");
           break;
       }
+
+      // Refresh rate — restore saved display refresh rate
+      if (ConfigService.RefreshRate > 0)
+        ApplyRefreshRate(ConfigService.RefreshRate);
+
+      // Power plan — restore saved Windows power plan
+      if (!string.IsNullOrEmpty(ConfigService.PowerPlanGuid)) {
+        try {
+          Guid g = Guid.Parse(ConfigService.PowerPlanGuid);
+          NativeMethods.PowerSetActiveScheme(IntPtr.Zero, ref g);
+        } catch { }
+      }
+
+      // Power mode overlay — restore saved Windows power mode
+      try {
+        Guid pmGuid;
+        if (ConfigService.PowerMode == 0) pmGuid = NativeMethods.BEST_POWER_EFFICIENCY;
+        else if (ConfigService.PowerMode == 2) pmGuid = NativeMethods.BEST_PERFORMANCE;
+        else pmGuid = Guid.Empty;
+        NativeMethods.PowerSetActiveOverlayScheme(pmGuid);
+      } catch { }
+
+      // EcoQoS — restore saved state
+      try {
+        EcoQosService.SetEnabled(ConfigService.EcoQosEnabled);
+        EcoQosService.SetThrottlePlugged(ConfigService.EcoQosThrottlePlugged);
+      } catch { }
+
+      // GPU overclock — restore saved clock offsets
+      if (ConfigService.GpuCoreOverclock > 0)
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => { try { GpuAppManager.SetCoreClockOffset(ConfigService.GpuCoreOverclock); } catch { } });
+      if (ConfigService.GpuMemoryOverclock > 0)
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => { try { GpuAppManager.SetMemoryClockOffset(ConfigService.GpuMemoryOverclock); } catch { } });
 
       // Auto start
       if (ConfigService.AutoStart == "on") {
@@ -838,7 +840,7 @@ namespace OmenSuperHub.Services {
       });
     }
 
-    static void ApplyRefreshRate(int hz) {
+    internal static void ApplyRefreshRate(int hz) {
       var dm = new NativeMethods.DEVMODE();
       dm.dmSize = (short)System.Runtime.InteropServices.Marshal.SizeOf(dm);
       NativeMethods.EnumDisplaySettings(null, NativeMethods.ENUM_CURRENT_SETTINGS, ref dm);
@@ -895,25 +897,31 @@ namespace OmenSuperHub.Services {
       _trayHelperRef?.SetIcon(TrayIcon.Icon);
     }
 
+    // ── Cached GDI objects for dynamic icon (avoid per-tick allocation) ──
+    static Bitmap _dynamicIconBitmap;
+    static Graphics _dynamicIconGraphics;
+    static System.Drawing.Font _dynamicIconFont;
+
     public static void GenerateDynamicIcon(int number) {
-      using (Bitmap bitmap = new Bitmap(128, 128))
-      using (Graphics graphics = Graphics.FromImage(bitmap))
-      using (System.Drawing.Font font = new System.Drawing.Font("Arial", 52, System.Drawing.FontStyle.Bold)) {
-        graphics.Clear(System.Drawing.Color.Transparent);
-        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-
-        string text = number.ToString("00");
-        SizeF textSize = graphics.MeasureString(text, font);
-        float x = (bitmap.Width - textSize.Width) / 2;
-        float y = (bitmap.Height - textSize.Height) / 8;
-        graphics.DrawString(text, font, System.Drawing.Brushes.Tan, new PointF(x, y));
-
-        IntPtr hIcon = bitmap.GetHicon();
-        using (var temp = Icon.FromHandle(hIcon)) {
-          TrayIcon.Icon = (Icon)temp.Clone();
-        }
-        DestroyIcon(hIcon);
+      if (_dynamicIconBitmap == null) {
+        _dynamicIconBitmap = new Bitmap(128, 128);
+        _dynamicIconGraphics = Graphics.FromImage(_dynamicIconBitmap);
+        _dynamicIconFont = new System.Drawing.Font("Arial", 52, System.Drawing.FontStyle.Bold);
+        _dynamicIconGraphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
       }
+
+      _dynamicIconGraphics.Clear(System.Drawing.Color.Transparent);
+      string text = number.ToString("00");
+      SizeF textSize = _dynamicIconGraphics.MeasureString(text, _dynamicIconFont);
+      float x = (_dynamicIconBitmap.Width - textSize.Width) / 2;
+      float y = (_dynamicIconBitmap.Height - textSize.Height) / 8;
+      _dynamicIconGraphics.DrawString(text, _dynamicIconFont, System.Drawing.Brushes.Tan, new PointF(x, y));
+
+      IntPtr hIcon = _dynamicIconBitmap.GetHicon();
+      using (var temp = Icon.FromHandle(hIcon)) {
+        TrayIcon.Icon = (Icon)temp.Clone();
+      }
+      DestroyIcon(hIcon);
     }
 
     public static Icon CreateLogoIcon(int size) {
@@ -1178,25 +1186,16 @@ namespace OmenSuperHub.Services {
 
     // Named pipe for Omen Key
     static int _cyclePresetIndex = -1;
-
-    static System.IO.Pipes.PipeSecurity CreateOmenKeyPipeSecurity() {
-      var ps = new System.IO.Pipes.PipeSecurity();
-      var sid = System.Security.Principal.WindowsIdentity.GetCurrent().User;
-      ps.SetAccessRule(new System.IO.Pipes.PipeAccessRule(sid, System.IO.Pipes.PipeAccessRights.Read, System.Security.AccessControl.AccessControlType.Allow));
-      ps.SetAccessRule(new System.IO.Pipes.PipeAccessRule(sid, System.IO.Pipes.PipeAccessRights.Write, System.Security.AccessControl.AccessControlType.Allow));
-      return ps;
-    }
-
     static CancellationTokenSource _omenKeyCts;
+
     public static void GetOmenKeyTask() {
       _omenKeyCts?.Cancel();
       _omenKeyCts = new CancellationTokenSource();
       var token = _omenKeyCts.Token;
-      var pipeSecurity = CreateOmenKeyPipeSecurity();
       System.Threading.Tasks.Task.Run(async () => {
         while (!token.IsCancellationRequested) {
           try {
-            using (var pipeServer = new System.IO.Pipes.NamedPipeServerStream("OmenXHubPipe", System.IO.Pipes.PipeDirection.In, 1, System.IO.Pipes.PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.Asynchronous, 1024, 1024, pipeSecurity)) {
+            using (var pipeServer = new System.IO.Pipes.NamedPipeServerStream("OmenXHubPipe", System.IO.Pipes.PipeDirection.In)) {
               pipeServer.WaitForConnection();
               using (var reader = new StreamReader(pipeServer)) {
                 string message = reader.ReadToEnd();
@@ -1273,6 +1272,7 @@ namespace OmenSuperHub.Services {
       optimiseTimer?.Stop();
       checkFloatingTimer?.Stop();
       HardwareService.Close();
+      try { AmdSmuService.Shutdown(); } catch { }
       try {
         TrayIcon.Hide();
         TrayIcon.Dispose();
@@ -1281,6 +1281,7 @@ namespace OmenSuperHub.Services {
         _trayHelperRef?.Dispose();
       } catch { }
       // Schedule shutdown after current event completes to avoid re-entrancy
+      Views.MainWindow._allowClose = true;
       var app = System.Windows.Application.Current;
       if (app != null) {
         app.Dispatcher.BeginInvoke(new System.Action(() => {
@@ -1299,6 +1300,16 @@ namespace OmenSuperHub.Services {
     public const int DM_PELSWIDTH = 0x80000;
     public const int DM_PELSHEIGHT = 0x100000;
     public const int CDS_UPDATEREGISTRY = 0x00000001;
+
+    // Power plan P/Invoke for startup restore
+    public static readonly Guid BEST_POWER_EFFICIENCY = Guid.Parse("961cc777-2547-4f9d-8174-7d86181b8a7a");
+    public static readonly Guid BEST_PERFORMANCE = Guid.Parse("ded574b5-45a0-4f42-8737-46345c09c238");
+
+    [System.Runtime.InteropServices.DllImport("powrprof.dll")]
+    public static extern uint PowerSetActiveScheme(IntPtr userPowerKey, ref Guid activePolicyGuid);
+
+    [System.Runtime.InteropServices.DllImport("powrprof.dll")]
+    public static extern uint PowerSetActiveOverlayScheme(Guid overlaySchemeGuid);
 
     [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
     public static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);

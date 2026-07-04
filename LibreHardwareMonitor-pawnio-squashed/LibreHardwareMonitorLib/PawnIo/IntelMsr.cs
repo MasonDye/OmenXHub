@@ -5,6 +5,7 @@ namespace LibreHardwareMonitor.PawnIo;
 public class IntelMsr
 {
     private readonly long[] _inArray = new long[1];
+    private readonly long[] _writeArray = new long[2];
     private readonly PawnIo _pawnIO = PawnIo.LoadModuleFromResource(typeof(IntelMsr).Assembly, $"{nameof(LibreHardwareMonitor)}.Resources.PawnIo.IntelMSR.bin");
 
     public bool ReadMsr(uint index, out ulong value)
@@ -49,6 +50,21 @@ public class IntelMsr
         bool result = ReadMsr(index, out eax, out edx);
         ThreadAffinity.Set(previousAffinity);
         return result;
+    }
+
+    public bool WriteMsr(uint index, ulong value)
+    {
+        _writeArray[0] = index;
+        _writeArray[1] = (long)value;
+        try
+        {
+            _pawnIO.Execute("ioctl_write_msr", _writeArray, 0);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public void Close() => _pawnIO.Close();

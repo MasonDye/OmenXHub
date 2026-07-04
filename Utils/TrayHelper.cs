@@ -22,7 +22,6 @@ namespace OmenSuperHub.Utils {
 
     private readonly Action _bringToForeground;
     private System.Windows.Controls.ContextMenu _contextMenu;
-    private System.Timers.Timer _tooltipUpdateTimer;
     private CancellationTokenSource _popupCts;
     private TrayPopupWindow _popupWindow;
     private NativeTrayIcon _trayIcon;
@@ -40,9 +39,6 @@ namespace OmenSuperHub.Utils {
       _trayIcon.MouseLeave += OnMouseLeave;
       _trayIcon.Click += OnClick;
       _trayIcon.RightClick += OnRightClick;
-
-      _tooltipUpdateTimer = new System.Timers.Timer(1000) { AutoReset = true };
-      _tooltipUpdateTimer.Elapsed += (_, _) => UpdateTooltip();
     }
 
     void OnMouseEnter() {
@@ -52,8 +48,16 @@ namespace OmenSuperHub.Utils {
           var w = new TrayPopupWindow();
           w.UpdateContent();
           w.WindowStartupLocation = WindowStartupLocation.Manual;
-          MoveToCursor(w);
+          // Start off-screen to avoid flicker; reposition in Loaded after layout
+          w.Left = -10000;
+          w.Top = -10000;
           _popupWindow = w;
+          // ponytail: position one idle tick after ContentRendered — SizeToContent="Height"
+          // means ActualHeight isn't final until layout completes; positioning on Loaded
+          // (or even synchronously in ContentRendered) used the under-sized height, so the
+          // popup opened too low and its bottom sank past the tray icon.
+          w.ContentRendered += (s, e) => w.Dispatcher.BeginInvoke(new Action(() => MoveToCursor(w)),
+            System.Windows.Threading.DispatcherPriority.ApplicationIdle);
           w.Show();
         } catch { }
       });
@@ -77,10 +81,19 @@ namespace OmenSuperHub.Utils {
     void OnRightClick() {
       HidePopup();
       System.Windows.Application.Current?.Dispatcher.Invoke(() => {
+        _contextMenu.IsOpen = false;
         var mw = System.Windows.Application.Current.MainWindow;
         if (mw != null) {
-          var handle = new System.Windows.Interop.WindowInteropHelper(mw).Handle;
-          SetForegroundWindow(handle);
+          // Ensure the main window has an HWND even when it was never shown
+          // (tray-only boot mode via --tray). Without a host HWND the
+          // ContextMenu popup has no PresentationSource and never displays —
+          // this is why right-click showed nothing only when started at boot.
+          var handle = new System.Windows.Interop.WindowInteropHelper(mw).EnsureHandle();
+          _contextMenu.PlacementTarget = mw;
+          // Tray context menus must own the foreground or Windows suppresses
+          // the menu, so call this unconditionally — not only when visible.
+          if (handle != IntPtr.Zero)
+            SetForegroundWindow(handle);
         }
         _contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
         _contextMenu.IsOpen = true;
@@ -88,28 +101,71 @@ namespace OmenSuperHub.Utils {
     }
 
     void MoveToCursor(Window w) {
+      // ponytail: keep positioning anchored to the live cursor (the tray icon's
+      // physical location). WorkArea-based clamp so the popup stays on-screen
+      // whether the icon sits in the taskbar corner or the Win11 overflow popup.
+      // The previous catch-fallback hard-coded the main screen's bottom-right and
+      // ignored the cursor — that's why overflow-area hover opened the popup in
+      // the "old" corner position instead of above the icon.
       try {
+        // ponytail: force a synchronous measure/arrange so ActualHeight is final
+        // — without this, SizeToContent="Height" popups may still report a stale
+        // (under-sized) height at ContentRendered/Idle and open too low.
+        w.UpdateLayout();
+        double popupW_wpf = w.ActualWidth > 0 ? w.ActualWidth : 280;
+        double popupH_wpf = w.ActualHeight > 0 ? w.ActualHeight : 160;
         var mouse = Control.MousePosition;
         var screen = Screen.FromPoint(mouse).WorkingArea;
-        int cw = 220, ch = 110;
-        int gap = 30;
-        int left = mouse.X - cw - gap;
-        int top = mouse.Y - ch - 130;
-        if (left < screen.Left) left = mouse.X;
-        if (top < screen.Top) top = mouse.Y;
-        if (left + cw > screen.Right) left = screen.Right - cw;
-        if (top + ch > screen.Bottom) top = screen.Bottom - ch;
 
         float dpiX = 96f, dpiY = 96f;
-        using (var g = Graphics.FromHwnd(IntPtr.Zero)) {
-          dpiX = g.DpiX;
-          dpiY = g.DpiY;
-        }
-        w.Left = left * 96.0 / dpiX;
-        w.Top = top * 96.0 / dpiY;
+        try {
+          using (var g = Graphics.FromHwnd(IntPtr.Zero)) { dpiX = g.DpiX; dpiY = g.DpiY; }
+        } catch { /* fall back to 96 dpi */ }
+
+        // ponytail: do ALL math in PHYSICAL pixels (mouse coords and Screen are
+        // physical; WPF/Actual sizes are 1/96" — failing to convert the popup
+        // size to physical is the bug that made the popup open too low at scale):
+        // mismatched units → bottom ended up *below* the cursor.
+        double SX = dpiX / 96.0, SY = dpiY / 96.0;  // wpf→phys scale
+        double popupW = popupW_wpf * SX;            // phys px
+        double popupH = popupH_wpf * SY;            // phys px
+
+        // ponytail: cursor hovers somewhere on the tray icon (~20px tall glyph),
+        // not at its top edge. Lift the popup's bottom edge above the icon's TOP
+        // edge: gap = visual_margin (~8px) + icon_height (~20px) = 28 phys px
+        // below the cursor. Bottom edge stays a small distance above the icon.
+        const double gap = 28;
+        double bottomPhys = mouse.Y - gap;           // popup bottom edge (phys px)
+        double topPhys = bottomPhys - popupH;        // popup top edge (phys px)
+        double leftPhys = mouse.X - popupW / 2.0;   // horizontally center on cursor
+
+        // clamp to working area in physical pixels
+        double waLeft = screen.Left, waTop = screen.Top, waRight = screen.Right, waBottom = screen.Bottom;
+        if (leftPhys < waLeft) leftPhys = waLeft;
+        if (leftPhys + popupW > waRight) leftPhys = waRight - popupW;
+        // not enough room above → place below cursor instead
+        if (topPhys < waTop) { topPhys = mouse.Y + gap; }
+        if (topPhys + popupH > waBottom) topPhys = waBottom - popupH;
+
+        // back to WPF units for Window.Left/Top
+        double left = leftPhys * 96.0 / dpiX;
+        double top = topPhys * 96.0 / dpiY;
+
+        System.Diagnostics.Debug.WriteLine($"[popup] mouse=({mouse.X},{mouse.Y}) popupW_wpf={popupW_wpf} popupH_wpf={popupH_wpf} popupH_phys={popupH:F0} dpi={dpiX}x{dpiY} gap={gap} left={left:F0} top={top:F0} bottomPhys={bottomPhys:F0} cursorPhys={mouse.Y}");
+        w.Left = left;
+        w.Top = top;
       } catch {
-        w.Left = SystemParameters.WorkArea.Right - 230;
-        w.Top = SystemParameters.WorkArea.Bottom - 93;
+        // last-resort: above the cursor, clamped to the work area top
+        try {
+          var mouse = Control.MousePosition;
+          var wa = Screen.FromPoint(mouse).WorkingArea;
+          w.Left = Math.Max(wa.Left, mouse.X - (int)w.ActualWidth / 2);
+          w.Top = Math.Max(wa.Top, mouse.Y - (int)w.ActualHeight - 8);
+        } catch {
+          var wa = SystemParameters.WorkArea;
+          w.Left = wa.Right - 290;
+          w.Top = wa.Bottom - 200;
+        }
       }
     }
 
@@ -185,23 +241,15 @@ namespace OmenSuperHub.Utils {
       System.Windows.Application.Current?.Dispatcher.Invoke(() => BuildContextMenu());
     }
 
-    void UpdateTooltip() {
-      HardwareService.QueryHardware();
-      if (HardwareService.MonitorFan)
-        HardwareService.FanSpeedNow = OmenHardware.GetFanLevel();
-      try {
-        var tip = $"OMEN X Hub · CPU {(int)HardwareService.CPUTemp}°C";
-        if (ConfigService.MonitorGPU)
-          tip += $" · GPU {(int)HardwareService.GPUTemp}°C";
-        _trayIcon?.SetTip(tip);
-      } catch { }
+
+    public void SetTooltip(string tip) {
+      _trayIcon?.SetTip(tip);
     }
 
     public void MakeVisible() { _trayIcon.Show(); }
     public void SetIcon(Icon icon) { _trayIcon.Icon = (Icon)icon.Clone(); }
     public void StartTooltipTimer() {
-      UpdateTooltip();
-      _tooltipUpdateTimer?.Start();
+      // Tooltip is now updated by TrayService.UpdateTooltip() timer (no duplicate timer)
     }
 
     public void ShowBalloonTip(string title, string text, int timeoutMs) {
@@ -212,9 +260,6 @@ namespace OmenSuperHub.Utils {
       GC.SuppressFinalize(this);
       HidePopup();
       _popupCts?.Dispose();
-      _tooltipUpdateTimer?.Stop();
-      _tooltipUpdateTimer?.Dispose();
-      _tooltipUpdateTimer = null;
       _trayIcon?.Dispose();
       _trayIcon = null;
     }

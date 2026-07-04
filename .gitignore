@@ -44,6 +44,13 @@ AGENTS.md
 PROJECT_SUMMARY.md
 .opencode/
 .agent/
+.workbuddy/
+
+# Temp / misc
+clean_oxh.bat
+clean_oxh.txt
+test_chinese.txt
+Resources/RyzenSMU.bin
 
 # OS
 Thumbs.db

@@ -23,6 +23,7 @@ namespace OmenSuperHub.Pages {
       Loaded += (s, e) => {
         MacroMasterToggle.IsChecked = ConfigService.MacroEnabled;
         MacroController.SetEnabled(ConfigService.MacroEnabled);
+        AddMacroBtn.IsEnabled = ConfigService.MacroEnabled;
         RefreshList();
       };
     }
@@ -312,16 +313,18 @@ namespace OmenSuperHub.Pages {
       return win.ShowDialog();
     }
 
-    void MacroMasterToggle_Checked(object sender, RoutedEventArgs e) {
+    void     MacroMasterToggle_Checked(object sender, RoutedEventArgs e) {
       ConfigService.MacroEnabled = true;
       ConfigService.Save("MacroEnabled");
       MacroController.SetEnabled(true);
+      AddMacroBtn.IsEnabled = true;
     }
 
     void MacroMasterToggle_Unchecked(object sender, RoutedEventArgs e) {
       ConfigService.MacroEnabled = false;
       ConfigService.Save("MacroEnabled");
       MacroController.SetEnabled(false);
+      AddMacroBtn.IsEnabled = false;
     }
 
   }

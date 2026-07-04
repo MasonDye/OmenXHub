@@ -51,6 +51,11 @@
   <Color x:Key="ControlStrokeSecondary">#FFAAAAAA</Color>
   <Color x:Key="ControlStrokeDisabled">#FFDDDDDD</Color>
 
+  <!-- Card border colors (visible in light mode for clean thin borders) -->
+  <Color x:Key="CardBorderColor">#FF999999</Color>
+  <Color x:Key="CardStrokeColor">#FF888888</Color>
+  <Color x:Key="CardStrokeSecondaryColor">#FFAAAAAA</Color>
+
   <!-- Translucent Overlay Colors (black-based for light bg) -->
   <Color x:Key="LayerFillColorTranslucent">#19000000</Color>
   <Color x:Key="ControlStrokeColorOnAccentDefault">#0B000000</Color>

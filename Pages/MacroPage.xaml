@@ -10,21 +10,23 @@
 
       <ui:CardControl Margin="{StaticResource CardMargin}">
         <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel Orientation="Horizontal">
-              <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
-              <TextBlock x:Name="MacroEnabledText" Text="{x:Static app:Strings.MacroEnabled}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            </StackPanel>
-            <ui:ToggleSwitch Grid.Column="1" x:Name="MacroMasterToggle"
-                             Checked="MacroMasterToggle_Checked" Unchecked="MacroMasterToggle_Unchecked"/>
-          </Grid>
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock x:Name="MacroEnabledText" Text="{x:Static app:Strings.MacroEnabled}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <ui:ToggleSwitch Grid.Column="1" x:Name="MacroMasterToggle"
+                               Checked="MacroMasterToggle_Checked" Unchecked="MacroMasterToggle_Unchecked"/>
+            </Grid>
+            <TextBlock Text="{x:Static app:Strings.MacroMasterDesc}" FontSize="12"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0"/>
+          </StackPanel>
         </ui:CardControl.Header>
-        <TextBlock Text="{x:Static app:Strings.MacroMasterDesc}" FontSize="12"
-                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,8"/>
       </ui:CardControl>
 
       <StackPanel Margin="0,0,0,0">
