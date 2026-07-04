@@ -85,7 +85,7 @@ public partial class InterfacePortForm : Form
     {
         try
         {
-            Process.Start(new ProcessStartInfo(e.Link.LinkData.ToString()));
+            Process.Start(new ProcessStartInfo(e.Link.LinkData.ToString()))?.Dispose();
         }
         catch { }
     }

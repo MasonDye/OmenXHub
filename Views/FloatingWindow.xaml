@@ -5,53 +5,56 @@
         Background="Transparent" Topmost="True"
         ShowInTaskbar="False" ShowActivated="False"
         SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
         Left="0" Top="0">
+  <Window.Resources>
+    <Style TargetType="TextBlock">
+      <Setter Property="Effect">
+        <Setter.Value>
+          <DropShadowEffect Color="Black" Opacity="0.85" ShadowDepth="1" BlurRadius="2" Direction="315"/>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
 
-  <Border x:Name="ContentBorder" CornerRadius="8" Padding="14,10"
-          Background="{DynamicResource BgCardBrush}"
-          BorderBrush="{DynamicResource BorderDefaultBrush}"
-          BorderThickness="1">
-    <Border.Effect>
-      <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270"
-                        Color="#60000000" Opacity="0.4"/>
-    </Border.Effect>
-
-    <StackPanel x:Name="DataPanel">
-      <!-- CPU Row -->
-      <StackPanel Orientation="Horizontal" Margin="0,2">
-        <TextBlock Text="CPU" FontFamily="Consolas, Microsoft YaHei UI" Width="32"
-                   FontWeight="Bold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"
-                   x:Name="CpuLabel"/>
-        <TextBlock x:Name="CpuTempText" FontFamily="Consolas"
-                   FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center"/>
-        <TextBlock x:Name="CpuPowerText" FontFamily="Consolas"
-                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center"/>
+  <Grid Background="Transparent" MouseLeftButtonDown="ContentBorder_MouseLeftButtonDown">
+    <!-- ponytail: no background — text floats on desktop directly -->
+    <Border CornerRadius="4" Padding="4">
+      <StackPanel x:Name="DataPanel">
+        <!-- CPU Row -->
+        <WrapPanel x:Name="CpuRow" Margin="0,1">
+          <TextBlock Text="CPU" FontFamily="Consolas"
+                     FontWeight="ExtraBold" FontSize="13"
+                     Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="CpuLabel"/>
+          <TextBlock x:Name="CpuTempText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="CpuPowerText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
+        </WrapPanel>
+        <!-- GPU Row -->
+        <WrapPanel x:Name="GpuRow" Margin="0,1">
+          <TextBlock Text="GPU" FontFamily="Consolas"
+                     FontWeight="ExtraBold" FontSize="13"
+                     Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="GpuLabel"/>
+          <TextBlock x:Name="GpuTempText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="GpuPowerText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
+        </WrapPanel>
+        <!-- Fan Row -->
+        <WrapPanel x:Name="FanRow" Margin="0,1">
+          <TextBlock Text="FAN" FontFamily="Consolas"
+                     FontWeight="ExtraBold" FontSize="13"
+                     Foreground="#4FC3F7" VerticalAlignment="Center" x:Name="FanLabel"/>
+          <TextBlock x:Name="FanSpeedText" FontFamily="Consolas"
+                     FontWeight="Bold" FontSize="13"
+                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
+        </WrapPanel>
       </StackPanel>
-
-      <!-- GPU Row -->
-      <StackPanel x:Name="GpuRow" Orientation="Horizontal" Margin="0,2">
-        <TextBlock Text="GPU" FontFamily="Consolas, Microsoft YaHei UI" Width="32"
-                   FontWeight="Bold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"
-                   x:Name="GpuLabel"/>
-        <TextBlock x:Name="GpuTempText" FontFamily="Consolas"
-                   FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center"/>
-        <TextBlock x:Name="GpuPowerText" FontFamily="Consolas"
-                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center"/>
-      </StackPanel>
-
-      <!-- Fan Row -->
-      <StackPanel x:Name="FanRow" Orientation="Horizontal" Margin="0,2">
-        <TextBlock Text="FAN" FontFamily="Consolas, Microsoft YaHei UI" Width="32"
-                   FontWeight="Bold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"
-                   x:Name="FanLabel"/>
-        <TextBlock x:Name="FanSpeedText" FontFamily="Consolas"
-                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,0"
-                   VerticalAlignment="Center"/>
-      </StackPanel>
-    </StackPanel>
-  </Border>
+    </Border>
+  </Grid>
 </Window>

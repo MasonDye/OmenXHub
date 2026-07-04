@@ -1,28 +1,31 @@
+// App.xaml.cs - 应用程序入口
+// 互斥锁单实例、Logger 初始化、ConfigService 加载、主题/托盘/HWiNFO/API 启动、窗口管理
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Media;
 
 using OmenSuperHub.Services;
 using Microsoft.Win32;
+using static OmenSuperHub.OmenHardware;
 
 namespace OmenSuperHub {
   public partial class App : System.Windows.Application {
-    [DllImport("user32.dll")]
-    static extern bool SetProcessDPIAware();
-
     static Mutex _mutex;
     static int alreadyReadCode = 1000;
 
     protected override void OnStartup(StartupEventArgs e) {
+      RenderOptions.ProcessRenderMode = RenderMode.Default;
       base.OnStartup(e);
 
-      // Add dispatcher exception handler for XAML errors
+      // Dispatcher exception handler — log and prevent crash loop
       this.DispatcherUnhandledException += (s, args) => {
-        System.Windows.MessageBox.Show(
-          "DispatcherException: " + args.Exception.Message + "\n\n" + args.Exception.StackTrace,
-          "OmenSuperHub Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        Logger.Error($"Dispatcher exception: {args.Exception}");
         args.Handled = true;
       };
 
@@ -31,15 +34,37 @@ namespace OmenSuperHub {
         bool isNewInstance;
         _mutex = new Mutex(true, "MyUniqueAppMutex", out isNewInstance);
         if (!isNewInstance) {
+          ShowExistingWindow();
           Shutdown();
           return;
         }
 
-        if (Environment.OSVersion.Version.Major >= 6) {
-          SetProcessDPIAware();
+        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
+        // Initialize Logger
+        Logger.Info("OmenXHub starting...");
+
+        // Load language config
+        ConfigService.Load();
+        CustomPresetNames.Load(); // file fallback for custom preset names
+        // Re-apply saved preset so its values populate ConfigService fields before RestoreConfig
+        if (!string.IsNullOrEmpty(ConfigService.Preset)) {
+          PresetManager.SwitchPreset(ConfigService.Preset);
+          // Apply GPU power state via WMI (SwitchPreset only updates in-memory ConfigService)
+          try { OmenHardware.SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled, ConfigService.DState == 2 ? 2 : 1); } catch { }
+        }
+        if (!string.IsNullOrEmpty(ConfigService.Language)) {
+          switch (ConfigService.Language) {
+            case "TraditionalChinese": Strings.Current = AppLanguage.TraditionalChinese; break;
+            case "English": Strings.Current = AppLanguage.English; break;
+            default: Strings.Current = AppLanguage.SimplifiedChinese; break;
+          }
         }
 
-        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+        // Preload NvidiaApi.dll for Hot Switch (DDS)
+        if (HardwareService.PowerOnline) {
+          try { OmenHardware.ExtractAndPreloadNativeDll("NvidiaApi.dll"); } catch { }
+        }
 
         // Initialize System Theme integration
         ThemeService.Initialize();
@@ -47,6 +72,9 @@ namespace OmenSuperHub {
         // Initialize power status
         HardwareService.PowerOnline = System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
         HardwareService.MonitorQuery();
+
+        // Set unleash mode — required before CPU power limit takes effect
+        try { SetFanMode((byte)0x31); } catch { }
 
         // Version-based read code
         Version version = Assembly.GetExecutingAssembly().GetName().Version;
@@ -56,17 +84,52 @@ namespace OmenSuperHub {
         // Initialize tray icon (WinForms NotifyIcon + WPF ContextMenu)
         TrayService.InitTrayIcon();
 
-        // Initialize hardware monitoring
-        HardwareService.LibreComputer.Open();
+        // Power change handler
+        SystemEvents.PowerModeChanged += TrayService.OnPowerChange;
 
-        // Start timers
-        TrayService.StartTimers();
+        // Show main window BEFORE heavy init (skip to tray if --tray flag)
+        string[] cmdArgs = Environment.GetCommandLineArgs();
+        if (cmdArgs.Length > 1 && cmdArgs[1] == "--tray") {
+          Views.MainWindow.StartTrayOnly();
+        } else {
+          Views.MainWindow.ShowInstance();
+        }
+
+        // Init hardware and timers in background — window already visible
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+          HardwareService.LibreComputer.Open();
+          System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => {
+            TrayService.StartTimers();
+            TrayService.StartTrayHelperTimers();
+          }), System.Windows.Threading.DispatcherPriority.Background);
+        });
+
+        // Start HWiNFO64 integration if enabled
+        HWiNFOService.StartStopIfNeeded();
+
+        // Start local HTTP API server if enabled in settings
+        if (ConfigService.HttpApiEnabled) {
+          System.Threading.ThreadPool.QueueUserWorkItem(_ => HardwareApiService.Start());
+        }
 
         // Start Omen Key listener
         TrayService.GetOmenKeyTask();
 
-        // Restore last settings
-        TrayService.RestoreConfig();
+        // Defer non-critical startup work (RestoreConfig, Automation, Macro)
+        Dispatcher.BeginInvoke(new Action(() => {
+          TrayService.RestoreConfig();
+          AutomationService.Initialize();
+          AutomationProcessor.Start();
+          MacroService.Initialize();
+          MacroController.Start();
+          Views.OsdWindow.StartLockKeyMonitor();
+        }), System.Windows.Threading.DispatcherPriority.Background);
+
+        // Floating window in separate BeginInvoke so it runs even if RestoreConfig throws
+        Dispatcher.BeginInvoke(new Action(() => {
+          if (ConfigService.FloatingBar == "on")
+            Views.FloatingWindow.ShowInstances();
+        }), System.Windows.Threading.DispatcherPriority.Background);
 
         // Show help for new version
         if (ConfigService.AlreadyRead != alreadyReadCode) {
@@ -74,9 +137,6 @@ namespace OmenSuperHub {
           ConfigService.AlreadyRead = alreadyReadCode;
           ConfigService.Save("AlreadyRead");
         }
-
-        // Power change handler
-        SystemEvents.PowerModeChanged += TrayService.OnPowerChange;
       } catch (Exception ex) {
         System.Windows.MessageBox.Show(
           "Startup Error: " + ex.Message + "\n\n" + ex.ToString(),
@@ -84,9 +144,86 @@ namespace OmenSuperHub {
       }
     }
 
+    static void ShowExistingWindow() {
+      using (var self = Process.GetCurrentProcess()) {
+        foreach (var p in Process.GetProcessesByName(self.ProcessName)) {
+          if (p.Id == self.Id) continue;
+          p.WaitForInputIdle(3000);
+          p.Refresh();
+          IntPtr hWnd = p.MainWindowHandle;
+          if (hWnd == IntPtr.Zero)
+            hWnd = FindWindowForProcess(p.Id);
+          if (hWnd != IntPtr.Zero) {
+            PostMessage(hWnd, WM_SHOW_MAIN, IntPtr.Zero, IntPtr.Zero);
+            return;
+          }
+        }
+      }
+    }
+
+    static IntPtr FindWindowForProcess(int processId) {
+      IntPtr found = IntPtr.Zero;
+      EnumWindows((hWnd, lParam) => {
+        GetWindowThreadProcessId(hWnd, out int pid);
+        if (pid == processId) {
+          found = hWnd;
+          return false;
+        }
+        return true;
+      }, IntPtr.Zero);
+      return found;
+    }
+
+    internal static readonly uint WM_SHOW_MAIN = RegisterWindowMessage("OmenXHubShowMain");
+
+    const int SW_SHOW = 5;
+    const int SW_RESTORE = 9;
+
+    delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+    [DllImport("user32.dll")]
+    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    static extern bool FlashWindow(IntPtr hWnd, bool bInvert);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    static extern uint RegisterWindowMessage(string lpString);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
     protected override void OnExit(ExitEventArgs e) {
-      _mutex?.ReleaseMutex();
-      _mutex?.Dispose();
+      try { MacroController.Stop(); } catch { }
+      try { HardwareApiService.Stop(); } catch { }
+      try { HWiNFOService.Stop(); } catch { }
+      try { ThemeService.Cleanup(); } catch { }
+      try { EcoQosService.Cleanup(); } catch { }
+      try { AutomationProcessor.Stop(); } catch { }
+      try { SystemEvents.PowerModeChanged -= TrayService.OnPowerChange; } catch { }
+      try { _mutex?.ReleaseMutex(); } catch { }
+      try { _mutex?.Dispose(); } catch { }
       base.OnExit(e);
     }
 

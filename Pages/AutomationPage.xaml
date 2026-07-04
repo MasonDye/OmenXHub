@@ -1,0 +1,86 @@
+<Page x:Class="OmenSuperHub.Pages.AutomationPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:app="clr-namespace:OmenSuperHub"
+      Title="{x:Static app:Strings.PageAutomation}">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
+      <TextBlock x:Name="HeadingAutomation" Text="{x:Static app:Strings.AutomationHeading}" Tag="AutomationHeading" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
+
+      <!-- ══════ 1. 主开关卡片 ══════ -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Settings24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="启用自动化" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock Text="只有在本程序运行时，自动化才可生效。" FontSize="11"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="AutoEnableToggle" Grid.Column="1" VerticalAlignment="Center"
+                            Checked="AutoEnableToggle_Checked" Unchecked="AutoEnableToggle_Unchecked"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- ══════ 2. 自动化列表区域（无卡片） ══════ -->
+      <StackPanel Margin="0,0,0,0">
+        <!-- 动态管道列表 -->
+        <StackPanel x:Name="AutoPipelineList"/>
+        <!-- 空状态 / 操作按钮 -->
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+            <TextBlock x:Name="AutoNoPipelines"
+                       Text="当前没有自动化脚本，请点击&#x201C;新建&#x201D;来新建一项。"
+                       FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                       Margin="0,8,0,8" Visibility="Visible"/>
+            <Button x:Name="AutoAddPipelineBtn" Content="新建" MinWidth="100" Height="30"
+                    HorizontalAlignment="Right"
+                    Click="AutoAddPipeline_Click"/>
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+
+      <!-- ══════ 3. 快捷操作区域 ══════ -->
+      <StackPanel Margin="0,24,0,0">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel VerticalAlignment="Top">
+            <StackPanel Orientation="Horizontal">
+              <ui:SymbolIcon Symbol="DeviceEq24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <TextBlock x:Name="AutoQuickActionsText" Text="{x:Static app:Strings.AutomationQuickActions}"
+                         FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="你可以在系统托盘的图标上右键来快速触发这些快捷操作。" FontSize="11"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0"/>
+          </StackPanel>
+          <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+            <TextBlock x:Name="AutoNoQuickActions"
+                       Text="没有快捷操作，请点击&#x201C;新建&#x201D;来新建快捷操作。"
+                       FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                       Margin="0,0,0,8" Visibility="Visible"/>
+            <Button x:Name="AutoAddQuickActionBtn" Content="新建" MinWidth="100" Height="30"
+                    HorizontalAlignment="Right"
+                    Click="AutoAddQuickAction_Click"/>
+          </StackPanel>
+        </Grid>
+        <WrapPanel x:Name="AutoQuickActionPanel" Margin="0,8,0,0"/>
+      </StackPanel>
+
+    </StackPanel>
+  </ScrollViewer>
+</Page>

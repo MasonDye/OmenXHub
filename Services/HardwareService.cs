@@ -1,3 +1,5 @@
+// HardwareService.cs - 硬件监控服务
+// LibreHardwareMonitor 集成，CPU/GPU 温度/功耗/利用率/时钟轮询，GPU 自动启停
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,19 +13,40 @@ using LibreSensorType = LibreHardwareMonitor.Hardware.SensorType;
 
 namespace OmenSuperHub.Services {
   internal static class HardwareService {
+    static readonly object _lock = new object();
+    static DateTime _lastQueryTime = DateTime.MinValue;
+    static readonly TimeSpan _cacheInterval = TimeSpan.FromMilliseconds(800);
+
     // ═══════════════════════════════════════════════════════
-    // Hardware State
+    // Hardware State (thread-safe)
     // ═══════════════════════════════════════════════════════
-    public static float CPUTemp = 50;
-    public static float GPUTemp = 40;
-    public static float CPUPower = 0;
-    public static float GPUPower = 0;
+    static float _cpuTemp = 50;
+    public static float CPUTemp { get { lock (_lock) return _cpuTemp; } set { lock (_lock) _cpuTemp = value; } }
+    static float _gpuTemp = 40;
+    public static float GPUTemp { get { lock (_lock) return _gpuTemp; } set { lock (_lock) _gpuTemp = value; } }
+    static float _cpuPower = 0;
+    public static float CPUPower { get { lock (_lock) return _cpuPower; } set { lock (_lock) _cpuPower = value; } }
+    static float _gpuPower = 0;
+    public static float GPUPower { get { lock (_lock) return _gpuPower; } set { lock (_lock) _gpuPower = value; } }
+    static float _cpuUsage = 0;
+    public static float CPUUsage { get { lock (_lock) return _cpuUsage; } set { lock (_lock) _cpuUsage = value; } }
+    static float _gpuUsage = 0;
+    public static float GPUUsage { get { lock (_lock) return _gpuUsage; } set { lock (_lock) _gpuUsage = value; } }
+    static float _cpuClock = 0;
+    public static float CPUClock { get { lock (_lock) return _cpuClock; } set { lock (_lock) _cpuClock = value; } }
+    static float _gpuClock = 0;
+    public static float GPUClock { get { lock (_lock) return _gpuClock; } set { lock (_lock) _gpuClock = value; } }
     public static float RespondSpeed = 0.4f;
+    public static bool MonitorCPU = true;
     public static bool MonitorGPU = true;
     public static bool MonitorFan = true;
     public static bool IsConnectedToNVIDIA = true;
-    public static bool PowerOnline = true;
-    public static List<int> FanSpeedNow = new List<int> { 20, 23 };
+    static bool _powerOnline = true;
+    public static bool PowerOnline { get { lock (_lock) return _powerOnline; } set { lock (_lock) _powerOnline = value; } }
+    static List<int> _fanSpeedNow = new List<int> { 20, 23 };
+    public static List<int> FanSpeedNow { get { lock (_lock) return new List<int>(_fanSpeedNow); } set { lock (_lock) _fanSpeedNow = value; } }
+    public static bool IsAmbientSensorSupported;
+    public static string PawnIOState = "";
 
     // Internal state
     public static LibreComputer LibreComputer = new LibreComputer() { IsCpuEnabled = true, IsGpuEnabled = true };
@@ -91,6 +114,19 @@ namespace OmenSuperHub.Services {
       IsConnectedToNVIDIA = true;
     }
 
+    public static void DetectAmbientSensor() {
+      int irTemp = OmenHardware.GetSensorTemperature(0);
+      int ambientTemp = OmenHardware.GetSensorTemperature(1);
+      IsAmbientSensorSupported = ambientTemp > 1 && irTemp != ambientTemp;
+    }
+
+    public static void RefreshPawnIOState() {
+      if (OmenHardware.IsPawnIOInstalled())
+        PawnIOState = OmenHardware.GetPawnIOState();
+      else
+        PawnIOState = "Not Installed";
+    }
+
     // ═══════════════════════════════════════════════════════
     // Hardware Query
     // ═══════════════════════════════════════════════════════
@@ -102,12 +138,14 @@ namespace OmenSuperHub.Services {
     public static event Action<bool, string> OnGpuMonitoringChanged;
 
     public static void QueryHardware() {
+      if ((DateTime.Now - _lastQueryTime) < _cacheInterval) return;
+      _lastQueryTime = DateTime.Now;
       float libreTempCPU = -300;
       float librePowerCPU = -1;
       bool getGPU = false;
 
       foreach (LibreIHardware hardware in LibreComputer.Hardware) {
-        if (hardware.HardwareType == LibreHardwareType.Cpu || hardware.HardwareType == LibreHardwareType.GpuNvidia || hardware.HardwareType == LibreHardwareType.GpuAmd) {
+        if (hardware.HardwareType == LibreHardwareType.Cpu || hardware.HardwareType == LibreHardwareType.GpuNvidia || hardware.HardwareType == LibreHardwareType.GpuAmd || hardware.HardwareType == LibreHardwareType.GpuIntel) {
           hardware.Update();
 
           foreach (LibreISensor sensor in hardware.Sensors) {
@@ -117,6 +155,12 @@ namespace OmenSuperHub.Services {
               }
               if (sensor.Name == "CPU Package" && sensor.SensorType == LibreSensorType.Power) {
                 librePowerCPU = sensor.Value.GetValueOrDefault();
+              }
+              if (sensor.SensorType == LibreSensorType.Load && sensor.Name == "CPU Total") {
+                CPUUsage = (float)sensor.Value.GetValueOrDefault();
+              }
+              if (sensor.SensorType == LibreSensorType.Clock) {
+                CPUClock = Math.Max(CPUClock, (float)sensor.Value.GetValueOrDefault());
               }
             } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuNvidia) {
               if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
@@ -128,6 +172,24 @@ namespace OmenSuperHub.Services {
                   GPUPower = 0;
                 else
                   GPUPower = sensor.Value.GetValueOrDefault();
+              }
+              if (sensor.SensorType == LibreSensorType.Load && sensor.Name == "GPU Core") {
+                GPUUsage = (float)sensor.Value.GetValueOrDefault();
+              }
+              if (sensor.SensorType == LibreSensorType.Clock && (sensor.Name == "GPU Core" || sensor.Name.Contains("Core"))) {
+                GPUClock = Math.Max(GPUClock, (float)sensor.Value.GetValueOrDefault());
+              }
+            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuAmd) {
+              if (sensor.SensorType == LibreSensorType.Load && sensor.Name == "GPU Core") {
+                GPUUsage = (float)sensor.Value.GetValueOrDefault();
+              }
+              if (sensor.SensorType == LibreSensorType.Clock && (sensor.Name == "GPU Core" || sensor.Name.Contains("Core"))) {
+                GPUClock = Math.Max(GPUClock, (float)sensor.Value.GetValueOrDefault());
+              }
+            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuIntel) {
+              if (sensor.SensorType == LibreSensorType.Load) {
+                float val = (float)sensor.Value.GetValueOrDefault();
+                if (val > GPUUsage) GPUUsage = val;
               }
             }
           }
@@ -205,12 +267,32 @@ namespace OmenSuperHub.Services {
     // Monitor Text Generation
     // ═══════════════════════════════════════════════════════
     public static string GetMonitorText() {
-      string str = $"CPU: {CPUTemp:F1}°C, {CPUPower:F1}W";
-      if (MonitorGPU)
-        str += $"\nGPU: {GPUTemp:F1}°C, {GPUPower:F1}W";
-      if (MonitorFan)
-        str += $"\nFan:  {FanSpeedNow[0] * 100}, {FanSpeedNow[1] * 100}";
-      return str;
+      var sb = new System.Text.StringBuilder();
+      if (CPUPower > 0.01f)
+        sb.AppendFormat("CPU: {0:F1}°C, {1:F1}W", CPUTemp, CPUPower);
+      else {
+        if (PawnIOState == "RUNNING")
+          sb.Append("CPU: ").Append(Strings.MonitorPrepareLabel);
+        else if (!string.IsNullOrEmpty(PawnIOState))
+          sb.Append("CPU: PawnIO ").Append(PawnIOState);
+      }
+      if (MonitorGPU) {
+        if (sb.Length > 0) sb.Append('\n');
+        if (PawnIOState == "RUNNING" && GPUPower < 0.01f)
+          sb.Append("GPU: ").Append(Strings.MonitorPrepareLabel);
+        else
+          sb.AppendFormat("GPU: {0:F1}°C, {1:F1}W", GPUTemp, GPUPower);
+      }
+      if (MonitorFan) {
+        if (sb.Length > 0) sb.Append('\n');
+        sb.Append("Fan:  ").Append(FanSpeedNow[0] * 100).Append(", ").Append(FanSpeedNow[1] * 100);
+      }
+      if (sb.Length == 0) sb.Append(Strings.MonitorClosed);
+      return sb.ToString();
+    }
+
+    public static void ApplyDisplayMode() {
+      RespondSpeed = ConfigService.DisplayMode == "raw" ? 1.0f : 0.4f;
     }
 
     public static void Close() {

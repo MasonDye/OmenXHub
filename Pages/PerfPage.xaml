@@ -1,0 +1,728 @@
+<Page x:Class="OmenSuperHub.Pages.PerfPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:app="clr-namespace:OmenSuperHub"
+      Title="{x:Static app:Strings.PagePerf}"
+      SizeChanged="PerfPage_SizeChanged">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
+
+      <TextBlock Text="{x:Static app:Strings.PerfControl}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
+
+      <StackPanel Orientation="Horizontal" Margin="0,8,0,12">
+        <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <TextBlock Text="{x:Static app:Strings.PerfGroupCpu}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+      </StackPanel>
+
+      <Grid x:Name="CpuPerfGrid">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ui:CardControl Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="CpuPowerCard">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="DeveloperBoard24" Margin="0,0,6,0"/>
+                    <TextBlock Text="{x:Static app:Strings.CpuPowerHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <TextBlock Text="{x:Static app:Strings.PerfAdjustCpuPower}" FontSize="12"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1" VerticalAlignment="Top">
+                  <ToggleButton x:Name="CpuPowerExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                                 Checked="CpuPowerExpand_Changed" Unchecked="CpuPowerExpand_Changed">
+                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12"/>
+                  </ToggleButton>
+                  <ComboBox x:Name="CpuPowerCombo" MinWidth="100" Margin="0,0,0,0"
+                            SelectionChanged="CpuPower_SelectionChanged"/>
+                </WrapPanel>
+              </Grid>
+              <StackPanel x:Name="CpuPowerExtra" Visibility="Collapsed" Margin="0,12,0,0">
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12">
+                    <Run Text="{x:Static app:Strings.CpuPowerPL1}"/><Run Text=":"/>
+                  </TextBlock>
+                  <Slider x:Name="CpuPowerPL1Slider" Grid.Column="1" Minimum="1" Maximum="254" TickFrequency="1"
+                          IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                          ValueChanged="CpuPowerPL1Slider_Changed"/>
+                  <TextBlock x:Name="CpuPowerPL1SliderVal" Grid.Column="2" Text="55 W" Width="50"
+                             TextAlignment="Right" VerticalAlignment="Center" FontSize="12" Margin="4,0,0,0"/>
+                  <TextBox x:Name="CpuPowerPL1Input" Grid.Column="3" Width="80" Height="34" Margin="8,0,0,0"/>
+                  <Button x:Name="CpuPowerPL1Apply" Grid.Column="4" Width="32" Height="34" Padding="0" Margin="4,0,0,0"
+                          Click="CpuPowerPL1Apply_Click">
+                    <ui:SymbolIcon Symbol="Save24" FontSize="12"/>
+                  </Button>
+                </Grid>
+                <Grid Margin="0,0,0,4">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12">
+                    <Run Text="{x:Static app:Strings.CpuPowerPL2}"/><Run Text=":"/>
+                  </TextBlock>
+                  <Slider x:Name="CpuPowerPL2Slider" Grid.Column="1" Minimum="1" Maximum="254" TickFrequency="1"
+                          IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                          ValueChanged="CpuPowerPL2Slider_Changed"/>
+                  <TextBlock x:Name="CpuPowerPL2SliderVal" Grid.Column="2" Text="55 W" Width="50"
+                             TextAlignment="Right" VerticalAlignment="Center" FontSize="12" Margin="4,0,0,0"/>
+                  <TextBox x:Name="CpuPowerPL2Input" Grid.Column="3" Width="80" Height="34" Margin="8,0,0,0"/>
+                  <Button x:Name="CpuPowerPL2Apply" Grid.Column="4" Width="32" Height="34" Padding="0" Margin="4,0,0,0"
+                          Click="CpuPowerPL2Apply_Click">
+                    <ui:SymbolIcon Symbol="Save24" FontSize="12"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="CpuPowerError" Visibility="Collapsed" Foreground="{DynamicResource AccentRedBrush}" Margin="0,4,0,0" FontSize="11"/>
+              </StackPanel>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="IccMaxCard">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.IccMaxHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1">
+                  <ToggleButton x:Name="IccMaxExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                                 VerticalAlignment="Top"
+                                 Checked="IccMaxExpand_Changed" Unchecked="IccMaxExpand_Changed">
+                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12"/>
+                  </ToggleButton>
+                  <ComboBox x:Name="IccMaxCombo"  MinWidth="100" Margin="0,0,0,0"
+                            SelectionChanged="IccMax_Changed"/>
+                </WrapPanel>
+              </Grid>
+              <StackPanel x:Name="IccMaxExtra" Visibility="Collapsed" Margin="0,6,0,0">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <Slider x:Name="IccMaxSlider" Minimum="0" Maximum="255" TickFrequency="5"
+                          IsSnapToTickEnabled="True"
+                          ValueChanged="IccMaxSlider_Changed"/>
+                  <TextBlock x:Name="IccMaxSliderVal" Grid.Column="1" Text="0" Width="50"
+                             TextAlignment="Right" VerticalAlignment="Center" FontSize="12" Margin="4,0,0,0"/>
+                  <TextBox x:Name="IccMaxInput" Grid.Column="2" Width="70" Height="34" Margin="8,0,0,0"/>
+                  <Button x:Name="IccMaxApply" Grid.Column="3" Width="32" Height="34" Padding="0" Margin="4,0,0,0"
+                          Click="IccMaxApply_Click">
+                    <ui:SymbolIcon Symbol="Save24" FontSize="12"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="IccMaxError" Visibility="Collapsed" Foreground="{DynamicResource AccentRedBrush}" Margin="0,4,0,0" FontSize="11"/>
+              </StackPanel>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="AcLoadLineCard">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
+                <TextBlock Text="{x:Static app:Strings.AcLoadLineHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <ComboBox x:Name="AcLoadLineCombo"  Margin="0,8,0,0"
+                        SelectionChanged="AcLoadLine_Changed"/>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
+                <TextBlock Text="{x:Static app:Strings.PowerModeHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+            </StackPanel>
+          </ui:CardControl.Header>
+          <ComboBox x:Name="PowerModeCombo"  Margin="0,8,0,0"
+                    SelectionChanged="PowerMode_SelectionChanged"/>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="2" Grid.Column="0" Margin="0,0,4,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
+                <TextBlock Text="{x:Static app:Strings.PowerPlanHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+            </StackPanel>
+          </ui:CardControl.Header>
+          <ComboBox x:Name="PowerPlanCombo"  Margin="0,8,0,0"
+                    SelectionChanged="PowerPlan_SelectionChanged"/>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="2" Grid.Column="1" Margin="4,0,0,8" x:Name="EcoQosCard">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="LeafOne24" Margin="0,0,6,0"/>
+                <TextBlock Text="{x:Static app:Strings.EcoQosHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock Text="{x:Static app:Strings.PerfEcoQosDesc}" FontSize="12"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+          </ui:CardControl.Header>
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{x:Static app:Strings.EcoQosEnable}" FontSize="12" VerticalAlignment="Center"/>
+              <ui:ToggleSwitch x:Name="EcoQosToggle" Grid.Column="1"
+                              VerticalAlignment="Center"
+                              Checked="EcoQosToggle_Checked" Unchecked="EcoQosToggle_Unchecked"/>
+            </Grid>
+            <StackPanel x:Name="EcoQosExtra" Margin="0,6,0,0">
+              <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Static app:Strings.EcoQosThrottlePlugged}" FontSize="12" VerticalAlignment="Center"/>
+                <ui:ToggleSwitch x:Name="EcoQosThrottlePluggedToggle" Grid.Column="1"
+                                Checked="EcoQosThrottlePlugged_Changed" Unchecked="EcoQosThrottlePlugged_Changed"/>
+              </Grid>
+              <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Static app:Strings.EcoQosWhitelist}" FontSize="12" VerticalAlignment="Center"/>
+                <ui:Button x:Name="EcoQosWhitelistEdit" Grid.Column="1"
+                        MinWidth="60" Height="24" Padding="8,0" Content="{x:Static app:Strings.ButtonEdit}" Click="EcoQosWhitelistEdit_Click" Appearance="Secondary"/>
+              </Grid>
+              <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Static app:Strings.EcoQosBlacklist}" FontSize="12" VerticalAlignment="Center"/>
+                <ui:Button x:Name="EcoQosBlacklistEdit" Grid.Column="1"
+                        MinWidth="60" Height="24" Padding="8,0" Content="{x:Static app:Strings.ButtonEdit}" Click="EcoQosBlacklistEdit_Click" Appearance="Secondary"/>
+              </Grid>
+            </StackPanel>
+          </StackPanel>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="3" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="CoreKeepCard">
+          <ui:CardControl.Header>
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+              <DockPanel Grid.Row="0">
+                <ui:ToggleSwitch x:Name="CoreKeepMasterToggle" DockPanel.Dock="Right"
+                                VerticalAlignment="Top" Margin="12,0,2,0"
+                                Checked="CoreKeepMasterToggle_Changed" Unchecked="CoreKeepMasterToggle_Changed"/>
+                <StackPanel VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="AppsList24" Margin="0,0,6,0"/>
+                    <TextBlock Text="{x:Static app:Strings.CoreKeepHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <TextBlock Text="{x:Static app:Strings.PerfCoreKeepDesc}" FontSize="12"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+              </DockPanel>
+              <StackPanel Grid.Row="1" Margin="0,8,0,0" HorizontalAlignment="Center">
+                <ListBox x:Name="CoreKeepList" Height="96" MinWidth="420" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,6">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Static app:Strings.CoreKeepProcessLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                  <TextBox x:Name="CoreKeepProcInput" Grid.Column="1" Height="34" MinWidth="180"/>
+                  <Button x:Name="CoreKeepRefreshBtn" Grid.Column="2" MinWidth="60"
+                          Content="{x:Static app:Strings.ButtonRefresh}" Margin="6,0,0,0" Click="CoreKeepRefresh_Click"/>
+                  <Button x:Name="CoreKeepDeleteBtn" Grid.Column="3" MinWidth="40"
+                          Content="{x:Static app:Strings.ButtonDelete}" Margin="6,0,0,0" Click="CoreKeepDelete_Click"/>
+                </Grid>
+                <Grid Margin="0,0,0,2">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                  </Grid.RowDefinitions>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Static app:Strings.CoreKeepPriorityLabel}" Grid.Row="0" Grid.Column="0" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,2"/>
+                  <TextBlock x:Name="CoreKeepPriorityText" Grid.Row="0" Grid.Column="1" Text="-" FontSize="12" VerticalAlignment="Center"/>
+                  <TextBlock Text="{x:Static app:Strings.CoreKeepAffinityLabel}" Grid.Row="1" Grid.Column="0" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                  <TextBlock x:Name="CoreKeepAffinityText" Grid.Row="1" Grid.Column="1" Text="-" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock x:Name="CoreKeepStatus" FontSize="12" Margin="0,2,0,2"/>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBox x:Name="CoreKeepNewProcInput" Height="34" Width="160"/>
+                  <WrapPanel Grid.Column="1">
+                    <Button x:Name="CoreKeepAddBtn" MinWidth="50" Content="{x:Static app:Strings.ButtonAdd}"
+                            Margin="6,0,0,0" Click="CoreKeepAdd_Click"/>
+                  </WrapPanel>
+                </Grid>
+              </StackPanel>
+            </Grid>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+      </Grid>
+
+      <StackPanel Orientation="Horizontal" Margin="0,8,0,12">
+        <ui:SymbolIcon Symbol="DeviceEq24" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <TextBlock Text="{x:Static app:Strings.PerfGroupGpu}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+      </StackPanel>
+
+      <Grid x:Name="GpuPerfGrid">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ui:CardControl Grid.Row="0" Grid.Column="0" Margin="0,0,4,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Clock24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.GpuClockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1">
+                  <ToggleButton x:Name="GpuClockExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                                 VerticalAlignment="Top"
+                                 Checked="GpuClockExpand_Changed" Unchecked="GpuClockExpand_Changed">
+                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12"/>
+                  </ToggleButton>
+                  <ComboBox x:Name="GpuClockCombo"  MinWidth="100" Margin="0,0,0,0"
+                            SelectionChanged="GpuClock_SelectionChanged"/>
+                </WrapPanel>
+              </Grid>
+              <StackPanel x:Name="GpuClockExtra" Visibility="Collapsed" Margin="0,6,0,0">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <Slider x:Name="GpuClockSlider" Minimum="0" Maximum="2500" TickFrequency="50"
+                          IsSnapToTickEnabled="True"
+                          ValueChanged="GpuClockSlider_Changed"/>
+                  <TextBlock x:Name="GpuClockSliderVal" Grid.Column="1" Width="50"
+                             TextAlignment="Right" VerticalAlignment="Center" FontSize="12" Margin="4,0,0,0"/>
+                  <TextBox x:Name="GpuClockInput" Grid.Column="2" Width="70" Height="34" Margin="8,0,0,0"/>
+                  <Button x:Name="GpuClockApply" Grid.Column="3" Width="32" Height="34" Padding="0" Margin="4,0,0,0"
+                          Click="GpuClockApply_Click">
+                    <ui:SymbolIcon Symbol="Save24" FontSize="12"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="GpuClockError" Visibility="Collapsed" Foreground="{DynamicResource AccentRedBrush}" Margin="0,4,0,0" FontSize="11"/>
+              </StackPanel>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="GpuCoreOCCard">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="TopSpeed24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.GpuCoreOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1">
+                  <ToggleButton x:Name="GpuCoreOCExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                                 VerticalAlignment="Top"
+                                 Checked="GpuCoreOCExpand_Changed" Unchecked="GpuCoreOCExpand_Changed">
+                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12"/>
+                  </ToggleButton>
+                  <ComboBox x:Name="GpuCoreOCCombo"  MinWidth="100" Margin="0,0,0,0"
+                            SelectionChanged="GpuCoreOC_SelectionChanged"/>
+                </WrapPanel>
+              </Grid>
+              <StackPanel x:Name="GpuCoreOCExtra" Visibility="Collapsed" Margin="0,6,0,0">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <Slider x:Name="GpuCoreOCSlider" Minimum="-270" Maximum="270" TickFrequency="15"
+                          IsSnapToTickEnabled="True"
+                          ValueChanged="GpuCoreOCSlider_Changed"/>
+                  <TextBlock x:Name="GpuCoreOCSliderVal" Grid.Column="1" Width="60"
+                             TextAlignment="Right" VerticalAlignment="Center" FontSize="12" Margin="4,0,0,0"/>
+                  <TextBox x:Name="GpuCoreOCInput" Grid.Column="2" Width="80" Height="34" Margin="8,0,0,0"/>
+                  <Button x:Name="GpuCoreOCApply" Grid.Column="3" Width="32" Height="34" Padding="0" Margin="4,0,0,0"
+                          Click="GpuCoreOCApply_Click">
+                    <ui:SymbolIcon Symbol="Save24" FontSize="12"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="GpuCoreOCError" Visibility="Collapsed" Foreground="{DynamicResource AccentRedBrush}" Margin="0,4,0,0" FontSize="11"/>
+              </StackPanel>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="GpuMemoryOCCard">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Clock24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.GpuMemoryOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1">
+                  <ToggleButton x:Name="GpuMemoryOCExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                                 VerticalAlignment="Top"
+                                 Checked="GpuMemoryOCExpand_Changed" Unchecked="GpuMemoryOCExpand_Changed">
+                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12"/>
+                  </ToggleButton>
+                  <ComboBox x:Name="GpuMemoryOCCombo"  MinWidth="100" Margin="0,0,0,0"
+                            SelectionChanged="GpuMemoryOC_SelectionChanged"/>
+                </WrapPanel>
+              </Grid>
+              <StackPanel x:Name="GpuMemoryOCExtra" Visibility="Collapsed" Margin="0,6,0,0">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <Slider x:Name="GpuMemoryOCSlider" Minimum="0" Maximum="2000" TickFrequency="100"
+                          IsSnapToTickEnabled="True"
+                          ValueChanged="GpuMemoryOCSlider_Changed"/>
+                  <TextBlock x:Name="GpuMemoryOCSliderVal" Grid.Column="1" Width="60"
+                             TextAlignment="Right" VerticalAlignment="Center" FontSize="12" Margin="4,0,0,0"/>
+                  <TextBox x:Name="GpuMemoryOCInput" Grid.Column="2" Width="80" Height="34" Margin="8,0,0,0"/>
+                  <Button x:Name="GpuMemoryOCApply" Grid.Column="3" Width="32" Height="34" Padding="0" Margin="4,0,0,0"
+                          Click="GpuMemoryOCApply_Click">
+                    <ui:SymbolIcon Symbol="Save24" FontSize="12"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="GpuMemoryOCError" Visibility="Collapsed" Foreground="{DynamicResource AccentRedBrush}" Margin="0,4,0,0" FontSize="11"/>
+              </StackPanel>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="DesktopPulse24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.GraphicsMode}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ComboBox x:Name="GfxModeCombo" Grid.Column="1" MinWidth="140"
+                          SelectionChanged="GfxMode_SelectionChanged">
+                  <ComboBoxItem Content="NVIDIA Advanced Optimus"/>
+                  <ComboBoxItem Content="{x:Static app:Strings.GfxDiscreteMode}"/>
+                  <ComboBoxItem Content="{x:Static app:Strings.GfxHybridMode}"/>
+                  <ComboBoxItem Content="{x:Static app:Strings.GfxUMALabel}"/>
+                </ComboBox>
+              </Grid>
+              <TextBlock Text="{x:Static app:Strings.PerfGfxReboot}" FontSize="12"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="2" Grid.Column="0" Margin="0,0,4,8" x:Name="HotSwitchCard" Visibility="Collapsed">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="ArrowSync24" Margin="0,0,6,0"/>
+                <TextBlock Text="{x:Static app:Strings.HotSwitchHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock Text="{x:Static app:Strings.PerfHotSwitchDesc}" FontSize="12"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              <Button x:Name="HotSwitchBtn" Width="32" Height="34" Padding="0" Margin="0,8,0,0" Click="HotSwitch_Click">
+                <ui:SymbolIcon Symbol="ArrowSync24" FontSize="14"/>
+              </Button>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="2" Grid.Column="1" Margin="4,0,0,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Settings24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.DbVersionHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ComboBox x:Name="DbVersionCombo" Grid.Column="1" MinWidth="140"
+                          SelectionChanged="DbVersion_SelectionChanged">
+                  <ComboBoxItem Content="{x:Static app:Strings.PerfDbUnlockLabel}"/>
+                  <ComboBoxItem Content="{x:Static app:Strings.PerfDbNormalLabel}"/>
+                </ComboBox>
+              </Grid>
+              <TextBlock Text="{x:Static app:Strings.PerfPpabDesc}" FontSize="11" Margin="0,6,0,0"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="3" Grid.Column="0" Margin="0,0,4,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
+                  <TextBlock Text="TGP / PPAB" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1">
+                  <ToggleButton x:Name="TppExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                                 VerticalAlignment="Top"
+                                 Checked="TppExpand_Changed" Unchecked="TppExpand_Changed">
+                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12"/>
+                  </ToggleButton>
+                  <ComboBox x:Name="CtgpCombo"  MinWidth="100" Margin="0,0,0,0"
+                            SelectionChanged="CtgpCombo_SelectionChanged"/>
+                </WrapPanel>
+              </Grid>
+              <CheckBox x:Name="PpabCheck" Content="{x:Static app:Strings.PpabCheckLabel}" Margin="0,8,0,0"
+                        Checked="Ppab_Changed" Unchecked="Ppab_Changed"/>
+              <StackPanel x:Name="TppExtra" Visibility="Collapsed" Margin="0,8,0,0">
+                <ComboBox x:Name="TppCombo"  Margin="0,0,0,6"
+                          SelectionChanged="Tpp_SelectionChanged"/>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <Slider x:Name="TppExtraSlider" Minimum="0" Maximum="255" TickFrequency="1"
+                          IsSnapToTickEnabled="True"
+                          ValueChanged="TppExtraSlider_Changed"/>
+                  <TextBlock x:Name="TppExtraSliderVal" Grid.Column="1" Width="50"
+                             TextAlignment="Right" VerticalAlignment="Center" FontSize="12" Margin="4,0,0,0"/>
+                  <TextBox x:Name="TppInput" Grid.Column="2" Width="70" Height="34" Margin="8,0,0,0"/>
+                  <Button x:Name="TppApply" Grid.Column="3" Width="32" Height="34" Padding="0" Margin="4,0,0,0"
+                          Click="TppApply_Click">
+                    <ui:SymbolIcon Symbol="Save24" FontSize="12"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="TppError" Visibility="Collapsed" Foreground="{DynamicResource AccentRedBrush}" Margin="0,4,0,0" FontSize="11"/>
+              </StackPanel>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="4" Grid.Column="0" Margin="0,0,4,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Battery524" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.DStateHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ComboBox x:Name="DStateCombo" Grid.Column="1" MinWidth="140"
+                          SelectionChanged="DState_SelectionChanged">
+                  <ComboBoxItem Content="{x:Static app:Strings.Normal}"/>
+                  <ComboBoxItem Content="{x:Static app:Strings.LowPower}"/>
+                </ComboBox>
+              </Grid>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="4" Grid.Column="1" Margin="4,0,0,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Fps6024" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.MaxFrameRateHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1">
+                  <ToggleButton x:Name="FpsExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                                 VerticalAlignment="Top"
+                                 Checked="FpsExpand_Changed" Unchecked="FpsExpand_Changed">
+                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12"/>
+                  </ToggleButton>
+                  <ComboBox x:Name="FpsCombo"  MinWidth="100" Margin="0,0,0,0"
+                            SelectionChanged="Fps_SelectionChanged"/>
+                </WrapPanel>
+              </Grid>
+              <TextBlock Text="{x:Static app:Strings.PerfMaxFpsDesc}" FontSize="12"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              <StackPanel x:Name="FpsExtra" Visibility="Collapsed" Margin="0,6,0,0">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <Slider x:Name="FpsSlider" Minimum="0" Maximum="11" TickFrequency="1"
+                          IsSnapToTickEnabled="True"
+                          ValueChanged="FpsSlider_Changed"/>
+                  <TextBlock x:Name="FpsSliderVal" Grid.Column="1" Width="50"
+                             TextAlignment="Right" VerticalAlignment="Center" FontSize="12" Margin="4,0,0,0"/>
+                  <TextBox x:Name="FpsInput" Grid.Column="2" Width="70" Height="34" Margin="8,0,0,0"/>
+                  <Button x:Name="FpsApply" Grid.Column="3" Width="32" Height="34" Padding="0" Margin="4,0,0,0"
+                          Click="FpsApply_Click">
+                    <ui:SymbolIcon Symbol="Save24" FontSize="12"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="FpsError" Visibility="Collapsed" Foreground="{DynamicResource AccentRedBrush}" Margin="0,4,0,0" FontSize="11"/>
+              </StackPanel>
+              <TextBlock Text="{x:Static app:Strings.MaxFrameRateNote}" FontSize="11" Margin="0,4,0,0"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardControl Grid.Row="3" Grid.Column="1" Margin="4,0,0,8">
+          <ui:CardControl.Header>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Fps6024" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.RefreshRateHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1">
+                  <ToggleButton x:Name="RefreshRateExpand" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                                 VerticalAlignment="Top"
+                                 Checked="RefreshRateExpand_Changed" Unchecked="RefreshRateExpand_Changed">
+                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12"/>
+                  </ToggleButton>
+                  <ComboBox x:Name="RefreshRateCombo"  MinWidth="100" Margin="0,0,0,0"
+                            SelectionChanged="RefreshRate_SelectionChanged"/>
+                </WrapPanel>
+              </Grid>
+              <TextBlock Text="{x:Static app:Strings.PerfRefreshRateDesc}" FontSize="12"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              <StackPanel x:Name="RefreshRateExtra" Visibility="Collapsed" Margin="0,6,0,0">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <Slider x:Name="RefreshRateSlider" Minimum="30" Maximum="360" TickFrequency="1"
+                          IsSnapToTickEnabled="True"
+                          ValueChanged="RefreshRateSlider_Changed"/>
+                  <TextBlock x:Name="RefreshRateSliderVal" Grid.Column="1" Width="60"
+                             TextAlignment="Right" VerticalAlignment="Center" FontSize="12" Margin="4,0,0,0"/>
+                  <TextBox x:Name="RefreshRateInput" Grid.Column="2" Width="80" Height="34" Margin="8,0,0,0"/>
+                  <Button x:Name="RefreshRateApply" Grid.Column="3" Width="32" Height="34" Padding="0" Margin="4,0,0,0"
+                          Click="RefreshRateApply_Click">
+                    <ui:SymbolIcon Symbol="Save24" FontSize="12"/>
+                  </Button>
+                </Grid>
+                <TextBlock x:Name="RefreshRateError" Visibility="Collapsed" Foreground="{DynamicResource AccentRedBrush}" Margin="0,4,0,0" FontSize="11"/>
+              </StackPanel>
+              <TextBlock Text="{x:Static app:Strings.RefreshRateNote}" FontSize="11" Margin="0,4,0,0"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+      </Grid>
+
+    </StackPanel>
+  </ScrollViewer>
+</Page>

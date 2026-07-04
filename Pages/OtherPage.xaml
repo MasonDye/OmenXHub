@@ -1,0 +1,277 @@
+<Page x:Class="OmenSuperHub.Pages.OtherPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:app="clr-namespace:OmenSuperHub"
+      Title="{x:Static app:Strings.PageOther}">
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
+      <TextBlock x:Name="HeadingOther" Text="{x:Static app:Strings.PageOther}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
+
+      <ui:CardControl x:Name="BatteryChargeCard" Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="BatteryCharge24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="BatteryChargeLabel" Text="{x:Static app:Strings.BatteryChargeHeading}" Tag="BatteryCharge" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="BatteryChargeDescText" Text="{x:Static app:Strings.BatteryChargeDesc}" Tag="BatteryChargeDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="BatteryChargeHint" Text="{x:Static app:Strings.BatteryChargeHint}" Tag="BatteryChargeHint"
+                         FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                         Visibility="Collapsed" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="BatteryChargeToggle" Grid.Column="1" 
+                          IsChecked="False" Checked="BatteryChargeToggle_Changed" Unchecked="BatteryChargeToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="NumberSymbol24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="NumLockText" Text="{x:Static app:Strings.NumLockHeading}" Tag="NumLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="NumLockDescText" Text="{x:Static app:Strings.NumLockDesc}" Tag="NumLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="NumLockToggle" Grid.Column="1" 
+                          Checked="NumLockToggle_Changed" Unchecked="NumLockToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="CapsLockText" Text="{x:Static app:Strings.CapsLockHeading}" Tag="CapsLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="CapsLockDescText" Text="{x:Static app:Strings.CapsLockDesc}" Tag="CapsLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="CapsLockToggle" Grid.Column="1" 
+                          Checked="CapsLockToggle_Changed" Unchecked="CapsLockToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Cursor24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="TouchpadLockText" Text="{x:Static app:Strings.TouchpadLockHeading}" Tag="TouchpadLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="TouchpadLockDescText" Text="{x:Static app:Strings.TouchpadLockDesc}" Tag="TouchpadLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="TouchpadLockToggle" Grid.Column="1" 
+                          Checked="TouchpadLockToggle_Changed" Unchecked="TouchpadLockToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Settings24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="HWiNFOHeadingText" Text="{x:Static app:Strings.HWiNFOHeading}" Tag="HWiNFO" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="HWiNFODescText" Text="{x:Static app:Strings.HWiNFODesc}" Tag="HWiNFODesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="HWiNFOToggle" Grid.Column="1" 
+                          Checked="HWiNFOToggle_Changed" Unchecked="HWiNFOToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl>
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Globe24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="HttpApiHeadingText" Text="{x:Static app:Strings.OtherHttpApiHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="HttpApiDescText" Text="{x:Static app:Strings.OtherHttpApiDesc}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="HttpApiStatusText" Text="" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" FontWeight="SemiBold"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="HttpApiToggle" Grid.Column="1" 
+                          Checked="HttpApiToggle_Changed" Unchecked="HttpApiToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- ════ Hetero CPU (AMD dual-CCD simulated hybrid) ════ -->
+      <TextBlock Text="{x:Static app:Strings.HeteroCpuHeading}" FontSize="18" FontWeight="SemiBold" Margin="0,20,0,8"/>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="DeviceEq24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuToggleLabel}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock Text="{x:Static app:Strings.HeteroCpuToggleDesc}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="HeteroCpuToggle" Grid.Column="1" 
+                          Checked="HeteroCpuToggle_Changed" Unchecked="HeteroCpuToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl x:Name="HeteroCpuDetails" Margin="{StaticResource CardMargin}" Visibility="Collapsed">
+        <ui:CardControl.Header>
+          <StackPanel>
+            <!-- SmallProcessorMask -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuMaskLabel}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuMaskDesc}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+              </StackPanel>
+              <TextBox x:Name="HeteroCpuMaskBox" Grid.Column="1" Width="140" Text="FFFF0000"
+                       TextChanged="HeteroCpuMask_TextChanged" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- CPU info + auto detect -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="HeteroCpuInfoText" Text="" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"
+                         VerticalAlignment="Center" TextWrapping="Wrap"/>
+              <Button x:Name="HeteroCpuDetectBtn" Grid.Column="1"
+                      Content="{x:Static app:Strings.HeteroCpuDetectAuto}"
+                      Click="HeteroCpuDetect_Click" Padding="8,2" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DefaultDynamicHeteroCpuPolicy -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuDefaultPolicyLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuDefaultPolicyDesc}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="HeteroCpuDefaultPolicyCombo" Grid.Column="1" MinWidth="120"
+                        SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicCpuPolicyExpectedRuntime -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuRuntimeLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuRuntimeDesc}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+              </StackPanel>
+              <TextBox x:Name="HeteroCpuRuntimeBox" Grid.Column="1" Width="120" Text="1450"
+                       TextChanged="HeteroCpuRuntime_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicHeteroCpuPolicyImportant -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantPolicyLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantPolicyDesc}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="HeteroCpuImportantPolicyCombo" Grid.Column="1" MinWidth="120"
+                        SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicHeteroCpuPolicyImportantShort -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantShortLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantShortDesc}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="HeteroCpuImportantShortCombo" Grid.Column="1" MinWidth="120"
+                        SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicHeteroCpuPolicyMask -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPolicyMaskLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPolicyMaskDesc}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="HeteroCpuPolicyMaskCombo" Grid.Column="1" MinWidth="120"
+                        SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicHeteroCpuPolicyImportantPriority -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPriorityLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPriorityDesc}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+              </StackPanel>
+              <TextBox x:Name="HeteroCpuPriorityBox" Grid.Column="1" Width="120" Text="8"
+                       TextChanged="HeteroCpuPriority_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- Apply/Restore buttons -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+              <Button Content="{x:Static app:Strings.HeteroCpuApplyBtn}" x:Name="HeteroCpuApplyBtn" Click="HeteroCpuApply_Click"
+                      Margin="0,0,8,0"/>
+              <Button Content="{x:Static app:Strings.HeteroCpuRestoreBtn}" x:Name="HeteroCpuRestoreBtn" Click="HeteroCpuRestore_Click"/>
+            </StackPanel>
+          </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+    </StackPanel>
+  </ScrollViewer>
+</Page>

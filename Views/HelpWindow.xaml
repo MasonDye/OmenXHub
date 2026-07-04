@@ -1,157 +1,121 @@
-<Window x:Class="OmenSuperHub.Views.HelpWindow"
+<ui:FluentWindow x:Class="OmenSuperHub.Views.HelpWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:app="clr-namespace:OmenSuperHub"
         Title="OMEN X Hub" Width="700" Height="620"
         WindowStartupLocation="CenterScreen" Topmost="True"
         ResizeMode="CanMinimize" ShowInTaskbar="True"
-        Style="{StaticResource OmenWindow}">
+        WindowBackdropType="Mica"
+        ExtendsContentIntoTitleBar="True"
+        Background="Transparent">
 
-  <Border CornerRadius="0" Background="{StaticResource BgPrimaryBrush}">
-    <Grid>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="Auto"/>
-        <RowDefinition Height="*"/>
-      </Grid.RowDefinitions>
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
 
-      <!-- Header -->
-      <Border Grid.Row="0" Background="{StaticResource BgDeepBrush}" Padding="24,20">
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
+    <Border Grid.Row="0" Background="{DynamicResource BgDeepBrush}" Padding="24,20"
+            BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+          <TextBlock FontSize="22">
+            <Run Text="OMEN" Foreground="{DynamicResource AccentOmenBrush}"/>
+            <Run Text="X Hub"/>
+          </TextBlock>
+          <TextBlock x:Name="VersionText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" Text="Version"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button  Content="{x:Static app:Strings.HelpBtnGitHub}" x:Name="BtnGitHub" Click="BtnGitHub_Click" Margin="0,0,8,0" Padding="12,6"/>
+          <Button  Content="{x:Static app:Strings.HelpBtnCheckUpdate}" x:Name="BtnUpdate" Click="BtnUpdate_Click" Padding="12,6"/>
+        </StackPanel>
+      </Grid>
+    </Border>
 
-          <StackPanel Grid.Column="0" VerticalAlignment="Center">
-            <TextBlock Style="{StaticResource OmenHeading}" FontSize="22">
-              <Run Text="OMEN" Foreground="{StaticResource AccentOmenBrush}"/>
-              <Run Text="X Hub"/>
+    <TabControl Grid.Row="1" >
+      <TabItem  Header="{x:Static app:Strings.HelpTabUpdates}">
+        <ScrollViewer >
+          <TextBlock x:Name="UpdateNotesText" FontSize="13" TextWrapping="Wrap" LineHeight="24" Margin="24,16"/>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem  Header="{x:Static app:Strings.HelpTabFanConfig}">
+        <ScrollViewer >
+          <StackPanel Margin="24,16">
+            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpFanConfigSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="13" x:Name="FanConfigHelp"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem  Header="{x:Static app:Strings.HelpTabFanControl}">
+        <ScrollViewer >
+          <StackPanel Margin="24,16">
+            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpFanControlSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="13" x:Name="FanControlHelp"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem  Header="{x:Static app:Strings.HelpTabPerformance}">
+        <ScrollViewer >
+          <StackPanel Margin="24,16">
+            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpPerformanceSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="13" x:Name="PerformanceHelp"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem  Header="{x:Static app:Strings.HelpTabOther}">
+        <ScrollViewer >
+          <StackPanel Margin="24,16">
+            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpOtherSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="13" x:Name="OtherHelp"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem  Header="{x:Static app:Strings.HelpTabCredits}">
+        <ScrollViewer >
+          <StackPanel Margin="24,16">
+            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpCreditsSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="13" Margin="0,0,0,16">
+              <Run Text="MasonDye" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+              <LineBreak/>
+              <Run Text="OMEN X Hub GUI设计，功能打磨"/>
+              <LineBreak/>
+              <Hyperlink NavigateUri="https://github.com/MasonDye" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/MasonDye</Hyperlink>
             </TextBlock>
-            <TextBlock x:Name="VersionText" Style="{StaticResource OmenCaption}" Margin="0,4,0,0"
-                       Text="Version"/>
+            <TextBlock FontSize="13" Margin="0,0,0,16">
+              <Run Text="breadeding" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+              <LineBreak/>
+              <Run Text="OmenSuperHub 提供本项目主要框架及代码"/>
+              <LineBreak/>
+              <Hyperlink NavigateUri="https://github.com/breadeding" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/breadeding</Hyperlink>
+              <LineBreak/>
+              <Hyperlink NavigateUri="https://github.com/breadeding/OmenSuperHub" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/breadeding/OmenSuperHub</Hyperlink>
+            </TextBlock>
+            <TextBlock FontSize="13" Margin="0,0,0,16">
+              <Run Text="GeographicCone" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+              <LineBreak/>
+              <Run Text="OmenMon OmenHwCtl - 本项目的主要灵感来源，提供了交互命令与探索OGH交互的方法。"/>
+              <LineBreak/>
+              <Hyperlink NavigateUri="https://github.com/GeographicCone" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/GeographicCone</Hyperlink>
+            </TextBlock>
+            <TextBlock FontSize="13" Margin="0,0,0,16">
+              <Run Text="OpenHardwareMonitor / hexagon-oss / LibreHardwareMonitor" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+              <LineBreak/>
+              <Run Text="硬件监控核心库支持"/>
+              <LineBreak/>
+              <Hyperlink NavigateUri="https://openhardwaremonitor.org/" RequestNavigate="Hyperlink_RequestNavigate">https://openhardwaremonitor.org/</Hyperlink>
+              <LineBreak/>
+              <Hyperlink NavigateUri="https://github.com/hexagon-oss/openhardwaremonitor" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/hexagon-oss/openhardwaremonitor</Hyperlink>
+              <LineBreak/>
+              <Hyperlink NavigateUri="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/LibreHardwareMonitor/LibreHardwareMonitor</Hyperlink>
+            </TextBlock>
           </StackPanel>
-
-          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button Style="{StaticResource OmenButton}" Content="GitHub" x:Name="BtnGitHub"
-                    Click="BtnGitHub_Click" Margin="0,0,8,0" Padding="12,6"/>
-            <Button Style="{StaticResource OmenAccentButton}" Content="检查更新" x:Name="BtnUpdate"
-                    Click="BtnUpdate_Click" Padding="12,6"/>
-          </StackPanel>
-        </Grid>
-      </Border>
-
-      <!-- Tab Content -->
-      <TabControl Grid.Row="1" Style="{StaticResource OmenTabControl}" Margin="0,0,0,0">
-
-        <!-- 更新说明 -->
-        <TabItem Style="{StaticResource OmenTabItem}" Header="更新说明">
-          <ScrollViewer Style="{StaticResource OmenScrollViewer}">
-            <TextBlock x:Name="UpdateNotesText" Style="{StaticResource OmenBody}"
-                       TextWrapping="Wrap" LineHeight="24" Margin="24,16"/>
-          </ScrollViewer>
-        </TabItem>
-
-        <!-- 风扇配置 -->
-        <TabItem Style="{StaticResource OmenTabItem}" Header="风扇配置">
-          <ScrollViewer Style="{StaticResource OmenScrollViewer}">
-            <StackPanel Margin="24,16">
-              <TextBlock Style="{StaticResource OmenSubHeading}" Text="风扇配置说明" Margin="0,0,0,12"/>
-              <TextBlock Style="{StaticResource OmenBody}" x:Name="FanConfigHelp"/>
-            </StackPanel>
-          </ScrollViewer>
-        </TabItem>
-
-        <!-- 风扇控制 -->
-        <TabItem Style="{StaticResource OmenTabItem}" Header="风扇控制">
-          <ScrollViewer Style="{StaticResource OmenScrollViewer}">
-            <StackPanel Margin="24,16">
-              <TextBlock Style="{StaticResource OmenSubHeading}" Text="风扇控制说明" Margin="0,0,0,12"/>
-              <TextBlock Style="{StaticResource OmenBody}" x:Name="FanControlHelp"/>
-            </StackPanel>
-          </ScrollViewer>
-        </TabItem>
-
-        <!-- 性能控制 -->
-        <TabItem Style="{StaticResource OmenTabItem}" Header="性能控制">
-          <ScrollViewer Style="{StaticResource OmenScrollViewer}">
-            <StackPanel Margin="24,16">
-              <TextBlock Style="{StaticResource OmenSubHeading}" Text="性能控制说明" Margin="0,0,0,12"/>
-              <TextBlock Style="{StaticResource OmenBody}" x:Name="PerformanceHelp"/>
-            </StackPanel>
-          </ScrollViewer>
-        </TabItem>
-
-        <!-- 其他 -->
-        <TabItem Style="{StaticResource OmenTabItem}" Header="其他">
-          <ScrollViewer Style="{StaticResource OmenScrollViewer}">
-            <StackPanel Margin="24,16">
-              <TextBlock Style="{StaticResource OmenSubHeading}" Text="其他说明" Margin="0,0,0,12"/>
-              <TextBlock Style="{StaticResource OmenBody}" x:Name="OtherHelp"/>
-            </StackPanel>
-          </ScrollViewer>
-        </TabItem>
-
-        <!-- 致谢 (Credits) -->
-        <TabItem Style="{StaticResource OmenTabItem}" Header="致谢">
-          <ScrollViewer Style="{StaticResource OmenScrollViewer}">
-            <StackPanel Margin="24,16">
-              <TextBlock Style="{StaticResource OmenSubHeading}" Text="开发者 &amp; 致谢" Margin="0,0,0,12"/>
-              
-              <TextBlock Style="{StaticResource OmenBody}" Margin="0,0,0,16">
-                <Run Text="MasonDye" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                <LineBreak/>
-                <Run Text="OMEN X Hub GUI设计，功能打磨"/>
-                <LineBreak/>
-                <Hyperlink NavigateUri="https://github.com/MasonDye" RequestNavigate="Hyperlink_RequestNavigate">
-                  https://github.com/MasonDye
-                </Hyperlink>
-              </TextBlock>
-
-              <TextBlock Style="{StaticResource OmenBody}" Margin="0,0,0,16">
-                <Run Text="breadeding" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                <LineBreak/>
-                <Run Text="OmenSuperHub 提供本项目主要框架及代码"/>
-                <LineBreak/>
-                <Hyperlink NavigateUri="https://github.com/breadeding" RequestNavigate="Hyperlink_RequestNavigate">
-                  https://github.com/breadeding
-                </Hyperlink>
-                <LineBreak/>
-                <Hyperlink NavigateUri="https://github.com/breadeding/OmenSuperHub" RequestNavigate="Hyperlink_RequestNavigate">
-                  https://github.com/breadeding/OmenSuperHub
-                </Hyperlink>
-              </TextBlock>
-
-              <TextBlock Style="{StaticResource OmenBody}" Margin="0,0,0,16">
-                <Run Text="GeographicCone" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                <LineBreak/>
-                <Run Text="OmenMon OmenHwCtl - 本项目的主要灵感来源，提供了交互命令与探索OGH交互的方法。"/>
-                <LineBreak/>
-                <Hyperlink NavigateUri="https://github.com/GeographicCone" RequestNavigate="Hyperlink_RequestNavigate">
-                  https://github.com/GeographicCone
-                </Hyperlink>
-              </TextBlock>
-
-              <TextBlock Style="{StaticResource OmenBody}" Margin="0,0,0,16">
-                <Run Text="OpenHardwareMonitor / hexagon-oss / LibreHardwareMonitor" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                <LineBreak/>
-                <Run Text="硬件监控核心库支持"/>
-                <LineBreak/>
-                <Hyperlink NavigateUri="https://openhardwaremonitor.org/" RequestNavigate="Hyperlink_RequestNavigate">
-                  https://openhardwaremonitor.org/
-                </Hyperlink>
-                <LineBreak/>
-                <Hyperlink NavigateUri="https://github.com/hexagon-oss/openhardwaremonitor" RequestNavigate="Hyperlink_RequestNavigate">
-                  https://github.com/hexagon-oss/openhardwaremonitor
-                </Hyperlink>
-                <LineBreak/>
-                <Hyperlink NavigateUri="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor" RequestNavigate="Hyperlink_RequestNavigate">
-                  https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
-                </Hyperlink>
-              </TextBlock>
-            </StackPanel>
-          </ScrollViewer>
-        </TabItem>
-
-      </TabControl>
-    </Grid>
-  </Border>
-</Window>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+  </Grid>
+</ui:FluentWindow>

@@ -1,0 +1,78 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Style x:Key="OmenBadge" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource BadgeDefaultBackground}"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="8,3"/>
+    <Setter Property="Height" Value="Auto"/>
+  </Style>
+
+  <Style x:Key="OmenBadgeSuccess" TargetType="Border" BasedOn="{StaticResource OmenBadge}">
+    <Setter Property="Background" Value="{DynamicResource BadgeSuccessBackground}"/>
+  </Style>
+
+  <Style x:Key="OmenBadgeWarning" TargetType="Border" BasedOn="{StaticResource OmenBadge}">
+    <Setter Property="Background" Value="{DynamicResource BadgeWarningBackground}"/>
+  </Style>
+
+  <Style x:Key="OmenBadgeError" TargetType="Border" BasedOn="{StaticResource OmenBadge}">
+    <Setter Property="Background" Value="{DynamicResource BadgeErrorBackground}"/>
+  </Style>
+
+  <Style x:Key="OmenBadgeInfo" TargetType="Border" BasedOn="{StaticResource OmenBadge}">
+    <Setter Property="Background" Value="{DynamicResource BadgeInfoBackground}"/>
+  </Style>
+
+  <Style x:Key="OmenBadgeText" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource BadgeDefaultForeground}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <Style x:Key="OmenInfoBar" TargetType="Border">
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="12,10"/>
+    <Setter Property="Margin" Value="0,0,0,8"/>
+  </Style>
+
+  <Style x:Key="OmenInfoBarInformational" TargetType="Border" BasedOn="{StaticResource OmenInfoBar}">
+    <Setter Property="Background" Value="{DynamicResource InfoBarInformationalBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource InfoBarInformationalBorder}"/>
+  </Style>
+
+  <Style x:Key="OmenInfoBarSuccess" TargetType="Border" BasedOn="{StaticResource OmenInfoBar}">
+    <Setter Property="Background" Value="{DynamicResource InfoBarSuccessBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource InfoBarSuccessBorder}"/>
+  </Style>
+
+  <Style x:Key="OmenInfoBarWarning" TargetType="Border" BasedOn="{StaticResource OmenInfoBar}">
+    <Setter Property="Background" Value="{DynamicResource InfoBarWarningBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource InfoBarWarningBorder}"/>
+  </Style>
+
+  <Style x:Key="OmenInfoBarError" TargetType="Border" BasedOn="{StaticResource OmenInfoBar}">
+    <Setter Property="Background" Value="{DynamicResource InfoBarErrorBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource InfoBarErrorBorder}"/>
+  </Style>
+
+  <Style x:Key="OmenInfoBarIcon" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Margin" Value="0,0,8,0"/>
+  </Style>
+
+  <Style x:Key="OmenInfoBarText" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+</ResourceDictionary>
