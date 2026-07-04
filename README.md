@@ -387,6 +387,7 @@ Output: `bin\x64\Release\OmenXHub.exe` (single-file — all DLLs embedded via Co
 ## Acknowledgments
 
 - **MasonDye** — GUI design & WPF front-end development
+- **One1turn** - WPF-UI Windows 11 style rewrite + performance optimization
 - **breadeding** — [OmenSuperHub](https://github.com/breadeding/OmenSuperHub) (original framework & code)
 - **GeographicCone** — [OmenMon](https://github.com/GeographicCone) / [OmenHwCtl](https://github.com/GeographicCone) (inspiration & OGH interaction research)
 - **OpenHardwareMonitor** — [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (hardware monitoring core)
