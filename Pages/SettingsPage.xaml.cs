@@ -53,6 +53,7 @@ namespace OmenSuperHub.Pages {
       OsdToggle.IsChecked = ConfigService.ShowOsd;
       DataLocalizeToggle.IsChecked = ConfigService.DataLocalize == "on";
       DebugLogToggle.IsChecked = ConfigService.VerboseLogging;
+      DebugShowAllUiToggle.IsChecked = ConfigService.DebugShowAllUi;
       switch (ConfigService.CustomIcon) {
         case "custom": TrayIconCombo.SelectedIndex = 1; break;
         case "dynamic": TrayIconCombo.SelectedIndex = 2; break;
@@ -267,6 +268,14 @@ namespace OmenSuperHub.Pages {
     void DebugLogToggle_Changed(object sender, RoutedEventArgs e) {
       ConfigService.VerboseLogging = DebugLogToggle.IsChecked == true;
       ConfigService.Save("VerboseLogging");
+    }
+
+    void DebugShowAllUiToggle_Changed(object sender, RoutedEventArgs e) {
+      ConfigService.DebugShowAllUi = DebugShowAllUiToggle.IsChecked == true;
+      ConfigService.Save("DebugShowAllUi");
+      // 通知性能页刷新可见性
+      if (PerfPage.Instance != null)
+        PerfPage.Instance.RefreshAdvancedVisibility();
     }
 
     void CustomLogoSelect_Click(object sender, RoutedEventArgs e) {

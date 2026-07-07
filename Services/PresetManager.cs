@@ -106,7 +106,7 @@ namespace OmenSuperHub.Services {
         case "GpuPriority":
           d.CpuPower = "45 W"; d.CpuPowerPl1 = 45; d.CpuPowerPl2 = 45;
           d.FanTable = "cool"; d.FanControl = "auto";
-          d.PowerMode = 1;  // 平衡
+          d.PowerMode = 0;  // 最佳能效
           d.GpuClock = 0;
           d.TgpEnabled = true; d.PpabEnabled = true; d.Tpp = 255;
           break;
@@ -443,6 +443,25 @@ namespace OmenSuperHub.Services {
         } catch { }
         try { ApplyPowerModeOverlay(powerMode); } catch { }
 
+        // ── 风扇配置 ──
+        try {
+          string fc = ConfigService.FanControl;
+          string ft = ConfigService.FanTable;
+          if (fc == "smart" || fc == "custom") {
+            FanService.LoadFanConfig(ft == "cool" ? "cool.txt" : "silent.txt");
+            FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
+            FanService.ApplyPresetCurve(ConfigService.Preset);
+          } else if (fc != null && fc.Contains(" RPM")) {
+            int rpm = int.Parse(fc.Replace(" RPM", "").Trim());
+            byte speed = (byte)(rpm / 100);
+            if (speed < 0) speed = 0; if (speed > 100) speed = 100;
+            OmenHardware.SetFanLevel(speed, speed);
+          } else {
+            string table = ft == "cool" ? "cool.txt" : "silent.txt";
+            FanService.LoadFanConfig(table);
+          }
+        } catch { }
+
         // ── 1.2 自定义预设专属绑定参数 ──
         if (IsCustom(ConfigService.Preset)) {
           // GPU 超频
@@ -470,6 +489,10 @@ namespace OmenSuperHub.Services {
           try {
             if (ConfigService.RefreshRate > 0)
               TrayService.ApplyRefreshRate(ConfigService.RefreshRate);
+          } catch { }
+          // 风扇曲线 (自定义预设专属持久化)
+          try {
+            FanService.ApplyPresetCurve(ConfigService.Preset);
           } catch { }
         }
       });

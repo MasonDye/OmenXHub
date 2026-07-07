@@ -73,5 +73,43 @@ namespace OmenSuperHub.Models {
     [DataMember] public bool AutoOcOn { get; set; }
     [DataMember] public double PawnIgpuPower { get; set; }
     [DataMember] public double PawnIgpuRatio { get; set; }
+    // ── UXTU-style master toggles ──
+    [DataMember] public bool FivrMasterOn { get; set; } = true;
+    [DataMember] public bool ApuPowerMasterOn { get; set; } = true;
+    [DataMember] public bool ApuVrmMasterOn { get; set; } = true;
+    [DataMember] public bool ApuTempMasterOn { get; set; } = true;
+    [DataMember] public bool ApuGfxClkMasterOn { get; set; } = true;
+    [DataMember] public bool AmdCpuPowerMasterOn { get; set; } = true;
+    [DataMember] public bool AmdCpuTempMasterOn { get; set; } = true;
+    // ponytail: extended toggles + new ADLX GPU controls. Defaults match
+    // ConfigService defaults (master=false so cards start disabled).
+    [DataMember] public bool PboScalarMasterOn { get; set; }
+    [DataMember] public bool CoMasterOn { get; set; }
+    [DataMember] public bool CcdAffinityMasterOn { get; set; }
+    [DataMember] public bool AutoOcMasterOn { get; set; }
+    [DataMember] public bool ClockRatioMasterOn { get; set; }
+    [DataMember] public bool PowerBalanceMasterOn { get; set; }
+    [DataMember] public bool PawnTurboMasterOn { get; set; }
+    [DataMember] public bool PawnProchotMasterOn { get; set; }
+    [DataMember] public bool PawnHwpMasterOn { get; set; }
+    [DataMember] public bool PawnCStateMasterOn { get; set; }
+    [DataMember] public bool PawnIgpuPowerMasterOn { get; set; }
+    [DataMember] public bool PawnIgpuRatioMasterOn { get; set; }
+    [DataMember] public bool NvTuningMasterOn { get; set; }
+    [DataMember] public bool RtssMasterOn { get; set; }
+    // ADLX / AMD GPU state — captured/applyed together so preview mirrors real GPU
+    [DataMember] public bool AdlxRsrOn { get; set; }
+    [DataMember] public int AdlxRsrSharpness { get; set; } = 50;
+    [DataMember] public bool AdlxAntiLagOn { get; set; }
+    [DataMember] public bool AdlxEnhancedSyncOn { get; set; }
+    [DataMember] public bool AdlxBoostOn { get; set; }
+    [DataMember] public int AdlxBoostPercent { get; set; }
+    [DataMember] public bool AdlxImageSharpOn { get; set; }
+    [DataMember] public int AdlxImageSharpPercent { get; set; } = 50;
+    // Curve Optimiser per-core array: 24 entries, comma-joined as a single string
+    // for serialisation simplicity (UXTU path). CDATA pattern matches what
+    // ConfigService.CoPerCore already stores.
+    [DataMember] public string CoPerCoreCsv { get; set; } = "";
+    [DataMember] public int CoIGpuOffsetSnapshot { get; set; }
   }
 }

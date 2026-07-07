@@ -43,6 +43,13 @@ namespace OmenSuperHub.Services {
       return RunCommand("set-coper", prefix | encoded);
     }
 
+    /// <summary>iGPU Curve Optimizer 偏移 (-30 ~ +30)：复用 set-cogfx mailbox，编码与 set-coall 一致</summary>
+    // ponytail: 仅有 APU/HX 系链注册 set-cogfx；AM5 桌面平台 SR3 DRG/GRN 无此命令，RunCommand 会返回 false（安全降级）。
+    public static bool SetCurveOptimizerIGpu(int offset) {
+      if (!_available || offset < -30 || offset > 30) return false;
+      return RunCommand("set-cogfx", offset >= 0 ? (uint)offset : (uint)(0x100000 - (-offset)));
+    }
+
     /// <summary>设置 PPT Limit (mW)</summary>
     public static bool SetPptLimit(uint mw) {
       if (!_available) return false;

@@ -11,6 +11,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 
 using OmenSuperHub.Services;
+using OmenSuperHub.Utils;
 using Microsoft.Win32;
 using static OmenSuperHub.OmenHardware;
 
@@ -138,9 +139,8 @@ namespace OmenSuperHub {
           ConfigService.Save("AlreadyRead");
         }
       } catch (Exception ex) {
-        System.Windows.MessageBox.Show(
-          "Startup Error: " + ex.Message + "\n\n" + ex.ToString(),
-          "OmenSuperHub Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        DialogHelper.Error("Startup Error: " + ex.Message + "\n\n" + ex.ToString(),
+          "OmenSuperHub Error");
       }
     }
 
@@ -233,9 +233,8 @@ namespace OmenSuperHub {
 
     static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e) {
       Exception ex = e.ExceptionObject as Exception;
-      System.Windows.MessageBox.Show(
-        "Unhandled Exception: " + ex?.Message + "\n\n" + ex?.StackTrace,
-        "OmenSuperHub Error", MessageBoxButton.OK, MessageBoxImage.Error);
+      DialogHelper.Error("Unhandled Exception: " + ex?.Message + "\n\n" + ex?.StackTrace,
+        "OmenSuperHub Error");
     }
   }
 }

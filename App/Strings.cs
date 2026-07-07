@@ -304,6 +304,12 @@ namespace OmenSuperHub {
     public static string MonitorGpuOff => T("关闭GPU监控", "關閉GPU監控", "Disable GPU Monitor");
     public static string MonitorFanOn => T("开启风扇监控", "開啟風扇監控", "Enable Fan Monitor");
     public static string MonitorFanOff => T("关闭风扇监控", "關閉風扇監控", "Disable Fan Monitor");
+    public static string MonitorMemoryOn => T("开启运存监控", "開啟運存監控", "Enable Memory Monitor");
+    public static string MonitorMemoryOff => T("关闭运存监控", "關閉運存監控", "Disable Memory Monitor");
+    public static string MonitorNetworkOn => T("开启网速监控", "開啟網速監控", "Enable Network Monitor");
+    public static string MonitorNetworkOff => T("关闭网速监控", "關閉網速監控", "Disable Network Monitor");
+    public static string MonitorFpsOn => T("开启FPS监控", "開啓FPS監控", "Enable FPS Monitor");
+    public static string MonitorFpsOff => T("关闭FPS监控", "關閉FPS監控", "Disable FPS Monitor");
     public static string MonitorRefresh => T("刷新频率", "更新頻率", "Refresh Rate");
     public static string MonitorRefreshHigh => T("高", "高", "High");
     public static string MonitorRefreshLow => T("低", "低", "Low");
@@ -910,6 +916,19 @@ namespace OmenSuperHub {
     public static string CoHeading => T("Curve Optimiser (AMD)", "Curve Optimiser (AMD)", "Curve Optimiser (AMD)");
     public static string CoDesc => T("全核电压曲线偏移", "全核電壓曲線偏移", "All-core voltage curve offset");
     public static string CoAllCoreLabel => T("全核偏移 (mV)", "全核偏移 (mV)", "All-core Offset (mV)");
+    public static string CoIGpuLabel => T("iGPU 偏移", "iGPU 偏移", "iGPU Offset");
+    public static string CoPerCoreLabel => T("每核心偏移 (mV)", "每核心偏移 (mV)", "Per-core Offset (mV)");
+    // Per-Core Curve Optimiser (AMD)
+    public static string Ccd1CoHeading => T("CCD1 单核调校 (AMD)", "CCD1 單核調校 (AMD)", "CCD1 Per-Core CO (AMD)");
+    public static string Ccd1CoDesc => T("Core 0~11 每核心电压曲线偏移", "Core 0~11 每核心電壓曲線偏移", "Core 0~11 per-core voltage curve offset");
+    public static string Ccd2CoHeading => T("CCD2 单核调校 (AMD)", "CCD2 單核調校 (AMD)", "CCD2 Per-Core CO (AMD)");
+    public static string Ccd2CoDesc => T("Core 12~23 每核心电压曲线偏移。仅双 CCD 可见。", "Core 12~23 每核心電壓曲線偏移。僅雙 CCD 可見。", "Core 12~23 per-core CO. Dual-CCD only.");
+    // AMD CPU Power Limits (AM5 desktop)
+    public static string AmdCpuPowerHeading => T("CPU 功耗限制 (AMD)", "CPU 功耗限制 (AMD)", "CPU Power Limits (AMD)");
+    public static string AmdCpuPowerDesc => T("PPT/TDC/EDC 桌面 AM5 独立 CPU", "PPT/TDC/EDC 桌面 AM5 獨立 CPU", "PPT/TDC/EDC desktop AM5 standalone CPU");
+    // AMD CPU Temperature
+    public static string CpuTempHeading => T("CPU 温度限制 (AMD)", "CPU 溫度限制 (AMD)", "CPU Temp Limit (AMD)");
+    public static string CpuTempDesc => T("Tctl 硬降频温度阈值", "Tctl 硬降頻溫度閾值", "Tctl hard throttle temperature threshold");
     // CCD Affinity (AMD)
     public static string CcdAffinityHeading => T("CCD 亲和性 (AMD)", "CCD 親和性 (AMD)", "CCD Affinity (AMD)");
     public static string CcdAffinityDesc => T("双 CCD 调度优化，模拟大小核", "雙 CCD 調度優化，模擬大小核", "Dual-CCD scheduling, simulated hybrid");

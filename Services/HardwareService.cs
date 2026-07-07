@@ -57,7 +57,6 @@ namespace OmenSuperHub.Services {
     static bool openLib = true;
     static int countQuery = 0;
     public static bool AutoStartMonitorGPU = true, AutoStopMonitorGPU = true;
-    static bool hasStartAuto = false, hasStopAuto = false;
 
     // ═══════════════════════════════════════════════════════
     // Display device detection (for GPU connection check)
@@ -168,7 +167,8 @@ namespace OmenSuperHub.Services {
               }
             } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuNvidia) {
               if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
-                GPUTemp = (int)sensor.Value.GetValueOrDefault() * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+                _rawGpuTemp = (int)sensor.Value.GetValueOrDefault();
+                GPUTemp = _rawGpuTemp * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
               }
               if (sensor.Name == "GPU Package" && sensor.SensorType == LibreSensorType.Power) {
                 getGPU = true;
@@ -185,7 +185,8 @@ namespace OmenSuperHub.Services {
               }
             } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuAmd) {
               if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
-                GPUTemp = (int)sensor.Value.GetValueOrDefault() * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+                _rawGpuTemp = (int)sensor.Value.GetValueOrDefault();
+                GPUTemp = _rawGpuTemp * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
               }
               if (sensor.Name == "GPU Package" && sensor.SensorType == LibreSensorType.Power) {
                 getGPU = true;
@@ -218,6 +219,7 @@ namespace OmenSuperHub.Services {
       float tempCPU = 50;
       if (libreTempCPU > -299)
         tempCPU = libreTempCPU;
+      _rawCpuTemp = tempCPU;
       CPUTemp = tempCPU * RespondSpeed + CPUTemp * (1.0f - RespondSpeed);
 
       if (librePowerCPU >= 0)
@@ -230,10 +232,8 @@ namespace OmenSuperHub.Services {
       // Auto-disable GPU monitoring
       if (countQuery > 5 && AutoStopMonitorGPU && !IsConnectedToNVIDIA && MonitorGPU && ((GPUPower >= 0 && GPUPower <= 1.3) || !getGPU)) {
         GPUPower = 0;
-        hasStopAuto = true;
         countQuery = 0;
         MonitorGPU = false;
-        hasStartAuto = false;
         AutoStartMonitorGPU = true;
         LibreComputer.IsGpuEnabled = false;
         ConfigService.MonitorGPU = false;
@@ -244,10 +244,8 @@ namespace OmenSuperHub.Services {
       // Auto-enable GPU monitoring
       if (AutoStartMonitorGPU && IsConnectedToNVIDIA && !MonitorGPU) {
         GPUPower = 0;
-        hasStartAuto = true;
         countQuery = 0;
         MonitorGPU = true;
-        hasStopAuto = false;
         AutoStopMonitorGPU = true;
         LibreComputer.IsGpuEnabled = true;
         ConfigService.MonitorGPU = true;
@@ -263,13 +261,11 @@ namespace OmenSuperHub.Services {
     public static void SetMonitorGPU(bool enabled) {
       if (enabled) {
         MonitorGPU = true;
-        hasStartAuto = hasStopAuto = false;
         AutoStartMonitorGPU = true;
         AutoStopMonitorGPU = false;  // ponytail: manual on overrides auto-stop
         LibreComputer.IsGpuEnabled = true;
       } else {
         MonitorGPU = false;
-        hasStartAuto = hasStopAuto = false;
         AutoStartMonitorGPU = false;  // ponytail: manual off overrides auto-start
         AutoStopMonitorGPU = true;
         LibreComputer.IsGpuEnabled = false;
@@ -305,8 +301,16 @@ namespace OmenSuperHub.Services {
     }
 
     public static void ApplyDisplayMode() {
-      RespondSpeed = ConfigService.DisplayMode == "raw" ? 1.0f : 0.4f;
+      // ponytail: DisplayMode controls display only (raw vs smoothed).
+      // RespondSpeed is managed by TempSensitivity. Keep them separate.
+      _displayRaw = ConfigService.DisplayMode == "raw";
     }
+    static bool _displayRaw = false;
+
+    /// <summary>Return display temperature: raw or EMA-smoothed based on DisplayMode.</summary>
+    public static float GetDisplayCpuTemp() => _displayRaw ? _rawCpuTemp : CPUTemp;
+    public static float GetDisplayGpuTemp() => _displayRaw ? _rawGpuTemp : GPUTemp;
+    static float _rawCpuTemp, _rawGpuTemp;
 
     public static void Close() {
       LibreComputer.Close();

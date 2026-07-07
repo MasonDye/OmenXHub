@@ -13,6 +13,43 @@ using Forms = System.Windows.Forms;
 
 namespace OmenSuperHub.Views {
   public partial class FloatingWindow : Window {
+    static PresentMonFpsMonitor _fpsMonitor;
+    static System.Windows.Threading.DispatcherTimer _refreshTimer;
+
+    static void EnsureTimer() {
+      if (_refreshTimer != null) return;
+      _refreshTimer = new System.Windows.Threading.DispatcherTimer {
+        Interval = TimeSpan.FromMilliseconds(
+            ConfigService.MonRefreshInterval > 500 ? 2000 : 250)
+      };
+      _refreshTimer.Tick += (_, __) => {
+        if (_instances.Count == 0) return;
+        UpdateAllText();
+      };
+      _refreshTimer.Start();
+    }
+
+    struct MEMORYSTATUSEX {
+      public uint dwLength;
+      public uint dwMemoryLoad;
+      public ulong ullTotalPhys;
+      public ulong ullAvailPhys;
+      public ulong ullTotalPageFile;
+      public ulong ullAvailPageFile;
+      public ulong ullTotalVirtual;
+      public ulong ullAvailVirtual;
+      public ulong ullAvailExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll")]
+    static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+
+    static MEMORYSTATUSEX GetMemoryStatus() {
+      var mem = new MEMORYSTATUSEX();
+      mem.dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
+      GlobalMemoryStatusEx(ref mem);
+      return mem;
+    }
     private static List<FloatingWindow> _instances = new List<FloatingWindow>();
 
     private string _deviceName;
@@ -110,7 +147,7 @@ namespace OmenSuperHub.Views {
       DataPanel.Orientation = isCol
         ? System.Windows.Controls.Orientation.Horizontal
         : System.Windows.Controls.Orientation.Vertical;
-      Sep1.Visibility = Sep2.Visibility = isCol ? Visibility.Visible : Visibility.Collapsed;
+      Sep1.Visibility = Sep2.Visibility = Sep3.Visibility = Sep4.Visibility = Sep5.Visibility = isCol ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private static void DoUpdateText(FloatingWindow w) {
@@ -145,8 +182,91 @@ namespace OmenSuperHub.Views {
         w.FanRow.Visibility = Visibility.Collapsed;
       }
 
+      if (ConfigService.MonitorMemory) {
+        w.MemRow.Visibility = Visibility.Visible;
+        var mem = GetMemoryStatus();
+        double memPct = mem.dwMemoryLoad;
+        double usedGB = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024.0 * 1024 * 1024);
+        double totalGB = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
+        w.MemPctText.Text = $"{memPct:F0}%";
+        w.MemUsedText.Text = $"{usedGB:F1}/{totalGB:F1}G";
+      } else {
+        w.MemRow.Visibility = Visibility.Collapsed;
+      }
+
+      if (ConfigService.MonitorNetwork && NetworkSpeedService.IsAvailable) {
+        w.NetRow.Visibility = Visibility.Visible;
+        var (down, up) = NetworkSpeedService.GetSpeed();
+        w.NetDownText.Text = $"↓{down:F0}KB/s";
+        w.NetUpText.Text = $"↑{up:F0}KB/s";
+      } else {
+        w.NetRow.Visibility = Visibility.Collapsed;
+      }
+
+      if (ConfigService.MonitorFPS) {
+        if (_fpsMonitor == null) {
+          _fpsMonitor = new PresentMonFpsMonitor();
+          _fpsMonitor.EnsureRunning("", out _);
+        }
+        _fpsMonitor.Poll();
+        int fps = _fpsMonitor.LastFps;
+        string app = _fpsMonitor.LastApp;
+        if (fps > 0) {
+          w.FpsRow.Visibility = Visibility.Visible;
+          w.FpsValueText.Text = fps.ToString();
+          w.FpsAppText.Text = string.IsNullOrWhiteSpace(app) ? "" : ShortAppName(app);
+        } else {
+          // Fallback: show monitor refresh rate
+          int hz = GetDisplayHz();
+          w.FpsRow.Visibility = hz > 0 ? Visibility.Visible : Visibility.Collapsed;
+          w.FpsValueText.Text = hz > 0 ? hz.ToString() : "0";
+          w.FpsAppText.Text = hz > 0 ? "Hz" : "";
+        }
+      } else {
+        w.FpsRow.Visibility = Visibility.Collapsed;
+        if (_fpsMonitor != null) { _fpsMonitor.Dispose(); _fpsMonitor = null; }
+      }
+
       w.UpdatePosition();
       w.ApplyWindowStyles();
+    }
+
+    static string ShortAppName(string app) {
+      try {
+        string name = System.IO.Path.GetFileNameWithoutExtension(app);
+        return name.Length > 12 ? name.Substring(0, 12) + ".." : name;
+      } catch { return app; }
+    }
+
+    // ── 回退：读取屏幕刷新率（PresentMon 不可用时显示） ──
+    struct DEVMODE {
+      [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
+      public string dmDeviceName;
+      public short dmSpecVersion, dmDriverVersion, dmSize, dmDriverExtra;
+      public int dmFields;
+      public short dmOrientation, dmPaperSize, dmPaperLength, dmPaperWidth;
+      public short dmScale, dmCopies, dmDefaultSource, dmPrintQuality;
+      public short dmColor, dmDuplex, dmYResolution, dmTTOption;
+      public short dmCollate;
+      [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
+      public string dmFormName;
+      public short dmLogPixels;
+      public int dmBitsPerPel, dmPelsWidth, dmPelsHeight, dmDisplayFlags, dmDisplayFrequency;
+    }
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
+
+    static int _cachedHz;
+    static int GetDisplayHz() {
+      if (_cachedHz > 0) return _cachedHz;
+      try {
+        var dm = new DEVMODE { dmSize = (short)System.Runtime.InteropServices.Marshal.SizeOf<DEVMODE>() };
+        if (EnumDisplaySettings(null, -1, ref dm))
+          _cachedHz = dm.dmDisplayFrequency;
+        else
+          _cachedHz = 60;
+      } catch { _cachedHz = 60; }
+      return _cachedHz;
     }
 
     public static void UpdateAllText() {
@@ -161,6 +281,7 @@ namespace OmenSuperHub.Views {
     }
 
     public static void ShowInstances() {
+      EnsureTimer();
       Application.Current?.Dispatcher.Invoke(() => {
         var selected = ParseSelectedDeviceNames();
         // Close instances for deselected screens
@@ -191,6 +312,12 @@ namespace OmenSuperHub.Views {
         }
         _instances.Clear();
       });
+    }
+
+    public static void UpdateRefreshInterval() {
+      if (_refreshTimer != null)
+        _refreshTimer.Interval = TimeSpan.FromMilliseconds(
+            ConfigService.MonRefreshInterval > 500 ? 2000 : 250);
     }
 
     public static List<string> ParseSelectedDeviceNames() {
@@ -230,6 +357,15 @@ namespace OmenSuperHub.Views {
       GpuPowerText.FontSize = fontSize - 2;
       FanLabel.FontSize = fontSize;
       FanSpeedText.FontSize = fontSize - 2;
+      MemLabel.FontSize = fontSize;
+      MemPctText.FontSize = fontSize;
+      MemUsedText.FontSize = fontSize - 2;
+      NetLabel.FontSize = fontSize;
+      NetDownText.FontSize = fontSize;
+      NetUpText.FontSize = fontSize - 2;
+      FpsLabel.FontSize = fontSize;
+      FpsValueText.FontSize = fontSize;
+      FpsAppText.FontSize = Math.Max(8, fontSize - 4);
     }
 
     private void UpdatePosition() {

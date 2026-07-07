@@ -135,6 +135,7 @@ namespace OmenSuperHub.Views {
         WindowBackgroundManager.UpdateBackground(this, ApplicationThemeManager.GetAppTheme(), WindowBackdropType.Mica);
 
         LoadDeviceInfo();
+        ApplyPresetHardware();
         NavigationView.Navigate(typeof(DashboardPage));
         StartStatusTimer();
         ApplyCustomLogo();

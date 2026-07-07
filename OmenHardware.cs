@@ -850,11 +850,35 @@ namespace OmenSuperHub {
         if (!_isGamingProduct.HasValue) {
           _isGamingProduct = false;
           try {
-            string displayName = DeviceModel.OmenPlatform.DisplayName;
+            // ponytail: DeviceModel.OmenPlatform can throw when the SDK
+            // doesn't recognise this platform.  Gracefully fall back to
+            // WMI Win32_ComputerSystem.Model so we still get a model name
+            // for partial support UX (VICTUS / PAVILION fans, etc.).
+            string displayName = null;
+            try { displayName = DeviceModel.OmenPlatform.DisplayName; } catch { }
+            if (string.IsNullOrEmpty(displayName)) {
+              try {
+                using (var searcher = new ManagementObjectSearcher(
+                  "SELECT Model FROM Win32_ComputerSystem"))
+                using (var col = searcher.Get()) {
+                  foreach (ManagementBaseObject obj in col) {
+                    displayName = obj["Model"]?.ToString() ?? "";
+                    break;
+                  }
+                }
+              } catch { }
+            }
+            if (string.IsNullOrEmpty(displayName)) return false;
+
             if (displayName.Contains("OMEN")) {
               _isGamingProduct = true;
             } else {
-              if (DeviceModel.FeatureByte.Contains("7K") && DeviceModel.FeatureByte.Contains("fd")) {
+              string fb = null;
+              try {
+                var fbytes = DeviceModel.FeatureByte;
+                if (fbytes != null) fb = string.Join("", fbytes);
+              } catch { }
+              if (fb != null && fb.Contains("7K") && fb.Contains("fd")) {
                 if (displayName.Contains("PAVILION") || displayName.Contains("VICTUS"))
                   _isGamingProduct = true;
               } else if (displayName.Contains("VICTUS")) {
@@ -869,12 +893,12 @@ namespace OmenSuperHub {
 
     public static int Validation() {
       try {
-        if (IsGamingProduct)
-          return 2;
-        if (DeviceModel.IsOldOmenProduct)
-          return 1;
-        if (DeviceModel.IsHP)
-          return 1;
+        if (IsGamingProduct) return 2;
+        // ponytail: each DeviceModel call wrapped separately. On non-HP
+        // hardware individual calls can throw — we don't want one failure
+        // to mask the other.
+        try { if (DeviceModel.IsOldOmenProduct) return 1; } catch { }
+        try { if (DeviceModel.IsHP) return 1; } catch { }
         return 0;
       } catch { return 0; }
     }

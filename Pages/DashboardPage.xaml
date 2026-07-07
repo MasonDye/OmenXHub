@@ -578,6 +578,42 @@
                       <ColumnDefinition Width="*"/>
                       <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
+                    <TextBlock Text="{x:Static app:Strings.DashboardMemoryLabel}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="MonMemoryCombo" Grid.Column="1" MinWidth="100"
+                              SelectionChanged="MonMemory_SelectionChanged">
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorMemoryOn}"/>
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorMemoryOff}"/>
+                    </ComboBox>
+                  </Grid>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="网速" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="MonNetworkCombo" Grid.Column="1" MinWidth="100"
+                              SelectionChanged="MonNetwork_SelectionChanged">
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorNetworkOn}"/>
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorNetworkOff}"/>
+                    </ComboBox>
+                  </Grid>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="FPS" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="MonFpsCombo" Grid.Column="1" MinWidth="100"
+                              SelectionChanged="MonFps_SelectionChanged">
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorFpsOn}"/>
+                      <ComboBoxItem Content="{x:Static app:Strings.MonitorFpsOff}"/>
+                    </ComboBox>
+                  </Grid>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
                     <TextBlock Text="{x:Static app:Strings.MonitorRefresh}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
                     <ComboBox x:Name="MonRefreshCombo" Grid.Column="1" MinWidth="100"
                               SelectionChanged="MonRefresh_SelectionChanged">

@@ -21,7 +21,7 @@ No advertisements · No wallpapers · No network connections.
 
 ### 儀表板 (Dashboard)
 
-即時顯示 CPU/GPU 溫度、使用率、頻率、功耗、風扇轉速、記憶體佔用、網速。顏色編碼進度條（綠→黃→紅）直觀反映負載狀態。
+即時顯示 CPU/GPU 溫度、使用率、頻率、功耗、風扇轉速、記憶體佔用。顏色編碼進度條（綠→黃→紅）直觀反映負載狀態。
 
 ![儀表板](Preview/Dashboard.png)
 
@@ -65,19 +65,13 @@ CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、電源模式/計畫、EcoQo
 
 ![其他](Preview/Other.png)
 
-### 系統資訊 (SysInfo)
-
-系統硬體詳情、PawnIO 驅動狀態、感測器溫度、GPU 程序管理、監控選項。
-
-![系統資訊](Preview/SysInfo.png)
-
 ### 設定 (Settings)
 
-浮窗顯示（位置/字型/透明度/多顯示器）、Omen 鍵（5 種行為）、OSD 提示、匣標圖示（原版/自訂/動態）、開機自啟、自訂主介面 LOGO、主題（跟隨系統/深色/亮色）、語言、自訂背景（透明度/高斯模糊）、資料本地化、除錯日誌。
+浮窗顯示（位置/佈局/字型/透明度/多顯示器）、Omen 鍵、OSD 提示、匣標圖示（原版/自訂/動態）、開機自啟、自訂主介面 LOGO、主題（深色/亮色）、語言、自訂背景（透明度/高斯模糊）、資料本地化、除錯日誌。
 
-| 浮窗 & Omen 鍵 | 主題 & 背景 |
+| 浮窗設定 | 界面 & 系統設定 |
 |:---:|:---:|
-| ![設定](Preview/Settings.png) | ![系統](Preview/Settings-System.png) |
+| ![設定1](Preview/Settings-1.png) | ![設定2](Preview/Settings-2.png) |
 
 ## 預設管理
 

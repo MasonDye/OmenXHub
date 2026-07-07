@@ -89,6 +89,8 @@
             <StackPanel Margin="0,12,0,12">
               <TextBlock x:Name="FanCurveTipText" Text="{x:Static app:Strings.FanCurveTip}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
               <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Text="可右键创建或删除控制点"/>
+              <TextBlock FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"
+                         Text="💡 拖拽调整后需切换一次风扇模式（如切到静音再切回自定义）才能实时生效"/>
             </StackPanel>
                <Grid>
                  <Grid.ColumnDefinitions>
