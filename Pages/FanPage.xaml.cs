@@ -495,6 +495,12 @@ namespace OmenSuperHub.Pages {
       sorted[_draggingIndex] = ((float)newTemp, (int)newRpm);
       if (_showGpuCurve) _curvePointsGPU = sorted; else _curvePoints = sorted;
       DrawFanCurve();
+      // ponytail: apply immediately so the user hears/feels the change while dragging
+      ApplyCustomCurve();
+      // Force immediate hardware write (bypass 1s timer guard)
+      int fs1 = FanService.GetSmartFanSpeed(0) / 100;
+      int fs2 = ConfigService.FanSync ? fs1 : FanService.GetSmartFanSpeed(1) / 100;
+      OmenHardware.SetFanLevel(fs1, fs2);
     }
 
     void FanCurveCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) {
@@ -579,13 +585,13 @@ namespace OmenSuperHub.Pages {
       bool hasShareCode = !string.IsNullOrEmpty(clip) && clip.StartsWith("OXFC:", StringComparison.OrdinalIgnoreCase);
 
       if (hasShareCode) {
-        var result = System.Windows.MessageBox.Show(
+        int r = DialogHelper.YesNoCancel(
             "检测到剪贴板中有分享码：\n" + clip.Substring(0, Math.Min(clip.Length, 40)) + "...\n\n点击「是」从分享码导入\n点击「否」选择文件导入",
-            Strings.FanCurveImportTitle, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (result == MessageBoxResult.Yes) {
+            Strings.FanCurveImportTitle);
+        if (r == 1) {
           ImportFromCode(clip);
           return;
-        } else if (result == MessageBoxResult.Cancel) {
+        } else if (r == 0) {
           return;
         }
       }
