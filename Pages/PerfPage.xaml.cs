@@ -2070,6 +2070,8 @@ namespace OmenSuperHub.Pages {
       bool hasNvidia = _hasNvidiaGpu;
       bool hasAdvCpu = hasAmd || hasIntel;
       bool hasAdvGpu = hasNvidia || _hasAmdGpu;
+      CpuAdvHeader.Visibility = hasAdvCpu ? Visibility.Visible : Visibility.Collapsed;
+      CpuAdvGrid.Visibility = hasAdvCpu ? Visibility.Visible : Visibility.Collapsed;
       PboScalarCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       CoCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       AutoOcCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
