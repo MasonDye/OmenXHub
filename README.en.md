@@ -21,7 +21,7 @@ No advertisements · No wallpapers · No network connections.
 
 ### Dashboard
 
-Real-time CPU/GPU temperature, usage, frequency, power, fan speed, RAM usage, and network speed. Color-coded progress bars (green → yellow → red) reflect load at a glance.
+Real-time CPU/GPU temperature, usage, frequency, power, fan speed, and RAM usage. Color-coded progress bars (green → yellow → red) reflect load at a glance.
 
 ![Dashboard](Preview/Dashboard.png)
 
@@ -65,19 +65,13 @@ Smart charging, Num Lock, Caps Lock, touchpad lock, HWiNFO64 integration, HTTP A
 
 ![Other](Preview/Other.png)
 
-### System Info
-
-Hardware details, PawnIO driver status, sensor temperatures, GPU process management, monitoring options.
-
-![SysInfo](Preview/SysInfo.png)
-
 ### Settings
 
-Overlay display (position / font / opacity / multi-monitor), Omen Key (5 behaviors), OSD toast, tray icon (default / custom / dynamic), auto-start, custom main logo, theme (system / dark / light), language, custom background (opacity / Gaussian blur), data localization, debug log.
+Overlay display (position / layout / font / opacity / multi-monitor), Omen Key, OSD toast, tray icon (default / custom / dynamic), auto-start, custom main logo, theme (dark / light), language, custom background (opacity / Gaussian blur), data localization, debug log.
 
-| Overlay & Omen Key | Theme & Background |
+| Overlay Settings | UI & System Settings |
 |:---:|:---:|
-| ![Settings](Preview/Settings.png) | ![System](Preview/Settings-System.png) |
+| ![Settings1](Preview/Settings-1.png) | ![Settings2](Preview/Settings-2.png) |
 
 ## Preset Management
 

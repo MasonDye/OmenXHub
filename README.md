@@ -65,19 +65,13 @@ CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、电源模式/计划、EcoQo
 
 ![其他](Preview/Other.png)
 
-### 系统信息 (SysInfo)
-
-系统硬件详情、PawnIO 驱动状态、传感器温度、GPU 进程管理、监控选项。
-
-![系统信息](Preview/SysInfo.png)
-
 ### 设置 (Settings)
 
-浮窗显示（位置/字体/透明度/多显示器）、Omen 键（5 种行为）、OSD 提示、托盘图标（原版/自定义/动态）、开机自启、自定义主界面 LOGO、主题（系统/深色/亮色）、语言、自定义背景（透明度/高斯模糊）、数据本地化、调试日志。
+浮窗显示（位置/布局/字体/透明度/多显示器）、Omen 键、OSD 提示、托盘图标（原版/自定义/动态）、开机自启、自定义主界面 LOGO、主题（深色/亮色）、语言、自定义背景（透明度/高斯模糊）、数据本地化、调试日志。
 
-| 浮窗 & Omen 键 | 主题 & 背景 |
+| 浮窗设置 | 界面 & 系统设置 |
 |:---:|:---:|
-| ![设置](Preview/Settings.png) | ![系统](Preview/Settings-System.png) |
+| ![设置1](Preview/Settings-1.png) | ![设置2](Preview/Settings-2.png) |
 
 ## 预设管理
 
