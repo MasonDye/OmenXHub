@@ -9,10 +9,12 @@ using System.Windows;
 using System.Windows.Controls;
 using OmenSuperHub.Models;
 using OmenSuperHub.Services;
+using OmenSuperHub.Utils;
 using static OmenSuperHub.OmenHardware;
 
 namespace OmenSuperHub.Pages {
   public partial class PerfPage : System.Windows.Controls.Page {
+    public static PerfPage? Instance { get; private set; }
     bool _loading;
     bool _optionsBuilt;
     static void Log(string msg) {
@@ -22,6 +24,7 @@ namespace OmenSuperHub.Pages {
     }
 
     public PerfPage() {
+      Instance = this;
       _loading = true;   // ponytail: suppress NumberBox ValueChanged during layout/template sync
       InitializeComponent();
       Loaded += PerfPage_Loaded;
@@ -948,25 +951,21 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       int mode = GfxModeCombo.SelectedIndex;
       if (mode == 3) {
-        var confirm = System.Windows.MessageBox.Show(Strings.GfxUMAConfirm, Strings.GfxUMATitle,
-            MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.Yes) { LoadState(); return; }
+        if (!DialogHelper.Confirm(Strings.GfxUMAConfirm, Strings.GfxUMATitle)) { LoadState(); return; }
       }
       if (mode >= 0 && SetGfxMode(mode)) {
         GetGfxMode(out int current);
         if (current == mode) {
-          System.Windows.MessageBox.Show(Strings.GfxSwitchedTo(
+          DialogHelper.Info(Strings.GfxSwitchedTo(
               mode == 0 ? "NVIDIA Advanced Optimus" :
               mode == 1 ? Strings.GfxDiscreteMode :
-              mode == 2 ? Strings.GfxHybridMode : Strings.GfxUMALabel), Strings.Hint,
-              MessageBoxButton.OK, MessageBoxImage.Information);
+              mode == 2 ? Strings.GfxHybridMode : Strings.GfxUMALabel), Strings.Hint);
         } else {
-          System.Windows.MessageBox.Show(Strings.GfxSwitchedTo(
+          DialogHelper.Info(Strings.GfxSwitchedTo(
               mode == 0 ? "NVIDIA Advanced Optimus" :
               mode == 1 ? Strings.GfxDiscreteMode :
               mode == 2 ? Strings.GfxHybridMode : Strings.GfxUMALabel) +
-              "\n" + Strings.PerfGfxReboot, Strings.Hint,
-              MessageBoxButton.OK, MessageBoxImage.Information);
+              "\n" + Strings.PerfGfxReboot, Strings.Hint);
         }
       }
     }
@@ -982,26 +981,22 @@ namespace OmenSuperHub.Pages {
     void HotSwitch_Click(object sender, RoutedEventArgs e) {
       int result = LaunchDDS();
       if (result != 0)
-        System.Windows.MessageBox.Show(Strings.DdsInitFail, Strings.Error, MessageBoxButton.OK, MessageBoxImage.Warning);
+        DialogHelper.Warn(Strings.DdsInitFail, Strings.Error);
     }
 
     // ── DB 版本 ──
     void DbVersion_SelectionChanged(object s, SelectionChangedEventArgs e) {
       if (_loading) return;
       if (!HardwareService.PowerOnline) {
-        System.Windows.MessageBox.Show(Strings.PleaseConnectAC, Strings.Hint,
-            MessageBoxButton.OK, MessageBoxImage.Warning);
+        DialogHelper.Warn(Strings.PleaseConnectAC, Strings.Hint);
         LoadState(); return;
       }
       if (DbVersionCombo.SelectedIndex == 0) {
         if (!TrayService.CheckDBVersion(1)) {
-          System.Windows.MessageBox.Show(Strings.DriverNotAllow + "\n" + Strings.DriverVersionRange, Strings.Error,
-              MessageBoxButton.OK, MessageBoxImage.Warning);
+          DialogHelper.Warn(Strings.DriverNotAllow + "\n" + Strings.DriverVersionRange, Strings.Error);
           LoadState(); return;
         }
-        var confirm = System.Windows.MessageBox.Show(Strings.PerfDbUnlockWarning, Strings.DbUnlockTitle,
-            MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.Yes) { LoadState(); return; }
+        if (!DialogHelper.Confirm(Strings.PerfDbUnlockWarning, Strings.DbUnlockTitle)) { LoadState(); return; }
         ConfigService.DBVersion = 1; ConfigService.Save("DBVersion");
         TrayService.ChangeDBVersion(1);
       } else {
@@ -1557,13 +1552,39 @@ namespace OmenSuperHub.Pages {
       if (GpuAdvGrid.Visibility == Visibility.Visible) LayoutPerfGrid(GpuAdvGrid, expand: false);
     }
 
+    // ponytail: detect full-width by runtime Grid.ColumnSpan instead of name matching.
+    // Any card with ColumnSpan >= 2 gets the full-row treatment — no name list to maintain.
     static bool IsFullWidthCard(FrameworkElement c) =>
-      c is Wpf.Ui.Controls.CardExpander ce && (ce.Name?.StartsWith("Fivr") == true || ce.Name == "ClockRatioCard") ||
-      c is Wpf.Ui.Controls.CardControl cc && cc.Name == "CoreKeepCard";
+      Grid.GetColumnSpan(c) >= 2;
+
+    // ponytail: set of cards whose XAML ColumnSpan is 2.  This survives layout
+    // toggling — after a collapsed→expand round-trip all runtime ColumnSpan
+    // values are 2 and we'd lose the regular/fullWidth distinction without it.
+    static readonly HashSet<string> _fwNames = new() {
+      "FivrCard", "ClockRatioCard", "ApuPowerCard", "ApuVrmCard",
+      "AmdCpuPowerCard", "AmdCpuTempCard", "Ccd1CoCard", "Ccd2CoCard"
+    };
+    /// <summary>Reset runtime ColumnSpan to XAML default (1) so the next
+    /// categorization round starts clean.  Only cards whose name appears in
+    /// _fwNames (true XAML full-width cards) are left alone — regular cards
+    /// that got ColumnSpan=2 during a previous collapsed layout are reset.</summary>
+    void ResetColumnSpans(Grid grid) {
+      for (int i = 0; i < grid.Children.Count; i++) {
+        if (grid.Children[i] is not FrameworkElement c) continue;
+        // ponytail: DO NOT guard on runtime Grid.GetColumnSpan(c) >= 2 here.
+        // After a collapsed pass ALL regular cards have ColumnSpan=2, so the
+        // guard would skip them and IsFullWidthCard mis-classifies everything.
+        if (c.Name != null && _fwNames.Contains(c.Name)) continue;
+        Grid.SetColumnSpan(c, 1);
+      }
+    }
 
     void LayoutPerfGrid(Grid grid, bool expand) {
       int childCount = grid.Children.Count;
       if (childCount == 0) return;
+      // Reset regular cards to ColumnSpan=1 before categorising, so a
+      // previous collapsed→expand round-trip doesn't trick IsFullWidthCard.
+      ResetColumnSpans(grid);
       grid.ColumnDefinitions[1].Width = expand
         ? new GridLength(1, GridUnitType.Star)
         : new GridLength(0, GridUnitType.Pixel);
@@ -1592,8 +1613,10 @@ namespace OmenSuperHub.Pages {
           c.Margin = new Thickness(col == 1 ? 4 : 0, 0, col == 1 ? 0 : 4, 8);
         }
       } else {
+        // ponytail: collapsed — each regular card spans full width to avoid
+        // Column/ColumnSpan ambiguity. No second-column layout math to drift.
         foreach (var c in regular) {
-          Grid.SetRow(c, row); Grid.SetColumn(c, 0); Grid.SetColumnSpan(c, 1);
+          Grid.SetRow(c, row); Grid.SetColumn(c, 0); Grid.SetColumnSpan(c, 2);
           c.Margin = new Thickness(0, 0, 0, 8);
           row++;
         }
@@ -1611,7 +1634,12 @@ namespace OmenSuperHub.Pages {
     bool _hasIntelCpu => OmenHardware.HasIntelCpu();
     bool _hasNvidiaGpu => GpuAppManager.HasNvidiaGpu();
     bool _hasAmdGpu => OmenHardware.HasAmdGpu();
-    bool _isAmdDualCcd { get { var d = HeteroCpuService.DetectDualCcd(); return d.supported; } }
+
+    // ════════════════════════════════════════════════════════════
+    // Hetero CPU (AMD dual-CCD simulated hybrid scheduling)
+    // ════════════════════════════════════════════════════════════
+    static readonly int[] HeteroPolicyValues = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    static readonly int[] HeteroMaskValues = { 1, 2, 3, 4, 5, 6, 7 };
 
     void BuildAdvancedCards() {
       // PBO Scalar (AMD)
@@ -1626,9 +1654,7 @@ namespace OmenSuperHub.Pages {
 
       // Curve Optimiser
       CoSlider.Value = ConfigService.CoAllCoreOffset;
-
-      // CCD Affinity
-      CcdAffinityToggle.IsChecked = HeteroCpuService.IsActive();
+      CoIGpuSlider.Value = ConfigService.CoIGpuOffset;
 
       // FIVR
       bool intelSvc = IntelAdvancedService.IsAvailable;
@@ -1711,6 +1737,50 @@ namespace OmenSuperHub.Pages {
 
       ApuGfxClkSlider.Value = ConfigService.AmdGfxClk;
       ApuGfxClkStatus.Text = smuSvc ? "SMU 已连接 (PSMU gfx-clk)" : Strings.FeaturePartialImpl;
+
+      // AMD CPU Power Limits (PPT / TDC / EDC) — AM5 desktop
+      AmdCpuPptSlider.Value = ConfigService.AmdCpuPpt > 0 ? ConfigService.AmdCpuPpt : 105;
+      AmdCpuTdcSlider.Value = ConfigService.AmdCpuTdc > 0 ? ConfigService.AmdCpuTdc : 80;
+      AmdCpuEdcSlider.Value = ConfigService.AmdCpuEdc > 0 ? ConfigService.AmdCpuEdc : 160;
+      AmdCpuPowerStatus.Text = smuSvc ? "SMU 已连接" : Strings.FeaturePartialImpl;
+
+      // AMD CPU Temperature Limit (Tctl) — AM5 desktop
+      AmdCpuTctlSlider.Value = ConfigService.AmdCpuTctl > 0 ? ConfigService.AmdCpuTctl : 95;
+      AmdCpuTempStatus.Text = smuSvc ? "SMU 已连接" : Strings.FeaturePartialImpl;
+
+      // Per-Core Curve Optimiser panels built dynamically
+      BuildPerCoreCoPanels();
+
+      // ── Hetero CPU ──
+      InitHeteroCpu();
+
+      // ── Init master toggles (UXTU-style per-card enable/disable) ──
+      InitMasterToggle(FivrMasterToggle, FivrCard, ConfigService.FivrMasterEnabled);
+      InitMasterToggle(ApuPowerMasterToggle, ApuPowerCard, ConfigService.ApuPowerMasterEnabled);
+      InitMasterToggle(ApuVrmMasterToggle, ApuVrmCard, ConfigService.ApuVrmMasterEnabled);
+      InitMasterToggle(ApuTempMasterToggle, ApuTempCard, ConfigService.ApuTempMasterEnabled);
+      InitMasterToggle(ApuGfxClkMasterToggle, ApuGfxClkCard, ConfigService.ApuGfxClkMasterEnabled);
+      InitMasterToggle(AmdCpuPowerMasterToggle, AmdCpuPowerCard, ConfigService.AmdCpuPowerMasterEnabled);
+      InitMasterToggle(AmdCpuTempMasterToggle, AmdCpuTempCard, ConfigService.AmdCpuTempMasterEnabled);
+      // ponytail: new master toggles — each card's master toggle gates its child UI controls.
+      // For PCI/level toggles (AutoOC / single-toggle cards) we toggle only one
+      // child control instead of all sliders — keeps the same helper API.
+      InitMasterToggle(PboScalarMasterToggle, PboScalarCard, ConfigService.PboScalarMasterEnabled);
+      InitMasterToggle(CoMasterToggle, CoCard, ConfigService.CoMasterEnabled);
+      AutoOcMasterToggle.IsChecked = ConfigService.AutoOcMasterEnabled;
+      AutoOcToggle.IsEnabled = ConfigService.AutoOcMasterEnabled;
+      InitMasterToggle(ClockRatioMasterToggle, ClockRatioCard, ConfigService.ClockRatioMasterEnabled);
+      InitMasterToggle(PowerBalanceMasterToggle, PowerBalanceCard, ConfigService.PowerBalanceMasterEnabled);
+      PawnTurboMasterToggle.IsChecked = ConfigService.PawnTurboMasterEnabled;
+      PawnTurboToggle.IsEnabled = ConfigService.PawnTurboMasterEnabled;
+      InitMasterToggle(PawnProchotMasterToggle, PawnProchotCard, ConfigService.PawnProchotMasterEnabled);
+      InitMasterToggle(PawnHwpMasterToggle, PawnHwpCard, ConfigService.PawnHwpMasterEnabled);
+      PawnCStateMasterToggle.IsChecked = ConfigService.PawnCStateMasterEnabled;
+      PawnCStateCombo.IsEnabled = ConfigService.PawnCStateMasterEnabled;
+      InitMasterToggle(PawnIgpuPowerMasterToggle, PawnIgpuPowerCard, ConfigService.PawnIgpuPowerMasterEnabled);
+      InitMasterToggle(PawnIgpuRatioMasterToggle, PawnIgpuRatioCard, ConfigService.PawnIgpuRatioMasterEnabled);
+      InitMasterToggle(NvTuningMasterToggle, NvTuningCard, ConfigService.NvTuningMasterEnabled);
+      InitMasterToggle(RtssMasterToggle, RtssCard, ConfigService.RtssMasterEnabled);
     }
 
     void BuildCStateCombo() {
@@ -1723,9 +1793,273 @@ namespace OmenSuperHub.Pages {
         PawnCStateCombo.SelectedIndex = saved;
     }
 
+    // ── Master Toggle helpers (UXTU-style per-card enable/disable) ──
+
+    /// <summary>Enable/disable all Slider+NumberBox children inside a card's content StackPanel</summary>
+    static void SetCardSlidersEnabled(UIElement card, bool enabled) {
+      if (card == null) return;
+      FrameworkElement contentRoot = null;
+      if (card is Wpf.Ui.Controls.CardExpander ce && ce.Content is FrameworkElement fe) contentRoot = fe;
+      else if (card is Wpf.Ui.Controls.CardControl cc && cc.Content is FrameworkElement fe2) contentRoot = fe2;
+      if (contentRoot == null) return;
+      foreach (var child in FindVisualChildren<Slider>(contentRoot)) child.IsEnabled = enabled;
+      foreach (var child in FindVisualChildren<Wpf.Ui.Controls.NumberBox>(contentRoot)) child.IsEnabled = enabled;
+    }
+
+    static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject {
+      if (parent == null) yield break;
+      int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+      for (int i = 0; i < count; i++) {
+        var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+        if (child is T t) yield return t;
+        foreach (var grandChild in FindVisualChildren<T>(child)) yield return grandChild;
+      }
+    }
+
+    void InitMasterToggle(Wpf.Ui.Controls.ToggleSwitch toggle, FrameworkElement card, bool savedValue) {
+      toggle.IsChecked = savedValue;
+      SetCardSlidersEnabled(card, savedValue);
+    }
+
+    // ── FIVR Master Toggle ──
+    void FivrMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = FivrMasterToggle.IsChecked == true;
+      ConfigService.FivrMasterEnabled = on;
+      ConfigService.Save("FivrMasterEnabled");
+      SetCardSlidersEnabled(FivrCard, on);
+    }
+
+    // ── APU Power Master Toggle ──
+    void ApuPowerMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = ApuPowerMasterToggle.IsChecked == true;
+      ConfigService.ApuPowerMasterEnabled = on;
+      ConfigService.Save("ApuPowerMasterEnabled");
+      SetCardSlidersEnabled(ApuPowerCard, on);
+    }
+
+    // ── APU VRM Master Toggle ──
+    void ApuVrmMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = ApuVrmMasterToggle.IsChecked == true;
+      ConfigService.ApuVrmMasterEnabled = on;
+      ConfigService.Save("ApuVrmMasterEnabled");
+      SetCardSlidersEnabled(ApuVrmCard, on);
+    }
+
+    // ── APU Temp Master Toggle ──
+    void ApuTempMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = ApuTempMasterToggle.IsChecked == true;
+      ConfigService.ApuTempMasterEnabled = on;
+      ConfigService.Save("ApuTempMasterEnabled");
+      SetCardSlidersEnabled(ApuTempCard, on);
+    }
+
+    // ── APU iGPU Clock Master Toggle ──
+    void ApuGfxClkMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = ApuGfxClkMasterToggle.IsChecked == true;
+      ConfigService.ApuGfxClkMasterEnabled = on;
+      ConfigService.Save("ApuGfxClkMasterEnabled");
+      SetCardSlidersEnabled(ApuGfxClkCard, on);
+    }
+
+    // ── AMD CPU Power Master Toggle ──
+    void AmdCpuPowerMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = AmdCpuPowerMasterToggle.IsChecked == true;
+      ConfigService.AmdCpuPowerMasterEnabled = on;
+      ConfigService.Save("AmdCpuPowerMasterEnabled");
+      SetCardSlidersEnabled(AmdCpuPowerCard, on);
+    }
+
+    // ── AMD CPU Temp Master Toggle ──
+    void AmdCpuTempMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = AmdCpuTempMasterToggle.IsChecked == true;
+      ConfigService.AmdCpuTempMasterEnabled = on;
+      ConfigService.Save("AmdCpuTempMasterEnabled");
+      SetCardSlidersEnabled(AmdCpuTempCard, on);
+    }
+
+    // ── New master toggles ──
+    // PBO Scalar
+    void PboScalarMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = PboScalarMasterToggle.IsChecked == true;
+      ConfigService.PboScalarMasterEnabled = on;
+      ConfigService.Save("PboScalarMasterEnabled");
+      SetCardSlidersEnabled(PboScalarCard, on);
+    }
+    // Curve Optimiser
+    void CoMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = CoMasterToggle.IsChecked == true;
+      ConfigService.CoMasterEnabled = on;
+      ConfigService.Save("CoMasterEnabled");
+      SetCardSlidersEnabled(CoCard, on);
+    }
+    // AutoOC
+    void AutoOcMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = AutoOcMasterToggle.IsChecked == true;
+      ConfigService.AutoOcMasterEnabled = on;
+      ConfigService.Save("AutoOcMasterEnabled");
+      AutoOcToggle.IsEnabled = on;
+    }
+    // Clock Ratio (Intel)
+    void ClockRatioMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = ClockRatioMasterToggle.IsChecked == true;
+      ConfigService.ClockRatioMasterEnabled = on;
+      ConfigService.Save("ClockRatioMasterEnabled");
+      SetCardSlidersEnabled(ClockRatioCard, on);
+    }
+    // Power Balance (Intel)
+    void PowerBalanceMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = PowerBalanceMasterToggle.IsChecked == true;
+      ConfigService.PowerBalanceMasterEnabled = on;
+      ConfigService.Save("PowerBalanceMasterEnabled");
+      SetCardSlidersEnabled(PowerBalanceCard, on);
+    }
+    // PawnIO MSR cards
+    void PawnTurboMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = PawnTurboMasterToggle.IsChecked == true;
+      ConfigService.PawnTurboMasterEnabled = on;
+      ConfigService.Save("PawnTurboMasterEnabled");
+      PawnTurboToggle.IsEnabled = on;
+    }
+    void PawnProchotMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = PawnProchotMasterToggle.IsChecked == true;
+      ConfigService.PawnProchotMasterEnabled = on;
+      ConfigService.Save("PawnProchotMasterEnabled");
+      SetCardSlidersEnabled(PawnProchotCard, on);
+    }
+    void PawnHwpMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = PawnHwpMasterToggle.IsChecked == true;
+      ConfigService.PawnHwpMasterEnabled = on;
+      ConfigService.Save("PawnHwpMasterEnabled");
+      SetCardSlidersEnabled(PawnHwpCard, on);
+    }
+    void PawnCStateMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = PawnCStateMasterToggle.IsChecked == true;
+      ConfigService.PawnCStateMasterEnabled = on;
+      ConfigService.Save("PawnCStateMasterEnabled");
+      PawnCStateCombo.IsEnabled = on;
+    }
+    void PawnIgpuPowerMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = PawnIgpuPowerMasterToggle.IsChecked == true;
+      ConfigService.PawnIgpuPowerMasterEnabled = on;
+      ConfigService.Save("PawnIgpuPowerMasterEnabled");
+      SetCardSlidersEnabled(PawnIgpuPowerCard, on);
+    }
+    void PawnIgpuRatioMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = PawnIgpuRatioMasterToggle.IsChecked == true;
+      ConfigService.PawnIgpuRatioMasterEnabled = on;
+      ConfigService.Save("PawnIgpuRatioMasterEnabled");
+      SetCardSlidersEnabled(PawnIgpuRatioCard, on);
+    }
+    // NVIDIA Tunings
+    void NvTuningMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = NvTuningMasterToggle.IsChecked == true;
+      ConfigService.NvTuningMasterEnabled = on;
+      ConfigService.Save("NvTuningMasterEnabled");
+      SetCardSlidersEnabled(NvTuningCard, on);
+    }
+    // RTSS
+    void RtssMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = RtssMasterToggle.IsChecked == true;
+      ConfigService.RtssMasterEnabled = on;
+      ConfigService.Save("RtssMasterEnabled");
+      SetCardSlidersEnabled(RtssCard, on);
+    }
+
+    // ── ADLX Master Toggle ──
+    void AdlxMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = AdlxMasterToggle.IsChecked == true;
+      ConfigService.AdlxMasterEnabled = on;
+      ConfigService.Save("AdlxMasterEnabled");
+      AdlxRsrToggle.IsEnabled = on;
+      AdlxRsrSharpNum.IsEnabled = on;
+      AdlxAntiLagToggle.IsEnabled = on;
+      AdlxEnhancedSyncToggle.IsEnabled = on;
+      AdlxBoostToggle.IsEnabled = on;
+      AdlxBoostNum.IsEnabled = on;
+      AdlxImageSharpToggle.IsEnabled = on;
+      AdlxImageSharpNum.IsEnabled = on;
+    }
+    // ── ADLX individual controls ──
+    void AdlxRsr_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = AdlxRsrToggle.IsChecked == true;
+      ConfigService.AdlxRsrEnabled = on;
+      ConfigService.Save("AdlxRsrEnabled");
+      if (AdlxGpuService.IsAvailable) AdlxGpuService.EnableRsr(on);
+    }
+    void AdlxRsrSharp_Changed(object s, RoutedEventArgs e) {
+      if (_loading) return;
+      int v = (int)(AdlxRsrSharpNum.Value ?? 50);
+      ConfigService.AdlxRsrSharpness = v;
+      ConfigService.Save("AdlxRsrSharpness");
+      if (AdlxGpuService.IsAvailable && AdlxRsrToggle.IsChecked == true) AdlxGpuService.SetRsrSharpness(v);
+    }
+    void AdlxAntiLag_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = AdlxAntiLagToggle.IsChecked == true;
+      ConfigService.AdlxAntiLagEnabled = on;
+      ConfigService.Save("AdlxAntiLagEnabled");
+      if (AdlxGpuService.IsAvailable) AdlxGpuService.EnableAntiLag(on);
+    }
+    void AdlxEnhancedSync_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = AdlxEnhancedSyncToggle.IsChecked == true;
+      ConfigService.AdlxEnhancedSyncEnabled = on;
+      ConfigService.Save("AdlxEnhancedSyncEnabled");
+      if (AdlxGpuService.IsAvailable) AdlxGpuService.EnableEnhancedSync(on);
+    }
+    void AdlxBoost_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = AdlxBoostToggle.IsChecked == true;
+      int pct = (int)(AdlxBoostNum.Value ?? 0);
+      ConfigService.AdlxBoostEnabled = on;
+      ConfigService.AdlxBoostPercent = pct;
+      ConfigService.Save("AdlxBoostEnabled");
+      ConfigService.Save("AdlxBoostPercent");
+      if (AdlxGpuService.IsAvailable) AdlxGpuService.EnableBoost(on, pct);
+    }
+    void AdlxImageSharp_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool on = AdlxImageSharpToggle.IsChecked == true;
+      int pct = (int)(AdlxImageSharpNum.Value ?? 50);
+      ConfigService.AdlxImageSharpEnabled = on;
+      ConfigService.AdlxImageSharpPercent = pct;
+      ConfigService.Save("AdlxImageSharpEnabled");
+      ConfigService.Save("AdlxImageSharpPercent");
+      if (AdlxGpuService.IsAvailable) AdlxGpuService.EnableImageSharpening(on, pct);
+    }
+
     void ApplyHardwareVisibility() {
-      // Gate: hide everything unless unlocked via logo 5-click
-      if (!ConfigService.AdvancedTuningUnlocked) {
+      // ── CpuPerfGrid per-vendor visibility (always applies) ──
+      bool hasAmd = _hasAmdCpu;
+      bool hasIntel = _hasIntelCpu;
+      IccMaxCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
+      AcLoadLineCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
+      HeteroCpuCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
+
+      // Gate: hide advanced tuning unless unlocked via logo 5-click (or DEBUG mode)
+      if (!ConfigService.AdvancedTuningUnlocked && !ConfigService.DebugShowAllUi) {
         CpuAdvHeader.Visibility = Visibility.Collapsed;
         CpuAdvGrid.Visibility = Visibility.Collapsed;
         GpuAdvHeader.Visibility = Visibility.Collapsed;
@@ -1733,26 +2067,23 @@ namespace OmenSuperHub.Pages {
         return;
       }
 
-      bool hasAmd = _hasAmdCpu;
-      bool hasIntel = _hasIntelCpu;
       bool hasNvidia = _hasNvidiaGpu;
       bool hasAdvCpu = hasAmd || hasIntel;
       bool hasAdvGpu = hasNvidia || _hasAmdGpu;
-
-      CpuAdvHeader.Visibility = hasAdvCpu ? Visibility.Visible : Visibility.Collapsed;
-      CpuAdvGrid.Visibility = hasAdvCpu ? Visibility.Visible : Visibility.Collapsed;
-
-      // AMD cards
       PboScalarCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       CoCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
-      CcdAffinityCard.Visibility = (hasAmd && _isAmdDualCcd) ? Visibility.Visible : Visibility.Collapsed;
       AutoOcCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       // AMD APU SMU tuning cards
       bool amdSmu = hasAmd && AmdAdvancedService.IsAvailable;
       ApuPowerCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       ApuVrmCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       ApuTempCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
-      ApuGfxClkCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      // NOTE: ApuGfxClkCard moved to GpuAdvGrid — see GPU section below
+      AmdCpuPowerCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      AmdCpuTempCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      // Per-core CO: CCD1 always visible when SMU available; CCD2 only dual-CCD
+      Ccd1CoCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      Ccd2CoCard.Visibility = (amdSmu && HeteroCpuService.DetectDualCcd().supported) ? Visibility.Visible : Visibility.Collapsed;
 
       // Intel cards
       FivrCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
@@ -1771,11 +2102,33 @@ namespace OmenSuperHub.Pages {
 
       // GPU cards
       NvTuningCard.Visibility = hasNvidia ? Visibility.Visible : Visibility.Collapsed;
-      AdlxCard.Visibility = _hasAmdGpu ? Visibility.Visible : Visibility.Collapsed;
+      AdlxCard.Visibility = _hasAmdGpu && AdlxGpuService.IsAvailable ? Visibility.Visible : Visibility.Collapsed;
+      if (_hasAmdGpu && AdlxGpuService.IsAvailable) {
+        AdlxStatus.Text = "ADLX 已连接 - RSR/Anti-Lag/Enhanced Sync/Boost/Image Sharpening";
+      } else {
+        AdlxStatus.Text = AdlxGpuService.IsAvailable ? Strings.FeaturePartialImpl : Strings.HwNotDetected;
+      }
       RtssCard.Visibility = hasNvidia ? Visibility.Visible : Visibility.Collapsed;
       // iGPU cards visible when Intel + PawnIO available (iGPU present)
       PawnIgpuPowerCard.Visibility = pawnHw ? Visibility.Visible : Visibility.Collapsed;
       PawnIgpuRatioCard.Visibility = pawnHw ? Visibility.Visible : Visibility.Collapsed;
+      // iGPU Clock Override — visible when AMD SMU available (APU series)
+      // ponytail: moved from CpuAdvGrid to GpuAdvGrid so iGPU controls live
+      // under the GPU heading alongside other iGPU cards.
+      ApuGfxClkCard.Visibility = (hasAmd && amdSmu) ? Visibility.Visible : Visibility.Collapsed;
+
+      // DEBUG: 强制显示所有卡片
+      if (ConfigService.DebugShowAllUi) {
+        foreach (UIElement child in CpuAdvGrid.Children) child.Visibility = Visibility.Visible;
+        foreach (UIElement child in GpuAdvGrid.Children) child.Visibility = Visibility.Visible;
+        // ponytail: re-layout immediately so overlapping static Grid.Row
+        // values don't cause visible overlap.  Skip the normal per-card
+        // visibility logic below — DebugShowAllUi already set everything.
+        bool exp = _perfExpanded;
+        LayoutPerfGrid(CpuAdvGrid, exp);
+        LayoutPerfGrid(GpuAdvGrid, exp);
+        return;
+      }
 
     }
 
@@ -1820,25 +2173,209 @@ namespace OmenSuperHub.Pages {
         _ = AmdAdvancedService.SetCurveOptimizerAsync((short)v);
       _loading = false;
     }
+    void CoIGpuNum_ValueChanged(object s, RoutedEventArgs e) {
+      if (_loading) return;
+      double? val = CoIGpuNum.Value;
+      if (val == null || val < -30 || val > 30) return;
+      int v = (int)val;
+      ConfigService.CoIGpuOffset = v;
+      ConfigService.Save("CoIGpuOffset");
+      if (AmdAdvancedService.IsAvailable && AmdAdvancedService.SetCurveOptimizerIGpu(v)) {
+        // ponytail: silent success, no status label on CoCard's iGPU row
+      }
+    }
 
-    // ── CCD Affinity ──
-    void CcdAffinityToggle_Changed(object sender, RoutedEventArgs e) {
-      bool on = CcdAffinityToggle.IsChecked == true;
-      if (on) {
-        var detect = HeteroCpuService.DetectDualCcd();
-        if (detect.supported) {
-          HeteroCpuService.WriteSmallProcessorMask(detect.maskHex);
-          CcdAffinityStatus.Text = "掩码已设置: " + detect.maskHex + " (重启后生效)";
-        } else {
-          CcdAffinityStatus.Text = Strings.HwNotSupported;
-          CcdAffinityToggle.IsChecked = false;
-        }
+    // ════════════════════════════════════════════════════════════
+    // Hetero CPU (AMD dual-CCD simulated hybrid scheduling)
+    // ════════════════════════════════════════════════════════════
+
+    void InitHeteroCpu() {
+      HeteroCpuMaskBox.Text = ConfigService.HeteroCpuSmallMask;
+      HeteroCpuRuntimeBox.Text = ConfigService.HeteroCpuExpectedRuntime.ToString();
+      HeteroCpuPriorityBox.Text = ConfigService.HeteroCpuImportantPriority.ToString();
+      RefreshHeteroLabels();
+      // Restore saved selections
+      SelectPolicy(HeteroCpuDefaultPolicyCombo, ConfigService.HeteroCpuDefaultPolicy, HeteroPolicyValues);
+      SelectPolicy(HeteroCpuImportantPolicyCombo, ConfigService.HeteroCpuImportantPolicy, HeteroPolicyValues);
+      SelectPolicy(HeteroCpuImportantShortCombo, ConfigService.HeteroCpuImportantShortPolicy, HeteroPolicyValues);
+      SelectPolicy(HeteroCpuPolicyMaskCombo, ConfigService.HeteroCpuPolicyMask, HeteroMaskValues);
+      // Load toggle state
+      HeteroCpuToggle.IsChecked = HeteroCpuService.IsActive();
+      HeteroCpuDetails.Visibility = HeteroCpuService.IsActive() ? Visibility.Visible : Visibility.Collapsed;
+      // ponytail: register lang change once
+      Strings.OnLanguageChanged -= RefreshHeteroLabels;
+      Strings.OnLanguageChanged += RefreshHeteroLabels;
+    }
+
+    void RefreshHeteroLabels() {
+      // ponytail: do NOT toggle _loading — called from BuildAdvancedCards
+      // which is already inside a _loading=true block from BeginInvoke.
+      HeteroCpuDefaultPolicyCombo.ItemsSource = null;
+      HeteroCpuDefaultPolicyCombo.ItemsSource = new[] {
+          Strings.HeteroPolicyAny, Strings.HeteroPolicyBig, Strings.HeteroPolicyBigOrIdle,
+          Strings.HeteroPolicySmall, Strings.HeteroPolicySmallOrIdle, Strings.HeteroPolicyAuto,
+          Strings.HeteroPolicyPreferSmall, Strings.HeteroPolicyPreferBig
+      };
+      HeteroCpuImportantPolicyCombo.ItemsSource = null;
+      HeteroCpuImportantPolicyCombo.ItemsSource = new[] {
+          Strings.HeteroPolicyAny, Strings.HeteroPolicyBig, Strings.HeteroPolicyBigOrIdle,
+          Strings.HeteroPolicySmall, Strings.HeteroPolicySmallOrIdle, Strings.HeteroPolicyAuto,
+          Strings.HeteroPolicyPreferSmall, Strings.HeteroPolicyPreferBig
+      };
+      HeteroCpuImportantShortCombo.ItemsSource = null;
+      HeteroCpuImportantShortCombo.ItemsSource = new[] {
+          Strings.HeteroPolicyAny, Strings.HeteroPolicyBig, Strings.HeteroPolicyBigOrIdle,
+          Strings.HeteroPolicySmall, Strings.HeteroPolicySmallOrIdle, Strings.HeteroPolicyAuto,
+          Strings.HeteroPolicyPreferSmall, Strings.HeteroPolicyPreferBig
+      };
+      HeteroCpuPolicyMaskCombo.ItemsSource = null;
+      HeteroCpuPolicyMaskCombo.ItemsSource = new[] {
+          Strings.HeteroMaskForeground, Strings.HeteroMaskPriority, Strings.HeteroMaskFgPriority,
+          Strings.HeteroMaskRuntime, Strings.HeteroMaskFgRuntime, Strings.HeteroMaskPriRuntime,
+          Strings.HeteroMaskAll
+      };
+      SelectPolicy(HeteroCpuDefaultPolicyCombo, ConfigService.HeteroCpuDefaultPolicy, HeteroPolicyValues);
+      SelectPolicy(HeteroCpuImportantPolicyCombo, ConfigService.HeteroCpuImportantPolicy, HeteroPolicyValues);
+      SelectPolicy(HeteroCpuImportantShortCombo, ConfigService.HeteroCpuImportantShortPolicy, HeteroPolicyValues);
+      SelectPolicy(HeteroCpuPolicyMaskCombo, ConfigService.HeteroCpuPolicyMask, HeteroMaskValues);
+    }
+
+    static void SelectPolicy(ComboBox cb, int val, int[] values) {
+      int idx = Array.IndexOf(values, val);
+      if (idx >= 0 && idx < (cb.ItemsSource as string[])?.Length)
+        cb.SelectedIndex = idx;
+    }
+
+    void HeteroCpuToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      bool enable = HeteroCpuToggle.IsChecked == true;
+      HeteroCpuDetails.Visibility = enable ? Visibility.Visible : Visibility.Collapsed;
+      if (enable) {
+        HeteroCpuService.WriteSmallProcessorMask(ConfigService.HeteroCpuSmallMask);
+        HeteroCpuService.WriteDefaultPolicy(ConfigService.HeteroCpuDefaultPolicy);
+        HeteroCpuService.WriteExpectedRuntime(ConfigService.HeteroCpuExpectedRuntime);
+        HeteroCpuService.WriteImportantPolicy(ConfigService.HeteroCpuImportantPolicy);
+        HeteroCpuService.WriteImportantShortPolicy(ConfigService.HeteroCpuImportantShortPolicy);
+        HeteroCpuService.WritePolicyMask(ConfigService.HeteroCpuPolicyMask);
+        HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
       } else {
         HeteroCpuService.RemoveAll();
-        CcdAffinityStatus.Text = "已清除";
       }
-      ConfigService.HeteroCpuSmallMask = on ? HeteroCpuService.ReadSmallProcessorMask() : "FFFF0000";
+    }
+
+    void HeteroCpuMask_TextChanged(object sender, TextChangedEventArgs e) {
+      if (_loading) return;
+      ConfigService.HeteroCpuSmallMask = HeteroCpuMaskBox.Text.Trim();
       ConfigService.Save("HeteroCpuSmallMask");
+    }
+
+    void HeteroCpuPolicy_Changed(object sender, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      var combo = sender as ComboBox;
+      if (combo == null || combo.SelectedIndex < 0) return;
+      int val = HeteroPolicyValues[combo.SelectedIndex];
+      string key = null;
+      if (combo == HeteroCpuDefaultPolicyCombo) key = "HeteroCpuDefaultPolicy";
+      else if (combo == HeteroCpuImportantPolicyCombo) key = "HeteroCpuImportantPolicy";
+      else if (combo == HeteroCpuImportantShortCombo) key = "HeteroCpuImportantShortPolicy";
+      else if (combo == HeteroCpuPolicyMaskCombo) { val = HeteroMaskValues[combo.SelectedIndex]; key = "HeteroCpuPolicyMask"; }
+      if (key == null) return;
+      var field = typeof(ConfigService).GetField(key);
+      if (field != null) field.SetValue(null, val);
+      ConfigService.Save(key);
+    }
+
+    void HeteroCpuRuntime_Changed(object sender, TextChangedEventArgs e) {
+      if (_loading) return;
+      if (int.TryParse(HeteroCpuRuntimeBox.Text, out var val)) {
+        ConfigService.HeteroCpuExpectedRuntime = val;
+        ConfigService.Save("HeteroCpuExpectedRuntime");
+      }
+    }
+
+    void HeteroCpuPriority_Changed(object sender, TextChangedEventArgs e) {
+      if (_loading) return;
+      if (int.TryParse(HeteroCpuPriorityBox.Text, out var val)) {
+        ConfigService.HeteroCpuImportantPriority = val;
+        ConfigService.Save("HeteroCpuImportantPriority");
+      }
+    }
+
+    void HeteroCpuApply_Click(object sender, RoutedEventArgs e) {
+      if (HeteroCpuToggle.IsChecked != true) return;
+      HeteroCpuService.WriteSmallProcessorMask(ConfigService.HeteroCpuSmallMask);
+      HeteroCpuService.WriteDefaultPolicy(ConfigService.HeteroCpuDefaultPolicy);
+      HeteroCpuService.WriteExpectedRuntime(ConfigService.HeteroCpuExpectedRuntime);
+      HeteroCpuService.WriteImportantPolicy(ConfigService.HeteroCpuImportantPolicy);
+      HeteroCpuService.WriteImportantShortPolicy(ConfigService.HeteroCpuImportantShortPolicy);
+      HeteroCpuService.WritePolicyMask(ConfigService.HeteroCpuPolicyMask);
+      HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
+      DialogHelper.Info(Strings.HeteroCpuApplyResult, Strings.HeteroCpuApplyTitle);
+    }
+
+    void HeteroCpuRestore_Click(object sender, RoutedEventArgs e) {
+      HeteroCpuService.RemoveAll();
+      HeteroCpuToggle.IsChecked = false;
+      HeteroCpuDetails.Visibility = Visibility.Collapsed;
+      ConfigService.HeteroCpuSmallMask = "FFFF0000";
+      ConfigService.HeteroCpuDefaultPolicy = 2;
+      ConfigService.HeteroCpuExpectedRuntime = 1450;
+      ConfigService.HeteroCpuImportantPolicy = 2;
+      ConfigService.HeteroCpuImportantShortPolicy = 3;
+      ConfigService.HeteroCpuPolicyMask = 7;
+      ConfigService.HeteroCpuImportantPriority = 8;
+      ConfigService.Save("HeteroCpuSmallMask");
+      ConfigService.Save("HeteroCpuDefaultPolicy");
+      ConfigService.Save("HeteroCpuExpectedRuntime");
+      ConfigService.Save("HeteroCpuImportantPolicy");
+      ConfigService.Save("HeteroCpuImportantShortPolicy");
+      ConfigService.Save("HeteroCpuPolicyMask");
+      ConfigService.Save("HeteroCpuImportantPriority");
+      DialogHelper.Info(Strings.HeteroCpuRestoreResult, Strings.HeteroCpuRestoreTitle);
+    }
+
+    void HeteroCpuDetect_Click(object sender, RoutedEventArgs e) {
+      var (supported, totalLp, ccd0Lp, maskHex) = HeteroCpuService.DetectDualCcd();
+      if (!supported) {
+        DialogHelper.Info(Strings.HeteroCpuNotDetected, Strings.HeteroCpuDetectTitle);
+        return;
+      }
+      string msg = Strings.HeteroCpuDetectConfirm(totalLp.ToString(), ccd0Lp.ToString(), (totalLp - ccd0Lp).ToString(), maskHex);
+      if (DialogHelper.Confirm(msg, Strings.HeteroCpuDetectTitle)) {
+        HeteroCpuMaskBox.Text = maskHex;
+        ConfigService.HeteroCpuSmallMask = maskHex;
+        ConfigService.Save("HeteroCpuSmallMask");
+        ConfigService.HeteroCpuDefaultPolicy = 2;
+        ConfigService.HeteroCpuExpectedRuntime = 1450;
+        ConfigService.HeteroCpuImportantPolicy = 2;
+        ConfigService.HeteroCpuImportantShortPolicy = 3;
+        ConfigService.HeteroCpuPolicyMask = 7;
+        ConfigService.HeteroCpuImportantPriority = 8;
+        ConfigService.Save("HeteroCpuDefaultPolicy");
+        ConfigService.Save("HeteroCpuExpectedRuntime");
+        ConfigService.Save("HeteroCpuImportantPolicy");
+        ConfigService.Save("HeteroCpuImportantShortPolicy");
+        ConfigService.Save("HeteroCpuPolicyMask");
+        ConfigService.Save("HeteroCpuImportantPriority");
+        _loading = true;
+        SelectPolicy(HeteroCpuDefaultPolicyCombo, 2, HeteroPolicyValues);
+        SelectPolicy(HeteroCpuImportantPolicyCombo, 2, HeteroPolicyValues);
+        SelectPolicy(HeteroCpuImportantShortCombo, 3, HeteroPolicyValues);
+        SelectPolicy(HeteroCpuPolicyMaskCombo, 7, HeteroMaskValues);
+        HeteroCpuRuntimeBox.Text = "1450";
+        HeteroCpuPriorityBox.Text = "8";
+        _loading = false;
+        HeteroCpuService.WriteSmallProcessorMask(maskHex);
+        HeteroCpuService.WriteDefaultPolicy(2);
+        HeteroCpuService.WriteExpectedRuntime(1450);
+        HeteroCpuService.WriteImportantPolicy(2);
+        HeteroCpuService.WriteImportantShortPolicy(3);
+        HeteroCpuService.WritePolicyMask(7);
+        HeteroCpuService.WriteImportantPriority(8);
+        HeteroCpuToggle.IsChecked = true;
+        HeteroCpuDetails.Visibility = Visibility.Visible;
+        DialogHelper.Info(Strings.HeteroCpuDetectResult, Strings.HeteroCpuDetectTitle);
+      }
     }
 
     // ── AMD APU Power Tuning (STAPM / Fast / Slow PPT) ──
@@ -1961,6 +2498,143 @@ namespace OmenSuperHub.Pages {
       if (AmdAdvancedService.IsAvailable) {
         bool ok = mhz == 0 || AmdAdvancedService.SetGfxClk((uint)mhz);
         ApuGfxClkStatus.Text = mhz == 0 ? "自动 (未覆盖)" : (ok ? $"{mhz} MHz ✓" : "SMU 写入失败");
+      }
+    }
+
+    // ── AMD CPU Power Limits (PPT / TDC / EDC) ──
+    void AmdCpuPptNum_ValueChanged(object s, RoutedEventArgs e) {
+      if (_loading) return;
+      double? v = AmdCpuPptNum.Value; if (v == null) return;
+      int watts = (int)v;
+      ConfigService.AmdCpuPpt = watts; ConfigService.Save("AmdCpuPpt");
+      if (AmdAdvancedService.IsAvailable) {
+        bool ok = AmdAdvancedService.SetPptLimit((uint)(watts * 1000));
+        AmdCpuPowerStatus.Text = ok ? $"PPT={watts}W ✓" : "SMU 写入失败";
+      }
+    }
+    void AmdCpuTdcNum_ValueChanged(object s, RoutedEventArgs e) {
+      if (_loading) return;
+      double? v = AmdCpuTdcNum.Value; if (v == null) return;
+      int amps = (int)v;
+      ConfigService.AmdCpuTdc = amps; ConfigService.Save("AmdCpuTdc");
+      if (AmdAdvancedService.IsAvailable) {
+        bool ok = AmdAdvancedService.SetTdcLimit((uint)(amps * 1000));
+        AmdCpuPowerStatus.Text = ok ? $"TDC={amps}A ✓" : "SMU 写入失败";
+      }
+    }
+    void AmdCpuEdcNum_ValueChanged(object s, RoutedEventArgs e) {
+      if (_loading) return;
+      double? v = AmdCpuEdcNum.Value; if (v == null) return;
+      int amps = (int)v;
+      ConfigService.AmdCpuEdc = amps; ConfigService.Save("AmdCpuEdc");
+      if (AmdAdvancedService.IsAvailable) {
+        bool ok = AmdAdvancedService.SetEdcLimit((uint)(amps * 1000));
+        AmdCpuPowerStatus.Text = ok ? $"EDC={amps}A ✓" : "SMU 写入失败";
+      }
+    }
+
+    // ── AMD CPU Temperature Limit (Tctl hard throttle) ──
+    void AmdCpuTctlNum_ValueChanged(object s, RoutedEventArgs e) {
+      if (_loading) return;
+      double? v = AmdCpuTctlNum.Value; if (v == null) return;
+      int t = (int)v;
+      ConfigService.AmdCpuTctl = t; ConfigService.Save("AmdCpuTctl");
+      if (AmdAdvancedService.IsAvailable) {
+        bool ok = AmdAdvancedService.SetTctlTemp((uint)t);
+        AmdCpuTempStatus.Text = ok ? $"Tctl={t}°C ✓" : "SMU 写入失败";
+      }
+    }
+
+    // ── Per-Core Curve Optimiser (CCD0/CCD1, Core 0-23) ──
+    void CcdCo_ValueChanged(object s, RoutedEventArgs e) {
+      if (_loading) return;
+      var slider = s as Slider;
+      if (slider == null) return;
+      // Tag encodes: ccd * 100 + coreLocal (0-11)
+      int tag = (int)((slider.Tag as int?) ?? 0);
+      int ccd = tag / 100;
+      int coreLocal = tag % 100;
+      if (ccd < 0 || ccd > 1 || coreLocal < 0 || coreLocal > 11) return;
+      int globalCore = ccd * 12 + coreLocal;
+      int offset = (int)slider.Value;
+      if (offset < -50 || offset > 30) return;
+      ConfigService.CoPerCore[globalCore] = offset;
+      ConfigService.Save("CoPerCore");
+      if (AmdAdvancedService.IsAvailable) {
+        bool ok = AmdAdvancedService.SetCurveOptimizerPerCore(ccd, coreLocal, offset);
+        // Find status TextBlock in same rowPanel
+        if (slider.Parent is System.Windows.Controls.Grid numSliderRow &&
+            numSliderRow.Parent is StackPanel rowPanel) {
+          foreach (var child in rowPanel.Children) {
+            if (child is TextBlock tb && (tb.Name == $"co_status_{ccd}_{coreLocal}" ||
+                tb.Text.Contains($"CCD{ccd}"))) {
+              tb.Text = ok ? $"CCD{ccd} Core{globalCore}={offset} ✓" : "SMU 写入失败";
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    /// <summary>Dynamically build 12-core slider rows into Ccd1CoPanel / Ccd2CoPanel</summary>
+    void BuildPerCoreCoPanels() {
+      var specs = new (StackPanel panel, int ccd, int coreStart)[] {
+        (Ccd1CoPanel, 0, 0),
+        (Ccd2CoPanel, 1, 12)
+      };
+      foreach (var (panel, ccd, coreStart) in specs) {
+        panel.Children.Clear();
+        for (int ci = 0; ci < 12; ci++) {
+          int globalCore = ccd * 12 + ci;
+          int coreNumber = coreStart + ci;
+          int savedOffset = globalCore < ConfigService.CoPerCore.Length ? ConfigService.CoPerCore[globalCore] : 0;
+
+          var rowPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+
+          // Label
+          rowPanel.Children.Add(new TextBlock {
+            Text = $"Core {coreNumber}", FontSize = 11,
+            Foreground = (System.Windows.Media.Brush)FindResource("TextFillColorTertiaryBrush"),
+            Margin = new Thickness(0, 4, 0, 2)
+          });
+
+          // NumberBox + Slider row
+          var numSliderRow = new System.Windows.Controls.Grid();
+          numSliderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+          numSliderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+          var sliderCtrl = new Slider {
+            Minimum = -50, Maximum = 30, TickFrequency = 1,
+            IsSnapToTickEnabled = true, Margin = new Thickness(12, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center, Value = savedOffset,
+            Tag = ccd * 100 + ci  // encode ccd:localCore in Tag
+          };
+          sliderCtrl.ValueChanged += CcdCo_ValueChanged;
+
+          var numBox = new Wpf.Ui.Controls.NumberBox {
+            Minimum = -50, Maximum = 30, SmallChange = 1, MaxDecimalPlaces = 0, Value = savedOffset
+          };
+          numBox.SetBinding(Wpf.Ui.Controls.NumberBox.ValueProperty,
+            new System.Windows.Data.Binding("Value") {
+              Source = sliderCtrl, Mode = System.Windows.Data.BindingMode.TwoWay
+            });
+
+          Grid.SetColumn(numBox, 0); Grid.SetColumn(sliderCtrl, 1);
+          numSliderRow.Children.Add(numBox);
+          numSliderRow.Children.Add(sliderCtrl);
+          rowPanel.Children.Add(numSliderRow);
+
+          // Status line
+          rowPanel.Children.Add(new TextBlock {
+            Name = $"co_status_{ccd}_{ci}",
+            Text = AmdAdvancedService.IsAvailable ? "" : Strings.FeaturePartialImpl,
+            FontSize = 10,
+            Foreground = (System.Windows.Media.Brush)FindResource("TextFillColorTertiaryBrush"),
+            Margin = new Thickness(0, 2, 0, 0)
+          });
+
+          panel.Children.Add(rowPanel);
+        }
       }
     }
 
@@ -2552,7 +3226,6 @@ namespace OmenSuperHub.Pages {
         HdrOn = HdrToggle.IsChecked ?? false,
         PboScalarIndex = PboScalarCombo.SelectedIndex,
         Co = CoNum.Value ?? 0,
-        CcdAffinityOn = CcdAffinityToggle.IsChecked ?? false,
         FivrCore = FivrCoreNum.Value ?? 0,
         FivrCache = FivrCacheNum.Value ?? 0,
         FivrIgpu = FivrIgpuNum.Value ?? 0,
@@ -2580,6 +3253,39 @@ namespace OmenSuperHub.Pages {
         AutoOcOn = AutoOcToggle.IsChecked ?? false,
         PawnIgpuPower = PawnIgpuPowerNum.Value ?? 0,
         PawnIgpuRatio = PawnIgpuRatioNum.Value ?? 0,
+        // ── Master toggles (full set: existing 7 + new 14) ──
+        FivrMasterOn = FivrMasterToggle.IsChecked ?? true,
+        ApuPowerMasterOn = ApuPowerMasterToggle.IsChecked ?? true,
+        ApuVrmMasterOn = ApuVrmMasterToggle.IsChecked ?? true,
+        ApuTempMasterOn = ApuTempMasterToggle.IsChecked ?? true,
+        ApuGfxClkMasterOn = ApuGfxClkMasterToggle.IsChecked ?? true,
+        AmdCpuPowerMasterOn = AmdCpuPowerMasterToggle.IsChecked ?? true,
+        AmdCpuTempMasterOn = AmdCpuTempMasterToggle.IsChecked ?? true,
+        PboScalarMasterOn = PboScalarMasterToggle.IsChecked ?? true,
+        CoMasterOn = CoMasterToggle.IsChecked ?? true,
+        AutoOcMasterOn = AutoOcMasterToggle.IsChecked ?? true,
+        ClockRatioMasterOn = ClockRatioMasterToggle.IsChecked ?? true,
+        PowerBalanceMasterOn = PowerBalanceMasterToggle.IsChecked ?? true,
+        PawnTurboMasterOn = PawnTurboMasterToggle.IsChecked ?? true,
+        PawnProchotMasterOn = PawnProchotMasterToggle.IsChecked ?? true,
+        PawnHwpMasterOn = PawnHwpMasterToggle.IsChecked ?? true,
+        PawnCStateMasterOn = PawnCStateMasterToggle.IsChecked ?? true,
+        PawnIgpuPowerMasterOn = PawnIgpuPowerMasterToggle.IsChecked ?? true,
+        PawnIgpuRatioMasterOn = PawnIgpuRatioMasterToggle.IsChecked ?? true,
+        NvTuningMasterOn = NvTuningMasterToggle.IsChecked ?? true,
+        RtssMasterOn = RtssMasterToggle.IsChecked ?? true,
+        // CO: per-core + iGPU snapshot
+        CoPerCoreCsv = string.Join(",", ConfigService.CoPerCore),
+        CoIGpuOffsetSnapshot = (int)(CoIGpuNum.Value ?? 0),
+        // ADLX / AMD GPU state — captured as raw numbers, applied as service calls
+        AdlxRsrOn = AdlxRsrToggle.IsChecked ?? false,
+        AdlxRsrSharpness = (int)(AdlxRsrSharpNum.Value ?? 50),
+        AdlxAntiLagOn = AdlxAntiLagToggle.IsChecked ?? false,
+        AdlxEnhancedSyncOn = AdlxEnhancedSyncToggle.IsChecked ?? false,
+        AdlxBoostOn = AdlxBoostToggle.IsChecked ?? false,
+        AdlxBoostPercent = (int)(AdlxBoostNum.Value ?? 0),
+        AdlxImageSharpOn = AdlxImageSharpToggle.IsChecked ?? false,
+        AdlxImageSharpPercent = (int)(AdlxImageSharpNum.Value ?? 50),
       };
     }
 
@@ -2632,7 +3338,6 @@ namespace OmenSuperHub.Pages {
       if (HdrToggle.IsChecked != p.HdrOn) HdrToggle.IsChecked = p.HdrOn;
       PboScalarCombo.SelectedIndex = Clamp(p.PboScalarIndex, 0, PboScalarCombo.Items.Count - 1);
       CoNum.Value = p.Co;
-      if (CcdAffinityToggle.IsChecked != p.CcdAffinityOn) CcdAffinityToggle.IsChecked = p.CcdAffinityOn;
       FivrCoreNum.Value = p.FivrCore;
       FivrCacheNum.Value = p.FivrCache;
       FivrIgpuNum.Value = p.FivrIgpu;
@@ -2660,6 +3365,46 @@ namespace OmenSuperHub.Pages {
       if (AutoOcToggle.IsChecked != p.AutoOcOn) AutoOcToggle.IsChecked = p.AutoOcOn;
       PawnIgpuPowerNum.Value = p.PawnIgpuPower;
       PawnIgpuRatioNum.Value = p.PawnIgpuRatio;
+      // ── Master toggles (full set) ──
+      if (FivrMasterToggle.IsChecked != p.FivrMasterOn) FivrMasterToggle.IsChecked = p.FivrMasterOn;
+      if (ApuPowerMasterToggle.IsChecked != p.ApuPowerMasterOn) ApuPowerMasterToggle.IsChecked = p.ApuPowerMasterOn;
+      if (ApuVrmMasterToggle.IsChecked != p.ApuVrmMasterOn) ApuVrmMasterToggle.IsChecked = p.ApuVrmMasterOn;
+      if (ApuTempMasterToggle.IsChecked != p.ApuTempMasterOn) ApuTempMasterToggle.IsChecked = p.ApuTempMasterOn;
+      if (ApuGfxClkMasterToggle.IsChecked != p.ApuGfxClkMasterOn) ApuGfxClkMasterToggle.IsChecked = p.ApuGfxClkMasterOn;
+      if (AmdCpuPowerMasterToggle.IsChecked != p.AmdCpuPowerMasterOn) AmdCpuPowerMasterToggle.IsChecked = p.AmdCpuPowerMasterOn;
+      if (AmdCpuTempMasterToggle.IsChecked != p.AmdCpuTempMasterOn) AmdCpuTempMasterToggle.IsChecked = p.AmdCpuTempMasterOn;
+      if (PboScalarMasterToggle.IsChecked != p.PboScalarMasterOn) PboScalarMasterToggle.IsChecked = p.PboScalarMasterOn;
+      if (CoMasterToggle.IsChecked != p.CoMasterOn) CoMasterToggle.IsChecked = p.CoMasterOn;
+      if (AutoOcMasterToggle.IsChecked != p.AutoOcMasterOn) AutoOcMasterToggle.IsChecked = p.AutoOcMasterOn;
+      if (ClockRatioMasterToggle.IsChecked != p.ClockRatioMasterOn) ClockRatioMasterToggle.IsChecked = p.ClockRatioMasterOn;
+      if (PowerBalanceMasterToggle.IsChecked != p.PowerBalanceMasterOn) PowerBalanceMasterToggle.IsChecked = p.PowerBalanceMasterOn;
+      if (PawnTurboMasterToggle.IsChecked != p.PawnTurboMasterOn) PawnTurboMasterToggle.IsChecked = p.PawnTurboMasterOn;
+      if (PawnProchotMasterToggle.IsChecked != p.PawnProchotMasterOn) PawnProchotMasterToggle.IsChecked = p.PawnProchotMasterOn;
+      if (PawnHwpMasterToggle.IsChecked != p.PawnHwpMasterOn) PawnHwpMasterToggle.IsChecked = p.PawnHwpMasterOn;
+      if (PawnCStateMasterToggle.IsChecked != p.PawnCStateMasterOn) PawnCStateMasterToggle.IsChecked = p.PawnCStateMasterOn;
+      if (PawnIgpuPowerMasterToggle.IsChecked != p.PawnIgpuPowerMasterOn) PawnIgpuPowerMasterToggle.IsChecked = p.PawnIgpuPowerMasterOn;
+      if (PawnIgpuRatioMasterToggle.IsChecked != p.PawnIgpuRatioMasterOn) PawnIgpuRatioMasterToggle.IsChecked = p.PawnIgpuRatioMasterOn;
+      if (NvTuningMasterToggle.IsChecked != p.NvTuningMasterOn) NvTuningMasterToggle.IsChecked = p.NvTuningMasterOn;
+      if (RtssMasterToggle.IsChecked != p.RtssMasterOn) RtssMasterToggle.IsChecked = p.RtssMasterOn;
+      // CO iGPU + per-core restore — apply only if non-empty (legacy presets may not have these)
+      if (!string.IsNullOrEmpty(p.CoPerCoreCsv)) {
+        var parts = p.CoPerCoreCsv.Split(',');
+        for (int i = 0; i < ConfigService.CoPerCore.Length && i < parts.Length; i++) {
+          if (int.TryParse(parts[i].Trim(), out int v)) ConfigService.CoPerCore[i] = v;
+        }
+        // ponytail: rebuild per-core UI rows to reflect new values
+        BuildPerCoreCoPanels();
+      }
+      if (p.CoIGpuOffsetSnapshot != 0) CoIGpuNum.Value = p.CoIGpuOffsetSnapshot;
+      // ADLX UI restore — checked values only; service calls happen on user click
+      if (AdlxRsrToggle.IsChecked != p.AdlxRsrOn) AdlxRsrToggle.IsChecked = p.AdlxRsrOn;
+      AdlxRsrSharpNum.Value = p.AdlxRsrSharpness;
+      if (AdlxAntiLagToggle.IsChecked != p.AdlxAntiLagOn) AdlxAntiLagToggle.IsChecked = p.AdlxAntiLagOn;
+      if (AdlxEnhancedSyncToggle.IsChecked != p.AdlxEnhancedSyncOn) AdlxEnhancedSyncToggle.IsChecked = p.AdlxEnhancedSyncOn;
+      if (AdlxBoostToggle.IsChecked != p.AdlxBoostOn) AdlxBoostToggle.IsChecked = p.AdlxBoostOn;
+      AdlxBoostNum.Value = p.AdlxBoostPercent;
+      if (AdlxImageSharpToggle.IsChecked != p.AdlxImageSharpOn) AdlxImageSharpToggle.IsChecked = p.AdlxImageSharpOn;
+      AdlxImageSharpNum.Value = p.AdlxImageSharpPercent;
       _loading = false;
     }
 
@@ -2727,15 +3472,13 @@ namespace OmenSuperHub.Pages {
     void btnPerfDelete_Click(object sender, RoutedEventArgs e) {
       string preset = ConfigService.Preset;
       if (PresetManager.IsBuiltIn(preset)) {
-        MessageBox.Show("内置预设不可删除。请先切换到自定义预设。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+        DialogHelper.Info("内置预设不可删除。请先切换到自定义预设。", "提示");
         return;
       }
       string displayName = ConfigService.GetCustomPresetDisplayName(preset);
-      var res = MessageBox.Show(
+      if (!DialogHelper.OkCancel(
         $"确认删除自定义预设「{displayName}」？此操作不可撤销。",
-        "删除预设",
-        MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-      if (res != MessageBoxResult.OK) return;
+        "删除预设")) return;
       // save current state away from this preset (SwitchPreset auto-saves on leave)
       ConfigService.Preset = ""; // prevent SwitchPreset from re-saving to the deleted key
       PresetManager.DeleteCustomPreset(preset);
@@ -2749,22 +3492,18 @@ namespace OmenSuperHub.Pages {
     void btnPerfUndo_Click(object sender, RoutedEventArgs e) {
       // 如果有 Apply 快照，优先回滚到快照；否则恢复到默认预设并清空自定义预设
       if (_snapshot != null) {
-        var res = MessageBox.Show(
+        if (!DialogHelper.OkCancel(
           "将撤销本次 Apply 操作，恢复为 Apply 之前的状态。确认继续？",
-          "撤销应用",
-          MessageBoxButton.OKCancel, MessageBoxImage.Question);
-        if (res != MessageBoxResult.OK) return;
+          "撤销应用")) return;
         ApplyPreset(_snapshot);
         _snapshot = null;
         Log("btnPerfUndo: reverted to snapshot");
         return;
       }
 
-      var res2 = MessageBox.Show(
+      if (!DialogHelper.OkCancel(
         "将恢复到默认性能预设 (GpuPriority) 并清空全部自定义预设 (Custom1/2/3)。确认继续？",
-        "恢复默认预设",
-        MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-      if (res2 != MessageBoxResult.OK) return;
+        "恢复默认预设")) return;
 
       // 1. 切换到 GpuPriority 内置预设
       PresetManager.SwitchPreset("GpuPriority");

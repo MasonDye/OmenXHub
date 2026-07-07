@@ -363,12 +363,22 @@ namespace OmenSuperHub.Services {
       return LoadCurveFromFile(path);
     }
 
-    /// <summary>Get the default dual curve for a preset (balanced / quiet / performance)</summary>
+    // ponytail: fan-curve preset namespace lives on the real PresetManager keys
+    // (Extreme/GpuPriority/LightUse/<custom>). The legacy quiet/performance/balanced
+    // bucket names map to the same generator columns. GpuPriority + unknown custom
+    // keys fall through to the balanced column so we never silently create orphan
+    // curve files for a non-existent preset like "balanced".
     public static ((float temp, int rpm)[] cpu, (float temp, int rpm)[] gpu) GetDefaultPresetCurve(string presetKey) {
       switch (presetKey) {
-        case "quiet": return GenerateDefaultDualCurve(true);
-        case "performance": return GenerateDefaultDualCurvePerf();
-        default: return GenerateDefaultDualCurve(false); // balanced
+        case "quiet":
+        case "LightUse":
+          return GenerateDefaultDualCurve(true);
+        case "performance":
+        case "Extreme":
+          return GenerateDefaultDualCurvePerf();
+        // balanced / GpuPriority / 自定义预设 keys → balanced 档
+        default:
+          return GenerateDefaultDualCurve(false);
       }
     }
 

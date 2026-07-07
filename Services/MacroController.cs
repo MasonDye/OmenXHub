@@ -93,7 +93,7 @@ namespace OmenSuperHub.Services {
         try {
           for (int r = 0; r < macro.RepeatCount; r++) {
             if (token.IsCancellationRequested) break;
-            PlayEvents(macro, token);
+            PlayEvents(macro, token).GetAwaiter().GetResult();
           }
         } catch (Exception ex) {
           Logger.Error("MacroController.PlayMacro error: " + ex.Message);

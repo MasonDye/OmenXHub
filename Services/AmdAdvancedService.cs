@@ -19,6 +19,11 @@ namespace OmenSuperHub.Services {
       return AmdSmuService.SetCurveOptimizerPerCore(ccd, core, offset);
     }
 
+    /// <summary>iGPU Curve Optimizer 偏移</summary>
+    public static bool SetCurveOptimizerIGpu(int offset) {
+      return AmdSmuService.SetCurveOptimizerIGpu(offset);
+    }
+
     /// <summary>获取 CO 状态（简化：返回 0 表示可用，但不从 HW 读取当前值）</summary>
     public static async Task<int> GetCurveOptimizerStatusAsync() {
       return await Task.FromResult(IsAvailable ? 0 : -1);

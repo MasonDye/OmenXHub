@@ -433,22 +433,39 @@
         </ui:CardControl.Header>
       </ui:CardControl>
 
-      <!-- 调试日志 -->
+      <!-- 调试日志 + 显示所有 UI (DEBUG模式) -->
       <ui:CardControl Margin="0,0,0,8">
         <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.DebugLogHeading}" FontSize="13" FontWeight="SemiBold"/>
-              <TextBlock x:Name="DebugLogDesc" Text="{x:Static app:Strings.DebugLogDesc}" FontSize="11"
-                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
-            <ui:ToggleSwitch x:Name="DebugLogToggle" Grid.Column="1" VerticalAlignment="Center"
-                            Checked="DebugLogToggle_Changed" Unchecked="DebugLogToggle_Changed"/>
-          </Grid>
+          <StackPanel>
+            <!-- 调试日志开关 -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.DebugLogHeading}" FontSize="13" FontWeight="SemiBold"/>
+                <TextBlock x:Name="DebugLogDesc" Text="{x:Static app:Strings.DebugLogDesc}" FontSize="11"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="DebugLogToggle" Grid.Column="1" VerticalAlignment="Center"
+                              Checked="DebugLogToggle_Changed" Unchecked="DebugLogToggle_Changed"/>
+            </Grid>
+            <!-- 显示所有 UI (DEBUG) -->
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="DEBUG: 显示所有UI" FontSize="13" FontWeight="SemiBold"/>
+                <TextBlock Text="强制展示所有隐藏的功能卡片，即使硬件不支持。仅用于开发调试。" FontSize="11"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="DebugShowAllUiToggle" Grid.Column="1" VerticalAlignment="Center"
+                              Checked="DebugShowAllUiToggle_Changed" Unchecked="DebugShowAllUiToggle_Changed"/>
+            </Grid>
+          </StackPanel>
         </ui:CardControl.Header>
       </ui:CardControl>
 

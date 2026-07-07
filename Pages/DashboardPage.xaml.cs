@@ -15,6 +15,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using OmenSuperHub.Services;
+using OmenSuperHub.Utils;
 using static OmenSuperHub.OmenHardware;
 using static OmenSuperHub.OmenLighting;
 using HP.Omen.Core.Model.Device.Models;
@@ -89,8 +90,45 @@ namespace OmenSuperHub.Pages {
           _ = RefreshNvidiaPowerLimitAsync();
           _gpuAppsLoaded = true;
         }
-        _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        _refreshTimer.Tick += (s2, e2) => { RefreshDashboard(); RefreshSensors(); };
+        _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ConfigService.MonRefreshInterval) };
+        _refreshTimer.Tick += (s2, e2) => {
+          // ponytail: move ALL hardware queries (WMI/SMBIOS/LibreHW) to a
+          // background thread so window dragging never blocks on them.
+          // Only read ConfigService (registry-backed, <1 µs) on the UI thread.
+          bool cpuOn = ConfigService.MonitorCPU;
+          bool gpuOn = ConfigService.MonitorGPU;
+          bool memOn = ConfigService.MonitorMemory;
+          string presetKey = ConfigService.Preset;
+          string fc = ConfigService.FanControl;
+          string ft = ConfigService.FanTable;
+          Task.Run(() => {
+            var mem = memOn ? GetMemoryStatus() : default;
+            int cpuTemp = cpuOn ? (int)HardwareService.GetDisplayCpuTemp() : 0;
+            double cpuUtil = cpuOn ? HardwareService.CPUUsage : 0;
+            double cpuFan = cpuOn ? HardwareService.FanSpeedNow[0] * 100 : 0;
+            double cpuPower = cpuOn ? HardwareService.CPUPower : 0;
+            int gpuTemp = gpuOn ? (int)HardwareService.GetDisplayGpuTemp() : 0;
+            double gpuUtil = gpuOn ? HardwareService.GPUUsage : 0;
+            double gpuFan = gpuOn ? HardwareService.FanSpeedNow[1] * 100 : 0;
+            double gpuPower = gpuOn ? HardwareService.GPUPower : 0;
+            int ir = GetSensorTemperature(0);
+            int amb = GetSensorTemperature(1);
+            int pch = GetSensorTemperature(2);
+            int vr = GetSensorTemperature(3);
+            // Push results back to UI thread
+            Dispatcher.BeginInvoke(new Action(() =>
+              RefreshDashboardCore(cpuOn, gpuOn, memOn, mem, cpuTemp, cpuUtil, cpuFan, cpuPower,
+                  gpuTemp, gpuUtil, gpuFan, gpuPower, presetKey, fc, ft)
+            ), DispatcherPriority.Background);
+            Dispatcher.BeginInvoke(new Action(() =>
+              RefreshSensorsCore(gpuOn ? gpuTemp : 0, cpuTemp, ir, amb, pch, vr)
+            ), DispatcherPriority.Background);
+            // ponytail: refresh floating window on same timer so network speed & other data stay live
+            Dispatcher.BeginInvoke(new Action(() =>
+              Views.FloatingWindow.UpdateAllText()
+            ), DispatcherPriority.Background);
+          });
+        };
         _refreshTimer.Start();
         ConfigService.OnPresetCycled -= OnPresetCycled;
         ConfigService.OnPresetCycled -= _presetCycledHandler;
@@ -106,7 +144,7 @@ namespace OmenSuperHub.Pages {
     void RefreshDashboard() {
       bool cpuOn = ConfigService.MonitorCPU;
       if (cpuOn) {
-        int cpuTemp = (int)HardwareService.CPUTemp;
+        int cpuTemp = (int)HardwareService.GetDisplayCpuTemp();
         CpuTempText.Text = cpuTemp.ToString();
         CpuTempBar.Foreground = GetGradientBrush(cpuTemp, 100);
         AnimateBar(CpuTempBar, cpuTemp);
@@ -128,7 +166,7 @@ namespace OmenSuperHub.Pages {
 
       bool gpuOn = ConfigService.MonitorGPU;
       if (gpuOn) {
-        int gpuTemp = (int)HardwareService.GPUTemp;
+        int gpuTemp = (int)HardwareService.GetDisplayGpuTemp();
         GpuTempText.Text = gpuTemp.ToString();
         GpuTempBar.Foreground = GetGradientBrush(gpuTemp, 100);
         AnimateBar(GpuTempBar, gpuTemp);
@@ -149,18 +187,27 @@ namespace OmenSuperHub.Pages {
       GpuOffMessage.Visibility = gpuOn ? Visibility.Collapsed : Visibility.Visible;
 
       // Memory
+      bool memOn = ConfigService.MonitorMemory;
       try {
-        var mem = GetMemoryStatus();
-        double memPct = mem.dwMemoryLoad;
-        double usedGB = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024.0 * 1024 * 1024);
-        double totalGB = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
-        double pageUsedGB = (mem.ullTotalPageFile - mem.ullAvailPageFile) / (1024.0 * 1024 * 1024);
-        double pageTotalGB = mem.ullTotalPageFile / (1024.0 * 1024 * 1024);
-        RamUsageText.Text = memPct.ToString("F0") + "%";
-        RamUsageBar.Foreground = GetGradientBrush(memPct, 100);
-        AnimateBar(RamUsageBar, memPct);
-        RamDetailText.Text = $"{usedGB:F1} GB / {totalGB:F1} GB";
-        RamVirtualText.Text = $"{pageUsedGB:F1} GB / {pageTotalGB:F1} GB";
+        if (memOn) {
+          var mem = GetMemoryStatus();
+          double memPct = mem.dwMemoryLoad;
+          double usedGB = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024.0 * 1024 * 1024);
+          double totalGB = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
+          double pageUsedGB = (mem.ullTotalPageFile - mem.ullAvailPageFile) / (1024.0 * 1024 * 1024);
+          double pageTotalGB = mem.ullTotalPageFile / (1024.0 * 1024 * 1024);
+          RamUsageText.Text = memPct.ToString("F0") + "%";
+          RamUsageBar.Foreground = GetGradientBrush(memPct, 100);
+          AnimateBar(RamUsageBar, memPct);
+          RamDetailText.Text = $"{usedGB:F1} GB / {totalGB:F1} GB";
+          RamVirtualText.Text = $"{pageUsedGB:F1} GB / {pageTotalGB:F1} GB";
+          CleanMemBtn.IsEnabled = true;
+        } else {
+          RamUsageText.Text = "-";
+          RamDetailText.Text = "-";
+          RamVirtualText.Text = "-";
+          CleanMemBtn.IsEnabled = false;
+        }
       } catch { }
 
       // Storage
@@ -190,6 +237,89 @@ namespace OmenSuperHub.Pages {
 
       PowerStatusText.Text = HardwareService.PowerOnline ? Strings.PowerStatusAC : Strings.PowerStatusDC;
       PowerStatusText.Foreground = HardwareService.PowerOnline ? _brushAccentGreen : _brushAccentYellow;
+    }
+
+    /// <summary>UI-only update from pre-fetched data (called from timer background thread).</summary>
+    void RefreshDashboardCore(bool cpuOn, bool gpuOn, bool memOn, MEMORYSTATUSEX mem,
+        int cpuTemp, double cpuUtil, double cpuFan, double cpuPower,
+        int gpuTemp, double gpuUtil, double gpuFan, double gpuPower,
+        string presetKey, string fc, string ft) {
+      if (cpuOn) {
+        CpuTempText.Text = cpuTemp.ToString();
+        CpuTempBar.Foreground = GetGradientBrush(cpuTemp, 100);
+        AnimateBar(CpuTempBar, cpuTemp);
+        CpuUtilText.Text = cpuUtil.ToString("F0") + "%";
+        CpuUtilBar.Foreground = GetGradientBrush(cpuUtil, 100);
+        AnimateBar(CpuUtilBar, cpuUtil);
+        CpuFanText.Text = cpuFan.ToString("F0") + " RPM";
+        CpuFanBar.Foreground = GetGradientBrush(cpuFan, 6400);
+        AnimateBar(CpuFanBar, cpuFan);
+        CpuPowerText.Text = cpuPower.ToString("F1") + " W";
+        CpuPowerBar.Foreground = GetGradientBrush(cpuPower, 150);
+        AnimateBar(CpuPowerBar, cpuPower);
+      }
+      CpuDetailPanel.Visibility = cpuOn ? Visibility.Visible : Visibility.Collapsed;
+      CpuOffMessage.Visibility = cpuOn ? Visibility.Collapsed : Visibility.Visible;
+      if (gpuOn) {
+        GpuTempText.Text = gpuTemp.ToString();
+        GpuTempBar.Foreground = GetGradientBrush(gpuTemp, 100);
+        AnimateBar(GpuTempBar, gpuTemp);
+        GpuUtilText.Text = gpuUtil.ToString("F0") + "%";
+        GpuUtilBar.Foreground = GetGradientBrush(gpuUtil, 100);
+        AnimateBar(GpuUtilBar, gpuUtil);
+        GpuFanText.Text = gpuFan.ToString("F0") + " RPM";
+        GpuFanBar.Foreground = GetGradientBrush(gpuFan, 6400);
+        AnimateBar(GpuFanBar, gpuFan);
+        GpuPowerText.Text = gpuPower.ToString("F1") + " W";
+        GpuPowerBar.Foreground = GetGradientBrush(gpuPower, 300);
+        AnimateBar(GpuPowerBar, gpuPower);
+      }
+      GpuDetailPanel.Visibility = gpuOn ? Visibility.Visible : Visibility.Collapsed;
+      GpuOffMessage.Visibility = gpuOn ? Visibility.Collapsed : Visibility.Visible;
+      // Memory
+      try {
+        if (memOn) {
+          double memPct = mem.dwMemoryLoad;
+          double usedGB = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024.0 * 1024 * 1024);
+          double totalGB = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
+          double pageUsedGB = (mem.ullTotalPageFile - mem.ullAvailPageFile) / (1024.0 * 1024 * 1024);
+          double pageTotalGB = mem.ullTotalPageFile / (1024.0 * 1024 * 1024);
+          RamUsageText.Text = memPct.ToString("F0") + "%";
+          RamUsageBar.Foreground = GetGradientBrush(memPct, 100);
+          AnimateBar(RamUsageBar, memPct);
+          RamDetailText.Text = $"{usedGB:F1} GB / {totalGB:F1} GB";
+          RamVirtualText.Text = $"{pageUsedGB:F1} GB / {pageTotalGB:F1} GB";
+          CleanMemBtn.IsEnabled = true;
+        } else {
+          RamUsageText.Text = "-";
+          RamDetailText.Text = "-";
+          RamVirtualText.Text = "-";
+          CleanMemBtn.IsEnabled = false;
+        }
+      } catch { }
+      CurrentModeText.Text = PresetDisplayName(presetKey);
+      if (fc == "custom")
+        CurrentFanText.Text = Strings.FanCustomCurve;
+      else if (fc == "" || fc == "auto")
+        CurrentFanText.Text = ft == "cool" ? Strings.FanCoolMode : Strings.FanSilentMode;
+      else if (fc.EndsWith("%"))
+        CurrentFanText.Text = Strings.FanManualMode + ": " + fc;
+      else if (fc.Contains(" RPM"))
+        CurrentFanText.Text = Strings.FanManualMode + ": " + fc;
+      else
+        CurrentFanText.Text = fc == "max" ? Strings.FanManualMode + ": 100%" : fc;
+      PowerStatusText.Text = HardwareService.PowerOnline ? Strings.PowerStatusAC : Strings.PowerStatusDC;
+      PowerStatusText.Foreground = HardwareService.PowerOnline ? _brushAccentGreen : _brushAccentYellow;
+    }
+
+    /// <summary>UI-only sensor temperature update from pre-fetched data.</summary>
+    void RefreshSensorsCore(int cpuT, int gpuT, int ir, int amb, int pch, int vr) {
+      SysCpuTempText.Text = Strings.SysCPUTemp + ": " + cpuT + " °C";
+      SysGpuTempText.Text = Strings.SysGPUTemp + ": " + gpuT + " °C";
+      SysIrSensorText.Text = Strings.SysIRSensor + ": " + ir + " °C";
+      SysAmbientText.Text = Strings.SysAmbient + ": " + amb + " °C";
+      SysPchText.Text = Strings.SysPCH + ": " + pch + " °C";
+      SysVrText.Text = Strings.SysVR + ": " + vr + " °C";
     }
 
     void AnimateBar(ProgressBar bar, double newVal) {
@@ -719,12 +849,23 @@ namespace OmenSuperHub.Pages {
       MonCpuCombo.SelectedIndex = ConfigService.MonitorCPU ? 0 : 1;
       MonGpuCombo.SelectedIndex = ConfigService.MonitorGPU ? 0 : 1;
       MonFanCombo.SelectedIndex = ConfigService.MonitorFan ? 0 : 1;
+      MonMemoryCombo.SelectedIndex = ConfigService.MonitorMemory ? 0 : 1;
+      MonNetworkCombo.SelectedIndex = ConfigService.MonitorNetwork ? 0 : 1;
+      MonFpsCombo.SelectedIndex = ConfigService.MonitorFPS ? 0 : 1;
       MonRefreshCombo.SelectedIndex = ConfigService.MonRefreshInterval <= 500 ? 0 : 1;
       TempDispCombo.SelectedIndex = ConfigService.DisplayMode == "raw" ? 1 : 0;
     }
 
     void RefreshSysInfo() {
-      if (!string.IsNullOrEmpty(ConfigService.SysManufacturer)) {
+      // ponytail: stale-cache detection — if the cached product name is
+      // empty/unknown the initial query (possibly before PerformanceControl.dll
+      // was present) returned garbage.  Force a re-fetch so the fix takes
+      // effect automatically once.
+      bool staleCache = !string.IsNullOrEmpty(ConfigService.SysManufacturer)
+          && (string.IsNullOrEmpty(ConfigService.SysProductName)
+              || ConfigService.SysProductName == Strings.SysUnknown
+              || ConfigService.SysProductName == "未知");
+      if (!string.IsNullOrEmpty(ConfigService.SysManufacturer) && !staleCache) {
         SysManufacturerText.Text = Strings.SysManufacturer + ": " + ConfigService.SysManufacturer;
         SysModelText.Text = Strings.SysModel + ": " + ConfigService.SysModel;
         SysBiosText.Text = Strings.SysBiosVersion + ": " + ConfigService.SysBios;
@@ -733,10 +874,10 @@ namespace OmenSuperHub.Pages {
         SysAdapterText.Text = Strings.SysAdapterPower + ": " + ConfigService.SysAdapterPower + " W";
         SysProductNameText.Text = Strings.SysModelName + ": " + ConfigService.SysProductName;
         int v = ConfigService.SysValidation;
-        SysValidationText.Text = Strings.SysModelValidation + ": " + (
-            v == 2 ? Strings.ValidationGamingProduct :
-            v == 1 ? Strings.ValidationUnsupported :
-            Strings.SysUnknown);
+	        SysValidationText.Text = Strings.SysModelValidation + ": " + (
+	            v == 2 ? Strings.ValidationGamingProduct :
+	            v == 1 ? Strings.ValidationUnsupported :
+	            Strings.ValidationUnsupported);
         SysBoardText.Text = Strings.SysBoardProduct + ": " + ConfigService.SysBoardProduct;
         SysCpuTjmaxText.Text = Strings.SysCpuTjMax + ": " + ConfigService.SysCpuTjmax + " °C";
         SysNvidiaTjmaxText.Text = ConfigService.SysNvidiaTjmax > 0
@@ -773,7 +914,17 @@ namespace OmenSuperHub.Pages {
         } catch (Exception ex) {
           Logger.Error("RefreshSysInfo WMI error: " + ex.Message);
         }
-        try { pn = DeviceModel.OmenPlatform.DisplayName; } catch { }
+        try {
+          // ponytail: DeviceModel.OmenPlatform is a struct — the getter
+          // itself never throws, but platform.DisplayName may return null
+          // when the SDK doesn't know this platform.  Fallback to the WMI
+          // model name (already fetched) so "机型名称" is never blank.
+          var platform = DeviceModel.OmenPlatform;
+          pn = platform.DisplayName;
+          if (string.IsNullOrEmpty(pn)) pn = model;
+        } catch {
+          if (string.IsNullOrEmpty(pn)) pn = model;
+        }
         try { board = DeviceModel.ThisSystemID; } catch { }
         try { validation = Validation(); } catch { }
         try { tj = GetCpuTjmax(); } catch { }
@@ -860,8 +1011,8 @@ namespace OmenSuperHub.Pages {
     }
 
     void RefreshSensors() {
-      int cpuT = (int)HardwareService.CPUTemp;
-      int gpuT = (int)HardwareService.GPUTemp;
+      int cpuT = (int)HardwareService.GetDisplayCpuTemp();
+      int gpuT = (int)HardwareService.GetDisplayGpuTemp();
       SysCpuTempText.Text = Strings.SysCPUTemp + ": " + cpuT + " °C";
       SysGpuTempText.Text = Strings.SysGPUTemp + ": " + gpuT + " °C";
       int ir = GetSensorTemperature(0);
@@ -915,7 +1066,7 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       bool on = MonCpuCombo.SelectedIndex == 0;
       if (!on && !ConfigService.MonitorGPU && FanNeedsTemperature()) {
-        System.Windows.MessageBox.Show(Strings.MonitorAutoFanWarning, Strings.Hint, MessageBoxButton.OK, MessageBoxImage.Warning);
+        DialogHelper.Warn(Strings.MonitorAutoFanWarning, Strings.Hint);
         _loading = true; MonCpuCombo.SelectedIndex = 0; _loading = false;
         return;
       }
@@ -930,7 +1081,7 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       bool on = MonGpuCombo.SelectedIndex == 0;
       if (!on && !ConfigService.MonitorCPU && FanNeedsTemperature()) {
-        System.Windows.MessageBox.Show(Strings.MonitorAutoFanWarning, Strings.Hint, MessageBoxButton.OK, MessageBoxImage.Warning);
+        DialogHelper.Warn(Strings.MonitorAutoFanWarning, Strings.Hint);
         _loading = true; MonGpuCombo.SelectedIndex = 0; _loading = false;
         return;
       }
@@ -949,11 +1100,35 @@ namespace OmenSuperHub.Pages {
       Views.FloatingWindow.UpdateAllText();
     }
 
+    void MonMemory_SelectionChanged(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      bool on = MonMemoryCombo.SelectedIndex == 0;
+      ConfigService.MonitorMemory = on;
+      ConfigService.Save("MonitorMemory");
+    }
+
+    void MonNetwork_SelectionChanged(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      bool on = MonNetworkCombo.SelectedIndex == 0;
+      ConfigService.MonitorNetwork = on;
+      ConfigService.Save("MonitorNetwork");
+    }
+
+    void MonFps_SelectionChanged(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      bool on = MonFpsCombo.SelectedIndex == 0;
+      ConfigService.MonitorFPS = on;
+      ConfigService.Save("MonitorFPS");
+    }
+
     void MonRefresh_SelectionChanged(object s, SelectionChangedEventArgs e) {
       if (_loading) return;
-      int interval = MonRefreshCombo.SelectedIndex == 0 ? 250 : 1000;
+      int interval = MonRefreshCombo.SelectedIndex == 0 ? 250 : 2000;
       ConfigService.MonRefreshInterval = interval;
       ConfigService.Save("MonRefreshInterval");
+      // ponytail: also update the live timer so the change takes effect immediately
+      if (_refreshTimer != null) _refreshTimer.Interval = TimeSpan.FromMilliseconds(interval);
+      Views.FloatingWindow.UpdateRefreshInterval();
     }
 
     void TempDisplay_SelectionChanged(object s, SelectionChangedEventArgs e) {
@@ -986,9 +1161,8 @@ namespace OmenSuperHub.Pages {
       var item = GpuAppList.SelectedItem as ListBoxItem;
       var app = item?.Tag as GpuAppManager.GpuAppInfo;
       if (app == null || app.ProcessId <= 0) return;
-      var confirm = MessageBox.Show($"{Strings.GpuAppEndTask} '{app.ProcessName}' (PID {app.ProcessId})?", Strings.Hint,
-          MessageBoxButton.YesNo, MessageBoxImage.Warning);
-      if (confirm != MessageBoxResult.Yes) return;
+      if (!DialogHelper.Confirm($"{Strings.GpuAppEndTask} '{app.ProcessName}' (PID {app.ProcessId})?", Strings.Hint))
+        return;
       bool ok = false;
       try {
         // ponytail: try PID first, then fall back to image name (same as manual taskkill /F /IM)
@@ -1008,11 +1182,11 @@ namespace OmenSuperHub.Pages {
           }
         }
         if (ok)
-          MessageBox.Show($"进程 '{app.ProcessName}' 已终止", Strings.Hint, MessageBoxButton.OK, MessageBoxImage.Information);
+          DialogHelper.Info($"进程 '{app.ProcessName}' 已终止", Strings.Hint);
         else
-          MessageBox.Show($"进程 '{app.ProcessName}' 终止失败，PID可能已过期或权限不足", Strings.Hint, MessageBoxButton.OK, MessageBoxImage.Warning);
+          DialogHelper.Warn($"进程 '{app.ProcessName}' 终止失败，PID可能已过期或权限不足", Strings.Hint);
       } catch (Exception ex) {
-        MessageBox.Show($"结束进程失败: {ex.Message}", Strings.Hint, MessageBoxButton.OK, MessageBoxImage.Error);
+        DialogHelper.Error($"结束进程失败: {ex.Message}", Strings.Hint);
         Logger.Error($"结束进程失败: {ex.Message}");
       }
       RefreshGpuAppList();
@@ -1040,12 +1214,9 @@ namespace OmenSuperHub.Pages {
     void RefreshGpuApps_Click(object sender, RoutedEventArgs e) { RefreshGpuAppList(); }
 
     void RestartGpu_Click(object sender, RoutedEventArgs e) {
-      var result = MessageBox.Show(Strings.GpuRestartConfirmMsg, Strings.GpuRestartConfirmTitle,
-          MessageBoxButton.YesNo, MessageBoxImage.Warning);
-      if (result == MessageBoxResult.Yes) {
+      if (DialogHelper.Confirm(Strings.GpuRestartConfirmMsg, Strings.GpuRestartConfirmTitle)) {
         GpuAppManager.RestartGpu();
-        MessageBox.Show(Strings.GpuRestartSuccess, Strings.Hint,
-            MessageBoxButton.OK, MessageBoxImage.Information);
+        DialogHelper.Info(Strings.GpuRestartSuccess, Strings.Hint);
       }
     }
 

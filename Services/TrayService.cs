@@ -202,8 +202,7 @@ namespace OmenSuperHub.Services {
         // Pre-action checks (same as original)
         if (header == "解锁版本") {
           if (!HardwareService.PowerOnline) {
-            System.Windows.MessageBox.Show("请连接交流电源", "提示",
-                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            DialogHelper.Warn("请连接交流电源", "提示");
             ConfigService.DBVersion = 2;
             countDB = 0;
             ConfigService.Save("DBVersion");
@@ -393,11 +392,9 @@ namespace OmenSuperHub.Services {
             if (tryTimes == 2) {
               tryTimes = 0;
               if (HardwareService.CPUPower > CPULimitDB + 10)
-                System.Windows.MessageBox.Show("请在CPU低负载下解锁", "提示",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                DialogHelper.Warn("请在CPU低负载下解锁", "提示");
               else
-                System.Windows.MessageBox.Show($"功耗异常，解锁失败，请重新尝试！\n当前显卡功耗限制为：{powerLimits:F2} W！", "提示",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                DialogHelper.Warn($"功耗异常，解锁失败，请重新尝试！\n当前显卡功耗限制为：{powerLimits:F2} W！", "提示");
               command = $"pnputil /enable-device {deviceId}";
               ExecuteCommand(command);
               ConfigService.DBVersion = 2;
@@ -413,8 +410,7 @@ namespace OmenSuperHub.Services {
           } else {
             tryTimes = 0;
             if (ConfigService.AutoStart == "off") {
-              System.Windows.MessageBox.Show("解锁成功！但当前未设置开机自启，解锁后若重启电脑会导致功耗异常，需要重新解锁！", "提示",
-                  System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+              DialogHelper.Warn("解锁成功！但当前未设置开机自启，解锁后若重启电脑会导致功耗异常，需要重新解锁！", "提示");
             }
           }
           if (tryTimes == 0) {
@@ -869,8 +865,7 @@ namespace OmenSuperHub.Services {
       if (File.Exists(iconPath)) {
         return true;
       } else {
-        System.Windows.MessageBox.Show("不存在自定义图标custom.ico", "提示",
-            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+        DialogHelper.Warn("不存在自定义图标custom.ico", "提示");
         return false;
       }
     }
@@ -883,8 +878,7 @@ namespace OmenSuperHub.Services {
         TrayIcon.Icon = new Icon(iconPath);
         old?.Dispose();
       } else {
-        System.Windows.MessageBox.Show("不存在自定义图标custom.ico", "提示",
-            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+        DialogHelper.Warn("不存在自定义图标custom.ico", "提示");
       }
     }
 

@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using OmenSuperHub.Services;
+using OmenSuperHub.Utils;
 
 namespace OmenSuperHub.Pages {
   public partial class AutomationPage : Page {
@@ -14,7 +15,10 @@ namespace OmenSuperHub.Pages {
       InitializeComponent();
       Action<string> execHandler = null;
       Loaded += (s, e) => {
-        AutoEnableToggle.IsChecked = ConfigService.AutomationEnabled;
+        bool enabled = ConfigService.AutomationEnabled;
+        AutoEnableToggle.IsChecked = enabled;
+        AutoAddPipelineBtn.IsEnabled = enabled;
+        AutoAddQuickActionBtn.IsEnabled = enabled;
         RefreshList();
         execHandler = (name) => Dispatcher.InvokeAsync(() => RefreshList());
         AutomationProcessor.ExecutionStatusChanged += execHandler;
@@ -240,7 +244,7 @@ namespace OmenSuperHub.Pages {
         if (editor.ShowDialog() == true)
           RefreshList();
       } catch (Exception ex) {
-        MessageBox.Show("Error: " + ex.Message + "\n\n" + ex.StackTrace, "Pipeline Editor Error");
+        DialogHelper.Info("Error: " + ex.Message + "\n\n" + ex.StackTrace, "Pipeline Editor Error");
       }
     }
 

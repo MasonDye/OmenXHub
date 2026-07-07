@@ -67,16 +67,16 @@ namespace OmenSuperHub.Services {
 
     // Batch: accepts same (controlId, offset) tuples the old SDK used
     // controlId 24=IA, 25=Cache, 26=GT, 27=SA
-    public static async Task<bool> ApplyValuesAsync(IEnumerable<(uint id, decimal value)> values) {
+    public static Task<bool> ApplyValuesAsync(IEnumerable<(uint id, decimal value)> values) {
       EnsureMsr();
-      if (_msr == null) return false;
+      if (_msr == null) return Task.FromResult(false);
       var list = values.ToList();
       bool ok = true;
       foreach (var v in list) {
         int plane = v.id switch { 24 => 0, 25 => 2, 26 => 1, 27 => 3, _ => 0 };
         ok &= _msr.WriteMsr(0x150, VoltageMsr(plane, v.value));
       }
-      return ok;
+      return Task.FromResult(ok);
     }
 
     // ── Power balance, MSR 0x63A / 0x642 ──────────────

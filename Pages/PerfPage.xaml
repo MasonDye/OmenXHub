@@ -43,6 +43,7 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <ui:CardExpander Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="CpuPowerCard"
@@ -372,7 +373,141 @@
           </StackPanel>
         </ui:CardControl>
 
-        <ui:CardControl Grid.Row="9" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="CoreKeepCard">
+        <!-- 异构调度 (AMD 双CCD 模拟大小核) -->
+        <ui:CardExpander Grid.Row="3" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="HeteroCpuCard"
+                         Icon="DeviceEq24">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="DeviceEq24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.HeteroCpuHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuToggleDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="HeteroCpuToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="HeteroCpuToggle_Changed" Unchecked="HeteroCpuToggle_Changed"/>
+            </Grid>
+          </ui:CardExpander.Header>
+          <StackPanel x:Name="HeteroCpuDetails" Visibility="Collapsed">
+            <!-- SmallProcessorMask -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuMaskLabel}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuMaskDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              </StackPanel>
+              <TextBox x:Name="HeteroCpuMaskBox" Grid.Column="1" Width="140" Text="FFFF0000"
+                       TextChanged="HeteroCpuMask_TextChanged" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- CPU info + auto detect -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="HeteroCpuInfoText" Text="" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                         VerticalAlignment="Center" TextWrapping="Wrap"/>
+              <Button x:Name="HeteroCpuDetectBtn" Grid.Column="1"
+                      Content="{x:Static app:Strings.HeteroCpuDetectAuto}"
+                      Click="HeteroCpuDetect_Click" Padding="8,2" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DefaultDynamicHeteroCpuPolicy -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuDefaultPolicyLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuDefaultPolicyDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="HeteroCpuDefaultPolicyCombo" Grid.Column="1" MinWidth="120"
+                        SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicCpuPolicyExpectedRuntime -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuRuntimeLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuRuntimeDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              </StackPanel>
+              <TextBox x:Name="HeteroCpuRuntimeBox" Grid.Column="1" Width="120" Text="1450"
+                       TextChanged="HeteroCpuRuntime_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicHeteroCpuPolicyImportant -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantPolicyLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantPolicyDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="HeteroCpuImportantPolicyCombo" Grid.Column="1" MinWidth="120"
+                        SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicHeteroCpuPolicyImportantShort -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantShortLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantShortDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="HeteroCpuImportantShortCombo" Grid.Column="1" MinWidth="120"
+                        SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicHeteroCpuPolicyMask -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPolicyMaskLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPolicyMaskDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              </StackPanel>
+              <ComboBox x:Name="HeteroCpuPolicyMaskCombo" Grid.Column="1" MinWidth="120"
+                        SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- DynamicHeteroCpuPolicyImportantPriority -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPriorityLabel}" FontSize="12" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPriorityDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              </StackPanel>
+              <TextBox x:Name="HeteroCpuPriorityBox" Grid.Column="1" Width="120" Text="8"
+                       TextChanged="HeteroCpuPriority_Changed" HorizontalAlignment="Right"/>
+            </Grid>
+            <!-- Apply/Restore buttons -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+              <ui:Button Content="{x:Static app:Strings.HeteroCpuApplyBtn}" x:Name="HeteroCpuApplyBtn" Click="HeteroCpuApply_Click"
+                      Margin="0,0,8,0" Appearance="Secondary"/>
+              <ui:Button Content="{x:Static app:Strings.HeteroCpuRestoreBtn}" x:Name="HeteroCpuRestoreBtn" Click="HeteroCpuRestore_Click" Appearance="Secondary"/>
+            </StackPanel>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <ui:CardControl Grid.Row="10" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="CoreKeepCard">
           <ui:CardControl.Header>
             <Grid>
               <Grid.RowDefinitions>
@@ -868,18 +1003,31 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- PBO Scalar (AMD) -->
         <ui:CardControl Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="PboScalarCard" Visibility="Collapsed">
           <ui:CardControl.Header>
             <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
-                <TextBlock Text="{x:Static app:Strings.PboScalarHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              </StackPanel>
-              <TextBlock Text="{x:Static app:Strings.PboScalarDesc}" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
+                    <TextBlock Text="{x:Static app:Strings.PboScalarHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <TextBlock Text="{x:Static app:Strings.PboScalarDesc}" FontSize="12"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+                <ui:ToggleSwitch x:Name="PboScalarMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                                 Checked="PboScalarMasterToggle_Changed" Unchecked="PboScalarMasterToggle_Changed"/>
+              </Grid>
               <ComboBox x:Name="PboScalarCombo" Margin="0,8,0,0"
                         SelectionChanged="PboScalar_Changed"/>
               <TextBlock x:Name="PboScalarStatus" FontSize="11" Margin="0,4,0,0"
@@ -892,61 +1040,76 @@
         <ui:CardExpander Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="CoCard" Visibility="Collapsed"
                          Icon="Gauge24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.CoHeading}" FontWeight="SemiBold"/>
-              <TextBlock Text="{x:Static app:Strings.CoDesc}" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.CoHeading}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.CoDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="CoMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="CoMasterToggle_Changed" Unchecked="CoMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="150"/>
-              <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <ui:NumberBox x:Name="CoNum" Minimum="-50" Maximum="30" SmallChange="1"
-                          MaxDecimalPlaces="0" ValueChanged="CoNum_ValueChanged"
-                          Value="{Binding ElementName=CoSlider, Path=Value, Mode=TwoWay}"/>
-            <Slider x:Name="CoSlider" Grid.Column="1" Minimum="-50" Maximum="30"
-                    TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0"
-                    VerticalAlignment="Center"/>
-          </Grid>
-        </ui:CardExpander>
-
-        <!-- CCD Affinity (AMD) -->
-        <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="CcdAffinityCard" Visibility="Collapsed">
-          <ui:CardControl.Header>
-            <StackPanel>
+          <StackPanel>
+            <!-- All-core offset -->
+            <StackPanel Margin="0,0,0,8">
+              <TextBlock Text="{x:Static app:Strings.CoAllCoreLabel}" FontSize="12" Margin="0,0,0,4"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               <Grid>
                 <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="150"/>
                   <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel>
-                  <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="AppsList24" Margin="0,0,6,0"/>
-                    <TextBlock Text="{x:Static app:Strings.CcdAffinityHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                  </StackPanel>
-                  <TextBlock Text="{x:Static app:Strings.CcdAffinityDesc}" FontSize="12"
-                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-                </StackPanel>
-                <ui:ToggleSwitch x:Name="CcdAffinityToggle" Grid.Column="1" VerticalAlignment="Top"
-                                 Checked="CcdAffinityToggle_Changed" Unchecked="CcdAffinityToggle_Changed"/>
+                <ui:NumberBox x:Name="CoNum" Minimum="-50" Maximum="30" SmallChange="1"
+                              MaxDecimalPlaces="0" ValueChanged="CoNum_ValueChanged"
+                              Value="{Binding ElementName=CoSlider, Path=Value, Mode=TwoWay}"/>
+                <Slider x:Name="CoSlider" Grid.Column="1" Minimum="-50" Maximum="30"
+                        TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0"
+                        VerticalAlignment="Center"/>
               </Grid>
-              <TextBlock x:Name="CcdAffinityStatus" FontSize="11" Margin="0,4,0,0"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
             </StackPanel>
-          </ui:CardControl.Header>
-        </ui:CardControl>
+            <!-- iGPU offset (set-cogfx mailbox; only on APU families) -->
+            <StackPanel>
+              <TextBlock Text="{x:Static app:Strings.CoIGpuLabel}" FontSize="12" Margin="0,0,0,4"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="150"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="CoIGpuNum" Minimum="-30" Maximum="30" SmallChange="1"
+                              MaxDecimalPlaces="0" ValueChanged="CoIGpuNum_ValueChanged"
+                              Value="{Binding ElementName=CoIGpuSlider, Path=Value, Mode=TwoWay}"/>
+                <Slider x:Name="CoIGpuSlider" Grid.Column="1" Minimum="-30" Maximum="30"
+                        TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0"
+                        VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+          </StackPanel>
+        </ui:CardExpander>
 
+        
         <!-- FIVR Undervolt (Intel) -->
         <ui:CardExpander Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="FivrCard" Visibility="Collapsed"
                          Icon="Gauge24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.FivrHeading}" FontWeight="SemiBold"/>
-              <TextBlock Text="{x:Static app:Strings.FivrDesc}" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.FivrHeading}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.FivrDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="FivrMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="FivrMasterToggle_Changed" Unchecked="FivrMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <StackPanel Margin="0,0,0,8">
@@ -1018,11 +1181,19 @@
         <ui:CardExpander Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="ClockRatioCard" Visibility="Collapsed"
                          Icon="Clock24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.ClockRatioHeading}" FontWeight="SemiBold"/>
-              <TextBlock Text="{x:Static app:Strings.ClockRatioDesc}" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.ClockRatioHeading}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.ClockRatioDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="ClockRatioMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="ClockRatioMasterToggle_Changed" Unchecked="ClockRatioMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <ScrollViewer MaxHeight="360">
             <StackPanel x:Name="ClockRatioPanel"/>
@@ -1033,11 +1204,19 @@
         <ui:CardExpander Grid.Row="3" Grid.Column="0" Margin="0,0,4,8" x:Name="PowerBalanceCard" Visibility="Collapsed"
                          Icon="Power24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.PowerBalanceHeading}" FontWeight="SemiBold"/>
-              <TextBlock Text="{x:Static app:Strings.PowerBalanceDesc}" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.PowerBalanceHeading}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.PowerBalanceDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="PowerBalanceMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="PowerBalanceMasterToggle_Changed" Unchecked="PowerBalanceMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <Grid>
@@ -1063,6 +1242,7 @@
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                   <StackPanel Orientation="Horizontal">
@@ -1072,7 +1252,9 @@
                   <TextBlock Text="{x:Static app:Strings.AutoOcDesc}" FontSize="12"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
-                <ui:ToggleSwitch x:Name="AutoOcToggle" Grid.Column="1" VerticalAlignment="Top"
+                <ui:ToggleSwitch x:Name="AutoOcMasterToggle" Grid.Column="1" VerticalAlignment="Top" Margin="0,0,6,0"
+                                 Checked="AutoOcMasterToggle_Changed" Unchecked="AutoOcMasterToggle_Changed"/>
+                <ui:ToggleSwitch x:Name="AutoOcToggle" Grid.Column="2" VerticalAlignment="Top"
                                  Checked="AutoOcToggle_Changed" Unchecked="AutoOcToggle_Changed"/>
               </Grid>
               <TextBlock x:Name="AutoOcStatus" FontSize="11" Margin="0,4,0,0"
@@ -1089,6 +1271,7 @@
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                   <StackPanel Orientation="Horizontal">
@@ -1098,7 +1281,9 @@
                   <TextBlock Text="直写 MSR 0x1A0 bit 38，关闭/启用 Intel Turbo Boost。" FontSize="12"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
-                <ui:ToggleSwitch x:Name="PawnTurboToggle" Grid.Column="1" VerticalAlignment="Top"
+                <ui:ToggleSwitch x:Name="PawnTurboMasterToggle" Grid.Column="1" VerticalAlignment="Top" Margin="0,0,6,0"
+                                 Checked="PawnTurboMasterToggle_Changed" Unchecked="PawnTurboMasterToggle_Changed"/>
+                <ui:ToggleSwitch x:Name="PawnTurboToggle" Grid.Column="2" VerticalAlignment="Top"
                                  Checked="PawnTurboToggle_Changed" Unchecked="PawnTurboToggle_Changed"/>
               </Grid>
               <TextBlock x:Name="PawnTurboStatus" FontSize="11" Margin="0,4,0,0"
@@ -1110,10 +1295,18 @@
         <!-- PROCHOT Offset (PawnIO MSR) -->
         <ui:CardExpander Grid.Row="7" Grid.Column="1" Margin="4,0,0,8" x:Name="PawnProchotCard" Icon="Temperature24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="过温保护偏移 (MSR 0x1A2)" FontWeight="SemiBold"/>
-              <TextBlock Text="调整CPU降频温度阈值。0=最高上限，数值越大越早降频。" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="过温保护偏移 (MSR 0x1A2)" FontWeight="SemiBold"/>
+                <TextBlock Text="调整CPU降频温度阈值。0=最高上限，数值越大越早降频。" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="PawnProchotMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="PawnProchotMasterToggle_Changed" Unchecked="PawnProchotMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <TextBlock Text="PROCHOT 偏移 (°C)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
@@ -1133,10 +1326,18 @@
         <!-- HWP Energy Performance Preference (PawnIO MSR) -->
         <ui:CardExpander Grid.Row="8" Grid.Column="0" Margin="0,0,4,8" x:Name="PawnHwpCard" Icon="Gauge24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="HWP 能效偏好 (MSR 0x774)" FontWeight="SemiBold"/>
-              <TextBlock Text="调节Intel Speed Shift能效/性能偏向。0=最高性能, 255=最高能效。" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="HWP 能效偏好 (MSR 0x774)" FontWeight="SemiBold"/>
+                <TextBlock Text="调节Intel Speed Shift能效/性能偏向。0=最高性能, 255=最高能效。" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="PawnHwpMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="PawnHwpMasterToggle_Changed" Unchecked="PawnHwpMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <Grid>
@@ -1153,12 +1354,13 @@
         </ui:CardExpander>
 
         <!-- C-State Limit (PawnIO MSR) -->
-        <ui:CardControl Grid.Row="8" Grid.Column="1" Margin="4,0,0,8" x:Name="PawnCStateCard">
+        <ui:CardControl Margin="4,0,0,8" x:Name="PawnCStateCard">
           <ui:CardControl.Header>
             <StackPanel>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
@@ -1169,7 +1371,9 @@
                   <TextBlock Text="最大C-State深度。数字越小延迟越低，功耗越高。" FontSize="12"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
-                <ComboBox x:Name="PawnCStateCombo" Grid.Column="1" MinWidth="80" VerticalAlignment="Top"
+                <ui:ToggleSwitch x:Name="PawnCStateMasterToggle" Grid.Column="1" VerticalAlignment="Top" Margin="0,0,6,0"
+                                 Checked="PawnCStateMasterToggle_Changed" Unchecked="PawnCStateMasterToggle_Changed"/>
+                <ComboBox x:Name="PawnCStateCombo" Grid.Column="2" MinWidth="80" VerticalAlignment="Top"
                           SelectionChanged="PawnCStateCombo_Changed"/>
               </Grid>
               <TextBlock x:Name="PawnCStateStatus" FontSize="11" Margin="0,4,0,0"
@@ -1179,14 +1383,22 @@
         </ui:CardControl>
 
         <!-- AMD APU Power Tuning (STAPM / Fast / Slow PPT) -->
-        <ui:CardExpander Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="ApuPowerCard" Visibility="Collapsed"
+        <ui:CardExpander Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="ApuPowerCard" Visibility="Collapsed"
                          Icon="Power24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="APU 功耗调教 (SMU)" FontWeight="SemiBold"/>
-              <TextBlock Text="STAPM 持续功耗 · Fast 峰值 · Slow 平均 · 持续时间窗口。参考 RyzenAdj/UXTU。" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="APU 功耗调教 (SMU)" FontWeight="SemiBold"/>
+                <TextBlock Text="STAPM 持续功耗 · Fast 峰值 · Slow 平均 · 持续时间窗口。参考 RyzenAdj/UXTU。" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="ApuPowerMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="ApuPowerMasterToggle_Changed" Unchecked="ApuPowerMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <!-- STAPM Limit -->
@@ -1244,14 +1456,22 @@
         </ui:CardExpander>
 
         <!-- AMD APU VRM Current Limits (TDC / EDC) -->
-        <ui:CardExpander Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="ApuVrmCard" Visibility="Collapsed"
+        <ui:CardExpander Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="ApuVrmCard" Visibility="Collapsed"
                          Icon="Gauge24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="VRM 电流限制 (SMU)" FontWeight="SemiBold"/>
-              <TextBlock Text="CPU/SoC VRM 持续电流 (TDC) 与峰值电流 (EDC)。" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="VRM 电流限制 (SMU)" FontWeight="SemiBold"/>
+                <TextBlock Text="CPU/SoC VRM 持续电流 (TDC) 与峰值电流 (EDC)。" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="ApuVrmMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="ApuVrmMasterToggle_Changed" Unchecked="ApuVrmMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <StackPanel Margin="0,0,0,8">
@@ -1295,14 +1515,22 @@
         </ui:CardExpander>
 
         <!-- AMD APU Temperature Limits -->
-        <ui:CardExpander Grid.Row="8" Grid.Column="0" Margin="0,0,4,8" x:Name="ApuTempCard" Visibility="Collapsed"
+        <ui:CardExpander Margin="0,0,4,8" x:Name="ApuTempCard" Visibility="Collapsed"
                          Icon="Temperature24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="温度限制 (SMU)" FontWeight="SemiBold"/>
-              <TextBlock Text="Tctl 热阈值 · 皮肤温度限制。" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="温度限制 (SMU)" FontWeight="SemiBold"/>
+                <TextBlock Text="Tctl 热阈值 · 皮肤温度限制。" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="ApuTempMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="ApuTempMasterToggle_Changed" Unchecked="ApuTempMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <StackPanel Margin="0,0,0,8">
@@ -1336,25 +1564,123 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <!-- AMD APU iGPU Clock Override -->
-        <ui:CardExpander Grid.Row="8" Grid.Column="1" Margin="4,0,0,8" x:Name="ApuGfxClkCard" Visibility="Collapsed"
-                         Icon="Clock24">
+	
+        <!-- AMD CPU Power Limits (PPT / TDC / EDC) — AM5 desktop CPUs -->
+        <ui:CardExpander Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="AmdCpuPowerCard" Visibility="Collapsed"
+                         Icon="Power24">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.AmdCpuPowerHeading}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.AmdCpuPowerDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="AmdCpuPowerMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="AmdCpuPowerMasterToggle_Changed" Unchecked="AmdCpuPowerMasterToggle_Changed"/>
+            </Grid>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <StackPanel Margin="0,0,0,8">
+              <TextBlock Text="PPT (CPU Package Power) (W)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="AmdCpuPptNum" Minimum="8" Maximum="300" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuPptNum_ValueChanged"
+                              Value="{Binding ElementName=AmdCpuPptSlider, Path=Value, Mode=TwoWay}"/>
+                <Slider x:Name="AmdCpuPptSlider" Grid.Column="1" Minimum="8" Maximum="300" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+            <StackPanel Margin="0,0,0,8">
+              <TextBlock Text="TDC (VRM 持续电流) (A)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="AmdCpuTdcNum" Minimum="8" Maximum="900" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuTdcNum_ValueChanged"
+                              Value="{Binding ElementName=AmdCpuTdcSlider, Path=Value, Mode=TwoWay}"/>
+                <Slider x:Name="AmdCpuTdcSlider" Grid.Column="1" Minimum="8" Maximum="900" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="EDC (VRM 峰值电流) (A)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="AmdCpuEdcNum" Minimum="8" Maximum="900" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuEdcNum_ValueChanged"
+                              Value="{Binding ElementName=AmdCpuEdcSlider, Path=Value, Mode=TwoWay}"/>
+                <Slider x:Name="AmdCpuEdcSlider" Grid.Column="1" Minimum="8" Maximum="900" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+            <TextBlock x:Name="AmdCpuPowerStatus" FontSize="11" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- AMD CPU Temperature Limit (Tctl hard throttle) — AM5 desktop CPUs -->
+        <ui:CardExpander Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="AmdCpuTempCard" Visibility="Collapsed"
+                         Icon="Temperature24">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.CpuTempHeading}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.CpuTempDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="AmdCpuTempMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="AmdCpuTempMasterToggle_Changed" Unchecked="AmdCpuTempMasterToggle_Changed"/>
+            </Grid>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <StackPanel>
+              <TextBlock Text="CPU Tctl 硬降频温度 (°C)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="AmdCpuTctlNum" Minimum="10" Maximum="95" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuTctlNum_ValueChanged"
+                              Value="{Binding ElementName=AmdCpuTctlSlider, Path=Value, Mode=TwoWay}"/>
+                <Slider x:Name="AmdCpuTctlSlider" Grid.Column="1" Minimum="10" Maximum="95" TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+            <TextBlock x:Name="AmdCpuTempStatus" FontSize="11" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- CCD1 Per-Core Curve Optimiser (Core0~11) -->
+        <ui:CardExpander Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="Ccd1CoCard" Visibility="Collapsed"
+                         Icon="Gauge24">
           <ui:CardExpander.Header>
             <StackPanel>
-              <TextBlock Text="iGPU 时钟覆盖 (SMU)" FontWeight="SemiBold"/>
-              <TextBlock Text="强制设定 iGPU 运行频率 (gfx-clk)。0=自动。" FontSize="12"
+              <TextBlock Text="{x:Static app:Strings.Ccd1CoHeading}" FontWeight="SemiBold"/>
+              <TextBlock Text="{x:Static app:Strings.Ccd1CoDesc}" FontSize="12"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
           </ui:CardExpander.Header>
-          <StackPanel>
-            <Grid>
-              <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-              <ui:NumberBox x:Name="ApuGfxClkNum" Minimum="0" Maximum="2200" SmallChange="50" MaxDecimalPlaces="0" ValueChanged="ApuGfxClkNum_ValueChanged"
-                            Value="{Binding ElementName=ApuGfxClkSlider, Path=Value, Mode=TwoWay}"/>
-              <Slider x:Name="ApuGfxClkSlider" Grid.Column="1" Minimum="0" Maximum="2200" TickFrequency="50" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
-            </Grid>
-            <TextBlock x:Name="ApuGfxClkStatus" FontSize="11" Margin="0,4,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-          </StackPanel>
+          <ScrollViewer MaxHeight="400">
+            <StackPanel x:Name="Ccd1CoPanel">
+              <TextBlock Text="{x:Static app:Strings.CoPerCoreLabel}" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,4"/>
+              <!-- Core 0~11 generated in code-behind -->
+            </StackPanel>
+          </ScrollViewer>
+        </ui:CardExpander>
+
+        <!-- CCD2 Per-Core Curve Optimiser (Core12~23) — only on dual-CCD CPUs -->
+        <ui:CardExpander Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="Ccd2CoCard" Visibility="Collapsed"
+                         Icon="Gauge24">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <TextBlock Text="{x:Static app:Strings.Ccd2CoHeading}" FontWeight="SemiBold"/>
+              <TextBlock Text="{x:Static app:Strings.Ccd2CoDesc}" FontSize="12"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <ScrollViewer MaxHeight="400">
+            <StackPanel x:Name="Ccd2CoPanel">
+              <TextBlock Text="{x:Static app:Strings.CoPerCoreLabel}" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,4"/>
+              <!-- Core 12~23 generated in code-behind -->
+            </StackPanel>
+          </ScrollViewer>
         </ui:CardExpander>
 
       </Grid>
@@ -1382,11 +1708,19 @@
         <ui:CardExpander Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="NvTuningCard" Visibility="Collapsed"
                          Icon="Clock24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="NVIDIA GPU Tuning" FontWeight="SemiBold"/>
-              <TextBlock Text="核心/显存超频 · 功耗墙 · 频率锁 · 电压曲线" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="NVIDIA GPU Tuning" FontWeight="SemiBold"/>
+                <TextBlock Text="核心/显存超频 · 功耗墙 · 频率锁 · 电压曲线" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="NvTuningMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="NvTuningMasterToggle_Changed" Unchecked="NvTuningMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <!-- Power Limit -->
@@ -1428,16 +1762,83 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <!-- ADLX Radeon (AMD GPU) -->
+        <!-- ADLX Radeon (AMD GPU) — full controls: RSR / Anti-Lag / Enhanced Sync / Boost / Image Sharpening -->
         <ui:CardControl Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="AdlxCard" Visibility="Collapsed">
           <ui:CardControl.Header>
             <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Settings24" Margin="0,0,6,0"/>
-                <TextBlock Text="{x:Static app:Strings.AdlxHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              </StackPanel>
-              <TextBlock Text="{x:Static app:Strings.AdlxDesc}" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Settings24" Margin="0,0,6,0"/>
+                    <TextBlock Text="{x:Static app:Strings.AdlxHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <TextBlock Text="{x:Static app:Strings.AdlxDesc}" FontSize="12"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+                <ui:ToggleSwitch x:Name="AdlxMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                                 Checked="AdlxMasterToggle_Changed" Unchecked="AdlxMasterToggle_Changed"/>
+              </Grid>
+              <!-- RSR -->
+              <Grid Margin="0,6,0,4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="RSR" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <ui:ToggleSwitch x:Name="AdlxRsrToggle" Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center"
+                                 Checked="AdlxRsr_Changed" Unchecked="AdlxRsr_Changed"/>
+                <TextBlock Text="锐度:" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ui:NumberBox x:Name="AdlxRsrSharpNum" Grid.Column="3" Minimum="0" Maximum="100" SmallChange="1" MaxDecimalPlaces="0" MinWidth="60"
+                              ValueChanged="AdlxRsrSharp_Changed"/>
+              </Grid>
+              <!-- Anti-Lag -->
+              <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:ToggleSwitch x:Name="AdlxAntiLagToggle" Margin="0,0,8,0" VerticalAlignment="Center"
+                                 Checked="AdlxAntiLag_Changed" Unchecked="AdlxAntiLag_Changed"/>
+                <TextBlock Grid.Column="1" Text="Anti-Lag" FontSize="12" VerticalAlignment="Center"/>
+              </Grid>
+              <!-- Enhanced Sync -->
+              <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:ToggleSwitch x:Name="AdlxEnhancedSyncToggle" Margin="0,0,8,0" VerticalAlignment="Center"
+                                 Checked="AdlxEnhancedSync_Changed" Unchecked="AdlxEnhancedSync_Changed"/>
+                <TextBlock Grid.Column="1" Text="Enhanced Sync" FontSize="12" VerticalAlignment="Center"/>
+              </Grid>
+              <!-- Boost -->
+              <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ui:ToggleSwitch x:Name="AdlxBoostToggle" VerticalAlignment="Center" Margin="0,0,8,0"
+                                 Checked="AdlxBoost_Changed" Unchecked="AdlxBoost_Changed"/>
+                <TextBlock Grid.Column="1" Text="Boost" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock Grid.Column="2" Text="(%)" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ui:NumberBox x:Name="AdlxBoostNum" Grid.Column="3" Minimum="-20" Maximum="20" SmallChange="1" MaxDecimalPlaces="0" MinWidth="60"
+                              ValueChanged="AdlxBoost_Changed"/>
+              </Grid>
+              <!-- Image Sharpening -->
+              <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ui:ToggleSwitch x:Name="AdlxImageSharpToggle" VerticalAlignment="Center" Margin="0,0,8,0"
+                                 Checked="AdlxImageSharp_Changed" Unchecked="AdlxImageSharp_Changed"/>
+                <TextBlock Grid.Column="1" Text="Image Sharpening" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock Grid.Column="2" Text="(%)" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ui:NumberBox x:Name="AdlxImageSharpNum" Grid.Column="3" Minimum="0" Maximum="100" SmallChange="1" MaxDecimalPlaces="0" MinWidth="60"
+                              ValueChanged="AdlxImageSharp_Changed"/>
+              </Grid>
               <TextBlock x:Name="AdlxStatus" FontSize="11" Margin="0,4,0,0"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
             </StackPanel>
@@ -1448,11 +1849,19 @@
         <ui:CardExpander Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="RtssCard" Visibility="Collapsed"
                          Icon="Fps6024">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.RtssHeading}" FontWeight="SemiBold"/>
-              <TextBlock Text="{x:Static app:Strings.RtssDesc}" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.RtssHeading}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.RtssDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="RtssMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="RtssMasterToggle_Changed" Unchecked="RtssMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <Grid>
@@ -1474,10 +1883,18 @@
         <!-- iGPU Power Limit (PawnIO MSR) -->
         <ui:CardExpander Grid.Row="2" Grid.Column="0" Margin="0,0,4,8" x:Name="PawnIgpuPowerCard" Icon="Power24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="iGPU 功耗墙 (MSR 0x621)" FontWeight="SemiBold"/>
-              <TextBlock Text="直写GT VR功率限制，解锁iGPU功耗上限。" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="iGPU 功耗墙 (MSR 0x621)" FontWeight="SemiBold"/>
+                <TextBlock Text="直写GT VR功率限制，解锁iGPU功耗上限。" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="PawnIgpuPowerMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="PawnIgpuPowerMasterToggle_Changed" Unchecked="PawnIgpuPowerMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <Grid>
@@ -1496,10 +1913,18 @@
         <!-- iGPU Max Ratio (PawnIO MSR) -->
         <ui:CardExpander Grid.Row="2" Grid.Column="1" Margin="4,0,0,8" x:Name="PawnIgpuRatioCard" Icon="Clock24">
           <ui:CardExpander.Header>
-            <StackPanel>
-              <TextBlock Text="iGPU 最大倍频 (MSR 0x1A2)" FontWeight="SemiBold"/>
-              <TextBlock Text="调节iGPU最高运行频率。8=800MHz, 60=6000MHz。⚠️ 过高可能死机。" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="iGPU 最大倍频 (MSR 0x1A2)" FontWeight="SemiBold"/>
+                <TextBlock Text="调节iGPU最高运行频率。8=800MHz, 60=6000MHz。⚠️ 过高可能死机。" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="PawnIgpuRatioMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="PawnIgpuRatioMasterToggle_Changed" Unchecked="PawnIgpuRatioMasterToggle_Changed"/>
+            </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <Grid>
@@ -1512,6 +1937,35 @@
               <Slider x:Name="PawnIgpuRatioSlider" Grid.Column="1" Minimum="8" Maximum="60" TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
             </Grid>
             <TextBlock x:Name="PawnIgpuRatioStatus" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- iGPU Clock Override (AMD APU SMU) — moved from CpuAdvGrid -->
+        <ui:CardExpander Grid.Row="3" Grid.Column="0" Margin="0,0,4,8" x:Name="ApuGfxClkCard" Visibility="Collapsed"
+                         Icon="Clock24">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="iGPU 时钟覆盖 (SMU)" FontWeight="SemiBold"/>
+                <TextBlock Text="强制设定 iGPU 运行频率 (gfx-clk)。0=自动。" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="ApuGfxClkMasterToggle" Grid.Column="1" VerticalAlignment="Top"
+                              Checked="ApuGfxClkMasterToggle_Changed" Unchecked="ApuGfxClkMasterToggle_Changed"/>
+            </Grid>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <ui:NumberBox x:Name="ApuGfxClkNum" Minimum="0" Maximum="2200" SmallChange="50" MaxDecimalPlaces="0" ValueChanged="ApuGfxClkNum_ValueChanged"
+                            Value="{Binding ElementName=ApuGfxClkSlider, Path=Value, Mode=TwoWay}"/>
+              <Slider x:Name="ApuGfxClkSlider" Grid.Column="1" Minimum="0" Maximum="2200" TickFrequency="50" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
+            <TextBlock x:Name="ApuGfxClkStatus" FontSize="11" Margin="0,4,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
           </StackPanel>
         </ui:CardExpander>
 

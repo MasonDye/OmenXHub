@@ -23,7 +23,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <DefineConstants>TRACE;DEBUG</DefineConstants>
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -75,8 +75,26 @@
       <HintPath>Resources\Utf8Json.dll</HintPath>
       <Private>true</Private>
     </Reference>
+    <!-- PerformanceControl: HP firmware control helper, required for DeviceModel.IsHP etc. -->
+    <Reference Include="PerformanceControl">
+      <HintPath>Resources\PerformanceControl.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
     <Reference Include="Microsoft.Win32.TaskScheduler">
       <HintPath>lib\Microsoft.Win32.TaskScheduler.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <!-- ADLX: AMD GPU driver-level controls (RSR/Anti-Lag/Enhanced Sync/Boost/Image Sharpening/FPS Limit) -->
+    <Reference Include="ADLX_AutoTuning">
+      <HintPath>Resources\ADLX_AutoTuning.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="ADLX_DisplaySettings">
+      <HintPath>Resources\ADLX_DisplaySettings.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="ADLX_PerformanceMetrics">
+      <HintPath>Resources\ADLX_PerformanceMetrics.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
@@ -127,6 +145,10 @@
     <EmbeddedResource Include="Resources\IntelXTUSDK.dll" />
     <EmbeddedResource Include="Resources\SMBiosSDK.dll" />
     <EmbeddedResource Include="Resources\Utf8Json.dll" />
+    <EmbeddedResource Include="Resources\PerformanceControl.dll" />
+    <EmbeddedResource Include="Resources\ADLX_AutoTuning.dll" />
+    <EmbeddedResource Include="Resources\ADLX_DisplaySettings.dll" />
+    <EmbeddedResource Include="Resources\ADLX_PerformanceMetrics.dll" />
   </ItemGroup>
 
   <!-- Resource (Fluent Icons) -->

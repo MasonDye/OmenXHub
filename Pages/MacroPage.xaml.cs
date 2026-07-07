@@ -5,13 +5,11 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using OmenSuperHub.Services;
+using OmenSuperHub.Utils;
 using Wpf.Ui.Controls;
 using TextBlock = System.Windows.Controls.TextBlock;
 using TextBox = System.Windows.Controls.TextBox;
 using Button = System.Windows.Controls.Button;
-using MessageBox = System.Windows.MessageBox;
-using MessageBoxButton = System.Windows.MessageBoxButton;
-using MessageBoxResult = System.Windows.MessageBoxResult;
 
 namespace OmenSuperHub.Pages {
   public partial class MacroPage : Page {
@@ -86,7 +84,7 @@ namespace OmenSuperHub.Pages {
       buttons.Children.Add(MakeBtn(Strings.MacroRecord, SymbolRegular.Record24, (s, e) => {
         if (MacroController.IsRecording) return;
         MacroController.StartRecording(m, true);
-        MessageBox.Show(Strings.MacroRecordHint, Strings.MacroRecording, MessageBoxButton.OK, MessageBoxImage.Information);
+        DialogHelper.Info(Strings.MacroRecordHint, Strings.MacroRecording);
         MacroController.StopRecording();
         MacroService.Save();
         RefreshList();
@@ -99,8 +97,7 @@ namespace OmenSuperHub.Pages {
         if (ShowEditDialog(m) == true) { MacroService.Save(); RefreshList(); }
       }));
       buttons.Children.Add(MakeBtn(Strings.MacroDelete, SymbolRegular.Delete24, (s, e) => {
-        if (MessageBox.Show(Strings.MacroConfirmDelete, Strings.MacroConfirmDeleteTitle,
-            MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) {
+        if (DialogHelper.Confirm(Strings.MacroConfirmDelete, Strings.MacroConfirmDeleteTitle)) {
           MacroService.RemoveMacro(m);
           RefreshList();
         }

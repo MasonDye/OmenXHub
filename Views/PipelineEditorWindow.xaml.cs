@@ -11,6 +11,7 @@ using System.Windows.Media;
 using Microsoft.Win32;
 using OmenSuperHub;
 using OmenSuperHub.Services;
+using OmenSuperHub.Utils;
 
 namespace OmenSuperHub.Views {
   public partial class PipelineEditorWindow : Wpf.Ui.Controls.FluentWindow {
@@ -556,9 +557,9 @@ namespace OmenSuperHub.Views {
                   importedJson = json;
                   importPath.Text = System.IO.Path.GetFileName(ofd.FileName);
                 } else {
-                  MessageBox.Show("无效的风扇曲线文件", "导入失败");
+                  DialogHelper.Info("无效的风扇曲线文件", "导入失败");
                 }
-              } catch { MessageBox.Show("读取文件失败", "导入失败"); }
+              } catch { DialogHelper.Info("读取文件失败", "导入失败"); }
             }
           };
           importRow.Children.Add(importPath);
