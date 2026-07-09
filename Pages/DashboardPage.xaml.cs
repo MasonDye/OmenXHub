@@ -121,7 +121,7 @@ namespace OmenSuperHub.Pages {
                   gpuTemp, gpuUtil, gpuFan, gpuPower, presetKey, fc, ft)
             ), DispatcherPriority.Background);
             Dispatcher.BeginInvoke(new Action(() =>
-              RefreshSensorsCore(gpuOn ? gpuTemp : 0, cpuTemp, ir, amb, pch, vr)
+              RefreshSensorsCore(cpuTemp, gpuOn ? gpuTemp : 0, ir, amb, pch, vr)
             ), DispatcherPriority.Background);
             // ponytail: refresh floating window on same timer so network speed & other data stay live
             Dispatcher.BeginInvoke(new Action(() =>
@@ -886,11 +886,21 @@ namespace OmenSuperHub.Pages {
         SysNvidiaPowerText.Text = !string.IsNullOrEmpty(ConfigService.SysNvidiaPowerMin)
             ? Strings.SysNvidiaPowerLimitText(ConfigService.SysNvidiaPowerMin + " / " + ConfigService.SysNvidiaPowerMax)
             : "";
-        SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyboardLightingType)ConfigService.SysKbRaw);
-        SysPawnIoText.Text = ConfigService.SysPawnIoText;
-        return;
-      }
-      Task.Run(() => {
+SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyboardLightingType)ConfigService.SysKbRaw);
+	        // ponytail: PawnIO 状态不缓存，每次页面刷新都重新检测
+	        try {
+	          var pawnIoNow = OmenHardware.IsPawnIOInstalled()
+	              ? Strings.SysPawnInstalled + " (" + OmenHardware.GetPawnIOState() + ")"
+	              : Strings.SysPawnMissing;
+	          SysPawnIoText.Text = pawnIoNow;
+	          if (ConfigService.SysPawnIoText != pawnIoNow) {
+	            ConfigService.SysPawnIoText = pawnIoNow;
+	            ConfigService.Save("SysPawnIoText");
+	          }
+	        } catch { }
+	        return;
+	      }
+	      Task.Run(() => {
         string mfr = null, model = null, bios = null, cpu = null, gpu = null;
         int adapterW = 0;
         string pn = null, board = null;
@@ -931,13 +941,8 @@ namespace OmenSuperHub.Pages {
         try { nvidiaTj = GpuAppManager.GetGpuTemperatureTarget(); } catch { }
         try { powerLimits = GpuAppManager.GetGpuPowerLimits(); } catch { }
         int kbRaw = 0;
-        try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboardType())); } catch { }
-        try {
-          pawnIoText = LibreHardwareMonitor.PawnIo.PawnIo.IsInstalled
-              ? Strings.SysPawnInstalled + "v" + LibreHardwareMonitor.PawnIo.PawnIo.Version().ToString()
-              : Strings.SysPawnMissing;
-        } catch { pawnIoText = Strings.SysPawnMissing; }
-        try {
+try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboardType())); } catch { }
+	        try {
           cpuTemp = Strings.SysCPUTemp + ": " + (int)HardwareService.CPUTemp + " °C";
           gpuTemp = Strings.SysGPUTemp + ": " + (int)HardwareService.GPUTemp + " °C";
           irTemp = Strings.SysIRSensor + ": " + GetSensorTemperature(0) + " °C";
@@ -993,11 +998,6 @@ namespace OmenSuperHub.Pages {
           if (ConfigService.SysKbRaw != _kbRaw) {
             ConfigService.SysKbRaw = _kbRaw;
             updates["SysKbRaw"] = _kbRaw;
-          }
-          SysPawnIoText.Text = pawnIoText;
-          if (ConfigService.SysPawnIoText != pawnIoText) {
-            ConfigService.SysPawnIoText = pawnIoText;
-            updates["SysPawnIoText"] = pawnIoText;
           }
           if (updates.Count > 0) ConfigService.BatchSave(updates);
           SysCpuTempText.Text = cpuTemp;

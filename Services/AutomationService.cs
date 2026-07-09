@@ -140,22 +140,22 @@ namespace OmenSuperHub.Services {
       }
     }
 
-    public static void AddPipeline(AutomationPipeline pipeline) {
-      Pipelines.Add(pipeline);
-      Save();
-      AutomationProcessor.RefreshHotkeys();
-    }
+	    public static void AddPipeline(AutomationPipeline pipeline) {
+	      Pipelines.Add(pipeline);
+	      Save();
+	      AutomationProcessor.RefreshHotkeys();
+	    }
 
-    public static void RemovePipeline(AutomationPipeline pipeline) {
-      Pipelines.Remove(pipeline);
-      Save();
-      AutomationProcessor.RefreshHotkeys();
-    }
+	    public static void RemovePipeline(AutomationPipeline pipeline) {
+	      Pipelines.Remove(pipeline);
+	      Save();
+	      AutomationProcessor.RefreshHotkeys();
+	    }
 
-    public static void UpdatePipeline(AutomationPipeline pipeline) {
-      Save();
-      AutomationProcessor.RefreshHotkeys();
-    }
+	    public static void UpdatePipeline(AutomationPipeline pipeline) {
+	      Save();
+	      AutomationProcessor.RefreshHotkeys();
+	    }
 
     public static List<AutomationPipeline> GetEnabledPipelines() {
       var result = new List<AutomationPipeline>();

@@ -143,9 +143,15 @@ namespace OmenSuperHub.Services {
     public static void QueryHardware() {
       if ((DateTime.Now - _lastQueryTime) < _cacheInterval) return;
       _lastQueryTime = DateTime.Now;
+
+      // ponytail: HWiNFO Read 启用时，跳过 LibreHardwareMonitor 传感器轮询及后续覆盖
       float libreTempCPU = -300;
       float librePowerCPU = -1;
       bool getGPU = false;
+      if (ConfigService.HWiNFOReadEnabled) {
+        // 跳过 Libre 传感器读取 + temp/power 赋值，直接进入 GPU 启停逻辑
+        goto afterLibre;
+      }
 
       foreach (LibreIHardware hardware in LibreComputer.Hardware) {
         if (hardware.HardwareType == LibreHardwareType.Cpu || hardware.HardwareType == LibreHardwareType.GpuNvidia || hardware.HardwareType == LibreHardwareType.GpuAmd || hardware.HardwareType == LibreHardwareType.GpuIntel) {
@@ -225,12 +231,13 @@ namespace OmenSuperHub.Services {
       if (librePowerCPU >= 0)
         CPUPower = librePowerCPU;
 
+      afterLibre:
       // Auto GPU monitoring logic
       if (countQuery <= 5 && MonitorGPU)
         countQuery++;
 
-      // Auto-disable GPU monitoring
-      if (countQuery > 5 && AutoStopMonitorGPU && !IsConnectedToNVIDIA && MonitorGPU && ((GPUPower >= 0 && GPUPower <= 1.3) || !getGPU)) {
+      // Auto-disable GPU monitoring (ponytail: 只在电池供电时自动关)
+      if (countQuery > 5 && AutoStopMonitorGPU && !PowerOnline && !IsConnectedToNVIDIA && MonitorGPU && ((GPUPower >= 0 && GPUPower <= 1.3) || !getGPU)) {
         GPUPower = 0;
         countQuery = 0;
         MonitorGPU = false;

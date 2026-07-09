@@ -465,7 +465,12 @@ namespace OmenSuperHub.Pages {
       GfxModeCombo.SelectedIndex = mode;
       UpdateHotSwitchVisibility(mode);
       InitCoreKeepUI();
-    }
+      // 拓扑摘要
+      UpdateTopologyText();
+      // CCD 按钮可见性（仅 AMD 双 CCD）
+      var cores = CpuTopologyService.GetCores();
+	      var ccds = cores.Where(c => c.CcdId >= 0).Select(c => c.CcdId).Distinct().ToList();
+	    }
 
     void SelectCombo(ComboBox combo, string text) {
       foreach (ComboBoxItem item in combo.Items)
@@ -791,30 +796,148 @@ namespace OmenSuperHub.Pages {
     }
 
     // ── Core Keep ──
+    CoreKeepEntry _currentSelectedEntry;
+
     void InitCoreKeepUI() {
       var data = CoreKeepService.Load();
       CoreKeepMasterToggle.IsChecked = data.MasterEnabled;
       CoreKeepList.ItemsSource = data.Entries;
       CoreKeepList.DisplayMemberPath = "ProcessName";
-      CoreKeepList.IsEnabled = data.MasterEnabled;
-      CoreKeepNewProcInput.IsEnabled = data.MasterEnabled;
-      CoreKeepAddBtn.IsEnabled = data.MasterEnabled;
+      // ponytail: 只订阅一次，页面重载不叠加
+      CoreKeepList.SelectionChanged -= CoreKeepList_SelectionChanged;
       CoreKeepList.SelectionChanged += CoreKeepList_SelectionChanged;
-      if (data.MasterEnabled) CoreKeepService.StartAutoApply(data);
+      // 拓扑摘要
+      UpdateTopologyText();
+      // 守护开关和间隔
+      CoreKeepGuardToggle.IsChecked = data.GuardIntervalMs > 0;
+      CoreKeepGuardInterval.Value = Math.Max(1, Math.Min(10, data.GuardIntervalMs / 1000));
+      // 优先级 ComboBox
+      BuildPriorityCombo();
+      // 子控件状态
+      bool sub = data.MasterEnabled;
+      CoreKeepList.IsEnabled = sub;
+      CoreKeepAddBtn.IsEnabled = sub;
+      CoreKeepSaveBtn.IsEnabled = sub && _currentSelectedEntry != null;
+      CoreKeepRefreshBtn.IsEnabled = true;
+      CoreKeepDeleteBtn.IsEnabled = sub;
+      CoreKeepBenchBtn.IsEnabled = sub;
+      CoreKeepGuardToggle.IsEnabled = sub;
+      CoreKeepGuardInterval.IsEnabled = sub && CoreKeepGuardToggle.IsChecked == true;
+      SetCoreModeBtnEnabled(false); // 未选中条目时禁用模式按钮
+      if (sub) CoreKeepService.StartAutoApply(data);
+    }
+
+    void UpdateTopologyText() {
+      var topo = CoreKeepService.GetTopology();
+      if (topo.IsHybrid)
+        CoreKeepTopologyText.Text = string.Format(Strings.CoreKeepTopologyHybrid, topo.TotalLogical, topo.PerformanceCores.Length, topo.EfficientCores.Length);
+      else if (topo.IsDualCcd)
+        CoreKeepTopologyText.Text = string.Format(Strings.CoreKeepTopologyDualCcd, topo.TotalLogical, topo.Ccd0Count, topo.Ccd1Count);
+      else
+        CoreKeepTopologyText.Text = string.Format(Strings.CoreKeepTopologyNormal, topo.TotalLogical);
+    }
+
+    void BuildPriorityCombo() {
+      CoreKeepPriorityCombo.Items.Clear();
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityIdle, Tag = (uint)0x00000040 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityBelowNormal, Tag = (uint)0x00004000 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityNormal, Tag = (uint)0x00000020 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityAboveNormal, Tag = (uint)0x00008000 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityHigh, Tag = (uint)0x00000080 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityRealtime, Tag = (uint)0x00000100 });
+    }
+
+    void SelectPriorityInCombo(uint priorityClass) {
+      foreach (System.Windows.Controls.ComboBoxItem item in CoreKeepPriorityCombo.Items) {
+        if (item.Tag is uint tag && tag == priorityClass) { CoreKeepPriorityCombo.SelectedItem = item; return; }
+      }
+      CoreKeepPriorityCombo.SelectedIndex = -1;
+    }
+
+    void SetCoreModeBtnEnabled(bool enabled) {
+      CoreKeepModeAuto.IsEnabled = enabled;
+      CoreKeepModeAll.IsEnabled = enabled;
+      CoreKeepModeManual.IsEnabled = enabled;
+    }
+
+    void HighlightModeButton(string mode) {
+      CoreKeepModeAuto.Appearance = mode == "Auto" ? Wpf.Ui.Controls.ControlAppearance.Primary : Wpf.Ui.Controls.ControlAppearance.Secondary;
+      CoreKeepModeAll.Appearance = mode == "All" ? Wpf.Ui.Controls.ControlAppearance.Primary : Wpf.Ui.Controls.ControlAppearance.Secondary;
+      CoreKeepModeManual.Appearance = mode == "Manual" ? Wpf.Ui.Controls.ControlAppearance.Primary : Wpf.Ui.Controls.ControlAppearance.Secondary;
     }
 
     void CoreKeepList_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-      var entry = CoreKeepList.SelectedItem as CoreKeepEntry;
-      if (entry == null) return;
-      CoreKeepProcInput.Text = entry.ProcessName;
-      CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(entry.PriorityClass);
-      CoreKeepAffinityText.Text = "0x" + entry.AffinityMask.ToString("X");
-      CoreKeepStatus.Text = entry.CapturedAt != null ? string.Format(Strings.CoreKeepStatusCapturedAt) + entry.CapturedAt : "";
+      _currentSelectedEntry = CoreKeepList.SelectedItem as CoreKeepEntry;
+      if (_currentSelectedEntry == null) {
+        CoreKeepProcInput.Text = "";
+        CoreKeepPriorityText.Text = " -";
+        CoreKeepAffinityText.Text = " -";
+        CoreKeepStatusIcon.Text = "";
+        CoreKeepLivePriorityText.Text = "";
+        CoreKeepPriorityCombo.IsEnabled = false;
+        CoreKeepPriorityCombo.SelectedIndex = -1;
+        SetCoreModeBtnEnabled(false);
+        CoreKeepCoreList.Visibility = Visibility.Collapsed;
+        CoreKeepSaveBtn.IsEnabled = false;
+        return;
+      }
+      CoreKeepProcInput.Text = _currentSelectedEntry.ProcessName;
+      CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(_currentSelectedEntry.PriorityClass);
+      CoreKeepAffinityText.Text = "0x" + _currentSelectedEntry.AffinityMask.ToString("X");
+      // 查询当前实际状态（支持 PID）
+      var state = CoreKeepService.QueryProcessState(_currentSelectedEntry.ProcessName, _currentSelectedEntry.ProcessId);
+      if (!state.Running) {
+        CoreKeepStatusIcon.Text = Strings.CoreKeepStatusNotRunning;
+        CoreKeepLivePriorityText.Text = "";
+      } else if (state.PriorityClass == _currentSelectedEntry.PriorityClass && state.AffinityMask == _currentSelectedEntry.AffinityMask) {
+        CoreKeepStatusIcon.Text = Strings.CoreKeepStatusMatched;
+        CoreKeepLivePriorityText.Text = "";
+      } else {
+        CoreKeepStatusIcon.Text = Strings.CoreKeepStatusMismatch;
+        CoreKeepLivePriorityText.Text = $"({CoreKeepService.PriorityClassName(state.PriorityClass)}/0x{state.AffinityMask:X})";
+      }
+      // 模式按钮
+      SetCoreModeBtnEnabled(true);
+      HighlightModeButton(_currentSelectedEntry.CoreMode ?? "All");
+      // 优先级 ComboBox
+      CoreKeepPriorityCombo.IsEnabled = CoreKeepMasterToggle.IsChecked == true;
+      SelectPriorityInCombo(_currentSelectedEntry.PriorityClass);
+      CoreKeepSaveBtn.IsEnabled = CoreKeepMasterToggle.IsChecked == true;
+      // 手动模式下显示核心选择
+      CoreKeepCoreList.Visibility = (_currentSelectedEntry.CoreMode == "Manual") ? Visibility.Visible : Visibility.Collapsed;
+      if (_currentSelectedEntry.CoreMode == "Manual")
+        PopulateCoreCheckboxes(_currentSelectedEntry.PreferredCores, _currentSelectedEntry.AffinityMask);
+    }
+
+    void PopulateCoreCheckboxes(int[] selected, long affinityMask = 0) {
+      var topo = CoreKeepService.GetTopology();
+      var items = new List<CoreCheckItem>();
+      // ponytail: 优先用 selected 数组；没有时从 AffinityMask 反推勾选的核心
+      HashSet<int> selSet;
+      if (selected != null && selected.Length > 0)
+        selSet = new HashSet<int>(selected);
+      else {
+        selSet = new HashSet<int>();
+        for (int i = 0; i < topo.TotalLogical; i++) {
+          if ((affinityMask & (1L << i)) != 0) selSet.Add(i);
+        }
+      }
+      for (int i = 0; i < topo.TotalLogical; i++) {
+        items.Add(new CoreCheckItem { CoreIndex = i, IsChecked = selSet.Contains(i) });
+      }
+      CoreKeepCoreList.ItemsSource = items;
     }
 
     void CoreKeepMasterToggle_Changed(object sender, RoutedEventArgs e) {
       bool on = CoreKeepMasterToggle.IsChecked == true;
-      CoreKeepList.IsEnabled = on; CoreKeepNewProcInput.IsEnabled = on; CoreKeepAddBtn.IsEnabled = on;
+      CoreKeepList.IsEnabled = on;
+      CoreKeepAddBtn.IsEnabled = on;
+      CoreKeepSaveBtn.IsEnabled = on && _currentSelectedEntry != null;
+      CoreKeepDeleteBtn.IsEnabled = on;
+      CoreKeepBenchBtn.IsEnabled = on;
+      CoreKeepGuardToggle.IsEnabled = on;
+      CoreKeepGuardInterval.IsEnabled = on && CoreKeepGuardToggle.IsChecked == true;
+      CoreKeepPriorityCombo.IsEnabled = on && _currentSelectedEntry != null;
       var data = CoreKeepService.Load();
       data.MasterEnabled = on;
       CoreKeepService.Save(data);
@@ -822,49 +945,278 @@ namespace OmenSuperHub.Pages {
     }
 
     void CoreKeepRefresh_Click(object sender, RoutedEventArgs e) {
-      string procName = CoreKeepProcInput.Text?.Trim();
-      if (string.IsNullOrEmpty(procName)) {
+      string raw = CoreKeepProcInput.Text?.Trim();
+      if (string.IsNullOrEmpty(raw)) {
         RefreshCoreKeepList(CoreKeepService.Load());
         return;
       }
-      if (!procName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) procName += ".exe";
-      var entry = CoreKeepService.CaptureFromProcess(procName);
-      CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(entry.PriorityClass);
-      CoreKeepAffinityText.Text = "0x" + entry.AffinityMask.ToString("X");
-      CoreKeepStatus.Text = string.Format(Strings.CoreKeepStatusCapturedAt) + entry.CapturedAt;
+      // ponytail: Refresh 只查看当前运行状态，不修改保存的规则。支持 PID 输入
+      ProcessAffinityState state;
+      bool isPid = int.TryParse(raw, out int pid);
+      if (isPid)
+        state = CoreKeepService.QueryProcessState("", pid);
+      else {
+        string procName = raw.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? raw : raw + ".exe";
+        state = CoreKeepService.QueryProcessState(procName);
+      }
+      if (!state.Running) {
+        CoreKeepPriorityText.Text = " -";
+        CoreKeepAffinityText.Text = " -";
+        CoreKeepStatusIcon.Text = Strings.CoreKeepStatusNotRunning;
+        CoreKeepLivePriorityText.Text = "";
+        return;
+      }
+      CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(state.PriorityClass);
+      CoreKeepAffinityText.Text = "0x" + state.AffinityMask.ToString("X");
+      CoreKeepLivePriorityText.Text = "";
+      // 如果有已保存规则，对比显示
       var data = CoreKeepService.Load();
-      var existing = data.Entries.Find(x => x.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase));
+      var existing = isPid
+        ? data.Entries.Find(x => x.ProcessId == pid)
+        : data.Entries.Find(x => x.ProcessName.Equals(raw + (raw.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? "" : ".exe"), StringComparison.OrdinalIgnoreCase));
       if (existing != null) {
-        existing.PriorityClass = entry.PriorityClass;
-        existing.AffinityMask = entry.AffinityMask;
-        existing.CapturedAt = entry.CapturedAt;
-        CoreKeepService.Save(data);
-        RefreshCoreKeepList(data);
+        if (state.PriorityClass == existing.PriorityClass && state.AffinityMask == existing.AffinityMask)
+          CoreKeepStatusIcon.Text = Strings.CoreKeepStatusMatched;
+        else
+          CoreKeepStatusIcon.Text = Strings.CoreKeepStatusMismatch;
+      } else {
+        CoreKeepStatusIcon.Text = "";
       }
     }
+
+    void CoreKeepSave_Click(object sender, RoutedEventArgs e) {
+      // ponytail: 用当前进程值更新保存的规则。支持 PID
+      string raw = CoreKeepProcInput.Text?.Trim();
+      if (string.IsNullOrEmpty(raw)) return;
+      var data = CoreKeepService.Load();
+      bool isPid = int.TryParse(raw, out int pid);
+      CoreKeepEntry entry;
+      if (isPid) {
+        entry = CoreKeepService.CaptureFromPid(pid);
+        if (entry.AffinityMask == 0 && entry.PriorityClass == 0) return;
+        var existingPid = data.Entries.Find(x => x.ProcessId == pid);
+        if (existingPid != null) {
+          existingPid.PriorityClass = entry.PriorityClass;
+          existingPid.AffinityMask = entry.AffinityMask;
+          existingPid.CapturedAt = entry.CapturedAt;
+          existingPid.ProcessName = entry.ProcessName; // 更新名称（可能变了）
+          CoreKeepService.Save(data);
+          RefreshCoreKeepList(data);
+          ReselectByName(existingPid.ProcessName);
+        }
+      } else {
+        string procName = raw.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? raw : raw + ".exe";
+        entry = CoreKeepService.CaptureFromProcess(procName);
+        var existing = data.Entries.Find(x => x.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase));
+        if (existing != null) {
+          existing.PriorityClass = entry.PriorityClass;
+          existing.AffinityMask = entry.AffinityMask;
+          existing.CapturedAt = entry.CapturedAt;
+          CoreKeepService.Save(data);
+          RefreshCoreKeepList(data);
+          ReselectByName(procName);
+        }
+      }
+    }
+
+    void ReselectByName(string name) {
+      for (int i = 0; i < CoreKeepList.Items.Count; i++) {
+        if ((CoreKeepList.Items[i] as CoreKeepEntry)?.ProcessName == name) {
+          CoreKeepList.SelectedIndex = i; break;
+        }
+      }
+    }
+
     void CoreKeepDelete_Click(object sender, RoutedEventArgs e) {
       var selected = CoreKeepList.SelectedItem as CoreKeepEntry;
       if (selected == null) return;
       var data = CoreKeepService.Load();
       data.Entries.RemoveAll(x => x.ProcessName == selected.ProcessName);
       CoreKeepService.Save(data);
+      _currentSelectedEntry = null;
+      CoreKeepProcInput.Text = "";
+      CoreKeepPriorityText.Text = " -";
+      CoreKeepAffinityText.Text = " -";
+      CoreKeepStatusIcon.Text = "";
+      CoreKeepLivePriorityText.Text = "";
       RefreshCoreKeepList(data);
     }
+
+    /// <summary>添加进程：支持 PID（纯数字）或进程名</summary>
     void CoreKeepAdd_Click(object sender, RoutedEventArgs e) {
-      string procName = CoreKeepNewProcInput.Text?.Trim();
-      if (string.IsNullOrEmpty(procName)) return;
-      if (!procName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) procName += ".exe";
+      string raw = CoreKeepProcInput.Text?.Trim();
+      if (string.IsNullOrEmpty(raw)) return;
       var data = CoreKeepService.Load();
-      if (data.Entries.Exists(x => x.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase))) return;
-      var entry = CoreKeepService.CaptureFromProcess(procName);
+      CoreKeepEntry entry;
+      bool isPid = int.TryParse(raw, out int pid);
+      if (isPid) {
+        entry = CoreKeepService.CaptureFromPid(pid);
+        if (entry.AffinityMask == 0 && entry.PriorityClass == 0) return;
+        if (data.Entries.Exists(x => x.ProcessId == pid)) return;
+      } else {
+        string procName = raw.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? raw : raw + ".exe";
+        if (data.Entries.Exists(x => x.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase))) return;
+        entry = CoreKeepService.CaptureFromProcess(procName);
+        if (entry.AffinityMask == 0 && entry.PriorityClass == 0) return;
+      }
       entry.Enabled = true;
+      entry.CoreMode = "All";
+      entry.GuardEnabled = true;
+      CoreKeepService.ApplyModeToEntry(entry, "All");
+      if (CoreKeepPriorityCombo.SelectedItem is System.Windows.Controls.ComboBoxItem pi && pi.Tag is uint prio)
+        entry.PriorityClass = prio;
       data.Entries.Add(entry);
       CoreKeepService.Save(data);
-      CoreKeepNewProcInput.Text = "";
+      CoreKeepProcInput.Text = "";
       RefreshCoreKeepList(data);
       if (data.MasterEnabled) CoreKeepService.StartAutoApply(data);
     }
-    void RefreshCoreKeepList(CoreKeepData data) { CoreKeepList.ItemsSource = data.Entries; }
+
+    void CoreKeepPriorityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+      if (_currentSelectedEntry == null || CoreKeepPriorityCombo.SelectedItem == null) return;
+      if (CoreKeepPriorityCombo.SelectedItem is System.Windows.Controls.ComboBoxItem item && item.Tag is uint prio) {
+        // ponytail: 值没变就跳过，防止 SelectPriorityInCombo 触发重入
+        if (_currentSelectedEntry.PriorityClass == prio) return;
+        _currentSelectedEntry.PriorityClass = prio;
+        CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(prio);
+        // 持久化
+        var data = CoreKeepService.Load();
+        var existing = _currentSelectedEntry.ProcessId > 0
+          ? data.Entries.Find(x => x.ProcessId == _currentSelectedEntry.ProcessId)
+          : data.Entries.Find(x => x.ProcessName == _currentSelectedEntry.ProcessName);
+        if (existing != null) {
+          existing.PriorityClass = prio;
+          CoreKeepService.Save(data);
+          // ponytail: 不 RefreshCoreKeepList —— 不替换 ItemsSource 避免清空 ListBox 选中
+        }
+        // 立即写入进程
+        if (CoreKeepMasterToggle.IsChecked == true)
+          CoreKeepService.ApplyToProcess(_currentSelectedEntry.ProcessName, _currentSelectedEntry);
+      }
+    }
+
+    void CoreKeepMode_Click(object sender, RoutedEventArgs e) {
+      var btn = sender as Wpf.Ui.Controls.Button;
+      if (btn == null || _currentSelectedEntry == null) return;
+      string mode = btn.Tag as string;
+      if (string.IsNullOrEmpty(mode)) return;
+      HighlightModeButton(mode);
+      _currentSelectedEntry.CoreMode = mode;
+      // 手动模式：显示核心选择
+      CoreKeepCoreList.Visibility = (mode == "Manual") ? Visibility.Visible : Visibility.Collapsed;
+      if (mode == "Manual") {
+        PopulateCoreCheckboxes(_currentSelectedEntry.PreferredCores, _currentSelectedEntry.AffinityMask);
+        var data = CoreKeepService.Load();
+        var existing = _currentSelectedEntry.ProcessId > 0
+          ? data.Entries.Find(x => x.ProcessId == _currentSelectedEntry.ProcessId)
+          : data.Entries.Find(x => x.ProcessName == _currentSelectedEntry.ProcessName);
+        if (existing != null) { existing.CoreMode = mode; CoreKeepService.Save(data); RefreshCoreKeepList(data); }
+      } else {
+        long mask = CoreKeepService.ModeToAffinityMask(mode, null);
+        _currentSelectedEntry.AffinityMask = mask;
+        var data = CoreKeepService.Load();
+        var existing = _currentSelectedEntry.ProcessId > 0
+          ? data.Entries.Find(x => x.ProcessId == _currentSelectedEntry.ProcessId)
+          : data.Entries.Find(x => x.ProcessName == _currentSelectedEntry.ProcessName);
+        if (existing != null) { existing.CoreMode = mode; existing.AffinityMask = mask; CoreKeepService.Save(data); RefreshCoreKeepList(data); }
+        CoreKeepAffinityText.Text = "0x" + mask.ToString("X");
+        if (CoreKeepMasterToggle.IsChecked == true)
+          CoreKeepService.ApplyToProcess(_currentSelectedEntry.ProcessName, _currentSelectedEntry);
+      }
+    }
+
+    void CoreKeepGuardToggle_Changed(object sender, RoutedEventArgs e) {
+      bool on = CoreKeepGuardToggle.IsChecked == true;
+      CoreKeepGuardInterval.IsEnabled = on;
+      var data = CoreKeepService.Load();
+      data.GuardIntervalMs = on ? (int)(CoreKeepGuardInterval.Value * 1000) : -1;
+      CoreKeepService.Save(data);
+      if (on) {
+        CoreKeepService.UpdateGuardInterval(data.GuardIntervalMs);
+        // 同时给所有条目启用守护
+        foreach (var entry in data.Entries) entry.GuardEnabled = true;
+        CoreKeepService.Save(data);
+      } else {
+        foreach (var entry in data.Entries) entry.GuardEnabled = false;
+        CoreKeepService.Save(data);
+        CoreKeepService.StopAutoApply();
+        if (CoreKeepMasterToggle.IsChecked == true)
+          CoreKeepService.StartAutoApply(data); // 重启不带守护的自动应用
+      }
+    }
+
+    void CoreKeepGuardInterval_Changed(object s, RoutedEventArgs e) {
+      var data = CoreKeepService.Load();
+      data.GuardIntervalMs = (int)(CoreKeepGuardInterval.Value * 1000);
+      CoreKeepService.Save(data);
+      CoreKeepService.UpdateGuardInterval(data.GuardIntervalMs);
+    }
+
+    void CoreKeepBenchmark_Click(object sender, RoutedEventArgs e) {
+      CoreKeepBenchBtn.Content = Strings.CoreKeepBenchmarkRunning;
+      CoreKeepBenchBtn.IsEnabled = false;
+      System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+        try {
+          var results = CoreKeepService.RunBenchmark(500);
+          Dispatcher.BeginInvoke(new Action(() => {
+            CoreKeepBenchBtn.Content = Strings.CoreKeepBenchmarkDone;
+            CoreKeepBenchBtn.IsEnabled = true;
+            // 显示建议
+            var best = results.OrderBy(r => r.Score).Take(8).ToList();
+            string msg = string.Join("\n", best.Select(r =>
+              string.Format(Strings.CoreKeepBenchmarkResult, r.CoreIndex, r.Score, r.Relative)));
+            DialogHelper.Info(msg, Strings.CoreKeepBenchmark);
+          }));
+        } catch {
+          Dispatcher.BeginInvoke(new Action(() => {
+            CoreKeepBenchBtn.Content = Strings.CoreKeepBenchmark;
+            CoreKeepBenchBtn.IsEnabled = true;
+          }));
+        }
+      });
+    }
+
+    void RefreshCoreKeepList(CoreKeepData data) {
+      // ponytail: 保存并恢复选中条目，避免替换 ItemsSource 清空选中
+      string selectedName = _currentSelectedEntry?.ProcessName;
+      CoreKeepList.ItemsSource = data.Entries;
+      if (selectedName != null) {
+        for (int i = 0; i < CoreKeepList.Items.Count; i++) {
+          if ((CoreKeepList.Items[i] as CoreKeepEntry)?.ProcessName == selectedName) {
+            CoreKeepList.SelectedIndex = i;
+            break;
+          }
+        }
+      }
+    }
+
+    void CoreKeepCoreCheckChanged(object sender, RoutedEventArgs e) {
+      if (_currentSelectedEntry == null || _currentSelectedEntry.CoreMode != "Manual") return;
+      // 收集勾选的核心，更新掩码
+      var selected = new List<int>();
+      foreach (var item in CoreKeepCoreList.Items) {
+        var ci = item as CoreCheckItem;
+        if (ci != null && ci.IsChecked) selected.Add(ci.CoreIndex);
+      }
+      if (selected.Count == 0) return;
+      long mask = CoreKeepService.ModeToAffinityMask("Manual", selected.ToArray());
+      _currentSelectedEntry.AffinityMask = mask;
+      _currentSelectedEntry.PreferredCores = selected.ToArray();
+      // 持久化
+      var data = CoreKeepService.Load();
+      var existing = _currentSelectedEntry.ProcessId > 0
+        ? data.Entries.Find(x => x.ProcessId == _currentSelectedEntry.ProcessId)
+        : data.Entries.Find(x => x.ProcessName == _currentSelectedEntry.ProcessName);
+      if (existing != null) {
+        existing.AffinityMask = mask;
+        existing.PreferredCores = selected.ToArray();
+        CoreKeepService.Save(data);
+        RefreshCoreKeepList(data);
+      }
+      CoreKeepAffinityText.Text = "0x" + mask.ToString("X");
+      if (CoreKeepMasterToggle.IsChecked == true)
+        CoreKeepService.ApplyToProcess(_currentSelectedEntry.ProcessName, _currentSelectedEntry);
+    }
 
     // ── GPU 频率限制 ──
     void GpuClock_SelectionChanged(object sender, SelectionChangedEventArgs e) {
@@ -2054,6 +2406,11 @@ namespace OmenSuperHub.Pages {
       // ── CpuPerfGrid per-vendor visibility (always applies) ──
       bool hasAmd = _hasAmdCpu;
       bool hasIntel = _hasIntelCpu;
+      // DebugShowAllUi: 强制显示所有卡片（忽略 per-vendor 限制）
+      if (ConfigService.DebugShowAllUi) {
+        hasAmd = true;
+        hasIntel = true;
+      }
       IccMaxCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
       AcLoadLineCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
       HeteroCpuCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
@@ -3525,5 +3882,11 @@ namespace OmenSuperHub.Pages {
       _snapshot = null;
       Log("btnPerfUndo: restored GpuPriority, cleared custom presets");
     }
+  }
+
+  // ponytail: 核心选择 CheckBox 的简易 ViewModel
+  public class CoreCheckItem {
+    public int CoreIndex { get; set; }
+    public bool IsChecked { get; set; }
   }
 }

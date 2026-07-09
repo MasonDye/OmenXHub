@@ -321,6 +321,7 @@ namespace OmenSuperHub.Services {
 
       // Auto fan protect: if CPU >95°C and fans are fixed <75%, switch to auto+cool
       // Save previous fan state so it can be restored on cooldown
+      // ponytail: Don't persist to registry — protection is temporary, user's config stays intact
       // BUG FIX: Trigger requires toggle ON, but restore runs regardless so active sessions can unwind
       bool fanProtectOn = ConfigService.AutoFanProtect == "on";
       if (fanProtectOn && HardwareService.MonitorFan && HardwareService.CPUTemp > 0) {
@@ -336,8 +337,7 @@ namespace OmenSuperHub.Services {
             fanControlTimer.Change(0, 1000);
             ConfigService.FanControl = "auto";
             ConfigService.FanTable = "cool";
-            ConfigService.Save("FanControl");
-            ConfigService.Save("FanTable");
+            // ponytail: no ConfigService.Save() — don't persist temp protection to registry
             FanService.LoadFanConfig("cool.txt");
             Logger.Info("Auto fan protect: CPU>95°C with fixed fan, switched to auto+cool");
             _trayHelperRef?.ShowBalloonTip("高温自动保护", "CPU温度>95°C，已强制切换为降温曲线", 3000);
@@ -349,8 +349,8 @@ namespace OmenSuperHub.Services {
         _autoProtectActive = false;
         if (!string.IsNullOrEmpty(_savedFanControl)) {
           ConfigService.FanControl = _savedFanControl;
-          ConfigService.FanTable = _savedFanTable;
-          ConfigService.Save("FanControl");
+	          ConfigService.FanTable = _savedFanTable;
+	          // ponytail: no ConfigService.Save() — protection state was never persisted, so nothing to restore
           // Re-apply the saved fan mode
           if (_savedFanControl == "silent" || _savedFanControl == "") {
             FanService.LoadFanConfig((_savedFanTable ?? "silent") + ".txt");

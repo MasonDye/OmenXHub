@@ -1,6 +1,9 @@
 // HeteroCpuService.cs - AMD 异构 CPU 调度管理
-// 通过注册表配置双 CCD CPU 亲和性掩码，检测 NUMA 拓扑和内核调度策略
+// 提供两种模式：
+//   1. 注册表模式 — 写 HKLM SmallProcessorMask（需重启）
+//   2. 实时绑定模式 — SetThreadGroupAffinity（即时生效）
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
@@ -228,5 +231,66 @@ namespace OmenSuperHub.Services {
         int relationshipType,
         IntPtr buffer,
         ref int returnedLength);
+
+    // ════════════════════════════════════════════════════════════
+    // 实时绑定模式 (v2)
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>获取当前 CPU 拓扑摘要文本</summary>
+    public static string GetTopologySummary() => CpuTopologyService.GetSummary();
+
+
+    /// <summary>实时绑定进程到指定 CCD</summary>
+    public static int BindProcessToCcd(int processId, int ccdId) {
+      return ThreadBindingService.BindProcessToCcd(processId, ccdId);
+    }
+
+    /// <summary>实时绑定进程到 P-core 或 E-core</summary>
+    public static int BindProcessToClass(int processId, bool usePerformance) {
+      return ThreadBindingService.BindProcessToEfficiencyClass(processId, usePerformance);
+    }
+
+    /// <summary>实时解绑进程（恢复全核心）</summary>
+    public static int UnbindProcess(int processId) {
+      return ThreadBindingService.UnbindProcess(processId);
+    }
+
+    /// <summary>获取所有可用的核心选择策略文本</summary>
+    public static List<string> GetBindingStrategies() {
+      var list = new List<string>();
+      var cores = CpuTopologyService.GetCores();
+      var ccds = cores.Where(c => c.CcdId >= 0).Select(c => c.CcdId).Distinct().OrderBy(x => x).ToList();
+      if (ccds.Count > 0) {
+        foreach (var ccd in ccds) {
+          int count = cores.Count(c => c.CcdId == ccd && !c.IsSmt);
+          list.Add($"CCD {ccd} ({count} 物理核)");
+        }
+      }
+      if (cores.Any(c => c.IsEfficiency)) {
+        list.Add("P-Core Only (性能核)");
+        list.Add("E-Core Only (能效核)");
+      }
+      list.Add("全部核心 (解绑)");
+      return list;
+    }
+
+    /// <summary>应用绑定策略到进程</summary>
+    public static int ApplyBindingStrategy(int processId, int strategyIndex) {
+      var cores = CpuTopologyService.GetCores();
+      var ccds = cores.Where(c => c.CcdId >= 0).Select(c => c.CcdId).Distinct().OrderBy(x => x).ToList();
+      int idx = 0;
+      foreach (var ccd in ccds) {
+        if (idx == strategyIndex) return ThreadBindingService.BindProcessToCcd(processId, ccd);
+        idx++;
+      }
+      if (cores.Any(c => c.IsEfficiency)) {
+        if (idx == strategyIndex) return ThreadBindingService.BindProcessToEfficiencyClass(processId, true);
+        idx++;
+        if (idx == strategyIndex) return ThreadBindingService.BindProcessToEfficiencyClass(processId, false);
+        idx++;
+      }
+      // 全部核心 = 解绑
+      return ThreadBindingService.UnbindProcess(processId);
+    }
   }
 }

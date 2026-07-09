@@ -52,13 +52,13 @@ namespace OmenSuperHub.Services {
       if (_running) return;
       _running = true;
 
-      SubscribeProcessEvents();
-      SubscribePowerEvents();
-      SubscribeSessionEvents();
-      SubscribeBatteryEvents();
-      SubscribeDisplayEvents();
-      SubscribeLidEvents();
-      StartScheduleTimer();
+	      SubscribeProcessEvents();
+	      SubscribePowerEvents();
+	      SubscribeSessionEvents();
+	      SubscribeBatteryEvents();
+	      SubscribeDisplayEvents();
+	      SubscribeLidEvents();
+	      StartScheduleTimer();
       StartTempPollTimer();
 
       // Init hotkey message window
@@ -76,8 +76,8 @@ namespace OmenSuperHub.Services {
       if (_processStopWatcher != null) { _processStopWatcher.Stop(); _processStopWatcher.Dispose(); _processStopWatcher = null; }
       if (_scheduleTimer != null) { _scheduleTimer.Dispose(); _scheduleTimer = null; }
       if (_tempPollTimer != null) { _tempPollTimer.Dispose(); _tempPollTimer = null; }
-      SystemEvents.PowerModeChanged -= OnPowerModeChanged;
-      if (_sessionSwitchHandler != null) { SystemEvents.SessionSwitch -= _sessionSwitchHandler; _sessionSwitchHandler = null; }
+	      SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+	      if (_sessionSwitchHandler != null) { SystemEvents.SessionSwitch -= _sessionSwitchHandler; _sessionSwitchHandler = null; }
       if (_displaySettingsHandler != null) { SystemEvents.DisplaySettingsChanged -= _displaySettingsHandler; _displaySettingsHandler = null; }
       _tempTriggerFired.Clear();
       UnregisterAllHotkeys();
@@ -515,14 +515,14 @@ namespace OmenSuperHub.Services {
       SystemEvents.PowerModeChanged += OnPowerModeChanged;
     }
 
-    private static void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e) {
-      if (e.Mode == PowerModes.Resume) {
-        FireTrigger("Resume", "");
-      } else if (e.Mode == PowerModes.StatusChange) {
-        bool online = System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
-        FireTrigger(online ? "PowerAC" : "PowerDC", "");
-      }
-    }
+	    private static void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e) {
+	      if (e.Mode == PowerModes.Resume) {
+	        FireTrigger("Resume", "");
+	      } else if (e.Mode == PowerModes.StatusChange) {
+	        bool online = System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
+	        FireTrigger(online ? "PowerAC" : "PowerDC", "");
+	      }
+	    }
 
     private static void SubscribeSessionEvents() {
       _sessionSwitchHandler = (s, e) => {
@@ -535,6 +535,36 @@ namespace OmenSuperHub.Services {
     }
 
     private static void SubscribeBatteryEvents() {
+      try {
+        _batteryPollTimer = new Timer(PollBatteryTrigger, null, 5000, 5000);
+      } catch { }
+    }
+
+    private static Timer _batteryPollTimer;
+    private static void PollBatteryTrigger(object state) {
+      if (!_running) return;
+      try {
+        int pct = (int)(System.Windows.Forms.SystemInformation.PowerStatus.BatteryLifePercent * 100);
+        if (pct == _lastBatteryPercent) return;
+        _lastBatteryPercent = pct;
+        foreach (var p in AutomationService.GetEnabledPipelines()) {
+          p.EnsureTriggers();
+          foreach (var t in p.Triggers) {
+            if (!t.Enabled) continue;
+            if ((t.Type == "BatteryAbove" && int.TryParse(t.Value, out int above) && pct >= above) ||
+                (t.Type == "BatteryBelow" && int.TryParse(t.Value, out int below) && pct <= below)) {
+              string latchKey = (p.Name ?? "") + ":" + t.Type;
+              if (!_tempTriggerFired.Contains(latchKey)) {
+                _tempTriggerFired.Add(latchKey);
+                ExecutePipeline(p);
+              }
+            } else {
+              string latchKey = (p.Name ?? "") + ":" + t.Type;
+              _tempTriggerFired.Remove(latchKey);
+            }
+          }
+        }
+      } catch { }
     }
 
     private static void SubscribeDisplayEvents() {
@@ -604,43 +634,17 @@ namespace OmenSuperHub.Services {
       } catch { }
     }
 
-    private static void StartScheduleTimer() {
-      RescheduleTimer();
-    }
+	internal static void PollSchedule(object state) {
+	      if (!_running) return;
+	      try {
+	        string now = DateTime.Now.ToString("HH:mm");
+	        FireTrigger("TimeSchedule", now);
+	      } catch { }
+	    }
 
-    static void RescheduleTimer() {
-      if (_scheduleTimer != null) { _scheduleTimer.Dispose(); _scheduleTimer = null; }
-
-      long minTicks = long.MaxValue;
-      long nowTicks = DateTime.Now.Ticks;
-      foreach (var p in AutomationService.GetEnabledPipelines()) {
-        p.EnsureTriggers();
-        foreach (var t in p.Triggers) {
-          if (!t.Enabled || t.Type != "TimeSchedule" || string.IsNullOrEmpty(t.Value)) continue;
-          if (TimeSpan.TryParse(t.Value, out var ts)) {
-            long eventTicks = nowTicks - nowTicks % TimeSpan.TicksPerDay + ts.Ticks;
-            if (eventTicks <= nowTicks) eventTicks += TimeSpan.TicksPerDay;
-            long diff = (eventTicks - nowTicks) / TimeSpan.TicksPerMillisecond;
-            if (diff > 0 && diff < minTicks) minTicks = diff;
-          }
-        }
-      }
-      int nextMs;
-      if (minTicks < long.MaxValue)
-        nextMs = (int)Math.Min(minTicks, 86400000);
-      else
-        return;
-      _scheduleTimer = new Timer(CheckSchedule, null, nextMs, Timeout.Infinite);
-    }
-
-    private static void CheckSchedule(object state) {
-      try {
-        string now = DateTime.Now.ToString("HH:mm");
-        FireTrigger("TimeSchedule", now);
-      } finally {
-        RescheduleTimer();
-      }
-    }
+	    private static void StartScheduleTimer() {
+	      _scheduleTimer = new Timer(PollSchedule, null, 0, 15000);
+	    }
 
     // ── Native methods for display ──
 

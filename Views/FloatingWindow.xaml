@@ -21,85 +21,86 @@
     <!-- ponytail: no background — text floats on desktop directly -->
     <Border CornerRadius="4" Padding="4">
       <StackPanel x:Name="DataPanel">
+        <!-- ponytail: separator `|` lives inside each row so it hides when the row is collapsed -->
         <!-- CPU Row -->
-        <WrapPanel x:Name="CpuRow" Margin="0,1">
+        <StackPanel x:Name="CpuRow" Orientation="Horizontal" Margin="0">
           <TextBlock Text="CPU" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="CpuLabel"/>
           <TextBlock x:Name="CpuTempText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                     Foreground="#FF6B6B" Margin="4,0,0,0" VerticalAlignment="Center"/>
           <TextBlock x:Name="CpuPowerText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
-        </WrapPanel>
-        <TextBlock x:Name="Sep1" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
-                   Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
+                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Sep1" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
+                     Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
+        </StackPanel>
         <!-- GPU Row -->
-        <WrapPanel x:Name="GpuRow" Margin="0,1">
+        <StackPanel x:Name="GpuRow" Orientation="Horizontal" Margin="0">
           <TextBlock Text="GPU" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="GpuLabel"/>
           <TextBlock x:Name="GpuTempText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#FF6B6B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                     Foreground="#FF6B6B" Margin="4,0,0,0" VerticalAlignment="Center"/>
           <TextBlock x:Name="GpuPowerText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
-        </WrapPanel>
-        <TextBlock x:Name="Sep2" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
-                   Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
+                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Sep2" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
+                     Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
+        </StackPanel>
         <!-- Memory Row -->
-        <WrapPanel x:Name="MemRow" Margin="0,1">
+        <StackPanel x:Name="MemRow" Orientation="Horizontal" Margin="0">
           <TextBlock Text="MEM" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#66BB6A" VerticalAlignment="Center" x:Name="MemLabel"/>
           <TextBlock x:Name="MemPctText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#66BB6A" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                     Foreground="#66BB6A" Margin="4,0,0,0" VerticalAlignment="Center"/>
           <TextBlock x:Name="MemUsedText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
-        </WrapPanel>
-        <TextBlock x:Name="Sep3" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
-                   Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
+                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Sep3" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
+                     Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
+        </StackPanel>
         <!-- Network Row -->
-        <WrapPanel x:Name="NetRow" Margin="0,1">
+        <StackPanel x:Name="NetRow" Orientation="Horizontal" Margin="0">
           <TextBlock Text="NET" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#4DD0E1" VerticalAlignment="Center" x:Name="NetLabel"/>
           <TextBlock x:Name="NetDownText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#66BB6A" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                     Foreground="#66BB6A" Margin="4,0,0,0" VerticalAlignment="Center"/>
           <TextBlock x:Name="NetUpText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
-        </WrapPanel>
-        <TextBlock x:Name="Sep4" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
-                   Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
+                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Sep4" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
+                     Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
+        </StackPanel>
         <!-- FPS Row -->
-        <WrapPanel x:Name="FpsRow" Margin="0,1">
+        <StackPanel x:Name="FpsRow" Orientation="Horizontal" Margin="0">
           <TextBlock Text="FPS" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#FF9800" VerticalAlignment="Center" x:Name="FpsLabel"/>
           <TextBlock x:Name="FpsValueText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#FF9800" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                     Foreground="#FF9800" Margin="4,0,0,0" VerticalAlignment="Center"/>
           <TextBlock x:Name="FpsAppText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="11"
-                     Foreground="#AAA" Margin="6,0,0,0" VerticalAlignment="Center"/>
-        </WrapPanel>
-        <TextBlock x:Name="Sep5" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
-                   Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
-        <!-- Fan Row -->
-        <WrapPanel x:Name="FanRow" Margin="0,1">
+                     Foreground="#AAA" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Sep5" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
+                     Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
+        </StackPanel>
+        <!-- Fan Row (last row — no trailing separator) -->
+        <StackPanel x:Name="FanRow" Orientation="Horizontal" Margin="0">
           <TextBlock Text="FAN" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#4FC3F7" VerticalAlignment="Center" x:Name="FanLabel"/>
           <TextBlock x:Name="FanSpeedText" FontFamily="Consolas"
                      FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="8,0,0,0" VerticalAlignment="Center"/>
-        </WrapPanel>
+                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
       </StackPanel>
     </Border>
   </Grid>

@@ -527,47 +527,106 @@
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
               </DockPanel>
-              <StackPanel Grid.Row="1" Margin="0,8,0,0" HorizontalAlignment="Center">
-                <ListBox x:Name="CoreKeepList" Height="96" MinWidth="420" Margin="0,0,0,6"/>
-                <Grid Margin="0,0,0,6">
+              <StackPanel Grid.Row="1" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+                <!-- Topology summary -->
+                <TextBlock x:Name="CoreKeepTopologyText" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
+
+                <!-- Rule list with status -->
+                <ListBox x:Name="CoreKeepList" Height="120" MinWidth="420" Margin="0,0,0,6"/>
+
+                <!-- Row 0: process name input + refresh + add + save + delete -->
+                <Grid Margin="0,0,0,2">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{x:Static app:Strings.CoreKeepProcessLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                  <ui:TextBox x:Name="CoreKeepProcInput" Grid.Column="1" Height="34" MinWidth="180"/>
-                  <ui:Button x:Name="CoreKeepRefreshBtn" Grid.Column="2" MinWidth="60"
-                          Content="{x:Static app:Strings.ButtonRefresh}" Margin="6,0,0,0" Appearance="Secondary" Click="CoreKeepRefresh_Click"/>
-                  <ui:Button x:Name="CoreKeepDeleteBtn" Grid.Column="3" MinWidth="40"
-                          Content="{x:Static app:Strings.ButtonDelete}" Margin="6,0,0,0" Appearance="Secondary" Click="CoreKeepDelete_Click"/>
+                  <ui:TextBox x:Name="CoreKeepProcInput" Grid.Column="1" Height="34" MinWidth="160" Margin="0,0,4,0"/>
+                  <ui:Button x:Name="CoreKeepRefreshBtn" Grid.Column="2" MinWidth="50"
+                          Content="{x:Static app:Strings.ButtonRefresh}" Margin="0,0,4,0" Appearance="Secondary" Click="CoreKeepRefresh_Click"/>
+                  <ui:Button x:Name="CoreKeepAddBtn" Grid.Column="3" MinWidth="40"
+                          Content="{x:Static app:Strings.ButtonAdd}" Margin="0,0,4,0" Appearance="Secondary" Click="CoreKeepAdd_Click"/>
+                  <ui:Button x:Name="CoreKeepSaveBtn" Grid.Column="4" MinWidth="50"
+                          Content="{x:Static app:Strings.CoreKeepSaveCurrent}" Margin="0,0,4,0" Appearance="Secondary" Click="CoreKeepSave_Click"/>
+                  <ui:Button x:Name="CoreKeepDeleteBtn" Grid.Column="5" MinWidth="40"
+                          Content="{x:Static app:Strings.ButtonDelete}" Margin="0,0,0,0" Appearance="Secondary" Click="CoreKeepDelete_Click"/>
                 </Grid>
+
+                <!-- Row 1: saved values + current state -->
+                <TextBlock FontSize="12" Margin="0,0,0,2">
+                  <Run Text="{x:Static app:Strings.CoreKeepPriorityLabel}"/><Run x:Name="CoreKeepPriorityText" Text=" -"/>
+                  <Run Text="  "/><Run Text="{x:Static app:Strings.CoreKeepAffinityLabel}"/><Run x:Name="CoreKeepAffinityText" Text=" -"/>
+                  <Run Text="  "/><Run x:Name="CoreKeepStatusIcon" Text="" Foreground="{DynamicResource SystemAccentColorBrush}"/>
+                  <Run x:Name="CoreKeepLivePriorityText" Text="" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                </TextBlock>
+
+                <!-- Row 2: core mode buttons -->
                 <Grid Margin="0,0,0,2">
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                  </Grid.RowDefinitions>
                   <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="{x:Static app:Strings.CoreKeepPriorityLabel}" Grid.Row="0" Grid.Column="0" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,2"/>
-                  <TextBlock x:Name="CoreKeepPriorityText" Grid.Row="0" Grid.Column="1" Text="-" FontSize="12" VerticalAlignment="Center"/>
-                  <TextBlock Text="{x:Static app:Strings.CoreKeepAffinityLabel}" Grid.Row="1" Grid.Column="0" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                  <TextBlock x:Name="CoreKeepAffinityText" Grid.Row="1" Grid.Column="1" Text="-" FontSize="12" VerticalAlignment="Center"/>
+                  <TextBlock Text="{x:Static app:Strings.CoreKeepModeLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                  <ui:Button x:Name="CoreKeepModeAll" Grid.Column="1" MinWidth="40" Content="{x:Static app:Strings.CoreKeepModeAll}" FontSize="11"
+                          Margin="0,0,4,0" Appearance="Primary" Click="CoreKeepMode_Click" Tag="All"/>
+                  <ui:Button x:Name="CoreKeepModeAuto" Grid.Column="2" MinWidth="40" Content="{x:Static app:Strings.CoreKeepModeAuto}" FontSize="11"
+                          Margin="0,0,4,0" Appearance="Secondary" Click="CoreKeepMode_Click" Tag="Auto"/>
+                  <ui:Button x:Name="CoreKeepModeManual" Grid.Column="3" MinWidth="40" Content="{x:Static app:Strings.CoreKeepModeManual}" FontSize="11"
+                          Margin="0,0,0,0" Appearance="Secondary" Click="CoreKeepMode_Click" Tag="Manual"/>
                 </Grid>
-                <TextBlock x:Name="CoreKeepStatus" FontSize="12" Margin="0,2,0,2"/>
+
+                <!-- Row 3: priority selection -->
+                <Grid Margin="0,0,0,2" Height="36">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Static app:Strings.CoreKeepPriorityLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                  <ComboBox x:Name="CoreKeepPriorityCombo" Grid.Column="1" Height="32" MaxDropDownHeight="200"
+                            SelectionChanged="CoreKeepPriorityCombo_SelectionChanged"/>
+                </Grid>
+
+                <!-- Row 4: core selection checkboxes (manual mode) -->
+                <ItemsControl x:Name="CoreKeepCoreList" Margin="0,0,0,2" Visibility="Collapsed">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <CheckBox Content="{Binding CoreIndex}" IsChecked="{Binding IsChecked}"
+                                Width="36" Height="28" Margin="2,2"
+                                Checked="CoreKeepCoreCheckChanged" Unchecked="CoreKeepCoreCheckChanged"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel/>
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <!-- Guard config + benchmark -->
                 <Grid>
                   <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
-                  <ui:TextBox x:Name="CoreKeepNewProcInput" Height="34" Width="160"/>
-                  <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <ui:Button x:Name="CoreKeepAddBtn" MinWidth="50" Content="{x:Static app:Strings.ButtonAdd}"
-                            Margin="6,0,0,0" Appearance="Secondary" Click="CoreKeepAdd_Click"/>
-                  </StackPanel>
+                  <ui:ToggleSwitch x:Name="CoreKeepGuardToggle" VerticalAlignment="Center" Margin="0,0,4,0"
+                                  Checked="CoreKeepGuardToggle_Changed" Unchecked="CoreKeepGuardToggle_Changed"/>
+                  <TextBlock Grid.Column="1" Text="{x:Static app:Strings.CoreKeepGuardLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                  <ui:NumberBox x:Name="CoreKeepGuardInterval" Grid.Column="2" MinWidth="60" Height="34" Minimum="1" Maximum="10" 
+                               Value="2" SpinButtonPlacementMode="Inline" Margin="0,0,8,0"
+                               ValueChanged="CoreKeepGuardInterval_Changed"/>
+                  <ui:Button x:Name="CoreKeepBenchBtn" Grid.Column="4" MinWidth="70"
+                          Content="{x:Static app:Strings.CoreKeepBenchmark}" Margin="0,0,0,0" Appearance="Secondary" Click="CoreKeepBenchmark_Click"/>
                 </Grid>
               </StackPanel>
             </Grid>

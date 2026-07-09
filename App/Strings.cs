@@ -773,6 +773,27 @@ namespace OmenSuperHub {
     public static string CoreKeepPriorityHigh => T("高", "高", "High");
     public static string CoreKeepPriorityRealtime => T("实时", "實時", "Realtime");
     public static string CoreKeepPriorityUnknown => T("未知", "未知", "Unknown");
+    public static string CoreKeepGuardLabel => T("运行中守护", "運行中守護", "Runtime Guard");
+    public static string CoreKeepGuardDesc => T("周期检查并重新应用 CPU 亲和性设置", "週期檢查並重新應用 CPU 親和性設置", "Periodically check and re-apply CPU affinity");
+    public static string CoreKeepGuardInterval => T("检查间隔(秒)", "檢查間隔(秒)", "Check Interval (s)");
+    public static string CoreKeepModeLabel => T("核心模式:", "核心模式:", "Core Mode:");
+    public static string CoreKeepModeAuto => T("自动", "自動", "Auto");
+    public static string CoreKeepModeAll => T("全部核心", "全部核心", "All Cores");
+    public static string CoreKeepModePerformance => T("性能核优先", "性能核優先", "P-Cores First");
+    public static string CoreKeepModeEfficiency => T("能效核优先", "能效核優先", "E-Cores First");
+    public static string CoreKeepModeManual => T("手动选择", "手動選擇", "Manual");
+    public static string CoreKeepBenchmark => T("核心竞速", "核心競速", "Core Benchmark");
+    public static string CoreKeepBenchmarkRunning => T("竞速进行中...", "競速進行中...", "Benchmark running...");
+    public static string CoreKeepBenchmarkDone => T("竞速完成", "競速完成", "Benchmark complete");
+    public static string CoreKeepBenchmarkResult => T("核心 {0}: 得分={1} 相对={2:F2}", "核心 {0}: 得分={1} 相對={2:F2}", "Core {0}: score={1} rel={2:F2}");
+    public static string CoreKeepStatusMatched => T("✓ 已应用", "✓ 已應用", "✓ Applied");
+    public static string CoreKeepStatusMismatch => T("✗ 已被修改", "✗ 已被修改", "✗ Modified");
+    public static string CoreKeepStatusNotRunning => T("- 进程未运行", "- 進程未運行", "- Not running");
+    public static string CoreKeepSaveCurrent => T("捕获更新", "捕獲更新", "Capture");
+    public static string CoreKeepTopologyLabel => T("核心拓扑:", "核心拓撲:", "Core Topology:");
+    public static string CoreKeepTopologyHybrid => T("{0} 核 ({1} P + {2} E)", "{0} 核 ({1} P + {2} E)", "{0} cores ({1} P + {2} E)");
+    public static string CoreKeepTopologyDualCcd => T("{0} 核 (CCD0={1} CCD1={2})", "{0} 核 (CCD0={1} CCD1={2})", "{0} cores (CCD0={1} CCD1={2})");
+    public static string CoreKeepTopologyNormal => T("{0} 核", "{0} 核", "{0} cores");
 
     // Pin tooltip
     public static string PinTooltip => T("窗口置顶", "視窗置頂", "Always on Top");
@@ -863,11 +884,13 @@ namespace OmenSuperHub {
     public static string AutomationTimeHint => T("时间 HH:mm (例如 08:30)", "時間 HH:mm (例如 08:30)", "Time HH:mm (e.g. 08:30)");
     public static string AutomationProcessHint => T("例如 chrome.exe", "例如 chrome.exe", "e.g. chrome.exe");
 
-    // HWiNFO
-    public static string HWiNFOHeading => T("HWiNFO64 集成", "HWiNFO64 整合", "HWiNFO64 Integration");
-    public static string HWiNFODesc => T("将风扇转速、CPU/GPU温度和功耗共享到 HWiNFO64 自定义传感器", "將風扇轉速、CPU/GPU溫度和功耗共享到 HWiNFO64 自訂感測器", "Share fan speed, CPU/GPU temperature and power to HWiNFO64 custom sensors");
-
-    // HTTP API
+	    // HWiNFO
+	    public static string HWiNFOHeading => T("HWiNFO64 集成", "HWiNFO64 整合", "HWiNFO64 Integration");
+	    public static string HWiNFODesc => T("将风扇转速、CPU/GPU温度和功耗共享到 HWiNFO64 自定义传感器", "將風扇轉速、CPU/GPU溫度和功耗共享到 HWiNFO64 自訂感測器", "Share fan speed, CPU/GPU temperature and power to HWiNFO64 custom sensors");
+	    public static string HWiNFOReadHeading => T("HWiNFO64 数据源", "HWiNFO64 資料源", "HWiNFO64 Data Source");
+	    public static string HWiNFOReadDesc => T("从 HWiNFO64 读取传感器数据（温度/功耗/负载/频率），替代 LibreHardwareMonitor 读数", "從 HWiNFO64 讀取感測器資料（溫度/功耗/負載/頻率），替代 LibreHardwareMonitor 讀數", "Read sensor data (temp/power/load/clock) from HWiNFO64, replacing LibreHardwareMonitor readings");
+	
+	    // HTTP API
     public static string HttpApiHeading => T("HTTP API", "HTTP API", "HTTP API");
     public static string HttpApiDesc => T("启动本地 HTTP 服务器以通过外部程序控制硬件", "啟動本地 HTTP 伺服器以通過外部程式控制硬體", "Start local HTTP server for external program control");
     public static string CoreKeepMasterToggle => T("启用 CoreKeep", "啟用 CoreKeep", "Enable CoreKeep");

@@ -108,6 +108,9 @@ namespace OmenSuperHub {
         // Start HWiNFO64 integration if enabled
         HWiNFOService.StartStopIfNeeded();
 
+        // Start HWiNFO64 reader if enabled
+        HWiNFOReaderService.StartStopIfNeeded();
+
         // Start local HTTP API server if enabled in settings
         if (ConfigService.HttpApiEnabled) {
           System.Threading.ThreadPool.QueueUserWorkItem(_ => HardwareApiService.Start());
@@ -220,6 +223,7 @@ namespace OmenSuperHub {
       try { MacroController.Stop(); } catch { }
       try { HardwareApiService.Stop(); } catch { }
       try { HWiNFOService.Stop(); } catch { }
+      try { HWiNFOReaderService.Stop(); } catch { }
       try { ThemeService.Cleanup(); } catch { }
       try { EcoQosService.Cleanup(); } catch { }
       try { AutomationProcessor.Stop(); } catch { }

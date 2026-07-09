@@ -147,7 +147,7 @@ namespace OmenSuperHub.Views {
       DataPanel.Orientation = isCol
         ? System.Windows.Controls.Orientation.Horizontal
         : System.Windows.Controls.Orientation.Vertical;
-      Sep1.Visibility = Sep2.Visibility = Sep3.Visibility = Sep4.Visibility = Sep5.Visibility = isCol ? Visibility.Visible : Visibility.Collapsed;
+      // ponytail: separators toggled per-cycle in DoUpdateText so collapsed rows don't leave orphaned `|`
     }
 
     private static void DoUpdateText(FloatingWindow w) {
@@ -203,33 +203,56 @@ namespace OmenSuperHub.Views {
         w.NetRow.Visibility = Visibility.Collapsed;
       }
 
-      if (ConfigService.MonitorFPS) {
-        if (_fpsMonitor == null) {
-          _fpsMonitor = new PresentMonFpsMonitor();
-          _fpsMonitor.EnsureRunning("", out _);
-        }
-        _fpsMonitor.Poll();
-        int fps = _fpsMonitor.LastFps;
-        string app = _fpsMonitor.LastApp;
-        if (fps > 0) {
-          w.FpsRow.Visibility = Visibility.Visible;
-          w.FpsValueText.Text = fps.ToString();
-          w.FpsAppText.Text = string.IsNullOrWhiteSpace(app) ? "" : ShortAppName(app);
-        } else {
-          // Fallback: show monitor refresh rate
-          int hz = GetDisplayHz();
-          w.FpsRow.Visibility = hz > 0 ? Visibility.Visible : Visibility.Collapsed;
-          w.FpsValueText.Text = hz > 0 ? hz.ToString() : "0";
-          w.FpsAppText.Text = hz > 0 ? "Hz" : "";
-        }
-      } else {
+	      if (ConfigService.MonitorFPS) {
+	        if (_fpsMonitor == null) {
+	          _fpsMonitor = new PresentMonFpsMonitor();
+	          _fpsMonitor.EnsureRunning("", out _);
+	        }
+	        _fpsMonitor.Poll();
+	        int fps = _fpsMonitor.LastFps;
+	        string app = _fpsMonitor.LastApp;
+	        if (fps > 0) {
+	          w.FpsRow.Visibility = Visibility.Visible;
+	          w.FpsValueText.Text = fps.ToString();
+	          w.FpsAppText.Text = string.IsNullOrWhiteSpace(app) ? "" : ShortAppName(app);
+	        } else {
+	          w.FpsRow.Visibility = Visibility.Collapsed;
+	        }
+	      } else {
         w.FpsRow.Visibility = Visibility.Collapsed;
         if (_fpsMonitor != null) { _fpsMonitor.Dispose(); _fpsMonitor = null; }
       }
 
-      w.UpdatePosition();
-      w.ApplyWindowStyles();
-    }
+	      w.UpdatePosition();
+	      w.ApplyWindowStyles();
+	      UpdateSeparators(w);
+	    }
+
+	    static void UpdateSeparators(FloatingWindow w) {
+	      bool isCol = ConfigService.FloatingBarLayout == "col";
+	      // ponytail: sep lives inside each row; only show in col mode when both this row and a following row are visible
+	      var rows = new Tuple<UIElement, System.Windows.Controls.TextBlock>[] {
+	        Tuple.Create((UIElement)w.CpuRow, w.Sep1),
+	        Tuple.Create((UIElement)w.GpuRow, w.Sep2),
+	        Tuple.Create((UIElement)w.MemRow, w.Sep3),
+	        Tuple.Create((UIElement)w.NetRow, w.Sep4),
+	        Tuple.Create((UIElement)w.FpsRow, w.Sep5),
+	        Tuple.Create((UIElement)w.FanRow, (System.Windows.Controls.TextBlock)null),
+	      };
+	      for (int i = 0; i < rows.Length - 1; i++) {
+	        var sep = rows[i].Item2;
+	        if (sep == null) continue;
+	        if (!isCol || rows[i].Item1.Visibility != Visibility.Visible) {
+	          sep.Visibility = Visibility.Collapsed;
+	          continue;
+	        }
+	        bool nextVisible = false;
+	        for (int j = i + 1; j < rows.Length; j++) {
+	          if (rows[j].Item1.Visibility == Visibility.Visible) { nextVisible = true; break; }
+	        }
+	        sep.Visibility = nextVisible ? Visibility.Visible : Visibility.Collapsed;
+	      }
+	    }
 
     static string ShortAppName(string app) {
       try {
@@ -238,38 +261,7 @@ namespace OmenSuperHub.Views {
       } catch { return app; }
     }
 
-    // ── 回退：读取屏幕刷新率（PresentMon 不可用时显示） ──
-    struct DEVMODE {
-      [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
-      public string dmDeviceName;
-      public short dmSpecVersion, dmDriverVersion, dmSize, dmDriverExtra;
-      public int dmFields;
-      public short dmOrientation, dmPaperSize, dmPaperLength, dmPaperWidth;
-      public short dmScale, dmCopies, dmDefaultSource, dmPrintQuality;
-      public short dmColor, dmDuplex, dmYResolution, dmTTOption;
-      public short dmCollate;
-      [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
-      public string dmFormName;
-      public short dmLogPixels;
-      public int dmBitsPerPel, dmPelsWidth, dmPelsHeight, dmDisplayFlags, dmDisplayFrequency;
-    }
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
-
-    static int _cachedHz;
-    static int GetDisplayHz() {
-      if (_cachedHz > 0) return _cachedHz;
-      try {
-        var dm = new DEVMODE { dmSize = (short)System.Runtime.InteropServices.Marshal.SizeOf<DEVMODE>() };
-        if (EnumDisplaySettings(null, -1, ref dm))
-          _cachedHz = dm.dmDisplayFrequency;
-        else
-          _cachedHz = 60;
-      } catch { _cachedHz = 60; }
-      return _cachedHz;
-    }
-
-    public static void UpdateAllText() {
+	    public static void UpdateAllText() {
       Application.Current?.Dispatcher.Invoke(() => {
         foreach (var w in _instances.ToArray()) {
           if (w != null && w.IsLoaded) {

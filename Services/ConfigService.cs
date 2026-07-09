@@ -116,6 +116,7 @@ namespace OmenSuperHub.Services {
     public static bool BatteryChargeLimit = false;
     public static bool BatteryWmiUnsupported = false;
     public static bool HWiNFOEnabled = false;
+    public static bool HWiNFOReadEnabled = false;    // 从 HWiNFO64 读取传感器数据
     public static bool HttpApiEnabled = false;
     public static bool AutomationEnabled = true;
     public static bool MacroEnabled = true;
@@ -359,6 +360,7 @@ namespace OmenSuperHub.Services {
             case "BatteryChargeLimit": key.SetValue("BatteryChargeLimit", BatteryChargeLimit); break;
             case "BatteryWmiUnsupported": key.SetValue("BatteryWmiUnsupported", BatteryWmiUnsupported); break;
             case "HWiNFOEnabled": key.SetValue("HWiNFOEnabled", HWiNFOEnabled); break;
+            case "HWiNFOReadEnabled": key.SetValue("HWiNFOReadEnabled", HWiNFOReadEnabled); break;
             case "HttpApiEnabled": key.SetValue("HttpApiEnabled", HttpApiEnabled); break;
             case "AutomationEnabled": key.SetValue("AutomationEnabled", AutomationEnabled); break;
             case "MacroEnabled": key.SetValue("MacroEnabled", MacroEnabled); break;
@@ -687,6 +689,7 @@ namespace OmenSuperHub.Services {
           BatteryChargeLimit = RegBool(key, "BatteryChargeLimit", false);
           BatteryWmiUnsupported = RegBool(key, "BatteryWmiUnsupported", false);
           HWiNFOEnabled = RegBool(key, "HWiNFOEnabled", false);
+          HWiNFOReadEnabled = RegBool(key, "HWiNFOReadEnabled", false);
           HttpApiEnabled = RegBool(key, "HttpApiEnabled", false);
           AutomationEnabled = RegBool(key, "AutomationEnabled", true);
           MacroEnabled = RegBool(key, "MacroEnabled", true);
