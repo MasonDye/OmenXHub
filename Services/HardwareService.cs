@@ -43,7 +43,8 @@ namespace OmenSuperHub.Services {
     public static bool IsConnectedToNVIDIA = true;
     static bool _powerOnline = true;
     public static bool PowerOnline { get { lock (_lock) return _powerOnline; } set { lock (_lock) _powerOnline = value; } }
-    static readonly int[] _fanSpeedNow = new int[2] { 20, 23 };
+    // ponytail: -1 确保首次风扇定时器 tick 必定执行写入, 不与真实速度值冲突
+    static readonly int[] _fanSpeedNow = new int[2] { -1, -1 };
     public static IReadOnlyList<int> FanSpeedNow => _fanSpeedNow;  // direct ref, no allocation per access
     public static void UpdateFanSpeed(IReadOnlyList<int> values) {
       if (values == null || values.Count < 2) return;
@@ -143,9 +144,15 @@ namespace OmenSuperHub.Services {
     public static void QueryHardware() {
       if ((DateTime.Now - _lastQueryTime) < _cacheInterval) return;
       _lastQueryTime = DateTime.Now;
+
+      // ponytail: HWiNFO Read 启用时，跳过 LibreHardwareMonitor 传感器轮询及后续覆盖
       float libreTempCPU = -300;
       float librePowerCPU = -1;
       bool getGPU = false;
+      if (ConfigService.HWiNFOReadEnabled) {
+        // 跳过 Libre 传感器读取 + temp/power 赋值，直接进入 GPU 启停逻辑
+        goto afterLibre;
+      }
 
       foreach (LibreIHardware hardware in LibreComputer.Hardware) {
         if (hardware.HardwareType == LibreHardwareType.Cpu || hardware.HardwareType == LibreHardwareType.GpuNvidia || hardware.HardwareType == LibreHardwareType.GpuAmd || hardware.HardwareType == LibreHardwareType.GpuIntel) {
@@ -153,10 +160,12 @@ namespace OmenSuperHub.Services {
 
           foreach (LibreISensor sensor in hardware.Sensors) {
             if (hardware.HardwareType == LibreHardwareType.Cpu) {
-              if (sensor.Name == "CPU Package" && sensor.SensorType == LibreSensorType.Temperature) {
+              // ponytail: Intel → "CPU Package", AMD → "Package" / "Core (Tctl/Tdie)" / "Core (Tdie)"
+              if (sensor.SensorType == LibreSensorType.Temperature &&
+                  (sensor.Name.Contains("Package") || sensor.Name.Contains("Tctl/Tdie") || sensor.Name.Contains("Tdie"))) {
                 libreTempCPU = (int)sensor.Value.GetValueOrDefault();
               }
-              if (sensor.Name == "CPU Package" && sensor.SensorType == LibreSensorType.Power) {
+              if (sensor.SensorType == LibreSensorType.Power && sensor.Name.Contains("Package")) {
                 librePowerCPU = sensor.Value.GetValueOrDefault();
               }
               if (sensor.SensorType == LibreSensorType.Load && sensor.Name == "CPU Total") {
@@ -225,12 +234,13 @@ namespace OmenSuperHub.Services {
       if (librePowerCPU >= 0)
         CPUPower = librePowerCPU;
 
+      afterLibre:
       // Auto GPU monitoring logic
       if (countQuery <= 5 && MonitorGPU)
         countQuery++;
 
-      // Auto-disable GPU monitoring
-      if (countQuery > 5 && AutoStopMonitorGPU && !IsConnectedToNVIDIA && MonitorGPU && ((GPUPower >= 0 && GPUPower <= 1.3) || !getGPU)) {
+      // Auto-disable GPU monitoring (ponytail: 只在电池供电时自动关)
+      if (countQuery > 5 && AutoStopMonitorGPU && !PowerOnline && !IsConnectedToNVIDIA && MonitorGPU && ((GPUPower >= 0 && GPUPower <= 1.3) || !getGPU)) {
         GPUPower = 0;
         countQuery = 0;
         MonitorGPU = false;

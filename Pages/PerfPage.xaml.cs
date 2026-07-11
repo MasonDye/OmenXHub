@@ -14,7 +14,7 @@ using static OmenSuperHub.OmenHardware;
 
 namespace OmenSuperHub.Pages {
   public partial class PerfPage : System.Windows.Controls.Page {
-    public static PerfPage? Instance { get; private set; }
+    public static PerfPage Instance { get; private set; }
     bool _loading;
     bool _optionsBuilt;
     static void Log(string msg) {
@@ -311,6 +311,11 @@ namespace OmenSuperHub.Pages {
       CpuPowerCombo.Items.Add(new ComboBoxItem { Content = Strings.Maximum, Tag = "max" });
       for (int w = 10; w <= 254; w++) CpuPowerCombo.Items.Add(new ComboBoxItem { Content = w + " W", Tag = w });
 
+      AmdPptCombo.Items.Clear();
+      AmdPptCombo.Items.Add(new ComboBoxItem { Content = Strings.NotSet, Tag = 0 });
+      // ponytail: 1W 步进，跟 Intel 一致
+      for (int w = 8; w <= 300; w++) AmdPptCombo.Items.Add(new ComboBoxItem { Content = w + " W", Tag = w });
+	
       IccMaxCombo.Items.Clear();
       IccMaxCombo.Items.Add(new ComboBoxItem { Content = Strings.NotSet, Tag = 0 });
       for (int a = 160; a <= 255; a++) IccMaxCombo.Items.Add(new ComboBoxItem { Content = a + " A", Tag = a });
@@ -375,7 +380,11 @@ namespace OmenSuperHub.Pages {
         int pl1, pl2;
         if (cp == "max") { pl1 = 254; pl2 = 254; }
         else if (cp == "null") { pl1 = -1; pl2 = -1; }
-        else if (int.TryParse(cp.Replace(" W", ""), out int w) && w >= 10 && w <= 254) { pl1 = w; pl2 = w; }
+        else if (int.TryParse(cp.Replace(" W", ""), out int w) && w >= 10 && w <= 254) {
+          // ponytail: prefer independently stored PL1/PL2 over combo-derived wattage.
+          pl1 = ConfigService.CpuPowerPl1 >= 10 ? ConfigService.CpuPowerPl1 : w;
+          pl2 = ConfigService.CpuPowerPl2 >= 10 ? ConfigService.CpuPowerPl2 : w;
+        }
         else { pl1 = ConfigService.CpuPowerPl1 > 0 ? ConfigService.CpuPowerPl1 : 254; pl2 = ConfigService.CpuPowerPl2 > 0 ? ConfigService.CpuPowerPl2 : 254; }
         CpuPowerPL1Slider.Value = pl1 > 0 ? pl1 : 254;
         CpuPowerPL2Slider.Value = pl2 > 0 ? pl2 : 254;
@@ -395,6 +404,18 @@ namespace OmenSuperHub.Pages {
         int mOhm = 180 - 10 * ConfigService.AcLoadLine;
         SelectCombo(AcLoadLineCombo, mOhm + " mOhm");
       } else SelectCombo(AcLoadLineCombo, Strings.NotSet);
+      // ── AMD PPT Combo ──
+      if (ConfigService.AmdCpuPpt > 0) SelectComboByTag(AmdPptCombo, ConfigService.AmdCpuPpt);
+      else SelectCombo(AmdPptCombo, Strings.NotSet);
+      // ── AMD 滑块同步（预设切换时通过 OnPresetChanged → LoadStateFast 带到这里） ──
+      AmdCpuPptSlider.Value = ConfigService.AmdCpuPpt > 0 ? ConfigService.AmdCpuPpt : 105;
+      AmdCpuPptNum.Value = AmdCpuPptSlider.Value;
+      AmdCpuTdcSlider.Value = ConfigService.AmdCpuTdc > 0 ? ConfigService.AmdCpuTdc : 80;
+      AmdCpuTdcNum.Value = AmdCpuTdcSlider.Value;
+      AmdCpuEdcSlider.Value = ConfigService.AmdCpuEdc > 0 ? ConfigService.AmdCpuEdc : 160;
+      AmdCpuEdcNum.Value = AmdCpuEdcSlider.Value;
+      AmdCpuTctlSlider.Value = ConfigService.AmdCpuTctl > 0 ? ConfigService.AmdCpuTctl : 95;
+      AmdCpuTctlNum.Value = AmdCpuTctlSlider.Value;
       // ── 电源模式：从 ConfigService 同步 ──
       SelectComboByTag(PowerModeCombo, ConfigService.PowerMode);
 
@@ -465,7 +486,12 @@ namespace OmenSuperHub.Pages {
       GfxModeCombo.SelectedIndex = mode;
       UpdateHotSwitchVisibility(mode);
       InitCoreKeepUI();
-    }
+      // 拓扑摘要
+      UpdateTopologyText();
+      // CCD 按钮可见性（仅 AMD 双 CCD）
+      var cores = CpuTopologyService.GetCores();
+      var ccds = cores.Where(c => c.CcdId >= 0).Select(c => c.CcdId).Distinct().ToList();
+	    }
 
     void SelectCombo(ComboBox combo, string text) {
       foreach (ComboBoxItem item in combo.Items)
@@ -478,15 +504,45 @@ namespace OmenSuperHub.Pages {
     }
 
     // ── CPU 功率 ──
-    void SetCpuPowerStatus(bool ok) {
+    void SetCpuPowerStatus(bool ok, string mode = "WMI") {
       string color = ok ? "#1FAF5A" : "#E0463F";
-      string text = ok ? Strings.CpuPowerStatusOk : Strings.CpuPowerStatusFail;
+      string text = ok ? $"{Strings.CpuPowerStatusOk} ({mode})" : Strings.CpuPowerStatusFail;
       try {
         CpuPowerStatusDot.Fill = new System.Windows.Media.SolidColorBrush(
           (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
         CpuPowerStatusText.Text = text;
       } catch (Exception ex) { Log("SetCpuPowerStatus UI error: " + ex.Message); }
-      Logger.Info($"PerfPage PL1/PL2 write => {(ok ? "ok" : "fail")}");
+      Logger.Info($"PerfPage CPU power write => {(ok ? "ok" : "fail")} via {mode}");
+    }
+
+    // ── AMD PPT ComboBox ──
+    void AmdPptCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      _loading = true;
+      try {
+        var item = AmdPptCombo.SelectedItem as ComboBoxItem;
+        if (item == null) return;
+        int watts = (int)item.Tag;
+        if (watts == 0) {
+          AmdPptStatusDot.Fill = new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#888888"));
+          AmdPptStatusText.Text = "未设置";
+          AmdCpuPptSlider.Value = 105;
+          AmdCpuPptNum.Value = 105;
+          ConfigService.AmdCpuPpt = 0; ConfigService.Save("AmdCpuPpt");
+          return;
+        }
+        AmdCpuPptSlider.Value = watts;
+        AmdCpuPptNum.Value = watts;
+        ConfigService.AmdCpuPpt = watts; ConfigService.Save("AmdCpuPpt");
+        bool ok = false;
+        // ponytail: PPT 优先 WMI，降级 SMU（与 Intel CPU 功率一致）
+        if (watts <= 255) ok = SetCpuPowerLimit((byte)watts);
+        if (!ok && AmdAdvancedService.IsAvailable) ok = AmdAdvancedService.SetPptLimit((uint)watts * 1000);
+        AmdPptStatusDot.Fill = new System.Windows.Media.SolidColorBrush(
+          (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(ok ? "#1FAF5A" : "#E0463F"));
+        AmdPptStatusText.Text = ok ? $"PPT={watts}W ✓" : "写入失败";
+      } finally { _loading = false; }
     }
 
     void CpuPower_SelectionChanged(object sender, SelectionChangedEventArgs e) {
@@ -523,7 +579,14 @@ namespace OmenSuperHub.Pages {
           CpuPowerPL2Slider.Value = val;
           CpuPowerPL1Num.Value = val;
           CpuPowerPL2Num.Value = val;
-          SetCpuPowerStatus(SetCpuPowerLimit((byte)val));
+          // ponytail: AMD 优先 WMI，降级 SMU PPT
+          bool ok = SetCpuPowerLimit((byte)val);
+          if (!ok && AmdAdvancedService.IsAvailable) {
+            ok = AmdAdvancedService.SetPptLimit((uint)val * 1000);
+            SetCpuPowerStatus(ok, "SMU");
+          } else {
+            SetCpuPowerStatus(ok, "WMI");
+          }
           ConfigService.Save("CpuPower");
         }
       } finally { _loading = false; }
@@ -791,30 +854,148 @@ namespace OmenSuperHub.Pages {
     }
 
     // ── Core Keep ──
+    CoreKeepEntry _currentSelectedEntry;
+
     void InitCoreKeepUI() {
       var data = CoreKeepService.Load();
       CoreKeepMasterToggle.IsChecked = data.MasterEnabled;
       CoreKeepList.ItemsSource = data.Entries;
       CoreKeepList.DisplayMemberPath = "ProcessName";
-      CoreKeepList.IsEnabled = data.MasterEnabled;
-      CoreKeepNewProcInput.IsEnabled = data.MasterEnabled;
-      CoreKeepAddBtn.IsEnabled = data.MasterEnabled;
+      // ponytail: 只订阅一次，页面重载不叠加
+      CoreKeepList.SelectionChanged -= CoreKeepList_SelectionChanged;
       CoreKeepList.SelectionChanged += CoreKeepList_SelectionChanged;
-      if (data.MasterEnabled) CoreKeepService.StartAutoApply(data);
+      // 拓扑摘要
+      UpdateTopologyText();
+      // 守护开关和间隔
+      CoreKeepGuardToggle.IsChecked = data.GuardIntervalMs > 0;
+      CoreKeepGuardInterval.Value = Math.Max(1, Math.Min(10, data.GuardIntervalMs / 1000));
+      // 优先级 ComboBox
+      BuildPriorityCombo();
+      // 子控件状态
+      bool sub = data.MasterEnabled;
+      CoreKeepList.IsEnabled = sub;
+      CoreKeepAddBtn.IsEnabled = sub;
+      CoreKeepSaveBtn.IsEnabled = sub && _currentSelectedEntry != null;
+      CoreKeepRefreshBtn.IsEnabled = true;
+      CoreKeepDeleteBtn.IsEnabled = sub;
+      CoreKeepBenchBtn.IsEnabled = sub;
+      CoreKeepGuardToggle.IsEnabled = sub;
+      CoreKeepGuardInterval.IsEnabled = sub && CoreKeepGuardToggle.IsChecked == true;
+      SetCoreModeBtnEnabled(false); // 未选中条目时禁用模式按钮
+      if (sub) CoreKeepService.StartAutoApply(data);
+    }
+
+    void UpdateTopologyText() {
+      var topo = CoreKeepService.GetTopology();
+      if (topo.IsHybrid)
+        CoreKeepTopologyText.Text = string.Format(Strings.CoreKeepTopologyHybrid, topo.TotalLogical, topo.PerformanceCores.Length, topo.EfficientCores.Length);
+      else if (topo.IsDualCcd)
+        CoreKeepTopologyText.Text = string.Format(Strings.CoreKeepTopologyDualCcd, topo.TotalLogical, topo.Ccd0Count, topo.Ccd1Count);
+      else
+        CoreKeepTopologyText.Text = string.Format(Strings.CoreKeepTopologyNormal, topo.TotalLogical);
+    }
+
+    void BuildPriorityCombo() {
+      CoreKeepPriorityCombo.Items.Clear();
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityIdle, Tag = (uint)0x00000040 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityBelowNormal, Tag = (uint)0x00004000 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityNormal, Tag = (uint)0x00000020 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityAboveNormal, Tag = (uint)0x00008000 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityHigh, Tag = (uint)0x00000080 });
+      CoreKeepPriorityCombo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.CoreKeepPriorityRealtime, Tag = (uint)0x00000100 });
+    }
+
+    void SelectPriorityInCombo(uint priorityClass) {
+      foreach (System.Windows.Controls.ComboBoxItem item in CoreKeepPriorityCombo.Items) {
+        if (item.Tag is uint tag && tag == priorityClass) { CoreKeepPriorityCombo.SelectedItem = item; return; }
+      }
+      CoreKeepPriorityCombo.SelectedIndex = -1;
+    }
+
+    void SetCoreModeBtnEnabled(bool enabled) {
+      CoreKeepModeAuto.IsEnabled = enabled;
+      CoreKeepModeAll.IsEnabled = enabled;
+      CoreKeepModeManual.IsEnabled = enabled;
+    }
+
+    void HighlightModeButton(string mode) {
+      CoreKeepModeAuto.Appearance = mode == "Auto" ? Wpf.Ui.Controls.ControlAppearance.Primary : Wpf.Ui.Controls.ControlAppearance.Secondary;
+      CoreKeepModeAll.Appearance = mode == "All" ? Wpf.Ui.Controls.ControlAppearance.Primary : Wpf.Ui.Controls.ControlAppearance.Secondary;
+      CoreKeepModeManual.Appearance = mode == "Manual" ? Wpf.Ui.Controls.ControlAppearance.Primary : Wpf.Ui.Controls.ControlAppearance.Secondary;
     }
 
     void CoreKeepList_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-      var entry = CoreKeepList.SelectedItem as CoreKeepEntry;
-      if (entry == null) return;
-      CoreKeepProcInput.Text = entry.ProcessName;
-      CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(entry.PriorityClass);
-      CoreKeepAffinityText.Text = "0x" + entry.AffinityMask.ToString("X");
-      CoreKeepStatus.Text = entry.CapturedAt != null ? string.Format(Strings.CoreKeepStatusCapturedAt) + entry.CapturedAt : "";
+      _currentSelectedEntry = CoreKeepList.SelectedItem as CoreKeepEntry;
+      if (_currentSelectedEntry == null) {
+        CoreKeepProcInput.Text = "";
+        CoreKeepPriorityText.Text = " -";
+        CoreKeepAffinityText.Text = " -";
+        CoreKeepStatusIcon.Text = "";
+        CoreKeepLivePriorityText.Text = "";
+        CoreKeepPriorityCombo.IsEnabled = false;
+        CoreKeepPriorityCombo.SelectedIndex = -1;
+        SetCoreModeBtnEnabled(false);
+        CoreKeepCoreList.Visibility = Visibility.Collapsed;
+        CoreKeepSaveBtn.IsEnabled = false;
+        return;
+      }
+      CoreKeepProcInput.Text = _currentSelectedEntry.ProcessName;
+      CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(_currentSelectedEntry.PriorityClass);
+      CoreKeepAffinityText.Text = "0x" + _currentSelectedEntry.AffinityMask.ToString("X");
+      // 查询当前实际状态（支持 PID）
+      var state = CoreKeepService.QueryProcessState(_currentSelectedEntry.ProcessName, _currentSelectedEntry.ProcessId);
+      if (!state.Running) {
+        CoreKeepStatusIcon.Text = Strings.CoreKeepStatusNotRunning;
+        CoreKeepLivePriorityText.Text = "";
+      } else if (state.PriorityClass == _currentSelectedEntry.PriorityClass && state.AffinityMask == _currentSelectedEntry.AffinityMask) {
+        CoreKeepStatusIcon.Text = Strings.CoreKeepStatusMatched;
+        CoreKeepLivePriorityText.Text = "";
+      } else {
+        CoreKeepStatusIcon.Text = Strings.CoreKeepStatusMismatch;
+        CoreKeepLivePriorityText.Text = $"({CoreKeepService.PriorityClassName(state.PriorityClass)}/0x{state.AffinityMask:X})";
+      }
+      // 模式按钮
+      SetCoreModeBtnEnabled(true);
+      HighlightModeButton(_currentSelectedEntry.CoreMode ?? "All");
+      // 优先级 ComboBox
+      CoreKeepPriorityCombo.IsEnabled = CoreKeepMasterToggle.IsChecked == true;
+      SelectPriorityInCombo(_currentSelectedEntry.PriorityClass);
+      CoreKeepSaveBtn.IsEnabled = CoreKeepMasterToggle.IsChecked == true;
+      // 手动模式下显示核心选择
+      CoreKeepCoreList.Visibility = (_currentSelectedEntry.CoreMode == "Manual") ? Visibility.Visible : Visibility.Collapsed;
+      if (_currentSelectedEntry.CoreMode == "Manual")
+        PopulateCoreCheckboxes(_currentSelectedEntry.PreferredCores, _currentSelectedEntry.AffinityMask);
+    }
+
+    void PopulateCoreCheckboxes(int[] selected, long affinityMask = 0) {
+      var topo = CoreKeepService.GetTopology();
+      var items = new List<CoreCheckItem>();
+      // ponytail: 优先用 selected 数组；没有时从 AffinityMask 反推勾选的核心
+      HashSet<int> selSet;
+      if (selected != null && selected.Length > 0)
+        selSet = new HashSet<int>(selected);
+      else {
+        selSet = new HashSet<int>();
+        for (int i = 0; i < topo.TotalLogical; i++) {
+          if ((affinityMask & (1L << i)) != 0) selSet.Add(i);
+        }
+      }
+      for (int i = 0; i < topo.TotalLogical; i++) {
+        items.Add(new CoreCheckItem { CoreIndex = i, IsChecked = selSet.Contains(i) });
+      }
+      CoreKeepCoreList.ItemsSource = items;
     }
 
     void CoreKeepMasterToggle_Changed(object sender, RoutedEventArgs e) {
       bool on = CoreKeepMasterToggle.IsChecked == true;
-      CoreKeepList.IsEnabled = on; CoreKeepNewProcInput.IsEnabled = on; CoreKeepAddBtn.IsEnabled = on;
+      CoreKeepList.IsEnabled = on;
+      CoreKeepAddBtn.IsEnabled = on;
+      CoreKeepSaveBtn.IsEnabled = on && _currentSelectedEntry != null;
+      CoreKeepDeleteBtn.IsEnabled = on;
+      CoreKeepBenchBtn.IsEnabled = on;
+      CoreKeepGuardToggle.IsEnabled = on;
+      CoreKeepGuardInterval.IsEnabled = on && CoreKeepGuardToggle.IsChecked == true;
+      CoreKeepPriorityCombo.IsEnabled = on && _currentSelectedEntry != null;
       var data = CoreKeepService.Load();
       data.MasterEnabled = on;
       CoreKeepService.Save(data);
@@ -822,49 +1003,278 @@ namespace OmenSuperHub.Pages {
     }
 
     void CoreKeepRefresh_Click(object sender, RoutedEventArgs e) {
-      string procName = CoreKeepProcInput.Text?.Trim();
-      if (string.IsNullOrEmpty(procName)) {
+      string raw = CoreKeepProcInput.Text?.Trim();
+      if (string.IsNullOrEmpty(raw)) {
         RefreshCoreKeepList(CoreKeepService.Load());
         return;
       }
-      if (!procName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) procName += ".exe";
-      var entry = CoreKeepService.CaptureFromProcess(procName);
-      CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(entry.PriorityClass);
-      CoreKeepAffinityText.Text = "0x" + entry.AffinityMask.ToString("X");
-      CoreKeepStatus.Text = string.Format(Strings.CoreKeepStatusCapturedAt) + entry.CapturedAt;
+      // ponytail: Refresh 只查看当前运行状态，不修改保存的规则。支持 PID 输入
+      ProcessAffinityState state;
+      bool isPid = int.TryParse(raw, out int pid);
+      if (isPid)
+        state = CoreKeepService.QueryProcessState("", pid);
+      else {
+        string procName = raw.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? raw : raw + ".exe";
+        state = CoreKeepService.QueryProcessState(procName);
+      }
+      if (!state.Running) {
+        CoreKeepPriorityText.Text = " -";
+        CoreKeepAffinityText.Text = " -";
+        CoreKeepStatusIcon.Text = Strings.CoreKeepStatusNotRunning;
+        CoreKeepLivePriorityText.Text = "";
+        return;
+      }
+      CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(state.PriorityClass);
+      CoreKeepAffinityText.Text = "0x" + state.AffinityMask.ToString("X");
+      CoreKeepLivePriorityText.Text = "";
+      // 如果有已保存规则，对比显示
       var data = CoreKeepService.Load();
-      var existing = data.Entries.Find(x => x.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase));
+      var existing = isPid
+        ? data.Entries.Find(x => x.ProcessId == pid)
+        : data.Entries.Find(x => x.ProcessName.Equals(raw + (raw.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? "" : ".exe"), StringComparison.OrdinalIgnoreCase));
       if (existing != null) {
-        existing.PriorityClass = entry.PriorityClass;
-        existing.AffinityMask = entry.AffinityMask;
-        existing.CapturedAt = entry.CapturedAt;
-        CoreKeepService.Save(data);
-        RefreshCoreKeepList(data);
+        if (state.PriorityClass == existing.PriorityClass && state.AffinityMask == existing.AffinityMask)
+          CoreKeepStatusIcon.Text = Strings.CoreKeepStatusMatched;
+        else
+          CoreKeepStatusIcon.Text = Strings.CoreKeepStatusMismatch;
+      } else {
+        CoreKeepStatusIcon.Text = "";
       }
     }
+
+    void CoreKeepSave_Click(object sender, RoutedEventArgs e) {
+      // ponytail: 用当前进程值更新保存的规则。支持 PID
+      string raw = CoreKeepProcInput.Text?.Trim();
+      if (string.IsNullOrEmpty(raw)) return;
+      var data = CoreKeepService.Load();
+      bool isPid = int.TryParse(raw, out int pid);
+      CoreKeepEntry entry;
+      if (isPid) {
+        entry = CoreKeepService.CaptureFromPid(pid);
+        if (entry.AffinityMask == 0 && entry.PriorityClass == 0) return;
+        var existingPid = data.Entries.Find(x => x.ProcessId == pid);
+        if (existingPid != null) {
+          existingPid.PriorityClass = entry.PriorityClass;
+          existingPid.AffinityMask = entry.AffinityMask;
+          existingPid.CapturedAt = entry.CapturedAt;
+          existingPid.ProcessName = entry.ProcessName; // 更新名称（可能变了）
+          CoreKeepService.Save(data);
+          RefreshCoreKeepList(data);
+          ReselectByName(existingPid.ProcessName);
+        }
+      } else {
+        string procName = raw.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? raw : raw + ".exe";
+        entry = CoreKeepService.CaptureFromProcess(procName);
+        var existing = data.Entries.Find(x => x.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase));
+        if (existing != null) {
+          existing.PriorityClass = entry.PriorityClass;
+          existing.AffinityMask = entry.AffinityMask;
+          existing.CapturedAt = entry.CapturedAt;
+          CoreKeepService.Save(data);
+          RefreshCoreKeepList(data);
+          ReselectByName(procName);
+        }
+      }
+    }
+
+    void ReselectByName(string name) {
+      for (int i = 0; i < CoreKeepList.Items.Count; i++) {
+        if ((CoreKeepList.Items[i] as CoreKeepEntry)?.ProcessName == name) {
+          CoreKeepList.SelectedIndex = i; break;
+        }
+      }
+    }
+
     void CoreKeepDelete_Click(object sender, RoutedEventArgs e) {
       var selected = CoreKeepList.SelectedItem as CoreKeepEntry;
       if (selected == null) return;
       var data = CoreKeepService.Load();
       data.Entries.RemoveAll(x => x.ProcessName == selected.ProcessName);
       CoreKeepService.Save(data);
+      _currentSelectedEntry = null;
+      CoreKeepProcInput.Text = "";
+      CoreKeepPriorityText.Text = " -";
+      CoreKeepAffinityText.Text = " -";
+      CoreKeepStatusIcon.Text = "";
+      CoreKeepLivePriorityText.Text = "";
       RefreshCoreKeepList(data);
     }
+
+    /// <summary>添加进程：支持 PID（纯数字）或进程名</summary>
     void CoreKeepAdd_Click(object sender, RoutedEventArgs e) {
-      string procName = CoreKeepNewProcInput.Text?.Trim();
-      if (string.IsNullOrEmpty(procName)) return;
-      if (!procName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) procName += ".exe";
+      string raw = CoreKeepProcInput.Text?.Trim();
+      if (string.IsNullOrEmpty(raw)) return;
       var data = CoreKeepService.Load();
-      if (data.Entries.Exists(x => x.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase))) return;
-      var entry = CoreKeepService.CaptureFromProcess(procName);
+      CoreKeepEntry entry;
+      bool isPid = int.TryParse(raw, out int pid);
+      if (isPid) {
+        entry = CoreKeepService.CaptureFromPid(pid);
+        if (entry.AffinityMask == 0 && entry.PriorityClass == 0) return;
+        if (data.Entries.Exists(x => x.ProcessId == pid)) return;
+      } else {
+        string procName = raw.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? raw : raw + ".exe";
+        if (data.Entries.Exists(x => x.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase))) return;
+        entry = CoreKeepService.CaptureFromProcess(procName);
+        if (entry.AffinityMask == 0 && entry.PriorityClass == 0) return;
+      }
       entry.Enabled = true;
+      entry.CoreMode = "All";
+      entry.GuardEnabled = true;
+      CoreKeepService.ApplyModeToEntry(entry, "All");
+      if (CoreKeepPriorityCombo.SelectedItem is System.Windows.Controls.ComboBoxItem pi && pi.Tag is uint prio)
+        entry.PriorityClass = prio;
       data.Entries.Add(entry);
       CoreKeepService.Save(data);
-      CoreKeepNewProcInput.Text = "";
+      CoreKeepProcInput.Text = "";
       RefreshCoreKeepList(data);
       if (data.MasterEnabled) CoreKeepService.StartAutoApply(data);
     }
-    void RefreshCoreKeepList(CoreKeepData data) { CoreKeepList.ItemsSource = data.Entries; }
+
+    void CoreKeepPriorityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+      if (_currentSelectedEntry == null || CoreKeepPriorityCombo.SelectedItem == null) return;
+      if (CoreKeepPriorityCombo.SelectedItem is System.Windows.Controls.ComboBoxItem item && item.Tag is uint prio) {
+        // ponytail: 值没变就跳过，防止 SelectPriorityInCombo 触发重入
+        if (_currentSelectedEntry.PriorityClass == prio) return;
+        _currentSelectedEntry.PriorityClass = prio;
+        CoreKeepPriorityText.Text = CoreKeepService.PriorityClassName(prio);
+        // 持久化
+        var data = CoreKeepService.Load();
+        var existing = _currentSelectedEntry.ProcessId > 0
+          ? data.Entries.Find(x => x.ProcessId == _currentSelectedEntry.ProcessId)
+          : data.Entries.Find(x => x.ProcessName == _currentSelectedEntry.ProcessName);
+        if (existing != null) {
+          existing.PriorityClass = prio;
+          CoreKeepService.Save(data);
+          // ponytail: 不 RefreshCoreKeepList —— 不替换 ItemsSource 避免清空 ListBox 选中
+        }
+        // 立即写入进程
+        if (CoreKeepMasterToggle.IsChecked == true)
+          CoreKeepService.ApplyToProcess(_currentSelectedEntry.ProcessName, _currentSelectedEntry);
+      }
+    }
+
+    void CoreKeepMode_Click(object sender, RoutedEventArgs e) {
+      var btn = sender as Wpf.Ui.Controls.Button;
+      if (btn == null || _currentSelectedEntry == null) return;
+      string mode = btn.Tag as string;
+      if (string.IsNullOrEmpty(mode)) return;
+      HighlightModeButton(mode);
+      _currentSelectedEntry.CoreMode = mode;
+      // 手动模式：显示核心选择
+      CoreKeepCoreList.Visibility = (mode == "Manual") ? Visibility.Visible : Visibility.Collapsed;
+      if (mode == "Manual") {
+        PopulateCoreCheckboxes(_currentSelectedEntry.PreferredCores, _currentSelectedEntry.AffinityMask);
+        var data = CoreKeepService.Load();
+        var existing = _currentSelectedEntry.ProcessId > 0
+          ? data.Entries.Find(x => x.ProcessId == _currentSelectedEntry.ProcessId)
+          : data.Entries.Find(x => x.ProcessName == _currentSelectedEntry.ProcessName);
+        if (existing != null) { existing.CoreMode = mode; CoreKeepService.Save(data); RefreshCoreKeepList(data); }
+      } else {
+        long mask = CoreKeepService.ModeToAffinityMask(mode, null);
+        _currentSelectedEntry.AffinityMask = mask;
+        var data = CoreKeepService.Load();
+        var existing = _currentSelectedEntry.ProcessId > 0
+          ? data.Entries.Find(x => x.ProcessId == _currentSelectedEntry.ProcessId)
+          : data.Entries.Find(x => x.ProcessName == _currentSelectedEntry.ProcessName);
+        if (existing != null) { existing.CoreMode = mode; existing.AffinityMask = mask; CoreKeepService.Save(data); RefreshCoreKeepList(data); }
+        CoreKeepAffinityText.Text = "0x" + mask.ToString("X");
+        if (CoreKeepMasterToggle.IsChecked == true)
+          CoreKeepService.ApplyToProcess(_currentSelectedEntry.ProcessName, _currentSelectedEntry);
+      }
+    }
+
+    void CoreKeepGuardToggle_Changed(object sender, RoutedEventArgs e) {
+      bool on = CoreKeepGuardToggle.IsChecked == true;
+      CoreKeepGuardInterval.IsEnabled = on;
+      var data = CoreKeepService.Load();
+      data.GuardIntervalMs = on ? (int)(CoreKeepGuardInterval.Value * 1000) : -1;
+      CoreKeepService.Save(data);
+      if (on) {
+        CoreKeepService.UpdateGuardInterval(data.GuardIntervalMs);
+        // 同时给所有条目启用守护
+        foreach (var entry in data.Entries) entry.GuardEnabled = true;
+        CoreKeepService.Save(data);
+      } else {
+        foreach (var entry in data.Entries) entry.GuardEnabled = false;
+        CoreKeepService.Save(data);
+        CoreKeepService.StopAutoApply();
+        if (CoreKeepMasterToggle.IsChecked == true)
+          CoreKeepService.StartAutoApply(data); // 重启不带守护的自动应用
+      }
+    }
+
+    void CoreKeepGuardInterval_Changed(object s, RoutedEventArgs e) {
+      var data = CoreKeepService.Load();
+      data.GuardIntervalMs = (int)(CoreKeepGuardInterval.Value * 1000);
+      CoreKeepService.Save(data);
+      CoreKeepService.UpdateGuardInterval(data.GuardIntervalMs);
+    }
+
+    void CoreKeepBenchmark_Click(object sender, RoutedEventArgs e) {
+      CoreKeepBenchBtn.Content = Strings.CoreKeepBenchmarkRunning;
+      CoreKeepBenchBtn.IsEnabled = false;
+      System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+        try {
+          var results = CoreKeepService.RunBenchmark(500);
+          Dispatcher.BeginInvoke(new Action(() => {
+            CoreKeepBenchBtn.Content = Strings.CoreKeepBenchmarkDone;
+            CoreKeepBenchBtn.IsEnabled = true;
+            // 显示建议
+            var best = results.OrderBy(r => r.Score).Take(8).ToList();
+            string msg = string.Join("\n", best.Select(r =>
+              string.Format(Strings.CoreKeepBenchmarkResult, r.CoreIndex, r.Score, r.Relative)));
+            DialogHelper.Info(msg, Strings.CoreKeepBenchmark);
+          }));
+        } catch {
+          Dispatcher.BeginInvoke(new Action(() => {
+            CoreKeepBenchBtn.Content = Strings.CoreKeepBenchmark;
+            CoreKeepBenchBtn.IsEnabled = true;
+          }));
+        }
+      });
+    }
+
+    void RefreshCoreKeepList(CoreKeepData data) {
+      // ponytail: 保存并恢复选中条目，避免替换 ItemsSource 清空选中
+      string selectedName = _currentSelectedEntry?.ProcessName;
+      CoreKeepList.ItemsSource = data.Entries;
+      if (selectedName != null) {
+        for (int i = 0; i < CoreKeepList.Items.Count; i++) {
+          if ((CoreKeepList.Items[i] as CoreKeepEntry)?.ProcessName == selectedName) {
+            CoreKeepList.SelectedIndex = i;
+            break;
+          }
+        }
+      }
+    }
+
+    void CoreKeepCoreCheckChanged(object sender, RoutedEventArgs e) {
+      if (_currentSelectedEntry == null || _currentSelectedEntry.CoreMode != "Manual") return;
+      // 收集勾选的核心，更新掩码
+      var selected = new List<int>();
+      foreach (var item in CoreKeepCoreList.Items) {
+        var ci = item as CoreCheckItem;
+        if (ci != null && ci.IsChecked) selected.Add(ci.CoreIndex);
+      }
+      if (selected.Count == 0) return;
+      long mask = CoreKeepService.ModeToAffinityMask("Manual", selected.ToArray());
+      _currentSelectedEntry.AffinityMask = mask;
+      _currentSelectedEntry.PreferredCores = selected.ToArray();
+      // 持久化
+      var data = CoreKeepService.Load();
+      var existing = _currentSelectedEntry.ProcessId > 0
+        ? data.Entries.Find(x => x.ProcessId == _currentSelectedEntry.ProcessId)
+        : data.Entries.Find(x => x.ProcessName == _currentSelectedEntry.ProcessName);
+      if (existing != null) {
+        existing.AffinityMask = mask;
+        existing.PreferredCores = selected.ToArray();
+        CoreKeepService.Save(data);
+        RefreshCoreKeepList(data);
+      }
+      CoreKeepAffinityText.Text = "0x" + mask.ToString("X");
+      if (CoreKeepMasterToggle.IsChecked == true)
+        CoreKeepService.ApplyToProcess(_currentSelectedEntry.ProcessName, _currentSelectedEntry);
+    }
 
     // ── GPU 频率限制 ──
     void GpuClock_SelectionChanged(object sender, SelectionChangedEventArgs e) {
@@ -1760,8 +2170,6 @@ namespace OmenSuperHub.Pages {
       InitMasterToggle(ApuVrmMasterToggle, ApuVrmCard, ConfigService.ApuVrmMasterEnabled);
       InitMasterToggle(ApuTempMasterToggle, ApuTempCard, ConfigService.ApuTempMasterEnabled);
       InitMasterToggle(ApuGfxClkMasterToggle, ApuGfxClkCard, ConfigService.ApuGfxClkMasterEnabled);
-      InitMasterToggle(AmdCpuPowerMasterToggle, AmdCpuPowerCard, ConfigService.AmdCpuPowerMasterEnabled);
-      InitMasterToggle(AmdCpuTempMasterToggle, AmdCpuTempCard, ConfigService.AmdCpuTempMasterEnabled);
       // ponytail: new master toggles — each card's master toggle gates its child UI controls.
       // For PCI/level toggles (AutoOC / single-toggle cards) we toggle only one
       // child control instead of all sliders — keeps the same helper API.
@@ -1864,24 +2272,6 @@ namespace OmenSuperHub.Pages {
       ConfigService.ApuGfxClkMasterEnabled = on;
       ConfigService.Save("ApuGfxClkMasterEnabled");
       SetCardSlidersEnabled(ApuGfxClkCard, on);
-    }
-
-    // ── AMD CPU Power Master Toggle ──
-    void AmdCpuPowerMasterToggle_Changed(object sender, RoutedEventArgs e) {
-      if (_loading) return;
-      bool on = AmdCpuPowerMasterToggle.IsChecked == true;
-      ConfigService.AmdCpuPowerMasterEnabled = on;
-      ConfigService.Save("AmdCpuPowerMasterEnabled");
-      SetCardSlidersEnabled(AmdCpuPowerCard, on);
-    }
-
-    // ── AMD CPU Temp Master Toggle ──
-    void AmdCpuTempMasterToggle_Changed(object sender, RoutedEventArgs e) {
-      if (_loading) return;
-      bool on = AmdCpuTempMasterToggle.IsChecked == true;
-      ConfigService.AmdCpuTempMasterEnabled = on;
-      ConfigService.Save("AmdCpuTempMasterEnabled");
-      SetCardSlidersEnabled(AmdCpuTempCard, on);
     }
 
     // ── New master toggles ──
@@ -2054,9 +2444,25 @@ namespace OmenSuperHub.Pages {
       // ── CpuPerfGrid per-vendor visibility (always applies) ──
       bool hasAmd = _hasAmdCpu;
       bool hasIntel = _hasIntelCpu;
+      // DebugShowAllUi: 强制显示所有卡片（忽略 per-vendor 限制）
+      if (ConfigService.DebugShowAllUi) {
+        hasAmd = true;
+        hasIntel = true;
+      }
       IccMaxCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
       AcLoadLineCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
       HeteroCpuCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
+
+      // ponytail: AMD/Intel CPU power split
+      bool amdSmu = false;
+      try { amdSmu = hasAmd && AmdAdvancedService.IsAvailable; } catch { }
+      // DebugShowAllUi 强制显示 AMD 卡片，跳过 SMU 可用性检测
+      if (ConfigService.DebugShowAllUi) amdSmu = true;
+      AmdCpuPowerCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      // ponytail: TDC/EDC 和 Tctl 按 SMU 可用性直接显示（不再需要点5次 logo）
+      if (AmdCpuPowerCard != null) AmdCpuTdcEdcPanel.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      AmdCpuTempCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      CpuPowerCard.Visibility = hasIntel && !hasAmd ? Visibility.Visible : Visibility.Collapsed;
 
       // Gate: hide advanced tuning unless unlocked via logo 5-click (or DEBUG mode)
       if (!ConfigService.AdvancedTuningUnlocked && !ConfigService.DebugShowAllUi) {
@@ -2070,17 +2476,15 @@ namespace OmenSuperHub.Pages {
       bool hasNvidia = _hasNvidiaGpu;
       bool hasAdvCpu = hasAmd || hasIntel;
       bool hasAdvGpu = hasNvidia || _hasAmdGpu;
+      CpuAdvHeader.Visibility = hasAdvCpu ? Visibility.Visible : Visibility.Collapsed;
+      CpuAdvGrid.Visibility = hasAdvCpu ? Visibility.Visible : Visibility.Collapsed;
       PboScalarCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       CoCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       AutoOcCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       // AMD APU SMU tuning cards
-      bool amdSmu = hasAmd && AmdAdvancedService.IsAvailable;
       ApuPowerCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       ApuVrmCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       ApuTempCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
-      // NOTE: ApuGfxClkCard moved to GpuAdvGrid — see GPU section below
-      AmdCpuPowerCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
-      AmdCpuTempCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       // Per-core CO: CCD1 always visible when SMU available; CCD2 only dual-CCD
       Ccd1CoCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       Ccd2CoCard.Visibility = (amdSmu && HeteroCpuService.DetectDualCcd().supported) ? Visibility.Visible : Visibility.Collapsed;
@@ -2250,17 +2654,29 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       bool enable = HeteroCpuToggle.IsChecked == true;
       HeteroCpuDetails.Visibility = enable ? Visibility.Visible : Visibility.Collapsed;
-      if (enable) {
-        HeteroCpuService.WriteSmallProcessorMask(ConfigService.HeteroCpuSmallMask);
-        HeteroCpuService.WriteDefaultPolicy(ConfigService.HeteroCpuDefaultPolicy);
-        HeteroCpuService.WriteExpectedRuntime(ConfigService.HeteroCpuExpectedRuntime);
-        HeteroCpuService.WriteImportantPolicy(ConfigService.HeteroCpuImportantPolicy);
-        HeteroCpuService.WriteImportantShortPolicy(ConfigService.HeteroCpuImportantShortPolicy);
-        HeteroCpuService.WritePolicyMask(ConfigService.HeteroCpuPolicyMask);
-        HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
-      } else {
-        HeteroCpuService.RemoveAll();
-      }
+	      if (enable) {
+	        HeteroCpuService.WriteSmallProcessorMask(ConfigService.HeteroCpuSmallMask);
+	        HeteroCpuService.WriteDefaultPolicy(ConfigService.HeteroCpuDefaultPolicy);
+	        HeteroCpuService.WriteExpectedRuntime(ConfigService.HeteroCpuExpectedRuntime);
+	        HeteroCpuService.WriteImportantPolicy(ConfigService.HeteroCpuImportantPolicy);
+	        HeteroCpuService.WriteImportantShortPolicy(ConfigService.HeteroCpuImportantShortPolicy);
+	        HeteroCpuService.WritePolicyMask(ConfigService.HeteroCpuPolicyMask);
+	        HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
+	        // Also write per-power-plan hetero scheduling settings to active plan
+	        if (GetActiveSchemeGuid() is Guid activeScheme) {
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_THREAD_SCHED, 2, 5);
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_SHORT_SCHED, 2, 5);
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_ACTIVE_POLICY, 0, 4);
+	        }
+	      } else {
+	        HeteroCpuService.RemoveAll();
+	        // Reset per-power-plan hetero settings to default (auto)
+	        if (GetActiveSchemeGuid() is Guid activeScheme) {
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_THREAD_SCHED, 5, 5);
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_SHORT_SCHED, 5, 5);
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_ACTIVE_POLICY, 4, 4);
+	        }
+	      }
     }
 
     void HeteroCpuMask_TextChanged(object sender, TextChangedEventArgs e) {
@@ -2309,8 +2725,14 @@ namespace OmenSuperHub.Pages {
       HeteroCpuService.WriteImportantPolicy(ConfigService.HeteroCpuImportantPolicy);
       HeteroCpuService.WriteImportantShortPolicy(ConfigService.HeteroCpuImportantShortPolicy);
       HeteroCpuService.WritePolicyMask(ConfigService.HeteroCpuPolicyMask);
-      HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
-      DialogHelper.Info(Strings.HeteroCpuApplyResult, Strings.HeteroCpuApplyTitle);
+	      HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
+	      // Also write per-plan settings
+	      if (GetActiveSchemeGuid() is Guid activeScheme) {
+	        WritePwrValueBoth(activeScheme, GUID_HETERO_THREAD_SCHED, 2, 5);
+	        WritePwrValueBoth(activeScheme, GUID_HETERO_SHORT_SCHED, 2, 5);
+	        WritePwrValueBoth(activeScheme, GUID_HETERO_ACTIVE_POLICY, 0, 4);
+	      }
+	      DialogHelper.Info(Strings.HeteroCpuApplyResult, Strings.HeteroCpuApplyTitle);
     }
 
     void HeteroCpuRestore_Click(object sender, RoutedEventArgs e) {
@@ -2507,10 +2929,11 @@ namespace OmenSuperHub.Pages {
       double? v = AmdCpuPptNum.Value; if (v == null) return;
       int watts = (int)v;
       ConfigService.AmdCpuPpt = watts; ConfigService.Save("AmdCpuPpt");
-      if (AmdAdvancedService.IsAvailable) {
-        bool ok = AmdAdvancedService.SetPptLimit((uint)(watts * 1000));
-        AmdCpuPowerStatus.Text = ok ? $"PPT={watts}W ✓" : "SMU 写入失败";
-      }
+      // ponytail: PPT 优先 WMI，降级 SMU
+      bool pptOk = false;
+      if (watts <= 255) pptOk = SetCpuPowerLimit((byte)watts);
+      if (!pptOk && AmdAdvancedService.IsAvailable) pptOk = AmdAdvancedService.SetPptLimit((uint)(watts * 1000));
+      AmdCpuPowerStatus.Text = pptOk ? $"PPT={watts}W ✓" : "SMU 写入失败";
     }
     void AmdCpuTdcNum_ValueChanged(object s, RoutedEventArgs e) {
       if (_loading) return;
@@ -2956,6 +3379,10 @@ namespace OmenSuperHub.Pages {
     static readonly Guid GUID_PROCTHROTTLEMAX = new Guid("bc5038f7-23e0-4960-96da-33abaf5935ec");
     static readonly Guid GUID_PROCFREQMAX = new Guid("75b0ae3f-bce0-45a7-8c89-c9611c25e100");
     static readonly Guid GUID_SMTUNPARK = new Guid("b28a6829-c5f7-444e-8f61-10e24e85c532");
+    // Hetero scheduling per-power-plan (AMD dual-CCD simulation)
+    static readonly Guid GUID_HETERO_THREAD_SCHED = new Guid("93b8b6dc-0698-4d1c-9ee4-0644e900c85d");
+    static readonly Guid GUID_HETERO_SHORT_SCHED = new Guid("bae08b81-2d5e-4688-ad6a-13243356654b");
+    static readonly Guid GUID_HETERO_ACTIVE_POLICY = new Guid("7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5");
     // Class 1 (P-cores / first efficiency class)
     static readonly Guid GUID_PERFEPP_CLS1 = new Guid("36687f9e-e3a5-4dbf-b1dc-15eb381c6864");
     static readonly Guid GUID_PROCTHROTTLEMAX_CLS1 = new Guid("bc5038f7-23e0-4960-96da-33abaf5935ed");
@@ -2982,6 +3409,24 @@ namespace OmenSuperHub.Pages {
         NativeMethods_Power.PowerWriteDCValueIndex(IntPtr.Zero, ref scheme, ref sub, ref setting, v);
       else
         NativeMethods_Power.PowerWriteACValueIndex(IntPtr.Zero, ref scheme, ref sub, ref setting, v);
+    }
+
+    /// <summary>同时写入 AC 和 DC 值</summary>
+    void WritePwrValueBoth(Guid scheme, Guid setting, int acVal, int dcVal) {
+      Guid sub = SUB_PROCESSOR_GUID;
+      NativeMethods_Power.PowerWriteACValueIndex(IntPtr.Zero, ref scheme, ref sub, ref setting, (uint)acVal);
+      NativeMethods_Power.PowerWriteDCValueIndex(IntPtr.Zero, ref scheme, ref sub, ref setting, (uint)dcVal);
+    }
+
+    Guid? GetActiveSchemeGuid() {
+      try {
+        if (NativeMethods_Power.PowerGetActiveScheme(IntPtr.Zero, out var ptr) == 0) {
+          var guid = Marshal.PtrToStructure<Guid>(ptr);
+          Marshal.FreeHGlobal(ptr);
+          return guid;
+        }
+      } catch { }
+      return null;
     }
 
     Guid GetSettingGuid(Guid general, Guid class1) {
@@ -3248,6 +3693,10 @@ namespace OmenSuperHub.Pages {
         ApuSkinTemp = ApuSkinTempNum.Value ?? 0,
         ApuDgpuSkin = ApuDgpuSkinNum.Value ?? 0,
         ApuGfxClk = ApuGfxClkNum.Value ?? 0,
+        AmdCpuPpt = AmdCpuPptNum.Value ?? 0,
+        AmdCpuTdc = AmdCpuTdcNum.Value ?? 0,
+        AmdCpuEdc = AmdCpuEdcNum.Value ?? 0,
+        AmdCpuTctl = AmdCpuTctlNum.Value ?? 0,
         NvPower = NvPowerNum.Value ?? 0,
         Rtss = RtssNum.Value ?? 0,
         AutoOcOn = AutoOcToggle.IsChecked ?? false,
@@ -3259,8 +3708,6 @@ namespace OmenSuperHub.Pages {
         ApuVrmMasterOn = ApuVrmMasterToggle.IsChecked ?? true,
         ApuTempMasterOn = ApuTempMasterToggle.IsChecked ?? true,
         ApuGfxClkMasterOn = ApuGfxClkMasterToggle.IsChecked ?? true,
-        AmdCpuPowerMasterOn = AmdCpuPowerMasterToggle.IsChecked ?? true,
-        AmdCpuTempMasterOn = AmdCpuTempMasterToggle.IsChecked ?? true,
         PboScalarMasterOn = PboScalarMasterToggle.IsChecked ?? true,
         CoMasterOn = CoMasterToggle.IsChecked ?? true,
         AutoOcMasterOn = AutoOcMasterToggle.IsChecked ?? true,
@@ -3360,6 +3807,14 @@ namespace OmenSuperHub.Pages {
       ApuSkinTempNum.Value = p.ApuSkinTemp;
       ApuDgpuSkinNum.Value = p.ApuDgpuSkin;
       ApuGfxClkNum.Value = p.ApuGfxClk;
+      AmdCpuPptNum.Value = p.AmdCpuPpt;
+      AmdCpuPptSlider.Value = p.AmdCpuPpt > 0 ? p.AmdCpuPpt : 105;
+      AmdCpuTdcNum.Value = p.AmdCpuTdc;
+      AmdCpuTdcSlider.Value = p.AmdCpuTdc > 0 ? p.AmdCpuTdc : 80;
+      AmdCpuEdcNum.Value = p.AmdCpuEdc;
+      AmdCpuEdcSlider.Value = p.AmdCpuEdc > 0 ? p.AmdCpuEdc : 160;
+      AmdCpuTctlNum.Value = p.AmdCpuTctl;
+      AmdCpuTctlSlider.Value = p.AmdCpuTctl > 0 ? p.AmdCpuTctl : 95;
       NvPowerNum.Value = p.NvPower;
       RtssNum.Value = p.Rtss;
       if (AutoOcToggle.IsChecked != p.AutoOcOn) AutoOcToggle.IsChecked = p.AutoOcOn;
@@ -3371,8 +3826,6 @@ namespace OmenSuperHub.Pages {
       if (ApuVrmMasterToggle.IsChecked != p.ApuVrmMasterOn) ApuVrmMasterToggle.IsChecked = p.ApuVrmMasterOn;
       if (ApuTempMasterToggle.IsChecked != p.ApuTempMasterOn) ApuTempMasterToggle.IsChecked = p.ApuTempMasterOn;
       if (ApuGfxClkMasterToggle.IsChecked != p.ApuGfxClkMasterOn) ApuGfxClkMasterToggle.IsChecked = p.ApuGfxClkMasterOn;
-      if (AmdCpuPowerMasterToggle.IsChecked != p.AmdCpuPowerMasterOn) AmdCpuPowerMasterToggle.IsChecked = p.AmdCpuPowerMasterOn;
-      if (AmdCpuTempMasterToggle.IsChecked != p.AmdCpuTempMasterOn) AmdCpuTempMasterToggle.IsChecked = p.AmdCpuTempMasterOn;
       if (PboScalarMasterToggle.IsChecked != p.PboScalarMasterOn) PboScalarMasterToggle.IsChecked = p.PboScalarMasterOn;
       if (CoMasterToggle.IsChecked != p.CoMasterOn) CoMasterToggle.IsChecked = p.CoMasterOn;
       if (AutoOcMasterToggle.IsChecked != p.AutoOcMasterOn) AutoOcMasterToggle.IsChecked = p.AutoOcMasterOn;
@@ -3523,5 +3976,11 @@ namespace OmenSuperHub.Pages {
       _snapshot = null;
       Log("btnPerfUndo: restored GpuPriority, cleared custom presets");
     }
+  }
+
+  // ponytail: 核心选择 CheckBox 的简易 ViewModel
+  public class CoreCheckItem {
+    public int CoreIndex { get; set; }
+    public bool IsChecked { get; set; }
   }
 }

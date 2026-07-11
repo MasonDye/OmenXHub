@@ -52,13 +52,9 @@ namespace OmenSuperHub {
 
     public static int OpenHidDevice(int pid, int vid, string interfaceString = "") {
       try {
-        Task<int> task = McuGeneralHelper.OpenDevice(pid, vid, interfaceString, "");
-        task.Wait();
-        return task.Result;
-      } catch (AggregateException ae) {
-        foreach (var inner in ae.InnerExceptions)
-          Logger.Error($"OpenHidDevice AggregateException: {inner.Message}");
-        return -1;
+        // ponytail: .GetAwaiter().GetResult() 抛原始异常而非 AggregateException，
+        // 且避免 task.Wait() 在 UI 线程上下文下可能的死锁
+        return McuGeneralHelper.OpenDevice(pid, vid, interfaceString, "").GetAwaiter().GetResult();
       } catch (Exception ex) {
         Logger.Error($"OpenHidDevice Exception: {ex.Message}");
         return -1;

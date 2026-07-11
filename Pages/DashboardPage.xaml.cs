@@ -121,7 +121,7 @@ namespace OmenSuperHub.Pages {
                   gpuTemp, gpuUtil, gpuFan, gpuPower, presetKey, fc, ft)
             ), DispatcherPriority.Background);
             Dispatcher.BeginInvoke(new Action(() =>
-              RefreshSensorsCore(gpuOn ? gpuTemp : 0, cpuTemp, ir, amb, pch, vr)
+              RefreshSensorsCore(cpuTemp, gpuOn ? gpuTemp : 0, ir, amb, pch, vr)
             ), DispatcherPriority.Background);
             // ponytail: refresh floating window on same timer so network speed & other data stay live
             Dispatcher.BeginInvoke(new Action(() =>
@@ -431,38 +431,42 @@ namespace OmenSuperHub.Pages {
       return $"{bytes / 1024} KB";
     }
 
-    Brush GetGradientBrush(double val, double max) {
-      double pct = max > 0 ? Math.Min(100, Math.Max(0, val / max * 100)) : 0;
+    // ponytail: pre-built frozen brush palette avoids per-update SolidColorBrush allocation
+    // (ceil: upper ceiling matches prior `>=` semantics so the switch thresholds preserve behavior)
+    static readonly SolidColorBrush[] GradientBrushes = Enumerable.Range(0, 101).Select(i => {
+      double pct = i;
       byte r, g, b;
       if (pct <= 35) {
-        // white → green
         double t = pct / 35.0;
         r = (byte)Math.Round(255 + (74 - 255) * t);
         g = (byte)Math.Round(255 + (222 - 255) * t);
         b = (byte)Math.Round(255 + (128 - 255) * t);
       } else if (pct <= 60) {
-        // green (constant, no yellow below 60%)
         r = 74; g = 222; b = 128;
       } else if (pct <= 82) {
-        // green → yellow
         double t = (pct - 60) / 22.0;
         r = (byte)Math.Round(74 + (251 - 74) * t);
         g = (byte)Math.Round(222 + (191 - 222) * t);
         b = (byte)Math.Round(128 + (36 - 128) * t);
       } else if (pct <= 92) {
-        // yellow → red
         double t = (pct - 82) / 10.0;
         r = (byte)Math.Round(251 + (239 - 251) * t);
         g = (byte)Math.Round(191 + (68 - 191) * t);
         b = (byte)Math.Round(36 + (68 - 36) * t);
       } else {
-        // red → dark
         double t = Math.Min(1, (pct - 92) / 8.0);
         r = (byte)Math.Round(239 + (26 - 239) * t);
         g = (byte)Math.Round(68 + (26 - 68) * t);
         b = (byte)Math.Round(68 + (26 - 68) * t);
       }
-      return new SolidColorBrush(Color.FromRgb(r, g, b));
+      var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+      brush.Freeze();
+      return brush;
+    }).ToArray();
+
+    Brush GetGradientBrush(double val, double max) {
+      double pct = max > 0 ? Math.Min(100, Math.Max(0, val / max * 100)) : 0;
+      return GradientBrushes[(int)Math.Ceiling(pct)];
     }
 
 
@@ -886,18 +890,28 @@ namespace OmenSuperHub.Pages {
         SysNvidiaPowerText.Text = !string.IsNullOrEmpty(ConfigService.SysNvidiaPowerMin)
             ? Strings.SysNvidiaPowerLimitText(ConfigService.SysNvidiaPowerMin + " / " + ConfigService.SysNvidiaPowerMax)
             : "";
-        SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyboardLightingType)ConfigService.SysKbRaw);
-        SysPawnIoText.Text = ConfigService.SysPawnIoText;
-        return;
-      }
-      Task.Run(() => {
+SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyboardLightingType)ConfigService.SysKbRaw);
+	        // ponytail: PawnIO 状态不缓存，每次页面刷新都重新检测
+	        try {
+	          var pawnIoNow = OmenHardware.IsPawnIOInstalled()
+	              ? Strings.SysPawnInstalled + " (" + OmenHardware.GetPawnIOState() + ")"
+	              : Strings.SysPawnMissing;
+	          SysPawnIoText.Text = pawnIoNow;
+	          if (ConfigService.SysPawnIoText != pawnIoNow) {
+	            ConfigService.SysPawnIoText = pawnIoNow;
+	            ConfigService.Save("SysPawnIoText");
+	          }
+	        } catch { }
+	        return;
+	      }
+	      Task.Run(() => {
         string mfr = null, model = null, bios = null, cpu = null, gpu = null;
         int adapterW = 0;
         string pn = null, board = null;
         int validation = 0, tj = 0, nvidiaTj = 0;
         float[] powerLimits = null;
         string kb = null;
-        string pawnIoText = "", cpuTemp = "", gpuTemp = "", irTemp = "", ambTemp = "", pchTemp = "", vrTemp = "";
+        string cpuTemp = "", gpuTemp = "", irTemp = "", ambTemp = "", pchTemp = "", vrTemp = "";
         try {
           using (var searcher = new ManagementObjectSearcher("SELECT Manufacturer, Model FROM Win32_ComputerSystem"))
           using (var col = searcher.Get()) {
@@ -931,13 +945,8 @@ namespace OmenSuperHub.Pages {
         try { nvidiaTj = GpuAppManager.GetGpuTemperatureTarget(); } catch { }
         try { powerLimits = GpuAppManager.GetGpuPowerLimits(); } catch { }
         int kbRaw = 0;
-        try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboardType())); } catch { }
-        try {
-          pawnIoText = LibreHardwareMonitor.PawnIo.PawnIo.IsInstalled
-              ? Strings.SysPawnInstalled + "v" + LibreHardwareMonitor.PawnIo.PawnIo.Version().ToString()
-              : Strings.SysPawnMissing;
-        } catch { pawnIoText = Strings.SysPawnMissing; }
-        try {
+try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboardType())); } catch { }
+	        try {
           cpuTemp = Strings.SysCPUTemp + ": " + (int)HardwareService.CPUTemp + " °C";
           gpuTemp = Strings.SysGPUTemp + ": " + (int)HardwareService.GPUTemp + " °C";
           irTemp = Strings.SysIRSensor + ": " + GetSensorTemperature(0) + " °C";
@@ -993,11 +1002,6 @@ namespace OmenSuperHub.Pages {
           if (ConfigService.SysKbRaw != _kbRaw) {
             ConfigService.SysKbRaw = _kbRaw;
             updates["SysKbRaw"] = _kbRaw;
-          }
-          SysPawnIoText.Text = pawnIoText;
-          if (ConfigService.SysPawnIoText != pawnIoText) {
-            ConfigService.SysPawnIoText = pawnIoText;
-            updates["SysPawnIoText"] = pawnIoText;
           }
           if (updates.Count > 0) ConfigService.BatchSave(updates);
           SysCpuTempText.Text = cpuTemp;

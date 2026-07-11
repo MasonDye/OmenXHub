@@ -112,6 +112,28 @@
         </ui:CardControl.Header>
       </ui:CardControl>
 
+      <!-- HWiNFO Read Source -->
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="DataHistogram24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="HWiNFOReadHeadingText" Text="{x:Static app:Strings.HWiNFOReadHeading}" Tag="HWiNFORead" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="HWiNFOReadDescText" Text="{x:Static app:Strings.HWiNFOReadDesc}" Tag="HWiNFOReadDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="HWiNFOReadStatusText" Text="" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" FontWeight="SemiBold"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="HWiNFOReadToggle" Grid.Column="1"
+                          Checked="HWiNFOReadToggle_Changed" Unchecked="HWiNFOReadToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
       <ui:CardControl>
         <ui:CardControl.Header>
           <Grid>

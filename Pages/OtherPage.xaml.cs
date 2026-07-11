@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using OmenSuperHub.Services;
 using OmenSuperHub.Utils;
+using System.Windows.Threading;
 
 namespace OmenSuperHub.Pages
 {
@@ -20,6 +21,11 @@ namespace OmenSuperHub.Pages
         {
             InitializeComponent();
                 Loaded += (s, e) => { _loading = true; LoadState(); _loading = false; };
+
+            // 定时刷新 HWiNFO 读取器状态（HWiNFO 可能随时启动/停止）
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            timer.Tick += (s, e) => UpdateHWiNFOReadStatus();
+            timer.Start();
         }
 
         void LoadState()
@@ -34,6 +40,8 @@ namespace OmenSuperHub.Pages
             CapsLockToggle.IsChecked = false;
             TouchpadLockToggle.IsChecked = false;
             HWiNFOToggle.IsChecked = ConfigService.HWiNFOEnabled;
+            HWiNFOReadToggle.IsChecked = ConfigService.HWiNFOReadEnabled;
+            UpdateHWiNFOReadStatus();
             HttpApiToggle.IsChecked = ConfigService.HttpApiEnabled;
             UpdateHttpApiStatus();
         }
@@ -105,6 +113,30 @@ namespace OmenSuperHub.Pages
             ConfigService.HWiNFOEnabled = HWiNFOToggle.IsChecked == true;
             ConfigService.Save("HWiNFOEnabled");
             HWiNFOService.StartStopIfNeeded();
+        }
+
+        void HWiNFOReadToggle_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_loading) return;
+            ConfigService.HWiNFOReadEnabled = HWiNFOReadToggle.IsChecked == true;
+            ConfigService.Save("HWiNFOReadEnabled");
+            HWiNFOReaderService.StartStopIfNeeded();
+            UpdateHWiNFOReadStatus();
+        }
+
+        void UpdateHWiNFOReadStatus()
+        {
+            if (HWiNFOReadStatusText == null) return;
+            if (ConfigService.HWiNFOReadEnabled && HWiNFOReaderService.IsRunning)
+            {
+                HWiNFOReadStatusText.Text = HWiNFOReaderService.StatusText;
+                HWiNFOReadStatusText.Foreground = System.Windows.Media.Brushes.LimeGreen;
+            }
+            else
+            {
+                HWiNFOReadStatusText.Text = HWiNFOReaderService.StatusText;
+                HWiNFOReadStatusText.Foreground = System.Windows.Media.Brushes.Gray;
+            }
         }
 
         void HttpApiToggle_Changed(object sender, RoutedEventArgs e)

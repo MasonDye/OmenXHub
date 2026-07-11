@@ -161,8 +161,8 @@ namespace OmenSuperHub.Pages {
       var toggle = new Wpf.Ui.Controls.ToggleSwitch {
         IsChecked = p.Enabled, VerticalAlignment = VerticalAlignment.Center
       };
-      toggle.Checked += (s, e) => { p.Enabled = true; AutomationService.Save(); };
-      toggle.Unchecked += (s, e) => { p.Enabled = false; AutomationService.Save(); };
+	      toggle.Checked += (s, e) => { p.Enabled = true; AutomationService.Save(); };
+	      toggle.Unchecked += (s, e) => { p.Enabled = false; AutomationService.Save(); };
       btnPanel.Children.Add(toggle);
 
       if (AutomationProcessor.CurrentPipelineName == p.Name && AutomationProcessor.IsExecuting) {

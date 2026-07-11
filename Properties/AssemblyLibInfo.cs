@@ -10,4 +10,6 @@
 
 using System;
 
-[assembly: CLSCompliant(true)]
+// ponytail: was CLSCompliant(true) — spurious CLS warnings on uint params, SymbolRegular base types.
+// This WPF desktop app has no external CLS-compliant consumers. Disable to remove ~22 warnings.
+[assembly: CLSCompliant(false)]

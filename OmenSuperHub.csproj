@@ -38,9 +38,14 @@
     <PackageReference Include="Fody" Version="6.5.5" PrivateAssets="all" />
     <PackageReference Include="Costura.Fody" Version="5.7.0" PrivateAssets="all" />
     <PackageReference Include="HidSharp" Version="2.1.0" />
+    <PackageReference Include="Microsoft.Windows.WDK.x64" Version="10.0.28000.1839" />
     <PackageReference Include="NvAPIWrapper.Net" Version="0.8.1.101" />
-    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="6.0.4" />
+    <!-- ponytail: removed unused Microsoft.Extensions.ObjectPool 6.0.4 -->
+
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+    <!-- ponytail: force System.Runtime.CompilerServices.Unsafe 6.0.0 to resolve MSB3277 version conflict
+         (HP.Omen.CoreUtilities references 4.0.4.1, System.Resources.Extensions references 6.0.0.0) -->
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
     <PackageReference Include="WPF-UI" Version="3.*" />
     <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.22621.2" />
   </ItemGroup>
@@ -170,6 +175,11 @@
   <!-- Exclude old packages/ folder from reference resolution -->
   <PropertyGroup>
     <ResolveAssemblyReferencesSilentlyPreferTargetFrameworkDirectory>true</ResolveAssemblyReferencesSilentlyPreferTargetFrameworkDirectory>
+    <!-- ponytail: WDK 10.0.28000.1839 wants SDK.CPP.x64 exactly 10.0.28000 but only 10.0.28000.1721 is available;
+         patch-level difference is harmless for build. Suppress the fall-back warning.
+         Also suppress MSB3245/MSB3246 — Mono.Posix only loaded via reflection on Linux path;
+         never executed on Windows-only OmenSuperHub build. -->
+    <NoWarn>$(NoWarn);NU1603;MSB3245;MSB3246</NoWarn>
   </PropertyGroup>
 
 </Project>

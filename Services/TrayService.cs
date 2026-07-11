@@ -300,7 +300,17 @@ namespace OmenSuperHub.Services {
       HardwareService.QueryHardware();
       if (HardwareService.MonitorFan)
         HardwareService.UpdateFanSpeed(GetFanLevel());
-      // Update tray icon tooltip (consolidated from TrayHelper)
+      UpdateTooltipText();
+      WriteDataLocalize();
+      CheckAutoFanProtect();
+      Views.FloatingWindow.UpdateAllText();
+      if (ConfigService.CustomIcon == "dynamic")
+        GenerateDynamicIcon((int)HardwareService.CPUTemp);
+      HandleDbUnlockCountdown();
+      HandleRestoreCountdown();
+    }
+
+    static void UpdateTooltipText() {
       try {
         var tip = "OMEN X Hub";
         if (HardwareService.MonitorCPU)
@@ -309,22 +319,29 @@ namespace OmenSuperHub.Services {
           tip += $" \u00b7 GPU {(int)HardwareService.GPUTemp}\u00b0C";
         _trayHelperRef?.SetTooltip(tip);
       } catch { }
+    }
 
-      if (ConfigService.DataLocalize == "on") {
-        try {
-          if (_dataLocalizeDir == null)
-            _dataLocalizeDir = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
-          System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "cpu_temp.txt"), $"{(int)HardwareService.CPUTemp}°C");
-          System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "gpu_temp.txt"), $"{(int)HardwareService.GPUTemp}°C");
-        } catch { }
-      }
+    static void WriteDataLocalize() {
+      if (ConfigService.DataLocalize != "on") return;
+      try {
+        if (_dataLocalizeDir == null)
+          _dataLocalizeDir = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
+        System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "cpu_temp.txt"), $"{(int)HardwareService.CPUTemp}°C");
+        System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "gpu_temp.txt"), $"{(int)HardwareService.GPUTemp}°C");
+      } catch { }
+    }
 
-      // Auto fan protect: if CPU >95°C and fans are fixed <75%, switch to auto+cool
-      // Save previous fan state so it can be restored on cooldown
-      // BUG FIX: Trigger requires toggle ON, but restore runs regardless so active sessions can unwind
+    // Auto fan protect: if CPU >95°C and fans are fixed <75%, switch to auto+cool
+    // Save previous fan state so it can be restored on cooldown
+    // ponytail: Don't persist to registry — protection is temporary, user's config stays intact
+    // BUG FIX: Trigger requires toggle ON, but restore runs regardless so active sessions can unwind
+    static void CheckAutoFanProtect() {
       bool fanProtectOn = ConfigService.AutoFanProtect == "on";
       if (fanProtectOn && HardwareService.MonitorFan && HardwareService.CPUTemp > 0) {
-        if (!_autoProtectActive && ConfigService.FanControl != "auto"
+        // ponytail: 对齐 OSH 参考实现 —— 只对固定 RPM/百分比模式触发自动保护,
+        // 不影响 smart/custom/silent/cool/auto 模式。
+        bool isFixedRpm = ConfigService.FanControl.EndsWith(" RPM") || ConfigService.FanControl.EndsWith("%");
+        if (!_autoProtectActive && isFixedRpm
             && HardwareService.CPUTemp > 95 && HardwareService.FanSpeedNow != null) {
           int maxSpeed = 0;
           foreach (int s in HardwareService.FanSpeedNow) { if (s > maxSpeed) maxSpeed = s; }
@@ -336,8 +353,7 @@ namespace OmenSuperHub.Services {
             fanControlTimer.Change(0, 1000);
             ConfigService.FanControl = "auto";
             ConfigService.FanTable = "cool";
-            ConfigService.Save("FanControl");
-            ConfigService.Save("FanTable");
+            // ponytail: no ConfigService.Save() — don't persist temp protection to registry
             FanService.LoadFanConfig("cool.txt");
             Logger.Info("Auto fan protect: CPU>95°C with fixed fan, switched to auto+cool");
             _trayHelperRef?.ShowBalloonTip("高温自动保护", "CPU温度>95°C，已强制切换为降温曲线", 3000);
@@ -349,8 +365,8 @@ namespace OmenSuperHub.Services {
         _autoProtectActive = false;
         if (!string.IsNullOrEmpty(_savedFanControl)) {
           ConfigService.FanControl = _savedFanControl;
-          ConfigService.FanTable = _savedFanTable;
-          ConfigService.Save("FanControl");
+	  ConfigService.FanTable = _savedFanTable;
+	  // ponytail: no ConfigService.Save() — protection state was never persisted, so nothing to restore
           // Re-apply the saved fan mode
           if (_savedFanControl == "silent" || _savedFanControl == "") {
             FanService.LoadFanConfig((_savedFanTable ?? "silent") + ".txt");
@@ -372,68 +388,63 @@ namespace OmenSuperHub.Services {
           Logger.Info("Auto fan protect: CPU cooled to <80°C (or protection disabled), restored fan config");
         }
       }
+    }
 
-      Views.FloatingWindow.UpdateAllText();
+    static void HandleDbUnlockCountdown() {
+      if (countDB <= 0) return;
+      countDB--;
+      if (countDB == 0) {
+        string deviceId = "\"ACPI\\\\NVDA0820\\\\NPCF\"";
+        string command = $"pnputil /disable-device {deviceId}";
+        ExecuteCommand(command);
 
-      if (ConfigService.CustomIcon == "dynamic")
-        GenerateDynamicIcon((int)HardwareService.CPUTemp);
-
-      // DB unlock logic
-      if (countDB > 0) {
-        countDB--;
-        if (countDB == 0) {
-          string deviceId = "\"ACPI\\\\NVDA0820\\\\NPCF\"";
-          string command = $"pnputil /disable-device {deviceId}";
-          ExecuteCommand(command);
-
-          float powerLimits = GPUPowerLimits();
-          if (HardwareService.PowerOnline && powerLimits >= 0) {
-            tryTimes++;
-            if (tryTimes == 2) {
-              tryTimes = 0;
-              if (HardwareService.CPUPower > CPULimitDB + 10)
-                DialogHelper.Warn("请在CPU低负载下解锁", "提示");
-              else
-                DialogHelper.Warn($"功耗异常，解锁失败，请重新尝试！\n当前显卡功耗限制为：{powerLimits:F2} W！", "提示");
-              command = $"pnputil /enable-device {deviceId}";
-              ExecuteCommand(command);
-              ConfigService.DBVersion = 2;
-              countDB = 0;
-              ConfigService.Save("DBVersion");
-              UpdateCheckedState("DBGroup", "普通版本");
-            } else {
-              SetFanMode((byte)0x31);
-              SetMaxGpuPower();
-              SetCpuPowerLimit((byte)CPULimitDB);
-              countDB = countDBInit;
-            }
-          } else {
+        float powerLimits = GPUPowerLimits();
+        if (HardwareService.PowerOnline && powerLimits >= 0) {
+          tryTimes++;
+          if (tryTimes == 2) {
             tryTimes = 0;
-            if (ConfigService.AutoStart == "off") {
-              DialogHelper.Warn("解锁成功！但当前未设置开机自启，解锁后若重启电脑会导致功耗异常，需要重新解锁！", "提示");
-            }
+            if (HardwareService.CPUPower > CPULimitDB + 10)
+              DialogHelper.Warn("请在CPU低负载下解锁", "提示");
+            else
+              DialogHelper.Warn($"功耗异常，解锁失败，请重新尝试！\n当前显卡功耗限制为：{powerLimits:F2} W！", "提示");
+            command = $"pnputil /enable-device {deviceId}";
+            ExecuteCommand(command);
+            ConfigService.DBVersion = 2;
+            countDB = 0;
+            ConfigService.Save("DBVersion");
+            UpdateCheckedState("DBGroup", "普通版本");
+          } else {
+            SetFanMode((byte)0x31);
+            SetMaxGpuPower();
+            SetCpuPowerLimit((byte)CPULimitDB);
+            countDB = countDBInit;
           }
-          if (tryTimes == 0) {
-            if (ConfigService.FanMode.Contains("performance")) {
-              SetFanMode((byte)0x31);
-            } else if (ConfigService.FanMode.Contains("default")) {
-              SetFanMode((byte)0x30);
-            }
-            RestoreCPUPower();
+        } else {
+          tryTimes = 0;
+          if (ConfigService.AutoStart == "off") {
+            DialogHelper.Warn("解锁成功！但当前未设置开机自启，解锁后若重启电脑会导致功耗异常，需要重新解锁！", "提示");
           }
-        } else if (countDB == countDBInit - 1) {
-          string deviceId = "\"ACPI\\\\NVDA0820\\\\NPCF\"";
-          string command = $"pnputil /enable-device {deviceId}";
-          ExecuteCommand(command);
         }
+        if (tryTimes == 0) {
+          if (ConfigService.FanMode.Contains("performance")) {
+            SetFanMode((byte)0x31);
+          } else if (ConfigService.FanMode.Contains("default")) {
+            SetFanMode((byte)0x30);
+          }
+          RestoreCPUPower();
+        }
+      } else if (countDB == countDBInit - 1) {
+        string deviceId = "\"ACPI\\\\NVDA0820\\\\NPCF\"";
+        string command = $"pnputil /enable-device {deviceId}";
+        ExecuteCommand(command);
       }
+    }
 
-      // Restore from hibernation
-      if (countRestore > 0) {
-        countRestore--;
-        if (countRestore == 0) {
-          RestoreConfig();
-        }
+    static void HandleRestoreCountdown() {
+      if (countRestore <= 0) return;
+      countRestore--;
+      if (countRestore == 0) {
+        RestoreConfig();
       }
     }
 
@@ -480,12 +491,14 @@ namespace OmenSuperHub.Services {
           fanSpeed1 = FanService.GetFanSpeedForTemperature(0) / 100;
           fanSpeed2 = ConfigService.FanSync ? fanSpeed1 : FanService.GetFanSpeedForTemperature(1) / 100;
         }
-        if (HardwareService.MonitorFan) {
-          if (fanSpeed1 != HardwareService.FanSpeedNow[0] || fanSpeed2 != HardwareService.FanSpeedNow[1]) {
-            SetFanLevel(fanSpeed1, fanSpeed2);
-          }
-        } else
-          SetFanLevel(fanSpeed1, fanSpeed2);
+        // ponytail: AMD EC 需要每 tick 保活，否则 ~3 秒后回退到 BIOS 风扇表。
+        // SetMaxFanSpeedOff(0x27) 通知 EC "保持在软件控制模式"，
+        // 后面 SetFanLevel(0x2E) 设目标转速。去掉 speed guard ——
+        // 无条件每 1s 写入一次，确保 AMD EC 不超时回退。
+        SetMaxFanSpeedOff();
+        SetFanLevel(fanSpeed1, fanSpeed2);
+        if (!HardwareService.MonitorFan)
+          HardwareService.UpdateFanSpeed(new[] { fanSpeed1, fanSpeed2, 0 });
       }, null, 100, 1000);
 
       // Optimise timer (replaces WinForms Timer)
@@ -502,6 +515,9 @@ namespace OmenSuperHub.Services {
     }
 
     static void OptimiseSchedule() {
+      // ponytail: AMD EC 可能在低温跨温度阈值时自动退出 performance 热策略，
+      // 每 30 秒重申一次，确保 EC 保持在软件风扇控制模式。
+      if (OmenHardware.HasAmdCpu()) try { SetFanMode((byte)0x31); } catch { }
       if (flagStart < 5) {
         flagStart++;
         if (ConfigService.FanControl.EndsWith("%")) {
@@ -535,16 +551,45 @@ namespace OmenSuperHub.Services {
       // registry values that predate the preset apply, overwriting preset values.
       // App.xaml.cs already called ConfigService.Load() + SwitchPreset before us.
       // Only reload on power-resume (countRestore path), where fresh values are needed.
-      if (countRestore == 0) {
-        // startup path — ConfigService already loaded and preset applied by App.xaml.cs
-      } else {
+      if (countRestore != 0)
         ConfigService.Load();
-      }
 
       // 重新应用预设，确保 ConfigService 字段反映预设值而非陈旧注册表独立值
-      if (!string.IsNullOrEmpty(ConfigService.Preset)) {
+      if (!string.IsNullOrEmpty(ConfigService.Preset))
         PresetManager.SwitchPreset(ConfigService.Preset);
-      }
+
+      RestoreFanSettings();
+      RestoreTempSensitivity();
+      RestoreCpuPower();
+      RestoreGpuPower();
+      RestoreGpuClock();
+      RestoreMaxFrameRate();
+      RestoreDbVersion();
+      RestoreDisplay();
+      RestorePowerPlan();
+      RestoreEcoQos();
+      RestoreGpuOverclock();
+      RestoreAutoStart();
+      RestoreIcon();
+      RestoreOmenKey();
+      RestoreMonitors();
+      RestoreFloatingBar();
+    }
+
+    static void RestoreFanSettings() {
+      // ponytail: built-in preset's ApplyPresetData overwrites FanControl to
+      // "auto", losing the user's saved manual RPM/%.  Re-read the raw registry
+      // value so that manual fan speed survives restart.
+      try {
+        using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\OmenXHub")) {
+          if (key != null) {
+            string saved = key.GetValue("FanControl", "") as string;
+            if (!string.IsNullOrEmpty(saved) &&
+                (saved.Contains(" RPM") || saved.EndsWith("%") || saved.Contains("max")))
+              ConfigService.FanControl = saved;
+          }
+        }
+      } catch { }
 
       // Fan table
       if (ConfigService.FanTable.Contains("cool")) {
@@ -604,44 +649,54 @@ namespace OmenSuperHub.Services {
         SetFanLevel(rpmValue / 100, rpmValue / 100);
         UpdateCheckedState("fanControlGroup", ConfigService.FanControl);
       }
+    }
 
-      // Temp sensitivity
+    static void RestoreTempSensitivity() {
       switch (ConfigService.TempSensitivity) {
         case "realtime": HardwareService.RespondSpeed = 1; UpdateCheckedState("tempSensitivityGroup", "实时"); break;
         case "high": HardwareService.RespondSpeed = 0.4f; UpdateCheckedState("tempSensitivityGroup", "高"); break;
         case "medium": HardwareService.RespondSpeed = 0.1f; UpdateCheckedState("tempSensitivityGroup", "中"); break;
         case "low": HardwareService.RespondSpeed = 0.04f; UpdateCheckedState("tempSensitivityGroup", "低"); break;
       }
+    }
 
-      // CPU power (WMI-based, no SDK dependency)
+    // ponytail: apply PL1 and PL2 independently from ConfigService.
+    static void RestoreCpuPower() {
       if (ConfigService.CpuPower == "null") {
         // nothing — keep current BIOS limit
       } else if (ConfigService.CpuPower == "max") {
-        SetCpuPowerLimit(254);
+        SetCpuPowerLimit(254, 254);
         UpdateCheckedState("cpuPowerGroup", "最大");
       } else if (ConfigService.CpuPower.Contains(" W")) {
-        int value = int.Parse(ConfigService.CpuPower.Replace(" W", "").Trim());
-        if (value >= 10 && value <= 254) {
-          SetCpuPowerLimit((byte)value);
-          UpdateCheckedState("cpuPowerGroup", ConfigService.CpuPower);
+        int pl1 = ConfigService.CpuPowerPl1;
+        int pl2 = ConfigService.CpuPowerPl2;
+        if (pl1 >= 10 && pl1 <= 254 && pl2 >= 10 && pl2 <= 254) {
+          SetCpuPowerLimit((byte)pl1, (byte)pl2);
+        } else {
+          int value = int.Parse(ConfigService.CpuPower.Replace(" W", "").Trim());
+          if (value >= 10 && value <= 254) SetCpuPowerLimit((byte)value, (byte)value);
         }
+        UpdateCheckedState("cpuPowerGroup", ConfigService.CpuPower);
       }
+    }
 
-      // GPU power
+    static void RestoreGpuPower() {
       switch (ConfigService.GpuPower) {
         case "max": SetMaxGpuPower(); UpdateCheckedState("gpuPowerGroup", "CTGP开+DB开"); break;
         case "med": SetMedGpuPower(); UpdateCheckedState("gpuPowerGroup", "CTGP开+DB关"); break;
         case "min": SetMinGpuPower(); UpdateCheckedState("gpuPowerGroup", "CTGP关+DB关"); break;
       }
+    }
 
-      // GPU clock
+    static void RestoreGpuClock() {
       if (SetGPUClockLimit(ConfigService.GpuClock)) {
         UpdateCheckedState("gpuClockGroup", ConfigService.GpuClock + " MHz");
       } else {
         UpdateCheckedState("gpuClockGroup", "还原");
       }
+    }
 
-      // Max frame rate
+    static void RestoreMaxFrameRate() {
       int[] frRates = { 0, 30, 60, 90, 120, 144, 165, 240, 300, 360, 480, 1000 };
       int frIdx = Array.IndexOf(frRates, ConfigService.MaxFrameRate);
       if (frIdx > 0 && frIdx < frRates.Length) {
@@ -649,8 +704,9 @@ namespace OmenSuperHub.Services {
       } else {
         HP.Omen.Core.Common.NVidiaApi.NvApiWrapper.NVAPI_SetMaxFrameRate(0);
       }
+    }
 
-      // DB version
+    static void RestoreDbVersion() {
       switch (ConfigService.DBVersion) {
         case 1:
           SetFanMode((byte)0x31);
@@ -666,11 +722,14 @@ namespace OmenSuperHub.Services {
           UpdateCheckedState("DBGroup", "普通版本");
           break;
       }
+    }
 
-      // Refresh rate — restore saved display refresh rate
+    static void RestoreDisplay() {
       if (ConfigService.RefreshRate > 0)
         ApplyRefreshRate(ConfigService.RefreshRate);
+    }
 
+    static void RestorePowerPlan() {
       // Power plan — restore saved Windows power plan
       if (!string.IsNullOrEmpty(ConfigService.PowerPlanGuid)) {
         try {
@@ -687,36 +746,41 @@ namespace OmenSuperHub.Services {
         else pmGuid = Guid.Empty;
         NativeMethods.PowerSetActiveOverlayScheme(pmGuid);
       } catch { }
+    }
 
-      // EcoQoS — restore saved state
+    static void RestoreEcoQos() {
       try {
         EcoQosService.SetEnabled(ConfigService.EcoQosEnabled);
         EcoQosService.SetThrottlePlugged(ConfigService.EcoQosThrottlePlugged);
       } catch { }
+    }
 
-      // GPU overclock — restore saved clock offsets
+    static void RestoreGpuOverclock() {
       if (ConfigService.GpuCoreOverclock > 0)
         System.Threading.ThreadPool.QueueUserWorkItem(_ => { try { GpuAppManager.SetCoreClockOffset(ConfigService.GpuCoreOverclock); } catch { } });
       if (ConfigService.GpuMemoryOverclock > 0)
         System.Threading.ThreadPool.QueueUserWorkItem(_ => { try { GpuAppManager.SetMemoryClockOffset(ConfigService.GpuMemoryOverclock); } catch { } });
+    }
 
-      // Auto start
+    static void RestoreAutoStart() {
       if (ConfigService.AutoStart == "on") {
         AutoStartEnable();
         UpdateCheckedState("autoStartGroup", "开启");
       } else {
         UpdateCheckedState("autoStartGroup", "关闭");
       }
+    }
 
-      // Icon
+    static void RestoreIcon() {
       ApplyIconStyle();
       switch (ConfigService.CustomIcon) {
         case "original": UpdateCheckedState("customIconGroup", "原版"); break;
         case "custom": UpdateCheckedState("customIconGroup", "自定义图标"); break;
         case "dynamic": UpdateCheckedState("customIconGroup", "动态图标"); break;
       }
+    }
 
-      // Omen key
+    static void RestoreOmenKey() {
       switch (ConfigService.OmenKey) {
         case "custom":
           if (checkFloatingTimer != null) checkFloatingTimer.IsEnabled = true;
@@ -748,7 +812,9 @@ namespace OmenSuperHub.Services {
           UpdateCheckedState("omenKeyGroup", "取消绑定");
           break;
       }
+    }
 
+    static void RestoreMonitors() {
       // CPU monitor
       HardwareService.MonitorCPU = ConfigService.MonitorCPU;
       HardwareService.LibreComputer.IsCpuEnabled = ConfigService.MonitorCPU;
@@ -771,8 +837,9 @@ namespace OmenSuperHub.Services {
       } else {
         UpdateCheckedState("monitorFanGroup", "关闭风扇监控");
       }
+    }
 
-      // Floating bar size
+    static void RestoreFloatingBar() {
       Views.FloatingWindow.UpdateAllText();
       switch (ConfigService.TextSize) {
         case 24: UpdateCheckedState("floatingBarSizeGroup", "24点"); break;
@@ -849,12 +916,17 @@ namespace OmenSuperHub.Services {
     // Helper methods (kept from original Program.cs)
     // ══════════════════════════════════════════════════════
     public static void RestoreCPUPower() {
+      // ponytail: apply PL1 and PL2 independently.
       if (ConfigService.CpuPower == "max") {
-        SetCpuPowerLimit(254);
+        SetCpuPowerLimit(254, 254);
       } else if (ConfigService.CpuPower.Contains(" W")) {
-        int value = int.Parse(ConfigService.CpuPower.Replace(" W", "").Trim());
-        if (value >= 10 && value <= 254) {
-          SetCpuPowerLimit((byte)value);
+        int pl1 = ConfigService.CpuPowerPl1;
+        int pl2 = ConfigService.CpuPowerPl2;
+        if (pl1 >= 10 && pl1 <= 254 && pl2 >= 10 && pl2 <= 254) {
+          SetCpuPowerLimit((byte)pl1, (byte)pl2);
+        } else {
+          int value = int.Parse(ConfigService.CpuPower.Replace(" W", "").Trim());
+          if (value >= 10 && value <= 254) SetCpuPowerLimit((byte)value, (byte)value);
         }
       }
     }

@@ -22,7 +22,7 @@ namespace OmenSuperHub.Utils {
 
     private readonly Action _bringToForeground;
     private System.Windows.Controls.ContextMenu _contextMenu;
-    private CancellationTokenSource _popupCts;
+    private CancellationTokenSource _popupCts = null;
     private TrayPopupWindow _popupWindow;
     private NativeTrayIcon _trayIcon;
 

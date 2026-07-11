@@ -199,8 +199,14 @@ namespace OmenSuperHub {
       return result != null;
     }
 
+    // ponytail: delegate to the 3-param overload — a single WMI write per call.
+    // The previous 3-step sequence (SetMaxFanSpeedOff → {0,0} → target) was a
+    // >6000 RPM runaway fix, but running it on every timer tick (once per second)
+    // overwhelms the EC on AMD laptops, causing the fan to stay at zero or
+    // stop responding.  Callers that need EC reset (manual mode switch, power
+    // resume) already call SetMaxFanSpeedOff() explicitly before SetFanLevel.
     public static void SetFanLevel(int fanSpeed1, int fanSpeed2) {
-      SendOmenBiosWmi(0x2E, new byte[] { (byte)fanSpeed1, (byte)fanSpeed2 }, 0);
+      SetFanLevel(fanSpeed1, fanSpeed2, false, false);
     }
 
     public static void SetFanLevel(int fanSpeed1, int fanSpeed2, bool fan3 = false, bool fanClean = false) {
@@ -507,14 +513,23 @@ namespace OmenSuperHub {
     }
 
     // ─── PawnIO Driver Status ─────────────────────────────────────────
-    public static bool IsPawnIOInstalled() {
-      var result = GpuAppManager.ExecuteCommand("sc query PawnIO");
-      return result.ExitCode == 0;
-    }
+    /// <summary>从 Win 卸载注册表读版本号（跟"应用和功能"列表同一个来源）</summary>
+    static string PawnIORegVersion => System.Convert.ToString(
+      Microsoft.Win32.Registry.GetValue(
+        @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO",
+        "DisplayVersion", ""), System.Globalization.CultureInfo.InvariantCulture);
 
+    /// <summary>PawnIO 是否已安装（注册表有记录算已安装，不管服务跑没跑）</summary>
+    public static bool IsPawnIOInstalled() => !string.IsNullOrEmpty(PawnIORegVersion);
+
+    /// <summary>返回真实版本号 + 服务状态，如 "v1.3.0 (RUNNING)" 或 "驱动未加载"</summary>
     public static string GetPawnIOState() {
+      string ver = PawnIORegVersion;
+      if (string.IsNullOrEmpty(ver)) return "驱动未安装";
+
       var result = GpuAppManager.ExecuteCommand("sc query PawnIO");
-      if (result.ExitCode != 0) return "Not found";
+      if (result.ExitCode != 0) return "v" + ver + " (驱动未加载)";
+
       var lines = result.Output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
       foreach (var line in lines) {
         if (line.IndexOf("STATE", StringComparison.OrdinalIgnoreCase) >= 0) {
@@ -523,11 +538,11 @@ namespace OmenSuperHub {
             var statePart = parts[1].Trim();
             var stateWords = statePart.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             if (stateWords.Length > 0)
-              return stateWords[stateWords.Length - 1];
+              return "v" + ver + " (" + stateWords[stateWords.Length - 1] + ")";
           }
         }
       }
-      return "Unknown";
+      return "v" + ver + " (Unknown)";
     }
 
     // ─── Keyboard Backlight (Basic WMI) ───────────────────────────────
@@ -789,7 +804,9 @@ namespace OmenSuperHub {
           foreach (var obj in searcher.Get()) {
             string manufacturer = obj["Manufacturer"]?.ToString() ?? "";
             string name = obj["Name"]?.ToString() ?? "";
-            if (manufacturer.IndexOf("Advanced Micro Devices", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            // WMI Manufacturer 对于 AMD CPU 返回 "AuthenticAMD"
+            if (manufacturer.IndexOf("authenticamd", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                manufacturer.IndexOf("amd", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 name.IndexOf("AMD", StringComparison.OrdinalIgnoreCase) >= 0) {
               _cachedHasAmdCpu = true;
               return true;
@@ -1040,7 +1057,10 @@ namespace OmenSuperHub {
 
     // ─── Convenience Mode Setters ─────────────────────────────────────
     public static void SetUnleashMode() {
-      SendOmenBiosWmi(0x1A, new byte[] { 0xFF, 0x64 }, 0);
+      // ponytail: 0x64(100) 是错误的 EC 性能模式值, PerformanceMode.L7=0x31(49)
+      // 才是正确的 "unleash/performance" 模式。错误值导致 EC 不遵守软件风扇控制,
+      // 在 AMD 上表现为低温停转。对齐 OSH 参考实现。
+      SetFanMode(PerformanceMode.L7);
     }
 
     public static void SetBalanceMode() {

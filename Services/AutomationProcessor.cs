@@ -52,13 +52,13 @@ namespace OmenSuperHub.Services {
       if (_running) return;
       _running = true;
 
-      SubscribeProcessEvents();
-      SubscribePowerEvents();
-      SubscribeSessionEvents();
-      SubscribeBatteryEvents();
-      SubscribeDisplayEvents();
-      SubscribeLidEvents();
-      StartScheduleTimer();
+	      SubscribeProcessEvents();
+	      SubscribePowerEvents();
+	      SubscribeSessionEvents();
+	      SubscribeBatteryEvents();
+	      SubscribeDisplayEvents();
+	      SubscribeLidEvents();
+	      StartScheduleTimer();
       StartTempPollTimer();
 
       // Init hotkey message window
@@ -76,8 +76,9 @@ namespace OmenSuperHub.Services {
       if (_processStopWatcher != null) { _processStopWatcher.Stop(); _processStopWatcher.Dispose(); _processStopWatcher = null; }
       if (_scheduleTimer != null) { _scheduleTimer.Dispose(); _scheduleTimer = null; }
       if (_tempPollTimer != null) { _tempPollTimer.Dispose(); _tempPollTimer = null; }
-      SystemEvents.PowerModeChanged -= OnPowerModeChanged;
-      if (_sessionSwitchHandler != null) { SystemEvents.SessionSwitch -= _sessionSwitchHandler; _sessionSwitchHandler = null; }
+      if (_batteryPollTimer != null) { _batteryPollTimer.Dispose(); _batteryPollTimer = null; }
+	      SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+	      if (_sessionSwitchHandler != null) { SystemEvents.SessionSwitch -= _sessionSwitchHandler; _sessionSwitchHandler = null; }
       if (_displaySettingsHandler != null) { SystemEvents.DisplaySettingsChanged -= _displaySettingsHandler; _displaySettingsHandler = null; }
       _tempTriggerFired.Clear();
       UnregisterAllHotkeys();
@@ -98,7 +99,7 @@ namespace OmenSuperHub.Services {
           foreach (var step in pipeline.Steps) {
             if (step.DelayMs > 0)
               await System.Threading.Tasks.Task.Delay(step.DelayMs);
-            ExecuteStep(step);
+            await ExecuteStep(step);
           }
         } catch (Exception ex) {
           Logger.Error("AutomationProcessor.ExecutePipeline error: " + ex.Message);
@@ -109,7 +110,7 @@ namespace OmenSuperHub.Services {
       });
     }
 
-    private static void ExecuteStep(AutomationStep step) {
+    private static async System.Threading.Tasks.Task ExecuteStep(AutomationStep step) {
       if (step == null || string.IsNullOrEmpty(step.Type)) return;
       switch (step.Type) {
         case "SetPreset":
@@ -128,92 +129,20 @@ namespace OmenSuperHub.Services {
           }
           break;
         case "SetPowerMode":
-          if (int.TryParse(step.Value, out int pm)) {
-            Guid guid;
-            if (pm == 0) guid = NativeMethods_Power.BEST_POWER_EFFICIENCY;
-            else if (pm == 2) guid = NativeMethods_Power.BEST_PERFORMANCE;
-            else guid = Guid.Empty;
-            NativeMethods_Power.PowerSetActiveOverlayScheme(guid);
-          }
+          ExecuteSetPowerMode(step.Value);
           break;
         case "SetMaxFrameRate":
           if (int.TryParse(step.Value, out int fps) && OmenHardware.HasNvidiaGpu())
             HP.Omen.Core.Common.NVidiaApi.NvApiWrapper.NVAPI_SetMaxFrameRate(fps);
           break;
         case "SetCpuPower":
-          if (step.Value == "max") {
-            OmenHardware.SetCpuPowerLimit(254);
-            Views.OsdWindow.ShowCpuPowerOsd("max");
-          } else if (int.TryParse(step.Value, out int cpuVal) && cpuVal >= 10 && cpuVal <= 254) {
-            OmenHardware.SetCpuPowerLimit((byte)cpuVal);
-            Views.OsdWindow.ShowCpuPowerOsd(cpuVal + " W");
-          }
+          ExecuteSetCpuPower(step.Value);
           break;
         case "SetFanMode":
-          if (step.Value == "silent") {
-            ConfigService.FanTable = "silent";
-            ConfigService.FanControl = "";
-            FanService.LoadFanConfig("silent.txt");
-            SetMaxFanSpeedOff();
-            TrayService.fanControlTimer.Change(0, 1000);
-            Views.OsdWindow.ShowFanModeOsd("silent");
-          } else if (step.Value == "cool") {
-            ConfigService.FanTable = "cool";
-            ConfigService.FanControl = "";
-            FanService.LoadFanConfig("cool.txt");
-            SetMaxFanSpeedOff();
-            TrayService.fanControlTimer.Change(0, 1000);
-            Views.OsdWindow.ShowFanModeOsd("cool");
-          } else if (step.Value == "smart") {
-            ConfigService.FanControl = "smart";
-            FanService.LoadFanConfig(ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt");
-            FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
-            SetMaxFanSpeedOff();
-            TrayService.fanControlTimer.Change(0, 1000);
-            Views.OsdWindow.ShowFanModeOsd("smart");
-          } else if (step.Value == "custom") {
-            ConfigService.FanControl = "smart";
-            FanService.LoadFanConfig(ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt");
-            FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
-            SetMaxFanSpeedOff();
-            TrayService.fanControlTimer.Change(0, 1000);
-            Views.OsdWindow.ShowFanModeOsd("smart");
-          } else if (step.Value != null && step.Value.StartsWith("json:")) {
-            string json = step.Value.Substring(5);
-            var result = FanService.ImportCurveFromJson(json);
-            if (result.HasValue) {
-              ConfigService.FanControl = "smart";
-              FanService.ApplyCustomCurve(result.Value.points);
-              SetMaxFanSpeedOff();
-              TrayService.fanControlTimer.Change(0, 1000);
-              Views.OsdWindow.ShowFanModeOsd("custom");
-            }
-          } else if (step.Value != null && step.Value.StartsWith("manual")) {
-            int pct = -1;
-            if (step.Value.Contains(":")) {
-              string pctStr = step.Value.Split(':')[1].Trim().TrimEnd('%');
-              int.TryParse(pctStr, out pct);
-            }
-            if (pct >= 0 && pct <= 100) {
-              ConfigService.FanControl = pct + "%";
-              SetMaxFanSpeedOff();
-              OmenHardware.SetFanLevel(pct, pct);
-              Views.OsdWindow.ShowFanModeOsd(pct + "%");
-              TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            }
-          }
+          ExecuteSetFanMode(step.Value);
           break;
         case "RunProgram":
-          if (!string.IsNullOrEmpty(step.Value)) {
-            try {
-              Process.Start(new ProcessStartInfo {
-                FileName = step.Value,
-                UseShellExecute = true
-              })?.Dispose();
-            } catch (Exception ex) {
-              Logger.Error("Automation RunProgram failed: " + ex.Message);
-            }
-          }
+          StartShellProcess(step.Value, "Automation RunProgram");
           break;
         case "Notification":
           if (!string.IsNullOrEmpty(step.Value))
@@ -226,13 +155,7 @@ namespace OmenSuperHub.Services {
           }
           break;
         case "SetAcLoadLine":
-          if (int.TryParse(step.Value, out int acllVal) && acllVal > 0) {
-            int level = (180 - acllVal) / 10; // ponytail: mOhm→level, display formula is 180-10*level
-            if (level >= 1 && level <= 3) {
-              ConfigService.AcLoadLine = level;
-              OmenHardware.SetLoadLine(level);
-            }
-          }
+          ExecuteSetAcLoadLine(step.Value);
           break;
         case "SetTpp":
           if (int.TryParse(step.Value, out int tppVal) && tppVal > 0 && tppVal <= 255) {
@@ -241,22 +164,7 @@ namespace OmenSuperHub.Services {
           }
           break;
         case "SetGpuPower":
-          if (step.Value == "max") {
-            ConfigService.GpuPower = "max";
-            ConfigService.TgpEnabled = true; ConfigService.PpabEnabled = true; ConfigService.DState = 1;
-            OmenHardware.SetGpuPowerState(true, true, 1);
-            Views.OsdWindow.ShowTextOsd("GPU: CTGP开+DB开");
-          } else if (step.Value == "med") {
-            ConfigService.GpuPower = "med";
-            ConfigService.TgpEnabled = true; ConfigService.PpabEnabled = false; ConfigService.DState = 1;
-            OmenHardware.SetGpuPowerState(true, false, 1);
-            Views.OsdWindow.ShowTextOsd("GPU: CTGP开+DB关");
-          } else if (step.Value == "min") {
-            ConfigService.GpuPower = "min";
-            ConfigService.TgpEnabled = false; ConfigService.PpabEnabled = false; ConfigService.DState = 1;
-            OmenHardware.SetGpuPowerState(false, false, 1);
-            Views.OsdWindow.ShowTextOsd("GPU: CTGP关+DB关");
-          }
+          ExecuteSetGpuPower(step.Value);
           break;
         case "SetTempSensitivity":
           if (!string.IsNullOrEmpty(step.Value)) {
@@ -270,15 +178,7 @@ namespace OmenSuperHub.Services {
           }
           break;
         case "SetFanCurve":
-          if (!string.IsNullOrEmpty(step.Value)) {
-            var curve = FanService.LoadPresetCurve(step.Value, false);
-            if (curve != null && curve.Count > 0) {
-              ConfigService.FanControl = "smart";
-              FanService.ApplyCustomCurve(curve);
-              SetMaxFanSpeedOff();
-              TrayService.fanControlTimer.Change(0, 1000);
-            }
-          }
+          ExecuteSetFanCurve(step.Value);
           break;
         case "SetGPUHybridMode":
           if (!string.IsNullOrEmpty(step.Value))
@@ -294,21 +194,14 @@ namespace OmenSuperHub.Services {
           break;
         case "SetWiFi":
           if (!string.IsNullOrEmpty(step.Value))
-            AutomationActions.SetWiFi(step.Value == "on");
+            await AutomationActions.SetWiFi(step.Value == "on");
           break;
         case "SetBluetooth":
           if (!string.IsNullOrEmpty(step.Value))
-            AutomationActions.SetBluetooth(step.Value == "on");
+            await AutomationActions.SetBluetooth(step.Value == "on");
           break;
         case "PlaySound":
-          // ponytail: inline — same as RunProgram, user confirmed RunProgram works
-          if (!string.IsNullOrEmpty(step.Value)) {
-            try {
-              Process.Start(new ProcessStartInfo { FileName = step.Value, UseShellExecute = true })?.Dispose();
-            } catch (Exception ex) {
-              Logger.Error("PlaySound failed: " + ex.Message);
-            }
-          }
+          StartShellProcess(step.Value, "PlaySound");
           break;
         case "RunMacro":
           if (!string.IsNullOrEmpty(step.Value)) {
@@ -316,6 +209,115 @@ namespace OmenSuperHub.Services {
             if (macro != null) MacroController.PlayMacro(macro);
           }
           break;
+      }
+    }
+
+    static void ExecuteSetPowerMode(string value) {
+      if (!int.TryParse(value, out int pm)) return;
+      Guid guid;
+      if (pm == 0) guid = NativeMethods_Power.BEST_POWER_EFFICIENCY;
+      else if (pm == 2) guid = NativeMethods_Power.BEST_PERFORMANCE;
+      else guid = Guid.Empty;
+      NativeMethods_Power.PowerSetActiveOverlayScheme(guid);
+    }
+
+    static void ExecuteSetCpuPower(string value) {
+      if (value == "max") {
+        OmenHardware.SetCpuPowerLimit(254);
+        Views.OsdWindow.ShowCpuPowerOsd("max");
+      } else if (int.TryParse(value, out int cpuVal) && cpuVal >= 10 && cpuVal <= 254) {
+        OmenHardware.SetCpuPowerLimit((byte)cpuVal);
+        Views.OsdWindow.ShowCpuPowerOsd(cpuVal + " W");
+      }
+    }
+
+    static void ExecuteSetFanMode(string value) {
+      if (value == "silent" || value == "cool") {
+        ConfigService.FanTable = value;
+        ConfigService.FanControl = "";
+        FanService.LoadFanConfig(value + ".txt");
+        SetMaxFanSpeedOff();
+        TrayService.fanControlTimer.Change(0, 1000);
+        Views.OsdWindow.ShowFanModeOsd(value);
+      } else if (value == "smart" || value == "custom") {
+        ConfigService.FanControl = "smart";
+        FanService.LoadFanConfig(ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt");
+        FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
+        SetMaxFanSpeedOff();
+        TrayService.fanControlTimer.Change(0, 1000);
+        Views.OsdWindow.ShowFanModeOsd("smart");
+      } else if (value != null && value.StartsWith("json:")) {
+        string json = value.Substring(5);
+        var result = FanService.ImportCurveFromJson(json);
+        if (result.HasValue) {
+          ConfigService.FanControl = "smart";
+          FanService.ApplyCustomCurve(result.Value.points);
+          SetMaxFanSpeedOff();
+          TrayService.fanControlTimer.Change(0, 1000);
+          Views.OsdWindow.ShowFanModeOsd("custom");
+        }
+      } else if (value != null && value.StartsWith("manual")) {
+        int pct = -1;
+        if (value.Contains(":")) {
+          string pctStr = value.Split(':')[1].Trim().TrimEnd('%');
+          int.TryParse(pctStr, out pct);
+        }
+        if (pct >= 0 && pct <= 100) {
+          ConfigService.FanControl = pct + "%";
+          SetMaxFanSpeedOff();
+          OmenHardware.SetFanLevel(pct, pct);
+          Views.OsdWindow.ShowFanModeOsd(pct + "%");
+          TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
+        }
+      }
+    }
+
+    static void ExecuteSetAcLoadLine(string value) {
+      if (!int.TryParse(value, out int acllVal) || acllVal <= 0) return;
+      int level = (180 - acllVal) / 10; // ponytail: mOhm→level, display formula is 180-10*level
+      if (level >= 1 && level <= 3) {
+        ConfigService.AcLoadLine = level;
+        OmenHardware.SetLoadLine(level);
+      }
+    }
+
+    static void ExecuteSetGpuPower(string value) {
+      if (value == "max") {
+        ConfigService.GpuPower = "max";
+        ConfigService.TgpEnabled = true; ConfigService.PpabEnabled = true; ConfigService.DState = 1;
+        OmenHardware.SetGpuPowerState(true, true, 1);
+        Views.OsdWindow.ShowTextOsd("GPU: CTGP开+DB开");
+      } else if (value == "med") {
+        ConfigService.GpuPower = "med";
+        ConfigService.TgpEnabled = true; ConfigService.PpabEnabled = false; ConfigService.DState = 1;
+        OmenHardware.SetGpuPowerState(true, false, 1);
+        Views.OsdWindow.ShowTextOsd("GPU: CTGP开+DB关");
+      } else if (value == "min") {
+        ConfigService.GpuPower = "min";
+        ConfigService.TgpEnabled = false; ConfigService.PpabEnabled = false; ConfigService.DState = 1;
+        OmenHardware.SetGpuPowerState(false, false, 1);
+        Views.OsdWindow.ShowTextOsd("GPU: CTGP关+DB关");
+      }
+    }
+
+    static void ExecuteSetFanCurve(string value) {
+      if (string.IsNullOrEmpty(value)) return;
+      var curve = FanService.LoadPresetCurve(value, false);
+      if (curve != null && curve.Count > 0) {
+        ConfigService.FanControl = "smart";
+        FanService.ApplyCustomCurve(curve);
+        SetMaxFanSpeedOff();
+        TrayService.fanControlTimer.Change(0, 1000);
+      }
+    }
+
+    // ponytail: inline — shared by RunProgram and PlaySound
+    static void StartShellProcess(string path, string errorTag) {
+      if (string.IsNullOrEmpty(path)) return;
+      try {
+        Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true })?.Dispose();
+      } catch (Exception ex) {
+        Logger.Error(errorTag + " failed: " + ex.Message);
       }
     }
 
@@ -515,14 +517,14 @@ namespace OmenSuperHub.Services {
       SystemEvents.PowerModeChanged += OnPowerModeChanged;
     }
 
-    private static void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e) {
-      if (e.Mode == PowerModes.Resume) {
-        FireTrigger("Resume", "");
-      } else if (e.Mode == PowerModes.StatusChange) {
-        bool online = System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
-        FireTrigger(online ? "PowerAC" : "PowerDC", "");
-      }
-    }
+	    private static void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e) {
+	      if (e.Mode == PowerModes.Resume) {
+	        FireTrigger("Resume", "");
+	      } else if (e.Mode == PowerModes.StatusChange) {
+	        bool online = System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
+	        FireTrigger(online ? "PowerAC" : "PowerDC", "");
+	      }
+	    }
 
     private static void SubscribeSessionEvents() {
       _sessionSwitchHandler = (s, e) => {
@@ -535,6 +537,36 @@ namespace OmenSuperHub.Services {
     }
 
     private static void SubscribeBatteryEvents() {
+      try {
+        _batteryPollTimer = new Timer(PollBatteryTrigger, null, 5000, 5000);
+      } catch { }
+    }
+
+    private static Timer _batteryPollTimer;
+    private static void PollBatteryTrigger(object state) {
+      if (!_running) return;
+      try {
+        int pct = (int)(System.Windows.Forms.SystemInformation.PowerStatus.BatteryLifePercent * 100);
+        if (pct == _lastBatteryPercent) return;
+        _lastBatteryPercent = pct;
+        foreach (var p in AutomationService.GetEnabledPipelines()) {
+          p.EnsureTriggers();
+          foreach (var t in p.Triggers) {
+            if (!t.Enabled) continue;
+            if ((t.Type == "BatteryAbove" && int.TryParse(t.Value, out int above) && pct >= above) ||
+                (t.Type == "BatteryBelow" && int.TryParse(t.Value, out int below) && pct <= below)) {
+              string latchKey = (p.Name ?? "") + ":" + t.Type;
+              if (!_tempTriggerFired.Contains(latchKey)) {
+                _tempTriggerFired.Add(latchKey);
+                ExecutePipeline(p);
+              }
+            } else {
+              string latchKey = (p.Name ?? "") + ":" + t.Type;
+              _tempTriggerFired.Remove(latchKey);
+            }
+          }
+        }
+      } catch { }
     }
 
     private static void SubscribeDisplayEvents() {
@@ -604,43 +636,17 @@ namespace OmenSuperHub.Services {
       } catch { }
     }
 
-    private static void StartScheduleTimer() {
-      RescheduleTimer();
-    }
+	internal static void PollSchedule(object state) {
+	      if (!_running) return;
+	      try {
+	        string now = DateTime.Now.ToString("HH:mm");
+	        FireTrigger("TimeSchedule", now);
+	      } catch { }
+	    }
 
-    static void RescheduleTimer() {
-      if (_scheduleTimer != null) { _scheduleTimer.Dispose(); _scheduleTimer = null; }
-
-      long minTicks = long.MaxValue;
-      long nowTicks = DateTime.Now.Ticks;
-      foreach (var p in AutomationService.GetEnabledPipelines()) {
-        p.EnsureTriggers();
-        foreach (var t in p.Triggers) {
-          if (!t.Enabled || t.Type != "TimeSchedule" || string.IsNullOrEmpty(t.Value)) continue;
-          if (TimeSpan.TryParse(t.Value, out var ts)) {
-            long eventTicks = nowTicks - nowTicks % TimeSpan.TicksPerDay + ts.Ticks;
-            if (eventTicks <= nowTicks) eventTicks += TimeSpan.TicksPerDay;
-            long diff = (eventTicks - nowTicks) / TimeSpan.TicksPerMillisecond;
-            if (diff > 0 && diff < minTicks) minTicks = diff;
-          }
-        }
-      }
-      int nextMs;
-      if (minTicks < long.MaxValue)
-        nextMs = (int)Math.Min(minTicks, 86400000);
-      else
-        return;
-      _scheduleTimer = new Timer(CheckSchedule, null, nextMs, Timeout.Infinite);
-    }
-
-    private static void CheckSchedule(object state) {
-      try {
-        string now = DateTime.Now.ToString("HH:mm");
-        FireTrigger("TimeSchedule", now);
-      } finally {
-        RescheduleTimer();
-      }
-    }
+	    private static void StartScheduleTimer() {
+	      _scheduleTimer = new Timer(PollSchedule, null, 0, 15000);
+	    }
 
     // ── Native methods for display ──
 
@@ -740,7 +746,7 @@ namespace OmenSuperHub.Services {
         }
       }
 
-      internal static async void SetWiFi(bool enable) {
+      internal static async System.Threading.Tasks.Task SetWiFi(bool enable) {
         try {
           var access = await Radio.RequestAccessAsync();
           if (access != RadioAccessStatus.Allowed) return;
@@ -754,7 +760,7 @@ namespace OmenSuperHub.Services {
         }
       }
 
-      internal static async void SetBluetooth(bool enable) {
+      internal static async System.Threading.Tasks.Task SetBluetooth(bool enable) {
         try {
           var access = await Radio.RequestAccessAsync();
           if (access != RadioAccessStatus.Allowed) return;

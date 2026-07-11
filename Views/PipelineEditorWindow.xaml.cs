@@ -147,10 +147,10 @@ namespace OmenSuperHub.Views {
           sp.Children.Add(hr);
           sp.Children.Add(new TextBlock { Text = ":", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) });
           var mn = new ComboBox { Height = 32, FontSize = 13, Width = 70 };
-          for (int i = 0; i < 60; i += 5) mn.Items.Add(i.ToString("D2"));
+          for (int i = 0; i < 60; i++) mn.Items.Add(i.ToString("D2"));
           mn.SelectedIndex = 0;
           sp.Children.Add(mn);
-          getValue = () => hr.Text + ":" + mn.Text;
+          getValue = () => hr.SelectedItem?.ToString() + ":" + mn.SelectedItem?.ToString();
           return sp;
         }
         case "Hotkey": {
@@ -197,6 +197,22 @@ namespace OmenSuperHub.Views {
           incBtn.Click += (s, a) => { if (int.TryParse(numBox.Text, out int v)) numBox.Text = (v + 1).ToString(); };
           sp.Children.Add(numBox); sp.Children.Add(decBtn); sp.Children.Add(incBtn);
           getValue = () => numBox.Text;
+          return sp;
+        }
+        case "ProcessStart":
+        case "ProcessStop": {
+          var sp = new StackPanel { Orientation = Orientation.Horizontal };
+          var tb = new TextBox { Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 160, Text = "notepad.exe" };
+          var browseBtn = new Button { Content = "浏览...", Height = 32, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0) };
+          browseBtn.Click += (s, a) => {
+            var ofd = new Microsoft.Win32.OpenFileDialog { Filter = "可执行文件|*.exe|所有文件|*.*", Title = "选择程序" };
+            if (ofd.ShowDialog() == true) {
+              tb.Text = System.IO.Path.GetFileName(ofd.FileName);
+            }
+          };
+          sp.Children.Add(tb);
+          sp.Children.Add(browseBtn);
+          getValue = () => tb.Text;
           return sp;
         }
         default:
@@ -823,14 +839,14 @@ namespace OmenSuperHub.Views {
 
     // ── Save / Cancel ──
 
-    void SaveBtn_Click(object sender, RoutedEventArgs e) {
-      _pipeline.Name = NameBox.Text;
-      _pipeline.EnsureTriggers();
-      if (_isNew) AutomationService.AddPipeline(_pipeline);
-      else AutomationService.Save();
-      DialogResult = true;
-      Close();
-    }
+	    void SaveBtn_Click(object sender, RoutedEventArgs e) {
+	      _pipeline.Name = NameBox.Text;
+	      _pipeline.EnsureTriggers();
+	      if (_isNew) AutomationService.AddPipeline(_pipeline);
+	      else AutomationService.UpdatePipeline(_pipeline);
+	      DialogResult = true;
+	      Close();
+	    }
 
     void CancelBtn_Click(object sender, RoutedEventArgs e) {
       DialogResult = false;

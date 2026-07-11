@@ -11,7 +11,7 @@ using UiSymbolRegular = Wpf.Ui.Controls.SymbolRegular;
 
 namespace OmenSuperHub.Utils {
   internal class DialogResultWindow : FluentWindow {
-    public int Result;
+    // ponytail: `Result` field was never read or written — removed to silence CS0649
     public DialogResultWindow() {
       WindowStartupLocation = WindowStartupLocation.CenterOwner;
       ShowInTaskbar = false;

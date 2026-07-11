@@ -116,6 +116,7 @@ namespace OmenSuperHub.Services {
     public static bool BatteryChargeLimit = false;
     public static bool BatteryWmiUnsupported = false;
     public static bool HWiNFOEnabled = false;
+    public static bool HWiNFOReadEnabled = false;    // 从 HWiNFO64 读取传感器数据
     public static bool HttpApiEnabled = false;
     public static bool AutomationEnabled = true;
     public static bool MacroEnabled = true;
@@ -359,6 +360,7 @@ namespace OmenSuperHub.Services {
             case "BatteryChargeLimit": key.SetValue("BatteryChargeLimit", BatteryChargeLimit); break;
             case "BatteryWmiUnsupported": key.SetValue("BatteryWmiUnsupported", BatteryWmiUnsupported); break;
             case "HWiNFOEnabled": key.SetValue("HWiNFOEnabled", HWiNFOEnabled); break;
+            case "HWiNFOReadEnabled": key.SetValue("HWiNFOReadEnabled", HWiNFOReadEnabled); break;
             case "HttpApiEnabled": key.SetValue("HttpApiEnabled", HttpApiEnabled); break;
             case "AutomationEnabled": key.SetValue("AutomationEnabled", AutomationEnabled); break;
             case "MacroEnabled": key.SetValue("MacroEnabled", MacroEnabled); break;
@@ -441,6 +443,8 @@ namespace OmenSuperHub.Services {
             case "SmartFanEmaAlpha": key.SetValue("SmartFanEmaAlpha", SmartFanEmaAlpha); break;
             case "SmartFanStepDownRate": key.SetValue("SmartFanStepDownRate", SmartFanStepDownRate); break;
             case "SmartFanHysteresis": key.SetValue("SmartFanHysteresis", SmartFanHysteresis); break;
+            case "ShowOsd": key.SetValue("ShowOsd", ShowOsd); break;
+            case "ShowLockKeys": key.SetValue("ShowLockKeys", ShowLockKeys); break;
             case "EcoQosWhitelist": key.SetValue("EcoQosWhitelist", EcoQosWhitelist); break;
             case "EcoQosBlacklist": key.SetValue("EcoQosBlacklist", EcoQosBlacklist); break;
             case "CustomLogoPath": key.SetValue("CustomLogoPath", CustomLogoPath); break;
@@ -471,17 +475,20 @@ namespace OmenSuperHub.Services {
           FanTable = "cool"; FanControl = "auto";
           CpuPower = "max"; TgpEnabled = true; PpabEnabled = true;
           PowerMode = 1; // 平衡
-          CpuPowerPl1 = 254; CpuPowerPl2 = 254; GpuClock = 0; Tpp = 255; break;
+          CpuPowerPl1 = 254; CpuPowerPl2 = 254; GpuClock = 0; Tpp = 255;
+          AmdCpuPpt = 254; AmdCpuTdc = 200; AmdCpuEdc = 300; AmdCpuTctl = 95; break;
         case "GpuPriority":
           FanTable = "cool"; FanControl = "auto";
           CpuPower = "45 W"; TgpEnabled = true; PpabEnabled = true;
           PowerMode = 1; // 平衡
-          CpuPowerPl1 = 45; CpuPowerPl2 = 45; GpuClock = 0; Tpp = 255; break;
+          CpuPowerPl1 = 45; CpuPowerPl2 = 45; GpuClock = 0; Tpp = 255;
+          AmdCpuPpt = 45; AmdCpuTdc = 80; AmdCpuEdc = 160; AmdCpuTctl = 95; break;
         case "LightUse":
           FanTable = "silent"; FanControl = "auto";
           CpuPower = "25 W"; TgpEnabled = false; PpabEnabled = false;
           PowerMode = 0; // 最佳能效
-          CpuPowerPl1 = 25; CpuPowerPl2 = 25; GpuClock = 0; Tpp = 0; break;
+          CpuPowerPl1 = 25; CpuPowerPl2 = 25; GpuClock = 0; Tpp = 0;
+          AmdCpuPpt = 30; AmdCpuTdc = 40; AmdCpuEdc = 80; AmdCpuTctl = 85; break;
       }
     }
 
@@ -498,6 +505,10 @@ namespace OmenSuperHub.Services {
           DState = (int)key.GetValue("DState", DState);
           GpuClock = (int)key.GetValue("GpuClock", GpuClock);
           Tpp = (int)key.GetValue("Tpp", Tpp);
+          AmdCpuPpt = (int)key.GetValue("AmdCpuPpt", AmdCpuPpt);
+          AmdCpuTdc = (int)key.GetValue("AmdCpuTdc", AmdCpuTdc);
+          AmdCpuEdc = (int)key.GetValue("AmdCpuEdc", AmdCpuEdc);
+          AmdCpuTctl = (int)key.GetValue("AmdCpuTctl", AmdCpuTctl);
           DisplayMode = (string)key.GetValue("DisplayMode", DisplayMode);
           GpuPowerTgp = (string)key.GetValue("GpuPowerTgp", GpuPowerTgp);
           GpuPowerPpab = (string)key.GetValue("GpuPowerPpab", GpuPowerPpab);
@@ -560,6 +571,10 @@ namespace OmenSuperHub.Services {
           key.SetValue("CpuPowerValue", CpuPowerValue);
           key.SetValue("CpuPowerPl1", CpuPowerPl1);
           key.SetValue("CpuPowerPl2", CpuPowerPl2);
+          key.SetValue("AmdCpuPpt", AmdCpuPpt);
+          key.SetValue("AmdCpuTdc", AmdCpuTdc);
+          key.SetValue("AmdCpuEdc", AmdCpuEdc);
+          key.SetValue("AmdCpuTctl", AmdCpuTctl);
           key.SetValue("MaxFrameRate", MaxFrameRate);
           key.SetValue("RefreshRate", RefreshRate);
           key.SetValue("PowerPlanGuid", PowerPlanGuid);
@@ -687,6 +702,7 @@ namespace OmenSuperHub.Services {
           BatteryChargeLimit = RegBool(key, "BatteryChargeLimit", false);
           BatteryWmiUnsupported = RegBool(key, "BatteryWmiUnsupported", false);
           HWiNFOEnabled = RegBool(key, "HWiNFOEnabled", false);
+          HWiNFOReadEnabled = RegBool(key, "HWiNFOReadEnabled", false);
           HttpApiEnabled = RegBool(key, "HttpApiEnabled", false);
           AutomationEnabled = RegBool(key, "AutomationEnabled", true);
           MacroEnabled = RegBool(key, "MacroEnabled", true);

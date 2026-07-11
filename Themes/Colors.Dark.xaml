@@ -185,6 +185,11 @@
   <SolidColorBrush x:Key="NavItemBackgroundHover" Color="{StaticResource BgHover}" />
   <SolidColorBrush x:Key="NavItemIndicator" Color="{StaticResource AccentOmen}" />
 
+  <!-- ContextMenu / OSD / Tray Popup -->
+  <SolidColorBrush x:Key="ContextMenuBackground" Color="{StaticResource BgElevated}" />
+  <SolidColorBrush x:Key="ContextMenuBorderBrush" Color="{StaticResource BorderSubtle}" />
+  <SolidColorBrush x:Key="ContextMenuForeground" Color="{StaticResource TextPrimary}" />
+
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- ELEVATION BORDERS (LinearGradientBrush for depth)          -->
   <!-- Simulates subtle light-from-above shadow effect            -->
