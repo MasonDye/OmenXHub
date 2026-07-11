@@ -91,18 +91,21 @@ namespace OmenSuperHub.Services {
         IntPtr info, int infoLength, out int returnedLength,
         IntPtr process, uint flags);
 
+    // ponytail: FieldInitializers=`=0` silence CS0649 — fields are populated via Marshal.PtrToStructure<T>,
+    // which the compiler can't see. Layout is preserved (same blittable struct).
     struct SYSTEM_CPU_SET_INFORMATION {
-      public uint Size;
-      public short CpuSetId;     // Actually ushort but we use short for alignment
-      public short Group;
-      public byte LogicalProcessorIndex;
-      public byte CoreIndex;
-      public byte EfficiencyClass;
-      public byte Reserved;
-      public ulong AllFlags;     // bit 0 = SMT, bit 1 = Parked, bit 2 = Allocated
-      public short RealTimeBudget;
-      public short Reserved2;
-      public int Reserved3;
+      public uint Size = 0;
+      public short CpuSetId = 0;     // Actually ushort but we use short for alignment
+      public short Group = 0;
+      public byte LogicalProcessorIndex = 0;
+      public byte CoreIndex = 0;
+      public byte EfficiencyClass = 0;
+      public byte Reserved = 0;
+      public ulong AllFlags = 0;     // bit 0 = SMT, bit 1 = Parked, bit 2 = Allocated
+      public short RealTimeBudget = 0;
+      public short Reserved2 = 0;
+      public int Reserved3 = 0;
+      public SYSTEM_CPU_SET_INFORMATION() { }
     }
 
     const int CpuSetInformationType = 2;

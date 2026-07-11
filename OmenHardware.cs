@@ -199,12 +199,14 @@ namespace OmenSuperHub {
       return result != null;
     }
 
+    // ponytail: delegate to the 3-param overload — a single WMI write per call.
+    // The previous 3-step sequence (SetMaxFanSpeedOff → {0,0} → target) was a
+    // >6000 RPM runaway fix, but running it on every timer tick (once per second)
+    // overwhelms the EC on AMD laptops, causing the fan to stay at zero or
+    // stop responding.  Callers that need EC reset (manual mode switch, power
+    // resume) already call SetMaxFanSpeedOff() explicitly before SetFanLevel.
     public static void SetFanLevel(int fanSpeed1, int fanSpeed2) {
-      // ponytail: >6000 RPM 失控修复 — EC 在 SetMaxFanSpeedOn 后可能卡在接管模式,
-      // 先退接管 + 复位唤醒再设目标值, 确保 EC 状态机正确响应。
-      SetMaxFanSpeedOff();
-      SendOmenBiosWmi(0x2E, new byte[] { 0, 0 }, 0);
-      SendOmenBiosWmi(0x2E, new byte[] { (byte)fanSpeed1, (byte)fanSpeed2 }, 0);
+      SetFanLevel(fanSpeed1, fanSpeed2, false, false);
     }
 
     public static void SetFanLevel(int fanSpeed1, int fanSpeed2, bool fan3 = false, bool fanClean = false) {
@@ -1055,7 +1057,10 @@ namespace OmenSuperHub {
 
     // ─── Convenience Mode Setters ─────────────────────────────────────
     public static void SetUnleashMode() {
-      SendOmenBiosWmi(0x1A, new byte[] { 0xFF, 0x64 }, 0);
+      // ponytail: 0x64(100) 是错误的 EC 性能模式值, PerformanceMode.L7=0x31(49)
+      // 才是正确的 "unleash/performance" 模式。错误值导致 EC 不遵守软件风扇控制,
+      // 在 AMD 上表现为低温停转。对齐 OSH 参考实现。
+      SetFanMode(PerformanceMode.L7);
     }
 
     public static void SetBalanceMode() {

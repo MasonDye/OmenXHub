@@ -38,12 +38,12 @@ namespace OmenSuperHub {
     }
 
     private static void WriteToFile(string line) {
-      if (line == lastMessage &&
-          (DateTime.Now - lastWriteTime).TotalSeconds < ThrottleSeconds)
-        return;
-      lastMessage = line;
-      lastWriteTime = DateTime.Now;
       lock (FileLock) {
+        if (line == lastMessage &&
+            (DateTime.Now - lastWriteTime).TotalSeconds < ThrottleSeconds)
+          return;
+        lastMessage = line;
+        lastWriteTime = DateTime.Now;
         File.AppendAllText(LogPath,
             $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {line}{Environment.NewLine}");
       }

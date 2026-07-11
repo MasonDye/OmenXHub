@@ -67,6 +67,11 @@ namespace OmenSuperHub.Models {
     [DataMember] public double ApuSkinTemp { get; set; }
     [DataMember] public double ApuDgpuSkin { get; set; }
     [DataMember] public double ApuGfxClk { get; set; }
+    // AMD CPU 桌面调校 (PPT/TDC/EDC/Tctl)
+    [DataMember] public double AmdCpuPpt { get; set; }
+    [DataMember] public double AmdCpuTdc { get; set; }
+    [DataMember] public double AmdCpuEdc { get; set; }
+    [DataMember] public double AmdCpuTctl { get; set; }
     [DataMember] public double NvPower { get; set; }
     [DataMember] public double NvClockLock { get; set; }
     [DataMember] public double Rtss { get; set; }

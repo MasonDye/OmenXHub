@@ -65,7 +65,6 @@
                       Width="40" Height="40" Margin="0,4,4,0" Opacity="0.06" Stretch="Uniform"
                       IsHitTestVisible="False" Fill="Transparent" Visibility="Collapsed"/>
               </Grid>
-              <Border Grid.Row="1" Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,8,0,6" Opacity="0.3"/>
               <StackPanel x:Name="CpuDetailPanel" Grid.Row="1" Margin="0,8,0,0">
                 <Grid Margin="0,0,0,6">
                   <Grid.ColumnDefinitions>
@@ -161,7 +160,6 @@
                       Width="40" Height="40" Margin="0,4,4,0" Opacity="0.06" Stretch="Uniform"
                       IsHitTestVisible="False" Fill="Transparent" Visibility="Collapsed"/>
               </Grid>
-              <Border Grid.Row="1" Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,8,0,6" Opacity="0.3"/>
               <StackPanel x:Name="GpuDetailPanel" Grid.Row="1" Margin="0,8,0,0">
                 <Grid Margin="0,0,0,6">
                   <Grid.ColumnDefinitions>
@@ -252,7 +250,6 @@
                   <TextBlock Text="{x:Static app:Strings.DashboardMemoryLabel}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
                 </StackPanel>
               </Grid>
-              <Border Grid.Row="1" Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,8,0,6" Opacity="0.3"/>
               <StackPanel Grid.Row="1" Margin="0,8,0,0">
                 <Grid Margin="0,0,0,6">
                   <Grid.ColumnDefinitions>
@@ -325,7 +322,6 @@
                   <TextBlock Text="{x:Static app:Strings.DashboardStorageLabel}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
                 </StackPanel>
               </Grid>
-              <Border Grid.Row="1" Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,8,0,6" Opacity="0.3"/>
               <ScrollViewer Grid.Row="1" MaxHeight="160" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="StoragePanel" Margin="0,8,0,0"/>
               </ScrollViewer>
@@ -429,7 +425,6 @@
       </Grid>
 
       <!-- ══════ 系统信息 / Device Info (migrated from SysInfoPage) ══════ -->
-      <Border Height="1" Background="{DynamicResource DividerStrokeDefaultBrush}" Margin="0,8,0,16" Opacity="0.3"/>
 
       <Grid x:Name="SysInfoGrid">
         <Grid.ColumnDefinitions>

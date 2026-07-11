@@ -29,6 +29,10 @@ namespace OmenSuperHub.Pages {
     bool _showGpuCurve;
     bool _optionsBuilt;
     int _draggingIndex = -1;
+    // ponytail: cache curve visual elements so MouseMove doesn't rebuild the
+    // entire canvas (~30 WPF objects) every frame — that causes PPT-level stutter.
+    Polyline _polylineElement;
+    List<Ellipse> _circleElements;
     List<(float temp, int rpm)> _curvePoints;
     List<(float temp, int rpm)> _curvePointsGPU;
     // ponytail: keep in sync with PresetManager.BuiltInKeys + ConfigService.Preset default ("GpuPriority").
@@ -405,6 +409,8 @@ namespace OmenSuperHub.Pages {
 
     void DrawFanCurveInternal(double w, double h) {
       FanCurveCanvas.Children.Clear();
+      _polylineElement = null;
+      _circleElements = null;
       var gridBrush = TryFindResource("ControlStrokeColorDefaultBrush") as Brush ?? Brushes.Gray;
       var lineBrush = TryFindResource("TextFillColorPrimaryBrush") as Brush ?? Brushes.White;
       var accentBrush = TryFindResource("SystemAccentColor") as Brush ?? Brushes.White;
@@ -434,20 +440,22 @@ namespace OmenSuperHub.Pages {
 
       if (points == null || points.Count == 0) return;
       var sorted = points.OrderBy(p => p.temp).ToList();
-      var polyline = new Polyline { Stroke = lineBrush, StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round };
+      _polylineElement = new Polyline { Stroke = lineBrush, StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round };
       foreach (var pt in sorted) {
         double x = padL + (pt.temp - MinTemp) / (MaxTemp - MinTemp) * chartW;
         double y = padT + chartH - (pt.rpm / MaxRPM) * chartH;
-        polyline.Points.Add(new Point(x, y));
+        _polylineElement.Points.Add(new Point(x, y));
       }
-      FanCurveCanvas.Children.Add(polyline);
+      FanCurveCanvas.Children.Add(_polylineElement);
 
+      _circleElements = new List<Ellipse>();
       for (int i = 0; i < sorted.Count; i++) {
         double x = padL + (sorted[i].temp - MinTemp) / (MaxTemp - MinTemp) * chartW;
         double y = padT + chartH - (sorted[i].rpm / MaxRPM) * chartH;
         var circle = new Ellipse { Width = CurvePointRadius * 2, Height = CurvePointRadius * 2, Fill = accentBrush, Stroke = lineBrush, StrokeThickness = 1.5, Cursor = Cursors.Hand, Tag = i };
         Canvas.SetLeft(circle, x - CurvePointRadius); Canvas.SetTop(circle, y - CurvePointRadius);
         FanCurveCanvas.Children.Add(circle);
+        _circleElements.Add(circle);
       }
 
       if (currentTemp >= MinTemp && currentTemp <= MaxTemp) {
@@ -494,19 +502,24 @@ namespace OmenSuperHub.Pages {
       newRpm = (float)(Math.Round(newRpm / 100) * 100);
       sorted[_draggingIndex] = ((float)newTemp, (int)newRpm);
       if (_showGpuCurve) _curvePointsGPU = sorted; else _curvePoints = sorted;
-      DrawFanCurve();
-      // ponytail: apply immediately so the user hears/feels the change while dragging
-      ApplyCustomCurve();
-      // Force immediate hardware write (bypass 1s timer guard)
-      int fs1 = FanService.GetSmartFanSpeed(0) / 100;
-      int fs2 = ConfigService.FanSync ? fs1 : FanService.GetSmartFanSpeed(1) / 100;
-      OmenHardware.SetFanLevel(fs1, fs2);
+      // ponytail: 拖拽时只更新 UI 元素，不写硬件和 fan maps。
+      // ApplyCustomCurve + GetSmartFanSpeed 在每帧 ~60 次鼠标事件下
+      // 累积成秒级延迟（EMA 计算 + 锁 + WMI 调用）。硬件写入交给
+      // MouseUp 一次性完成。
+      if (_polylineElement != null && _circleElements != null && _draggingIndex < _circleElements.Count) {
+        double px = padL + (newTemp - MinTemp) / (MaxTemp - MinTemp) * chartW;
+        double py = padT + chartH - (newRpm / MaxRPM) * chartH;
+        _polylineElement.Points[_draggingIndex] = new Point(px, py);
+        Canvas.SetLeft(_circleElements[_draggingIndex], px - CurvePointRadius);
+        Canvas.SetTop(_circleElements[_draggingIndex], py - CurvePointRadius);
+      }
     }
 
     void FanCurveCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) {
       if (_draggingIndex >= 0) {
         _draggingIndex = -1;
         FanCurveCanvas.ReleaseMouseCapture();
+        ApplyCustomCurve();
         SaveCurve();
       }
     }

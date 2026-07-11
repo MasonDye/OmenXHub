@@ -46,7 +46,95 @@
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ui:CardExpander Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="CpuPowerCard"
+        <ui:CardExpander Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdCpuPowerCard" Visibility="Collapsed"
+                         Icon="Power24">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.AmdCpuPowerHeading}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.AmdCpuPowerDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                <ComboBox x:Name="AmdPptCombo" MinWidth="100" Margin="0,0,8,0"
+                          SelectionChanged="AmdPptCombo_SelectionChanged"/>
+                <Ellipse x:Name="AmdPptStatusDot" Width="10" Height="10" VerticalAlignment="Center"
+                         Fill="#888888" Stroke="#444444" StrokeThickness="0.5" Margin="0,4,0,0"
+                         ToolTip="PPT 写入状态"/>
+                <TextBlock x:Name="AmdPptStatusText" FontSize="11" VerticalAlignment="Center"
+                           Margin="4,0,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                           Text="未写入"/>
+              </StackPanel>
+            </Grid>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <StackPanel Margin="0,0,0,8">
+              <TextBlock Text="PPT (CPU Package Power) (W)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="AmdCpuPptNum" Minimum="8" Maximum="300" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuPptNum_ValueChanged"
+                              Value="{Binding ElementName=AmdCpuPptSlider, Path=Value, Mode=TwoWay}"/>
+                <Slider x:Name="AmdCpuPptSlider" Grid.Column="1" Minimum="8" Maximum="300" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+            <StackPanel x:Name="AmdCpuTdcEdcPanel">
+              <StackPanel Margin="0,0,0,8">
+                <TextBlock Text="TDC (VRM 持续电流) (A)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <ui:NumberBox x:Name="AmdCpuTdcNum" Minimum="8" Maximum="900" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuTdcNum_ValueChanged"
+                                Value="{Binding ElementName=AmdCpuTdcSlider, Path=Value, Mode=TwoWay}"/>
+                  <Slider x:Name="AmdCpuTdcSlider" Grid.Column="1" Minimum="8" Maximum="900" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                </Grid>
+              </StackPanel>
+              <StackPanel Margin="0,0,0,8">
+                <TextBlock Text="EDC (VRM 峰值电流) (A)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <ui:NumberBox x:Name="AmdCpuEdcNum" Minimum="8" Maximum="900" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuEdcNum_ValueChanged"
+                                Value="{Binding ElementName=AmdCpuEdcSlider, Path=Value, Mode=TwoWay}"/>
+                  <Slider x:Name="AmdCpuEdcSlider" Grid.Column="1" Minimum="8" Maximum="900" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                </Grid>
+              </StackPanel>
+            </StackPanel>
+            <TextBlock x:Name="AmdCpuPowerStatus" FontSize="11" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <ui:CardExpander Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="AmdCpuTempCard" Visibility="Collapsed"
+                         Icon="Temperature24">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.CpuTempHeading}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.CpuTempDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+            </Grid>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <StackPanel>
+              <TextBlock Text="CPU Tctl 硬降频温度 (°C)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="AmdCpuTctlNum" Minimum="10" Maximum="95" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuTctlNum_ValueChanged"
+                              Value="{Binding ElementName=AmdCpuTctlSlider, Path=Value, Mode=TwoWay}"/>
+                <Slider x:Name="AmdCpuTctlSlider" Grid.Column="1" Minimum="10" Maximum="95" TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+            <TextBlock x:Name="AmdCpuTempStatus" FontSize="11" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <ui:CardExpander Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="CpuPowerCard"
                          Icon="DeveloperBoard24">
           <ui:CardExpander.Header>
             <Grid>
@@ -1038,34 +1126,33 @@
           </ui:CardControl.Header>
         </ui:CardControl>
 
-      </Grid>
+	      </Grid>
 
-      <!-- ═══ Advanced CPU Tuning ═══ -->
-      <StackPanel x:Name="CpuAdvHeader" Orientation="Horizontal" Margin="0,8,0,12" Visibility="Collapsed">
-        <ui:SymbolIcon Symbol="RibbonStar24" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
-        <TextBlock Text="{x:Static app:Strings.PerfGroupCpuAdv}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
-      </StackPanel>
+	      <!-- ═══ Advanced CPU Tuning ═══ -->
+	      <StackPanel x:Name="CpuAdvHeader" Orientation="Horizontal" Margin="0,8,0,12" Visibility="Collapsed">
+	        <ui:SymbolIcon Symbol="RibbonStar24" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
+	        <TextBlock Text="{x:Static app:Strings.PerfGroupCpuAdv}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+	      </StackPanel>
 
-      <Grid x:Name="CpuAdvGrid" Visibility="Collapsed">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+	      <Grid x:Name="CpuAdvGrid" Visibility="Collapsed">
+	        <Grid.ColumnDefinitions>
+	          <ColumnDefinition Width="*"/>
+	          <ColumnDefinition Width="*"/>
+	        </Grid.ColumnDefinitions>
+	        <Grid.RowDefinitions>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	          <RowDefinition Height="Auto"/>
+	        </Grid.RowDefinitions>
 
         <!-- PBO Scalar (AMD) -->
         <ui:CardControl Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="PboScalarCard" Visibility="Collapsed">
@@ -1623,90 +1710,8 @@
           </StackPanel>
         </ui:CardExpander>
 
-	
-        <!-- AMD CPU Power Limits (PPT / TDC / EDC) — AM5 desktop CPUs -->
-        <ui:CardExpander Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="AmdCpuPowerCard" Visibility="Collapsed"
-                         Icon="Power24">
-          <ui:CardExpander.Header>
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.AmdCpuPowerHeading}" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.AmdCpuPowerDesc}" FontSize="12"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-              </StackPanel>
-              <ui:ToggleSwitch x:Name="AmdCpuPowerMasterToggle" Grid.Column="1" VerticalAlignment="Top"
-                              Checked="AmdCpuPowerMasterToggle_Changed" Unchecked="AmdCpuPowerMasterToggle_Changed"/>
-            </Grid>
-          </ui:CardExpander.Header>
-          <StackPanel>
-            <StackPanel Margin="0,0,0,8">
-              <TextBlock Text="PPT (CPU Package Power) (W)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
-              <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <ui:NumberBox x:Name="AmdCpuPptNum" Minimum="8" Maximum="300" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuPptNum_ValueChanged"
-                              Value="{Binding ElementName=AmdCpuPptSlider, Path=Value, Mode=TwoWay}"/>
-                <Slider x:Name="AmdCpuPptSlider" Grid.Column="1" Minimum="8" Maximum="300" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
-              </Grid>
-            </StackPanel>
-            <StackPanel Margin="0,0,0,8">
-              <TextBlock Text="TDC (VRM 持续电流) (A)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
-              <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <ui:NumberBox x:Name="AmdCpuTdcNum" Minimum="8" Maximum="900" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuTdcNum_ValueChanged"
-                              Value="{Binding ElementName=AmdCpuTdcSlider, Path=Value, Mode=TwoWay}"/>
-                <Slider x:Name="AmdCpuTdcSlider" Grid.Column="1" Minimum="8" Maximum="900" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
-              </Grid>
-            </StackPanel>
-            <StackPanel>
-              <TextBlock Text="EDC (VRM 峰值电流) (A)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
-              <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <ui:NumberBox x:Name="AmdCpuEdcNum" Minimum="8" Maximum="900" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuEdcNum_ValueChanged"
-                              Value="{Binding ElementName=AmdCpuEdcSlider, Path=Value, Mode=TwoWay}"/>
-                <Slider x:Name="AmdCpuEdcSlider" Grid.Column="1" Minimum="8" Maximum="900" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
-              </Grid>
-            </StackPanel>
-            <TextBlock x:Name="AmdCpuPowerStatus" FontSize="11" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-          </StackPanel>
-        </ui:CardExpander>
-
-        <!-- AMD CPU Temperature Limit (Tctl hard throttle) — AM5 desktop CPUs -->
-        <ui:CardExpander Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="AmdCpuTempCard" Visibility="Collapsed"
-                         Icon="Temperature24">
-          <ui:CardExpander.Header>
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.CpuTempHeading}" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.CpuTempDesc}" FontSize="12"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-              </StackPanel>
-              <ui:ToggleSwitch x:Name="AmdCpuTempMasterToggle" Grid.Column="1" VerticalAlignment="Top"
-                              Checked="AmdCpuTempMasterToggle_Changed" Unchecked="AmdCpuTempMasterToggle_Changed"/>
-            </Grid>
-          </ui:CardExpander.Header>
-          <StackPanel>
-            <StackPanel>
-              <TextBlock Text="CPU Tctl 硬降频温度 (°C)" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
-              <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <ui:NumberBox x:Name="AmdCpuTctlNum" Minimum="10" Maximum="95" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuTctlNum_ValueChanged"
-                              Value="{Binding ElementName=AmdCpuTctlSlider, Path=Value, Mode=TwoWay}"/>
-                <Slider x:Name="AmdCpuTctlSlider" Grid.Column="1" Minimum="10" Maximum="95" TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
-              </Grid>
-            </StackPanel>
-            <TextBlock x:Name="AmdCpuTempStatus" FontSize="11" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-          </StackPanel>
-        </ui:CardExpander>
-
-        <!-- CCD1 Per-Core Curve Optimiser (Core0~11) -->
+		
+	        <!-- CCD1 Per-Core Curve Optimiser (Core0~11) -->
         <ui:CardExpander Grid.ColumnSpan="2" Margin="0,0,0,8" x:Name="Ccd1CoCard" Visibility="Collapsed"
                          Icon="Gauge24">
           <ui:CardExpander.Header>

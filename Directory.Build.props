@@ -1,7 +1,6 @@
 <!-- Directory.Build.props - 全局构建属性 -->
-<!-- 强制使用 C# 7.3 语言版本，兼容 .NET Framework 4.8.1 -->
+<!-- ponytail: LangVersion 由 .csproj 中的 <LangVersion>latest</LangVersion> 接管，此处不再覆盖 -->
 <Project>
  <PropertyGroup>
-   <LangVersion>7.3</LangVersion>
  </PropertyGroup>
 </Project>

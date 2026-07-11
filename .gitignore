@@ -55,3 +55,7 @@ Resources/RyzenSMU.bin
 # OS
 Thumbs.db
 .DS_Store
+.zcode/
+pm_help.txt
+	driver/
+	Services/OmenXHubDriver.cs

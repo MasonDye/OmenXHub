@@ -210,13 +210,8 @@ namespace OmenSuperHub.Views {
     }
 
     void LoadDeviceInfo() {
-      System.Threading.Tasks.Task.Run(() => {
-        try {
-          Dispatcher.Invoke(() => {
-            DeviceInfoBadge.Visibility = Visibility.Collapsed;
-          });
-        } catch { }
-      });
+      // ponytail: was Task.Run + Dispatcher.Invoke for a single Visibility setter — pointless threadhop
+      try { DeviceInfoBadge.Visibility = Visibility.Collapsed; } catch { }
     }
 
     void DeviceInfoBadge_Click(object sender, MouseButtonEventArgs e) => NavigateToPage("Dashboard");

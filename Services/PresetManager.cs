@@ -44,6 +44,12 @@ namespace OmenSuperHub.Services {
     [DataMember(Order = 19)] public bool EcoQosThrottlePlugged { get; set; } = false;
 
     [DataMember(Order = 20)] public string CustomPresetName { get; set; } = "";
+
+    // ── AMD CPU 调校参数 ──
+    [DataMember(Order = 21)] public int AmdCpuPpt { get; set; }
+    [DataMember(Order = 22)] public int AmdCpuTdc { get; set; }
+    [DataMember(Order = 23)] public int AmdCpuEdc { get; set; }
+    [DataMember(Order = 24)] public int AmdCpuTctl { get; set; }
     internal bool IsFromCustomSubkey { get; set; } = false;
   }
 
@@ -102,6 +108,7 @@ namespace OmenSuperHub.Services {
           d.PowerMode = 1;  // 平衡
           d.GpuClock = 0;   // 无限制
           d.TgpEnabled = true; d.PpabEnabled = true; d.Tpp = 255;
+          d.AmdCpuPpt = 254; d.AmdCpuTdc = 200; d.AmdCpuEdc = 300; d.AmdCpuTctl = 95;
           break;
         case "GpuPriority":
           d.CpuPower = "45 W"; d.CpuPowerPl1 = 45; d.CpuPowerPl2 = 45;
@@ -109,6 +116,7 @@ namespace OmenSuperHub.Services {
           d.PowerMode = 0;  // 最佳能效
           d.GpuClock = 0;
           d.TgpEnabled = true; d.PpabEnabled = true; d.Tpp = 255;
+          d.AmdCpuPpt = 45; d.AmdCpuTdc = 80; d.AmdCpuEdc = 160; d.AmdCpuTctl = 95;
           break;
         case "LightUse":
           d.CpuPower = "25 W"; d.CpuPowerPl1 = 25; d.CpuPowerPl2 = 25;
@@ -116,6 +124,7 @@ namespace OmenSuperHub.Services {
           d.PowerMode = 0;  // 最佳能效
           d.GpuClock = 0;
           d.TgpEnabled = false; d.PpabEnabled = false; d.Tpp = 0;
+          d.AmdCpuPpt = 30; d.AmdCpuTdc = 40; d.AmdCpuEdc = 80; d.AmdCpuTctl = 85;
           break;
       }
       return d;
@@ -132,10 +141,13 @@ namespace OmenSuperHub.Services {
       // If CpuPower is a valid wattage but Pl1 or Pl2 < 10 (clearly below any
       // real Omen PL setting), derive both from CpuPower.
       if ((d.CpuPowerPl1 < 10 || d.CpuPowerPl2 < 10) && !string.IsNullOrEmpty(d.CpuPower)) {
-        if (d.CpuPower == "max") { d.CpuPowerPl1 = 254; d.CpuPowerPl2 = 254; }
-        else if (int.TryParse(d.CpuPower.Replace(" W", ""), out int w) && w >= 10 && w <= 254) {
-          d.CpuPowerPl1 = w;
-          d.CpuPowerPl2 = w;
+        int fallback = -1;
+        if (d.CpuPower == "max") fallback = 254;
+        else if (int.TryParse(d.CpuPower.Replace(" W", ""), out int w) && w >= 10 && w <= 254) fallback = w;
+        // ponytail: heal only the corrupted field, preserve the valid one.
+        if (fallback >= 0) {
+          if (d.CpuPowerPl1 < 10) d.CpuPowerPl1 = fallback;
+          if (d.CpuPowerPl2 < 10) d.CpuPowerPl2 = d.CpuPowerPl1 >= 10 ? d.CpuPowerPl1 : fallback;
         }
       }
       // ── 1.1 全局绑定参数 (所有预设) ──
@@ -149,6 +161,12 @@ namespace OmenSuperHub.Services {
       ConfigService.TgpEnabled = d.TgpEnabled;
       ConfigService.PpabEnabled = d.PpabEnabled;
       ConfigService.Tpp = d.Tpp;
+
+      // ── AMD CPU 调校（始终写入，内置预设也有意义） ──
+      if (d.AmdCpuPpt > 0) ConfigService.AmdCpuPpt = d.AmdCpuPpt;
+      if (d.AmdCpuTdc > 0) ConfigService.AmdCpuTdc = d.AmdCpuTdc;
+      if (d.AmdCpuEdc > 0) ConfigService.AmdCpuEdc = d.AmdCpuEdc;
+      if (d.AmdCpuTctl > 0) ConfigService.AmdCpuTctl = d.AmdCpuTctl;
 
       // ── 1.2 自定义预设专属绑定参数 (仅自定义预设) ──
       // 内置预设不触碰这些参数，保持独立 (dState 默认正常=1，其他保持原值)
@@ -174,6 +192,8 @@ namespace OmenSuperHub.Services {
         ConfigService.Save("FanTable"); ConfigService.Save("FanControl"); ConfigService.Save("PowerMode");
         ConfigService.Save("GpuClock"); ConfigService.Save("TgpEnabled"); ConfigService.Save("PpabEnabled");
         ConfigService.Save("Tpp");
+        ConfigService.Save("AmdCpuPpt"); ConfigService.Save("AmdCpuTdc");
+        ConfigService.Save("AmdCpuEdc"); ConfigService.Save("AmdCpuTctl");
         if (d.IsFromCustomSubkey) {
           ConfigService.Save("DState"); ConfigService.Save("MaxFrameRate"); ConfigService.Save("RefreshRate");
           ConfigService.Save("GpuCoreOverclock"); ConfigService.Save("GpuMemoryOverclock");
@@ -198,6 +218,11 @@ namespace OmenSuperHub.Services {
         TgpEnabled = ConfigService.TgpEnabled,
         PpabEnabled = ConfigService.PpabEnabled,
         Tpp = ConfigService.Tpp,
+        // AMD CPU 调校
+        AmdCpuPpt = ConfigService.AmdCpuPpt,
+        AmdCpuTdc = ConfigService.AmdCpuTdc,
+        AmdCpuEdc = ConfigService.AmdCpuEdc,
+        AmdCpuTctl = ConfigService.AmdCpuTctl,
         // 1.2
         DState = ConfigService.DState,
         MaxFrameRate = ConfigService.MaxFrameRate,
@@ -437,11 +462,30 @@ namespace OmenSuperHub.Services {
         try { TrayService.SetGPUClockLimit(gpuClock); } catch { }
         try { OmenHardware.SetGpuPowerState(tgp, ppab, ConfigService.DState == 2 ? 2 : 1); } catch { }
         try {
-          if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254);
+          // ponytail: apply PL1 and PL2 independently from ConfigService.
+          int pl1 = ConfigService.CpuPowerPl1;
+          int pl2 = ConfigService.CpuPowerPl2;
+          if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254, 254);
+          else if (cpuPwr == "null") { /* keep BIOS default */ }
+          else if (pl1 >= 10 && pl1 <= 254 && pl2 >= 10 && pl2 <= 254)
+            OmenHardware.SetCpuPowerLimit((byte)pl1, (byte)pl2);
           else if (int.TryParse(cpuPwr?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
-            OmenHardware.SetCpuPowerLimit((byte)cpuVal);
+            OmenHardware.SetCpuPowerLimit((byte)cpuVal, (byte)cpuVal);
         } catch { }
         try { ApplyPowerModeOverlay(powerMode); } catch { }
+
+        // ── AMD CPU 调校（仅 AMD 平台，若 SMU 可用则始终应用） ──
+        if (OmenHardware.HasAmdCpu()) try {
+          if (ConfigService.AmdCpuPpt > 0) {
+            // ponytail: WMI 优先，降级 SMU（同 Intel 路径）
+            bool pptOk = ConfigService.AmdCpuPpt <= 255 && OmenHardware.SetCpuPowerLimit((byte)ConfigService.AmdCpuPpt);
+            if (!pptOk && AmdAdvancedService.IsAvailable)
+              AmdAdvancedService.SetPptLimit((uint)ConfigService.AmdCpuPpt * 1000);
+          }
+        } catch { }
+        if (OmenHardware.HasAmdCpu()) try { if (ConfigService.AmdCpuTdc > 0 && AmdAdvancedService.IsAvailable) AmdAdvancedService.SetTdcLimit((uint)ConfigService.AmdCpuTdc * 1000); } catch { }
+        if (OmenHardware.HasAmdCpu()) try { if (ConfigService.AmdCpuEdc > 0 && AmdAdvancedService.IsAvailable) AmdAdvancedService.SetEdcLimit((uint)ConfigService.AmdCpuEdc * 1000); } catch { }
+        if (OmenHardware.HasAmdCpu()) try { if (ConfigService.AmdCpuTctl > 0 && AmdAdvancedService.IsAvailable) AmdAdvancedService.SetTctlTemp((uint)ConfigService.AmdCpuTctl); } catch { }
 
         // ── 风扇配置 ──
         try {

@@ -8,12 +8,12 @@
         ResizeMode="NoResize"
         Left="0" Top="0">
   <Window.Resources>
+    <!-- ponytail: frozen DropShadowEffect — shared by all TextBlocks, avoids per-instance allocation -->
+    <DropShadowEffect x:Key="TextShadow" Color="Black" Opacity="0.85"
+                      ShadowDepth="1" BlurRadius="2" Direction="315"
+                      x:Shared="True"/>
     <Style TargetType="TextBlock">
-      <Setter Property="Effect">
-        <Setter.Value>
-          <DropShadowEffect Color="Black" Opacity="0.85" ShadowDepth="1" BlurRadius="2" Direction="315"/>
-        </Setter.Value>
-      </Setter>
+      <Setter Property="Effect" Value="{StaticResource TextShadow}"/>
     </Style>
   </Window.Resources>
 

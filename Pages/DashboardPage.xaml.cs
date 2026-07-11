@@ -431,38 +431,42 @@ namespace OmenSuperHub.Pages {
       return $"{bytes / 1024} KB";
     }
 
-    Brush GetGradientBrush(double val, double max) {
-      double pct = max > 0 ? Math.Min(100, Math.Max(0, val / max * 100)) : 0;
+    // ponytail: pre-built frozen brush palette avoids per-update SolidColorBrush allocation
+    // (ceil: upper ceiling matches prior `>=` semantics so the switch thresholds preserve behavior)
+    static readonly SolidColorBrush[] GradientBrushes = Enumerable.Range(0, 101).Select(i => {
+      double pct = i;
       byte r, g, b;
       if (pct <= 35) {
-        // white → green
         double t = pct / 35.0;
         r = (byte)Math.Round(255 + (74 - 255) * t);
         g = (byte)Math.Round(255 + (222 - 255) * t);
         b = (byte)Math.Round(255 + (128 - 255) * t);
       } else if (pct <= 60) {
-        // green (constant, no yellow below 60%)
         r = 74; g = 222; b = 128;
       } else if (pct <= 82) {
-        // green → yellow
         double t = (pct - 60) / 22.0;
         r = (byte)Math.Round(74 + (251 - 74) * t);
         g = (byte)Math.Round(222 + (191 - 222) * t);
         b = (byte)Math.Round(128 + (36 - 128) * t);
       } else if (pct <= 92) {
-        // yellow → red
         double t = (pct - 82) / 10.0;
         r = (byte)Math.Round(251 + (239 - 251) * t);
         g = (byte)Math.Round(191 + (68 - 191) * t);
         b = (byte)Math.Round(36 + (68 - 36) * t);
       } else {
-        // red → dark
         double t = Math.Min(1, (pct - 92) / 8.0);
         r = (byte)Math.Round(239 + (26 - 239) * t);
         g = (byte)Math.Round(68 + (26 - 68) * t);
         b = (byte)Math.Round(68 + (26 - 68) * t);
       }
-      return new SolidColorBrush(Color.FromRgb(r, g, b));
+      var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+      brush.Freeze();
+      return brush;
+    }).ToArray();
+
+    Brush GetGradientBrush(double val, double max) {
+      double pct = max > 0 ? Math.Min(100, Math.Max(0, val / max * 100)) : 0;
+      return GradientBrushes[(int)Math.Ceiling(pct)];
     }
 
 
@@ -907,7 +911,7 @@ SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyb
         int validation = 0, tj = 0, nvidiaTj = 0;
         float[] powerLimits = null;
         string kb = null;
-        string pawnIoText = "", cpuTemp = "", gpuTemp = "", irTemp = "", ambTemp = "", pchTemp = "", vrTemp = "";
+        string cpuTemp = "", gpuTemp = "", irTemp = "", ambTemp = "", pchTemp = "", vrTemp = "";
         try {
           using (var searcher = new ManagementObjectSearcher("SELECT Manufacturer, Model FROM Win32_ComputerSystem"))
           using (var col = searcher.Get()) {

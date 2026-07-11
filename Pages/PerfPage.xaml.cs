@@ -14,7 +14,7 @@ using static OmenSuperHub.OmenHardware;
 
 namespace OmenSuperHub.Pages {
   public partial class PerfPage : System.Windows.Controls.Page {
-    public static PerfPage? Instance { get; private set; }
+    public static PerfPage Instance { get; private set; }
     bool _loading;
     bool _optionsBuilt;
     static void Log(string msg) {
@@ -311,6 +311,11 @@ namespace OmenSuperHub.Pages {
       CpuPowerCombo.Items.Add(new ComboBoxItem { Content = Strings.Maximum, Tag = "max" });
       for (int w = 10; w <= 254; w++) CpuPowerCombo.Items.Add(new ComboBoxItem { Content = w + " W", Tag = w });
 
+      AmdPptCombo.Items.Clear();
+      AmdPptCombo.Items.Add(new ComboBoxItem { Content = Strings.NotSet, Tag = 0 });
+      // ponytail: 1W 步进，跟 Intel 一致
+      for (int w = 8; w <= 300; w++) AmdPptCombo.Items.Add(new ComboBoxItem { Content = w + " W", Tag = w });
+	
       IccMaxCombo.Items.Clear();
       IccMaxCombo.Items.Add(new ComboBoxItem { Content = Strings.NotSet, Tag = 0 });
       for (int a = 160; a <= 255; a++) IccMaxCombo.Items.Add(new ComboBoxItem { Content = a + " A", Tag = a });
@@ -375,7 +380,11 @@ namespace OmenSuperHub.Pages {
         int pl1, pl2;
         if (cp == "max") { pl1 = 254; pl2 = 254; }
         else if (cp == "null") { pl1 = -1; pl2 = -1; }
-        else if (int.TryParse(cp.Replace(" W", ""), out int w) && w >= 10 && w <= 254) { pl1 = w; pl2 = w; }
+        else if (int.TryParse(cp.Replace(" W", ""), out int w) && w >= 10 && w <= 254) {
+          // ponytail: prefer independently stored PL1/PL2 over combo-derived wattage.
+          pl1 = ConfigService.CpuPowerPl1 >= 10 ? ConfigService.CpuPowerPl1 : w;
+          pl2 = ConfigService.CpuPowerPl2 >= 10 ? ConfigService.CpuPowerPl2 : w;
+        }
         else { pl1 = ConfigService.CpuPowerPl1 > 0 ? ConfigService.CpuPowerPl1 : 254; pl2 = ConfigService.CpuPowerPl2 > 0 ? ConfigService.CpuPowerPl2 : 254; }
         CpuPowerPL1Slider.Value = pl1 > 0 ? pl1 : 254;
         CpuPowerPL2Slider.Value = pl2 > 0 ? pl2 : 254;
@@ -395,6 +404,18 @@ namespace OmenSuperHub.Pages {
         int mOhm = 180 - 10 * ConfigService.AcLoadLine;
         SelectCombo(AcLoadLineCombo, mOhm + " mOhm");
       } else SelectCombo(AcLoadLineCombo, Strings.NotSet);
+      // ── AMD PPT Combo ──
+      if (ConfigService.AmdCpuPpt > 0) SelectComboByTag(AmdPptCombo, ConfigService.AmdCpuPpt);
+      else SelectCombo(AmdPptCombo, Strings.NotSet);
+      // ── AMD 滑块同步（预设切换时通过 OnPresetChanged → LoadStateFast 带到这里） ──
+      AmdCpuPptSlider.Value = ConfigService.AmdCpuPpt > 0 ? ConfigService.AmdCpuPpt : 105;
+      AmdCpuPptNum.Value = AmdCpuPptSlider.Value;
+      AmdCpuTdcSlider.Value = ConfigService.AmdCpuTdc > 0 ? ConfigService.AmdCpuTdc : 80;
+      AmdCpuTdcNum.Value = AmdCpuTdcSlider.Value;
+      AmdCpuEdcSlider.Value = ConfigService.AmdCpuEdc > 0 ? ConfigService.AmdCpuEdc : 160;
+      AmdCpuEdcNum.Value = AmdCpuEdcSlider.Value;
+      AmdCpuTctlSlider.Value = ConfigService.AmdCpuTctl > 0 ? ConfigService.AmdCpuTctl : 95;
+      AmdCpuTctlNum.Value = AmdCpuTctlSlider.Value;
       // ── 电源模式：从 ConfigService 同步 ──
       SelectComboByTag(PowerModeCombo, ConfigService.PowerMode);
 
@@ -469,7 +490,7 @@ namespace OmenSuperHub.Pages {
       UpdateTopologyText();
       // CCD 按钮可见性（仅 AMD 双 CCD）
       var cores = CpuTopologyService.GetCores();
-	      var ccds = cores.Where(c => c.CcdId >= 0).Select(c => c.CcdId).Distinct().ToList();
+      var ccds = cores.Where(c => c.CcdId >= 0).Select(c => c.CcdId).Distinct().ToList();
 	    }
 
     void SelectCombo(ComboBox combo, string text) {
@@ -483,15 +504,45 @@ namespace OmenSuperHub.Pages {
     }
 
     // ── CPU 功率 ──
-    void SetCpuPowerStatus(bool ok) {
+    void SetCpuPowerStatus(bool ok, string mode = "WMI") {
       string color = ok ? "#1FAF5A" : "#E0463F";
-      string text = ok ? Strings.CpuPowerStatusOk : Strings.CpuPowerStatusFail;
+      string text = ok ? $"{Strings.CpuPowerStatusOk} ({mode})" : Strings.CpuPowerStatusFail;
       try {
         CpuPowerStatusDot.Fill = new System.Windows.Media.SolidColorBrush(
           (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
         CpuPowerStatusText.Text = text;
       } catch (Exception ex) { Log("SetCpuPowerStatus UI error: " + ex.Message); }
-      Logger.Info($"PerfPage PL1/PL2 write => {(ok ? "ok" : "fail")}");
+      Logger.Info($"PerfPage CPU power write => {(ok ? "ok" : "fail")} via {mode}");
+    }
+
+    // ── AMD PPT ComboBox ──
+    void AmdPptCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      _loading = true;
+      try {
+        var item = AmdPptCombo.SelectedItem as ComboBoxItem;
+        if (item == null) return;
+        int watts = (int)item.Tag;
+        if (watts == 0) {
+          AmdPptStatusDot.Fill = new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#888888"));
+          AmdPptStatusText.Text = "未设置";
+          AmdCpuPptSlider.Value = 105;
+          AmdCpuPptNum.Value = 105;
+          ConfigService.AmdCpuPpt = 0; ConfigService.Save("AmdCpuPpt");
+          return;
+        }
+        AmdCpuPptSlider.Value = watts;
+        AmdCpuPptNum.Value = watts;
+        ConfigService.AmdCpuPpt = watts; ConfigService.Save("AmdCpuPpt");
+        bool ok = false;
+        // ponytail: PPT 优先 WMI，降级 SMU（与 Intel CPU 功率一致）
+        if (watts <= 255) ok = SetCpuPowerLimit((byte)watts);
+        if (!ok && AmdAdvancedService.IsAvailable) ok = AmdAdvancedService.SetPptLimit((uint)watts * 1000);
+        AmdPptStatusDot.Fill = new System.Windows.Media.SolidColorBrush(
+          (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(ok ? "#1FAF5A" : "#E0463F"));
+        AmdPptStatusText.Text = ok ? $"PPT={watts}W ✓" : "写入失败";
+      } finally { _loading = false; }
     }
 
     void CpuPower_SelectionChanged(object sender, SelectionChangedEventArgs e) {
@@ -528,7 +579,14 @@ namespace OmenSuperHub.Pages {
           CpuPowerPL2Slider.Value = val;
           CpuPowerPL1Num.Value = val;
           CpuPowerPL2Num.Value = val;
-          SetCpuPowerStatus(SetCpuPowerLimit((byte)val));
+          // ponytail: AMD 优先 WMI，降级 SMU PPT
+          bool ok = SetCpuPowerLimit((byte)val);
+          if (!ok && AmdAdvancedService.IsAvailable) {
+            ok = AmdAdvancedService.SetPptLimit((uint)val * 1000);
+            SetCpuPowerStatus(ok, "SMU");
+          } else {
+            SetCpuPowerStatus(ok, "WMI");
+          }
           ConfigService.Save("CpuPower");
         }
       } finally { _loading = false; }
@@ -2112,8 +2170,6 @@ namespace OmenSuperHub.Pages {
       InitMasterToggle(ApuVrmMasterToggle, ApuVrmCard, ConfigService.ApuVrmMasterEnabled);
       InitMasterToggle(ApuTempMasterToggle, ApuTempCard, ConfigService.ApuTempMasterEnabled);
       InitMasterToggle(ApuGfxClkMasterToggle, ApuGfxClkCard, ConfigService.ApuGfxClkMasterEnabled);
-      InitMasterToggle(AmdCpuPowerMasterToggle, AmdCpuPowerCard, ConfigService.AmdCpuPowerMasterEnabled);
-      InitMasterToggle(AmdCpuTempMasterToggle, AmdCpuTempCard, ConfigService.AmdCpuTempMasterEnabled);
       // ponytail: new master toggles — each card's master toggle gates its child UI controls.
       // For PCI/level toggles (AutoOC / single-toggle cards) we toggle only one
       // child control instead of all sliders — keeps the same helper API.
@@ -2216,24 +2272,6 @@ namespace OmenSuperHub.Pages {
       ConfigService.ApuGfxClkMasterEnabled = on;
       ConfigService.Save("ApuGfxClkMasterEnabled");
       SetCardSlidersEnabled(ApuGfxClkCard, on);
-    }
-
-    // ── AMD CPU Power Master Toggle ──
-    void AmdCpuPowerMasterToggle_Changed(object sender, RoutedEventArgs e) {
-      if (_loading) return;
-      bool on = AmdCpuPowerMasterToggle.IsChecked == true;
-      ConfigService.AmdCpuPowerMasterEnabled = on;
-      ConfigService.Save("AmdCpuPowerMasterEnabled");
-      SetCardSlidersEnabled(AmdCpuPowerCard, on);
-    }
-
-    // ── AMD CPU Temp Master Toggle ──
-    void AmdCpuTempMasterToggle_Changed(object sender, RoutedEventArgs e) {
-      if (_loading) return;
-      bool on = AmdCpuTempMasterToggle.IsChecked == true;
-      ConfigService.AmdCpuTempMasterEnabled = on;
-      ConfigService.Save("AmdCpuTempMasterEnabled");
-      SetCardSlidersEnabled(AmdCpuTempCard, on);
     }
 
     // ── New master toggles ──
@@ -2415,6 +2453,17 @@ namespace OmenSuperHub.Pages {
       AcLoadLineCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
       HeteroCpuCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
 
+      // ponytail: AMD/Intel CPU power split
+      bool amdSmu = false;
+      try { amdSmu = hasAmd && AmdAdvancedService.IsAvailable; } catch { }
+      // DebugShowAllUi 强制显示 AMD 卡片，跳过 SMU 可用性检测
+      if (ConfigService.DebugShowAllUi) amdSmu = true;
+      AmdCpuPowerCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      // ponytail: TDC/EDC 和 Tctl 按 SMU 可用性直接显示（不再需要点5次 logo）
+      if (AmdCpuPowerCard != null) AmdCpuTdcEdcPanel.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      AmdCpuTempCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+      CpuPowerCard.Visibility = hasIntel && !hasAmd ? Visibility.Visible : Visibility.Collapsed;
+
       // Gate: hide advanced tuning unless unlocked via logo 5-click (or DEBUG mode)
       if (!ConfigService.AdvancedTuningUnlocked && !ConfigService.DebugShowAllUi) {
         CpuAdvHeader.Visibility = Visibility.Collapsed;
@@ -2433,13 +2482,9 @@ namespace OmenSuperHub.Pages {
       CoCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       AutoOcCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       // AMD APU SMU tuning cards
-      bool amdSmu = hasAmd && AmdAdvancedService.IsAvailable;
       ApuPowerCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       ApuVrmCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       ApuTempCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
-      // NOTE: ApuGfxClkCard moved to GpuAdvGrid — see GPU section below
-      AmdCpuPowerCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
-      AmdCpuTempCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       // Per-core CO: CCD1 always visible when SMU available; CCD2 only dual-CCD
       Ccd1CoCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       Ccd2CoCard.Visibility = (amdSmu && HeteroCpuService.DetectDualCcd().supported) ? Visibility.Visible : Visibility.Collapsed;
@@ -2609,17 +2654,29 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       bool enable = HeteroCpuToggle.IsChecked == true;
       HeteroCpuDetails.Visibility = enable ? Visibility.Visible : Visibility.Collapsed;
-      if (enable) {
-        HeteroCpuService.WriteSmallProcessorMask(ConfigService.HeteroCpuSmallMask);
-        HeteroCpuService.WriteDefaultPolicy(ConfigService.HeteroCpuDefaultPolicy);
-        HeteroCpuService.WriteExpectedRuntime(ConfigService.HeteroCpuExpectedRuntime);
-        HeteroCpuService.WriteImportantPolicy(ConfigService.HeteroCpuImportantPolicy);
-        HeteroCpuService.WriteImportantShortPolicy(ConfigService.HeteroCpuImportantShortPolicy);
-        HeteroCpuService.WritePolicyMask(ConfigService.HeteroCpuPolicyMask);
-        HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
-      } else {
-        HeteroCpuService.RemoveAll();
-      }
+	      if (enable) {
+	        HeteroCpuService.WriteSmallProcessorMask(ConfigService.HeteroCpuSmallMask);
+	        HeteroCpuService.WriteDefaultPolicy(ConfigService.HeteroCpuDefaultPolicy);
+	        HeteroCpuService.WriteExpectedRuntime(ConfigService.HeteroCpuExpectedRuntime);
+	        HeteroCpuService.WriteImportantPolicy(ConfigService.HeteroCpuImportantPolicy);
+	        HeteroCpuService.WriteImportantShortPolicy(ConfigService.HeteroCpuImportantShortPolicy);
+	        HeteroCpuService.WritePolicyMask(ConfigService.HeteroCpuPolicyMask);
+	        HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
+	        // Also write per-power-plan hetero scheduling settings to active plan
+	        if (GetActiveSchemeGuid() is Guid activeScheme) {
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_THREAD_SCHED, 2, 5);
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_SHORT_SCHED, 2, 5);
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_ACTIVE_POLICY, 0, 4);
+	        }
+	      } else {
+	        HeteroCpuService.RemoveAll();
+	        // Reset per-power-plan hetero settings to default (auto)
+	        if (GetActiveSchemeGuid() is Guid activeScheme) {
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_THREAD_SCHED, 5, 5);
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_SHORT_SCHED, 5, 5);
+	          WritePwrValueBoth(activeScheme, GUID_HETERO_ACTIVE_POLICY, 4, 4);
+	        }
+	      }
     }
 
     void HeteroCpuMask_TextChanged(object sender, TextChangedEventArgs e) {
@@ -2668,8 +2725,14 @@ namespace OmenSuperHub.Pages {
       HeteroCpuService.WriteImportantPolicy(ConfigService.HeteroCpuImportantPolicy);
       HeteroCpuService.WriteImportantShortPolicy(ConfigService.HeteroCpuImportantShortPolicy);
       HeteroCpuService.WritePolicyMask(ConfigService.HeteroCpuPolicyMask);
-      HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
-      DialogHelper.Info(Strings.HeteroCpuApplyResult, Strings.HeteroCpuApplyTitle);
+	      HeteroCpuService.WriteImportantPriority(ConfigService.HeteroCpuImportantPriority);
+	      // Also write per-plan settings
+	      if (GetActiveSchemeGuid() is Guid activeScheme) {
+	        WritePwrValueBoth(activeScheme, GUID_HETERO_THREAD_SCHED, 2, 5);
+	        WritePwrValueBoth(activeScheme, GUID_HETERO_SHORT_SCHED, 2, 5);
+	        WritePwrValueBoth(activeScheme, GUID_HETERO_ACTIVE_POLICY, 0, 4);
+	      }
+	      DialogHelper.Info(Strings.HeteroCpuApplyResult, Strings.HeteroCpuApplyTitle);
     }
 
     void HeteroCpuRestore_Click(object sender, RoutedEventArgs e) {
@@ -2866,10 +2929,11 @@ namespace OmenSuperHub.Pages {
       double? v = AmdCpuPptNum.Value; if (v == null) return;
       int watts = (int)v;
       ConfigService.AmdCpuPpt = watts; ConfigService.Save("AmdCpuPpt");
-      if (AmdAdvancedService.IsAvailable) {
-        bool ok = AmdAdvancedService.SetPptLimit((uint)(watts * 1000));
-        AmdCpuPowerStatus.Text = ok ? $"PPT={watts}W ✓" : "SMU 写入失败";
-      }
+      // ponytail: PPT 优先 WMI，降级 SMU
+      bool pptOk = false;
+      if (watts <= 255) pptOk = SetCpuPowerLimit((byte)watts);
+      if (!pptOk && AmdAdvancedService.IsAvailable) pptOk = AmdAdvancedService.SetPptLimit((uint)(watts * 1000));
+      AmdCpuPowerStatus.Text = pptOk ? $"PPT={watts}W ✓" : "SMU 写入失败";
     }
     void AmdCpuTdcNum_ValueChanged(object s, RoutedEventArgs e) {
       if (_loading) return;
@@ -3315,6 +3379,10 @@ namespace OmenSuperHub.Pages {
     static readonly Guid GUID_PROCTHROTTLEMAX = new Guid("bc5038f7-23e0-4960-96da-33abaf5935ec");
     static readonly Guid GUID_PROCFREQMAX = new Guid("75b0ae3f-bce0-45a7-8c89-c9611c25e100");
     static readonly Guid GUID_SMTUNPARK = new Guid("b28a6829-c5f7-444e-8f61-10e24e85c532");
+    // Hetero scheduling per-power-plan (AMD dual-CCD simulation)
+    static readonly Guid GUID_HETERO_THREAD_SCHED = new Guid("93b8b6dc-0698-4d1c-9ee4-0644e900c85d");
+    static readonly Guid GUID_HETERO_SHORT_SCHED = new Guid("bae08b81-2d5e-4688-ad6a-13243356654b");
+    static readonly Guid GUID_HETERO_ACTIVE_POLICY = new Guid("7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5");
     // Class 1 (P-cores / first efficiency class)
     static readonly Guid GUID_PERFEPP_CLS1 = new Guid("36687f9e-e3a5-4dbf-b1dc-15eb381c6864");
     static readonly Guid GUID_PROCTHROTTLEMAX_CLS1 = new Guid("bc5038f7-23e0-4960-96da-33abaf5935ed");
@@ -3341,6 +3409,24 @@ namespace OmenSuperHub.Pages {
         NativeMethods_Power.PowerWriteDCValueIndex(IntPtr.Zero, ref scheme, ref sub, ref setting, v);
       else
         NativeMethods_Power.PowerWriteACValueIndex(IntPtr.Zero, ref scheme, ref sub, ref setting, v);
+    }
+
+    /// <summary>同时写入 AC 和 DC 值</summary>
+    void WritePwrValueBoth(Guid scheme, Guid setting, int acVal, int dcVal) {
+      Guid sub = SUB_PROCESSOR_GUID;
+      NativeMethods_Power.PowerWriteACValueIndex(IntPtr.Zero, ref scheme, ref sub, ref setting, (uint)acVal);
+      NativeMethods_Power.PowerWriteDCValueIndex(IntPtr.Zero, ref scheme, ref sub, ref setting, (uint)dcVal);
+    }
+
+    Guid? GetActiveSchemeGuid() {
+      try {
+        if (NativeMethods_Power.PowerGetActiveScheme(IntPtr.Zero, out var ptr) == 0) {
+          var guid = Marshal.PtrToStructure<Guid>(ptr);
+          Marshal.FreeHGlobal(ptr);
+          return guid;
+        }
+      } catch { }
+      return null;
     }
 
     Guid GetSettingGuid(Guid general, Guid class1) {
@@ -3607,6 +3693,10 @@ namespace OmenSuperHub.Pages {
         ApuSkinTemp = ApuSkinTempNum.Value ?? 0,
         ApuDgpuSkin = ApuDgpuSkinNum.Value ?? 0,
         ApuGfxClk = ApuGfxClkNum.Value ?? 0,
+        AmdCpuPpt = AmdCpuPptNum.Value ?? 0,
+        AmdCpuTdc = AmdCpuTdcNum.Value ?? 0,
+        AmdCpuEdc = AmdCpuEdcNum.Value ?? 0,
+        AmdCpuTctl = AmdCpuTctlNum.Value ?? 0,
         NvPower = NvPowerNum.Value ?? 0,
         Rtss = RtssNum.Value ?? 0,
         AutoOcOn = AutoOcToggle.IsChecked ?? false,
@@ -3618,8 +3708,6 @@ namespace OmenSuperHub.Pages {
         ApuVrmMasterOn = ApuVrmMasterToggle.IsChecked ?? true,
         ApuTempMasterOn = ApuTempMasterToggle.IsChecked ?? true,
         ApuGfxClkMasterOn = ApuGfxClkMasterToggle.IsChecked ?? true,
-        AmdCpuPowerMasterOn = AmdCpuPowerMasterToggle.IsChecked ?? true,
-        AmdCpuTempMasterOn = AmdCpuTempMasterToggle.IsChecked ?? true,
         PboScalarMasterOn = PboScalarMasterToggle.IsChecked ?? true,
         CoMasterOn = CoMasterToggle.IsChecked ?? true,
         AutoOcMasterOn = AutoOcMasterToggle.IsChecked ?? true,
@@ -3719,6 +3807,14 @@ namespace OmenSuperHub.Pages {
       ApuSkinTempNum.Value = p.ApuSkinTemp;
       ApuDgpuSkinNum.Value = p.ApuDgpuSkin;
       ApuGfxClkNum.Value = p.ApuGfxClk;
+      AmdCpuPptNum.Value = p.AmdCpuPpt;
+      AmdCpuPptSlider.Value = p.AmdCpuPpt > 0 ? p.AmdCpuPpt : 105;
+      AmdCpuTdcNum.Value = p.AmdCpuTdc;
+      AmdCpuTdcSlider.Value = p.AmdCpuTdc > 0 ? p.AmdCpuTdc : 80;
+      AmdCpuEdcNum.Value = p.AmdCpuEdc;
+      AmdCpuEdcSlider.Value = p.AmdCpuEdc > 0 ? p.AmdCpuEdc : 160;
+      AmdCpuTctlNum.Value = p.AmdCpuTctl;
+      AmdCpuTctlSlider.Value = p.AmdCpuTctl > 0 ? p.AmdCpuTctl : 95;
       NvPowerNum.Value = p.NvPower;
       RtssNum.Value = p.Rtss;
       if (AutoOcToggle.IsChecked != p.AutoOcOn) AutoOcToggle.IsChecked = p.AutoOcOn;
@@ -3730,8 +3826,6 @@ namespace OmenSuperHub.Pages {
       if (ApuVrmMasterToggle.IsChecked != p.ApuVrmMasterOn) ApuVrmMasterToggle.IsChecked = p.ApuVrmMasterOn;
       if (ApuTempMasterToggle.IsChecked != p.ApuTempMasterOn) ApuTempMasterToggle.IsChecked = p.ApuTempMasterOn;
       if (ApuGfxClkMasterToggle.IsChecked != p.ApuGfxClkMasterOn) ApuGfxClkMasterToggle.IsChecked = p.ApuGfxClkMasterOn;
-      if (AmdCpuPowerMasterToggle.IsChecked != p.AmdCpuPowerMasterOn) AmdCpuPowerMasterToggle.IsChecked = p.AmdCpuPowerMasterOn;
-      if (AmdCpuTempMasterToggle.IsChecked != p.AmdCpuTempMasterOn) AmdCpuTempMasterToggle.IsChecked = p.AmdCpuTempMasterOn;
       if (PboScalarMasterToggle.IsChecked != p.PboScalarMasterOn) PboScalarMasterToggle.IsChecked = p.PboScalarMasterOn;
       if (CoMasterToggle.IsChecked != p.CoMasterOn) CoMasterToggle.IsChecked = p.CoMasterOn;
       if (AutoOcMasterToggle.IsChecked != p.AutoOcMasterOn) AutoOcMasterToggle.IsChecked = p.AutoOcMasterOn;

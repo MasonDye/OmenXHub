@@ -5,7 +5,7 @@ namespace LibreHardwareMonitor.PawnIo;
 
 public class RyzenSmu
 {
-    private readonly PawnIo _pawnIO = PawnIo.LoadModuleFromResource(typeof(IntelMsr).Assembly, $"{nameof(LibreHardwareMonitor)}.Resources.PawnIo.RyzenSMU.bin");
+    private readonly PawnIo _pawnIO = PawnIo.LoadModuleFromResource(typeof(IntelMsr).Assembly, $"{nameof(LibreHardwareMonitor)}.Resources.PawnIO.RyzenSMU.bin");
 
     public uint GetSmuVersion()
     {
@@ -34,8 +34,17 @@ public class RyzenSmu
 
     public long[] ReadPmTable(int size)
     {
-        long[] outArray = _pawnIO.Execute("ioctl_read_pm_table", [], size);
-        return outArray;
+        if (!Mutexes.WaitPciBus(5000))
+            throw new TimeoutException("Timeout waiting for PCI bus mutex");
+        try
+        {
+            long[] outArray = _pawnIO.Execute("ioctl_read_pm_table", [], size);
+            return outArray;
+        }
+        finally
+        {
+            Mutexes.ReleasePciBus();
+        }
     }
 
     public void UpdatePmTable()

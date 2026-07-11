@@ -15,16 +15,30 @@ namespace OmenSuperHub.Views {
   public partial class FloatingWindow : Window {
     static PresentMonFpsMonitor _fpsMonitor;
     static System.Windows.Threading.DispatcherTimer _refreshTimer;
+    // ponytail: dirty flags so periodic ticks skip redundant layout/position/style recompute
+    static bool _layoutDirty = true;   // font size / orientation changed → re-ApplyLayoutAndTextSize
+    static bool _positionDirty = true;  // screen/loc/opacity changed → re-UpdatePosition + ApplyWindowStyles
+    static bool _fpsStarting;           // PresentMon startup is async; avoid double-spawn on UI thread
+
+    // ponytail: Dispose PresentMon off UI thread — Stop() does Kill+WaitForExit(1000) which would block the render
+    static void DisposeFpsMonitorAsync() {
+      var m = _fpsMonitor;
+      _fpsMonitor = null;
+      if (m != null) System.Threading.Tasks.Task.Run(() => { try { m.Dispose(); } catch { } });
+    }
+
+    // ponytail: interval follows config directly; clamp 250ms to avoid sub-frame burn
+    static int IntervalMs() => Math.Max(250, ConfigService.MonRefreshInterval);
 
     static void EnsureTimer() {
       if (_refreshTimer != null) return;
       _refreshTimer = new System.Windows.Threading.DispatcherTimer {
-        Interval = TimeSpan.FromMilliseconds(
-            ConfigService.MonRefreshInterval > 500 ? 2000 : 250)
+        Interval = TimeSpan.FromMilliseconds(IntervalMs())
       };
       _refreshTimer.Tick += (_, __) => {
         if (_instances.Count == 0) return;
-        UpdateAllText();
+        // timer path: only re-layout/reposition when dirty, not every tick
+        UpdateAllTextCore(forceLayout: false);
       };
       _refreshTimer.Start();
     }
@@ -54,6 +68,16 @@ namespace OmenSuperHub.Views {
 
     private string _deviceName;
 
+    // ponytail: previous-string cache — skips TextBlock.Text assignment when value is unchanged,
+    // which also avoids WPF's FormattedText layout pass for unchanged text
+    string _lastCpuTemp, _lastCpuPower, _lastGpuTemp, _lastGpuPower, _lastFanSpeed;
+    string _lastMemPct, _lastMemUsed, _lastNetDown, _lastNetUp, _lastFps, _lastFpsApp;
+    int _lastCpuTempIdx = -1, _lastGpuTempIdx = -1;
+
+    static void SetIfChanged(System.Windows.Controls.TextBlock tb, ref string cache, string value) {
+      if (cache != value) { tb.Text = value; cache = value; }
+    }
+
     // Win32 constants for click-through window
     private const int GWL_EXSTYLE = -20;
     private const int WS_EX_TRANSPARENT = 0x00000020;
@@ -70,6 +94,7 @@ namespace OmenSuperHub.Views {
       _deviceName = deviceName;
       InitializeComponent();
       this.SourceInitialized += FloatingWindow_SourceInitialized;
+      this.ContentRendered += FloatingWindow_ContentRendered;
       ThemeService.ThemeChanged += OnThemeChanged;
     }
 
@@ -78,6 +103,19 @@ namespace OmenSuperHub.Views {
     }
 
     private IntPtr _hwnd;
+    private bool _firstLoad = true;
+
+    // ponytail: defer first position to ContentRendered — with SizeToContent=WidthAndHeight the
+    // final ActualWidth is only reliable after the first render pass (DPI matrix is also ready).
+    private void FloatingWindow_ContentRendered(object sender, EventArgs e) {
+      if (_firstLoad) {
+        _firstLoad = false;
+        ContentRendered -= FloatingWindow_ContentRendered;
+        ApplyLayoutAndTextSize();
+        UpdatePosition();
+        ApplyWindowStyles();
+      }
+    }
 
     private void FloatingWindow_SourceInitialized(object sender, EventArgs e) {
       _hwnd = new WindowInteropHelper(this).Handle;
@@ -157,9 +195,9 @@ namespace OmenSuperHub.Views {
         w.CpuRow.Visibility = Visibility.Visible;
         float cpuTemp = HardwareService.CPUTemp;
         int idx = (int)Math.Max(0, Math.Min(100, cpuTemp));
-        w.CpuTempText.Foreground = TempBrushes[idx];
-        w.CpuTempText.Text = $"{cpuTemp:F1}°C";
-        w.CpuPowerText.Text = $"{HardwareService.CPUPower:F1}W";
+        if (idx != w._lastCpuTempIdx) { w.CpuTempText.Foreground = TempBrushes[idx]; w._lastCpuTempIdx = idx; }
+        SetIfChanged(w.CpuTempText, ref w._lastCpuTemp, $"{cpuTemp:F1}°C");
+        SetIfChanged(w.CpuPowerText, ref w._lastCpuPower, $"{HardwareService.CPUPower:F1}W");
       } else {
         w.CpuRow.Visibility = Visibility.Collapsed;
       }
@@ -168,16 +206,16 @@ namespace OmenSuperHub.Views {
         w.GpuRow.Visibility = Visibility.Visible;
         float gpuTemp = HardwareService.GPUTemp;
         int idx = (int)Math.Max(0, Math.Min(100, gpuTemp));
-        w.GpuTempText.Foreground = TempBrushes[idx];
-        w.GpuTempText.Text = $"{gpuTemp:F1}°C";
-        w.GpuPowerText.Text = $"{HardwareService.GPUPower:F1}W";
+        if (idx != w._lastGpuTempIdx) { w.GpuTempText.Foreground = TempBrushes[idx]; w._lastGpuTempIdx = idx; }
+        SetIfChanged(w.GpuTempText, ref w._lastGpuTemp, $"{gpuTemp:F1}°C");
+        SetIfChanged(w.GpuPowerText, ref w._lastGpuPower, $"{HardwareService.GPUPower:F1}W");
       } else {
         w.GpuRow.Visibility = Visibility.Collapsed;
       }
 
       if (HardwareService.MonitorFan) {
         w.FanRow.Visibility = Visibility.Visible;
-        w.FanSpeedText.Text = $"{HardwareService.FanSpeedNow[0] * 100}, {HardwareService.FanSpeedNow[1] * 100}";
+        SetIfChanged(w.FanSpeedText, ref w._lastFanSpeed, $"{HardwareService.FanSpeedNow[0] * 100}, {HardwareService.FanSpeedNow[1] * 100}");
       } else {
         w.FanRow.Visibility = Visibility.Collapsed;
       }
@@ -188,8 +226,8 @@ namespace OmenSuperHub.Views {
         double memPct = mem.dwMemoryLoad;
         double usedGB = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024.0 * 1024 * 1024);
         double totalGB = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
-        w.MemPctText.Text = $"{memPct:F0}%";
-        w.MemUsedText.Text = $"{usedGB:F1}/{totalGB:F1}G";
+        SetIfChanged(w.MemPctText, ref w._lastMemPct, $"{memPct:F0}%");
+        SetIfChanged(w.MemUsedText, ref w._lastMemUsed, $"{usedGB:F1}/{totalGB:F1}G");
       } else {
         w.MemRow.Visibility = Visibility.Collapsed;
       }
@@ -197,36 +235,41 @@ namespace OmenSuperHub.Views {
       if (ConfigService.MonitorNetwork && NetworkSpeedService.IsAvailable) {
         w.NetRow.Visibility = Visibility.Visible;
         var (down, up) = NetworkSpeedService.GetSpeed();
-        w.NetDownText.Text = $"↓{down:F0}KB/s";
-        w.NetUpText.Text = $"↑{up:F0}KB/s";
+        SetIfChanged(w.NetDownText, ref w._lastNetDown, $"↓{down:F0}KB/s");
+        SetIfChanged(w.NetUpText, ref w._lastNetUp, $"↑{up:F0}KB/s");
       } else {
         w.NetRow.Visibility = Visibility.Collapsed;
       }
 
-	      if (ConfigService.MonitorFPS) {
-	        if (_fpsMonitor == null) {
-	          _fpsMonitor = new PresentMonFpsMonitor();
-	          _fpsMonitor.EnsureRunning("", out _);
-	        }
-	        _fpsMonitor.Poll();
-	        int fps = _fpsMonitor.LastFps;
-	        string app = _fpsMonitor.LastApp;
-	        if (fps > 0) {
-	          w.FpsRow.Visibility = Visibility.Visible;
-	          w.FpsValueText.Text = fps.ToString();
-	          w.FpsAppText.Text = string.IsNullOrWhiteSpace(app) ? "" : ShortAppName(app);
-	        } else {
-	          w.FpsRow.Visibility = Visibility.Collapsed;
-	        }
-	      } else {
+      if (ConfigService.MonitorFPS) {
+        // ponytail: spawn PresentMon off the UI thread; first tick shows nothing, next tick after startup shows FPS
+        if (_fpsMonitor == null && !_fpsStarting) {
+          _fpsStarting = true;
+          var seed = new PresentMonFpsMonitor();
+          System.Threading.Tasks.Task.Run(() => {
+            try { seed.EnsureRunning("", out _); } catch { }
+            _fpsMonitor = seed;
+            _fpsStarting = false;
+          });
+        }
+        _fpsMonitor?.Poll();
+        int fps = _fpsMonitor?.LastFps ?? 0;
+        string app = _fpsMonitor?.LastApp ?? "";
+        if (fps > 0) {
+          w.FpsRow.Visibility = Visibility.Visible;
+          SetIfChanged(w.FpsValueText, ref w._lastFps, fps.ToString());
+          string appDisplay = string.IsNullOrWhiteSpace(app) ? "" : ShortAppName(app);
+          SetIfChanged(w.FpsAppText, ref w._lastFpsApp, appDisplay);
+        } else {
+          w.FpsRow.Visibility = Visibility.Collapsed;
+        }
+      } else {
         w.FpsRow.Visibility = Visibility.Collapsed;
-        if (_fpsMonitor != null) { _fpsMonitor.Dispose(); _fpsMonitor = null; }
+        if (_fpsMonitor != null) { DisposeFpsMonitorAsync(); }
       }
 
-	      w.UpdatePosition();
-	      w.ApplyWindowStyles();
-	      UpdateSeparators(w);
-	    }
+      UpdateSeparators(w);
+    }
 
 	    static void UpdateSeparators(FloatingWindow w) {
 	      bool isCol = ConfigService.FloatingBarLayout == "col";
@@ -262,19 +305,29 @@ namespace OmenSuperHub.Views {
     }
 
 	    public static void UpdateAllText() {
+      // external callers (SettingsPage/DashboardPage/TrayService) want a forced refresh after config changes
+      UpdateAllTextCore(forceLayout: true);
+    }
+
+    static void UpdateAllTextCore(bool forceLayout) {
       Application.Current?.Dispatcher.Invoke(() => {
+        bool needLayout = forceLayout || _layoutDirty;
+        bool needPosition = forceLayout || _positionDirty;
         foreach (var w in _instances.ToArray()) {
           if (w != null && w.IsLoaded) {
-            w.ApplyLayoutAndTextSize();
+            if (needLayout) w.ApplyLayoutAndTextSize();
+            if (needPosition) { w.UpdatePosition(); w.ApplyWindowStyles(); }
             DoUpdateText(w);
           }
         }
+        if (needLayout) _layoutDirty = false;
+        if (needPosition) _positionDirty = false;
       });
     }
 
     public static void ShowInstances() {
       EnsureTimer();
-      Application.Current?.Dispatcher.Invoke(() => {
+      Application.Current?.Dispatcher.BeginInvoke(new Action(() => {
         var selected = ParseSelectedDeviceNames();
         // Close instances for deselected screens
         foreach (var w in _instances.ToArray()) {
@@ -283,18 +336,21 @@ namespace OmenSuperHub.Views {
           }
         }
         _instances.RemoveAll(w => !selected.Contains(w._deviceName));
-        // Create new instances for missing screens
+        // ponytail: first position is deferred to Loaded event where ActualWidth/DPI are ready;
+        // layout + text are filled by the next timer tick (or immediately if already loaded)
+        bool created = false;
         foreach (string dev in selected) {
           if (!_instances.Any(w => w._deviceName == dev)) {
             var w = new FloatingWindow(dev);
-            w.ApplyLayoutAndTextSize();
             _instances.Add(w);
             w.Show();
-            w.UpdatePosition();
             DoUpdateText(w);
+            created = true;
           }
         }
-      });
+        // existing instances may need re-position if screens changed; force a layout pass next tick
+        if (created) { _layoutDirty = true; _positionDirty = true; }
+      }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     public static void CloseAll() {
@@ -304,12 +360,18 @@ namespace OmenSuperHub.Views {
         }
         _instances.Clear();
       });
+      // ponytail: stop the timer so hidden windows don't pay scheduler cost; EnsureTimer rebuilds on next Show
+      if (_refreshTimer != null) {
+        try { _refreshTimer.Stop(); } catch { }
+        _refreshTimer = null;
+      }
+      // presentMon keeps running only while MonitorFPS is on; release it async to avoid UI-thread Kill/Wait
+      DisposeFpsMonitorAsync();
     }
 
     public static void UpdateRefreshInterval() {
       if (_refreshTimer != null)
-        _refreshTimer.Interval = TimeSpan.FromMilliseconds(
-            ConfigService.MonRefreshInterval > 500 ? 2000 : 250);
+        _refreshTimer.Interval = TimeSpan.FromMilliseconds(IntervalMs());
     }
 
     public static List<string> ParseSelectedDeviceNames() {

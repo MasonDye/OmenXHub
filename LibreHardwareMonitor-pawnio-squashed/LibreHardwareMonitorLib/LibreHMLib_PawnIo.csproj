@@ -20,6 +20,12 @@
     <PackageIcon>packageicon.png</PackageIcon>
     <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
     <Platforms>AnyCPU;x64</Platforms>
+    <!-- ponytail: forked LibreHardwareMonitorLib — interface events SensorRemoved/Added and
+         MemoryGroup.HardwareRemoved are declared but unused. Suppress rather than touch the vendored lib. -->
+    <NoWarn>CS0067</NoWarn>
+    <!-- ponytail: Mono.Posix only used via reflection on Linux path — never executed on Windows.
+         MSB3245 (Mono.Posix not found) and MSB3246 are spurious on Windows-only builds. -->
+    <NoWarn>$(NoWarn);MSB3245;MSB3246</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <OutputPath>..\bin\Debug\</OutputPath>
@@ -33,15 +39,18 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\PawnIO\LpcIO.bin" />
-    <EmbeddedResource Include="Resources\PawnIo\LpcACPIEC.bin" />
-    <EmbeddedResource Include="Resources\PawnIo\IntelMSR.bin" />
-    <EmbeddedResource Include="Resources\PawnIo\RyzenSMU.bin" />
-    <EmbeddedResource Include="Resources\PawnIo\AMDFamily0F.bin" />
-    <EmbeddedResource Include="Resources\PawnIo\AMDFamily10.bin" />
-    <EmbeddedResource Include="Resources\PawnIo\AMDFamily17.bin" />
+    <EmbeddedResource Include="Resources\PawnIO\LpcACPIEC.bin" />
+    <EmbeddedResource Include="Resources\PawnIO\LpcCrOSEC.bin" />
+    <EmbeddedResource Include="Resources\PawnIO\IntelMSR.bin" />
+    <EmbeddedResource Include="Resources\PawnIO\RyzenSMU.bin" />
+    <EmbeddedResource Include="Resources\PawnIO\AMDFamily0F.bin" />
+    <EmbeddedResource Include="Resources\PawnIO\AMDFamily10.bin" />
+    <EmbeddedResource Include="Resources\PawnIO\AMDFamily17.bin" />
+    <EmbeddedResource Include="Resources\PawnIO\IsaBridgeEC.bin" />
     <EmbeddedResource Include="Resources\PawnIO\SmbusI801.bin" />
     <EmbeddedResource Include="Resources\PawnIO\SmbusNCT6793.bin" />
     <EmbeddedResource Include="Resources\PawnIO\SmbusPIIX4.bin" />
+    <EmbeddedResource Include="Resources\PawnIO\SmbusIntelSkylakeIMC.bin" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' != 'net472'">
     <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />

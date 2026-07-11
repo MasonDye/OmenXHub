@@ -43,7 +43,8 @@ namespace OmenSuperHub.Services {
     public static bool IsConnectedToNVIDIA = true;
     static bool _powerOnline = true;
     public static bool PowerOnline { get { lock (_lock) return _powerOnline; } set { lock (_lock) _powerOnline = value; } }
-    static readonly int[] _fanSpeedNow = new int[2] { 20, 23 };
+    // ponytail: -1 确保首次风扇定时器 tick 必定执行写入, 不与真实速度值冲突
+    static readonly int[] _fanSpeedNow = new int[2] { -1, -1 };
     public static IReadOnlyList<int> FanSpeedNow => _fanSpeedNow;  // direct ref, no allocation per access
     public static void UpdateFanSpeed(IReadOnlyList<int> values) {
       if (values == null || values.Count < 2) return;
@@ -159,10 +160,12 @@ namespace OmenSuperHub.Services {
 
           foreach (LibreISensor sensor in hardware.Sensors) {
             if (hardware.HardwareType == LibreHardwareType.Cpu) {
-              if (sensor.Name == "CPU Package" && sensor.SensorType == LibreSensorType.Temperature) {
+              // ponytail: Intel → "CPU Package", AMD → "Package" / "Core (Tctl/Tdie)" / "Core (Tdie)"
+              if (sensor.SensorType == LibreSensorType.Temperature &&
+                  (sensor.Name.Contains("Package") || sensor.Name.Contains("Tctl/Tdie") || sensor.Name.Contains("Tdie"))) {
                 libreTempCPU = (int)sensor.Value.GetValueOrDefault();
               }
-              if (sensor.Name == "CPU Package" && sensor.SensorType == LibreSensorType.Power) {
+              if (sensor.SensorType == LibreSensorType.Power && sensor.Name.Contains("Package")) {
                 librePowerCPU = sensor.Value.GetValueOrDefault();
               }
               if (sensor.SensorType == LibreSensorType.Load && sensor.Name == "CPU Total") {

@@ -4,7 +4,7 @@ namespace LibreHardwareMonitor.PawnIo;
 
 public class AmdFamily10
 {
-    private readonly PawnIo _pawnIo = PawnIo.LoadModuleFromResource(typeof(AmdFamily0F).Assembly, $"{nameof(LibreHardwareMonitor)}.Resources.PawnIo.AMDFamily10.bin");
+    private readonly PawnIo _pawnIo = PawnIo.LoadModuleFromResource(typeof(AmdFamily0F).Assembly, $"{nameof(LibreHardwareMonitor)}.Resources.PawnIO.AMDFamily10.bin");
 
     public void MeasureTscMultiplier(out long ctrPerTick, out long cofVid)
     {
