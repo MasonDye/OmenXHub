@@ -3980,7 +3980,14 @@ namespace OmenSuperHub.Pages {
       LoadStateFast();
       try { LoadStateDeferred(); } catch { }
       _loading = false;
-      Log($"btnPerfLoad: reloaded '{ConfigService.Preset}'");
+      // ponytail: previously Reload only updated UI sliders while _loading=true
+      // suppressed every *_ValueChanged handler → sliders moved, hardware
+      // never got the new values. Reapply via PresetManager so the load button
+      // actually pushes to MSR/SMU. Runs on a worker thread to keep UI snappy.
+      System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+        try { PresetManager.ApplyAdvanced(); } catch { }
+      });
+      Log($"btnPerfLoad: reloaded '{ConfigService.Preset}' + advanced settings reapplied");
     }
 
     void btnPerfDelete_Click(object sender, RoutedEventArgs e) {

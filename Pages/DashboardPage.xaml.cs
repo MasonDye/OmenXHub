@@ -107,18 +107,20 @@ namespace OmenSuperHub.Pages {
             double cpuUtil = cpuOn ? HardwareService.CPUUsage : 0;
             double cpuFan = cpuOn ? HardwareService.FanSpeedNow[0] * 100 : 0;
             double cpuPower = cpuOn ? HardwareService.CPUPower : 0;
+            double cpuClock = cpuOn ? HardwareService.CPUClock : 0;
             int gpuTemp = gpuOn ? (int)HardwareService.GetDisplayGpuTemp() : 0;
             double gpuUtil = gpuOn ? HardwareService.GPUUsage : 0;
             double gpuFan = gpuOn ? HardwareService.FanSpeedNow[1] * 100 : 0;
             double gpuPower = gpuOn ? HardwareService.GPUPower : 0;
+            double gpuClock = gpuOn ? HardwareService.GPUClock : 0;
             int ir = GetSensorTemperature(0);
             int amb = GetSensorTemperature(1);
             int pch = GetSensorTemperature(2);
             int vr = GetSensorTemperature(3);
             // Push results back to UI thread
             Dispatcher.BeginInvoke(new Action(() =>
-              RefreshDashboardCore(cpuOn, gpuOn, memOn, mem, cpuTemp, cpuUtil, cpuFan, cpuPower,
-                  gpuTemp, gpuUtil, gpuFan, gpuPower, presetKey, fc, ft)
+              RefreshDashboardCore(cpuOn, gpuOn, memOn, mem, cpuTemp, cpuUtil, cpuFan, cpuPower, cpuClock,
+                  gpuTemp, gpuUtil, gpuFan, gpuPower, gpuClock, presetKey, fc, ft)
             ), DispatcherPriority.Background);
             Dispatcher.BeginInvoke(new Action(() =>
               RefreshSensorsCore(cpuTemp, gpuOn ? gpuTemp : 0, ir, amb, pch, vr)
@@ -160,6 +162,12 @@ namespace OmenSuperHub.Pages {
         CpuPowerText.Text = HardwareService.CPUPower.ToString("F1") + " W";
         CpuPowerBar.Foreground = GetGradientBrush(HardwareService.CPUPower, 150);
         AnimateBar(CpuPowerBar, HardwareService.CPUPower);
+
+        // ponytail: CPUClock is the max core clock (MHz); 6000 covers modern boost bins.
+        double cpuClock = HardwareService.CPUClock;
+        CpuClockText.Text = cpuClock.ToString("F0") + " MHz";
+        CpuClockBar.Foreground = GetGradientBrush(cpuClock, 6000);
+        AnimateBar(CpuClockBar, cpuClock);
       }
       CpuDetailPanel.Visibility = cpuOn ? Visibility.Visible : Visibility.Collapsed;
       CpuOffMessage.Visibility = cpuOn ? Visibility.Collapsed : Visibility.Visible;
@@ -182,6 +190,12 @@ namespace OmenSuperHub.Pages {
         GpuPowerText.Text = HardwareService.GPUPower.ToString("F1") + " W";
         GpuPowerBar.Foreground = GetGradientBrush(HardwareService.GPUPower, 300);
         AnimateBar(GpuPowerBar, HardwareService.GPUPower);
+
+        // ponytail: GPUClock is the core clock (MHz); 3000 covers typical boost bins.
+        double gpuClock = HardwareService.GPUClock;
+        GpuClockText.Text = gpuClock.ToString("F0") + " MHz";
+        GpuClockBar.Foreground = GetGradientBrush(gpuClock, 3000);
+        AnimateBar(GpuClockBar, gpuClock);
       }
       GpuDetailPanel.Visibility = gpuOn ? Visibility.Visible : Visibility.Collapsed;
       GpuOffMessage.Visibility = gpuOn ? Visibility.Collapsed : Visibility.Visible;
@@ -241,8 +255,8 @@ namespace OmenSuperHub.Pages {
 
     /// <summary>UI-only update from pre-fetched data (called from timer background thread).</summary>
     void RefreshDashboardCore(bool cpuOn, bool gpuOn, bool memOn, MEMORYSTATUSEX mem,
-        int cpuTemp, double cpuUtil, double cpuFan, double cpuPower,
-        int gpuTemp, double gpuUtil, double gpuFan, double gpuPower,
+        int cpuTemp, double cpuUtil, double cpuFan, double cpuPower, double cpuClock,
+        int gpuTemp, double gpuUtil, double gpuFan, double gpuPower, double gpuClock,
         string presetKey, string fc, string ft) {
       if (cpuOn) {
         CpuTempText.Text = cpuTemp.ToString();
@@ -257,6 +271,9 @@ namespace OmenSuperHub.Pages {
         CpuPowerText.Text = cpuPower.ToString("F1") + " W";
         CpuPowerBar.Foreground = GetGradientBrush(cpuPower, 150);
         AnimateBar(CpuPowerBar, cpuPower);
+        CpuClockText.Text = cpuClock.ToString("F0") + " MHz";
+        CpuClockBar.Foreground = GetGradientBrush(cpuClock, 6000);
+        AnimateBar(CpuClockBar, cpuClock);
       }
       CpuDetailPanel.Visibility = cpuOn ? Visibility.Visible : Visibility.Collapsed;
       CpuOffMessage.Visibility = cpuOn ? Visibility.Collapsed : Visibility.Visible;
@@ -273,6 +290,9 @@ namespace OmenSuperHub.Pages {
         GpuPowerText.Text = gpuPower.ToString("F1") + " W";
         GpuPowerBar.Foreground = GetGradientBrush(gpuPower, 300);
         AnimateBar(GpuPowerBar, gpuPower);
+        GpuClockText.Text = gpuClock.ToString("F0") + " MHz";
+        GpuClockBar.Foreground = GetGradientBrush(gpuClock, 3000);
+        AnimateBar(GpuClockBar, gpuClock);
       }
       GpuDetailPanel.Visibility = gpuOn ? Visibility.Visible : Visibility.Collapsed;
       GpuOffMessage.Visibility = gpuOn ? Visibility.Collapsed : Visibility.Visible;
@@ -386,7 +406,7 @@ namespace OmenSuperHub.Pages {
         ulong usedBefore = memBefore.ullTotalPhys - memBefore.ullAvailPhys;
 
         CleanMemBtn.IsEnabled = false;
-        CleanMemBtn.Content = "清理中...";
+	        CleanMemBtn.Content = Strings.DashboardMemoryCleaning;
 
         foreach (var proc in Process.GetProcesses()) {
           try { using (proc) EmptyWorkingSet(proc.Handle); } catch { }
@@ -398,7 +418,7 @@ namespace OmenSuperHub.Pages {
         if (freed < 0) freed = 0;
 
         string saved = RamDetailText.Text;
-        RamDetailText.Text = freed > 0 ? $"已释放 {FormatBytes((ulong)freed)}" : "无需清理";
+	        RamDetailText.Text = freed > 0 ? Strings.DashboardMemoryFreedFormat(FormatBytes((ulong)freed)) : Strings.DashboardMemoryNoClean;
         RamDetailText.Foreground = freed > 0 ? _brushAccentGreen : _brushAccentYellow;
 
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -410,7 +430,7 @@ namespace OmenSuperHub.Pages {
         };
         timer.Start();
       } catch (Exception ex) {
-        RamDetailText.Text = $"清理失败: {ex.Message}";
+	        RamDetailText.Text = Strings.DashboardMemoryCleanFailed(ex.Message);
         RamDetailText.Foreground = _brushAccentRed;
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         timer.Tick += (s, a) => {
@@ -584,6 +604,7 @@ namespace OmenSuperHub.Pages {
       _loading = false;
       Views.OsdWindow.ShowPresetOsd(preset);
       RefreshDashboard();
+      ConfigService.FirePresetCycled(preset);
     }
 
     void OnPresetCycled(string preset) {
@@ -876,7 +897,6 @@ namespace OmenSuperHub.Pages {
         SysCpuText.Text = Strings.SysCpuModel + ": " + ConfigService.SysCpu;
         SysGpuText.Text = Strings.SysGpuList + ": " + ConfigService.SysGpu;
         SysAdapterText.Text = Strings.SysAdapterPower + ": " + ConfigService.SysAdapterPower + " W";
-        SysProductNameText.Text = Strings.SysModelName + ": " + ConfigService.SysProductName;
         int v = ConfigService.SysValidation;
 	        SysValidationText.Text = Strings.SysModelValidation + ": " + (
 	            v == 2 ? Strings.ValidationGamingProduct :
@@ -897,12 +917,21 @@ SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyb
 	              ? Strings.SysPawnInstalled + " (" + OmenHardware.GetPawnIOState() + ")"
 	              : Strings.SysPawnMissing;
 	          SysPawnIoText.Text = pawnIoNow;
-	          if (ConfigService.SysPawnIoText != pawnIoNow) {
-	            ConfigService.SysPawnIoText = pawnIoNow;
-	            ConfigService.Save("SysPawnIoText");
-	          }
-	        } catch { }
-	        return;
+		          if (ConfigService.SysPawnIoText != pawnIoNow) {
+		            ConfigService.SysPawnIoText = pawnIoNow;
+		            ConfigService.Save("SysPawnIoText");
+		          }
+		        } catch { }
+		        // ponytail: OmenXHub MSR driver handle is live-probed — unlike
+		        // PawnIO, there's no registry state to lie about; IsAvailable is
+		        // the truth. Surface it next to the install button.
+		        try {
+		          if (KernelDriverStatus != null)
+		            KernelDriverStatus.Text = OmenXHubDriver.IsAvailable
+		                ? Strings.AdvDriverInstallOk
+		                : Strings.AdvDriverNotReady;
+		        } catch { }
+		        return;
 	      }
 	      Task.Run(() => {
         string mfr = null, model = null, bios = null, cpu = null, gpu = null;
@@ -931,8 +960,8 @@ SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyb
         try {
           // ponytail: DeviceModel.OmenPlatform is a struct — the getter
           // itself never throws, but platform.DisplayName may return null
-          // when the SDK doesn't know this platform.  Fallback to the WMI
-          // model name (already fetched) so "机型名称" is never blank.
+          // when the SDK doesn't know this platform. Fallback to the WMI
+          // model name (already fetched) so the cached product name is never blank.
           var platform = DeviceModel.OmenPlatform;
           pn = platform.DisplayName;
           if (string.IsNullOrEmpty(pn)) pn = model;
@@ -940,7 +969,7 @@ SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyb
           if (string.IsNullOrEmpty(pn)) pn = model;
         }
         try { board = DeviceModel.ThisSystemID; } catch { }
-        try { validation = Validation(); } catch { }
+        try { validation = Validation(pn); } catch { }
         try { tj = GetCpuTjmax(); } catch { }
         try { nvidiaTj = GpuAppManager.GetGpuTemperatureTarget(); } catch { }
         try { powerLimits = GpuAppManager.GetGpuPowerLimits(); } catch { }
@@ -975,7 +1004,6 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
             if (ConfigService.SysAdapterPower != adapterW) { ConfigService.SysAdapterPower = adapterW; updates["SysAdapterPower"] = adapterW; }
             SysDriverModelText.Text = Strings.SysModel + ": " + model;
           }
-          SysProductNameText.Text = Strings.SysModelName + ": " + (_pn ?? Strings.SysUnknown);
           if (ConfigService.SysProductName != (_pn ?? Strings.SysUnknown)) { ConfigService.SysProductName = _pn ?? Strings.SysUnknown; updates["SysProductName"] = _pn ?? Strings.SysUnknown; }
           SysValidationText.Text = Strings.SysModelValidation + ": " + (
               _validation >= 2 ? Strings.ValidationGamingProduct :
@@ -1031,18 +1059,9 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
     }
 
     int GetCpuTjmax() {
-      try {
-        foreach (var hw in HardwareService.LibreComputer.Hardware) {
-          if (hw.HardwareType == LibreHardwareType.Cpu) {
-            hw.Update();
-            foreach (var sensor in hw.Sensors) {
-              if (sensor.SensorType == LibreSensorType.Temperature && sensor.Parameters.Count > 0)
-                return (int)sensor.Parameters[0].Value;
-            }
-          }
-        }
-      } catch { }
-      return 100;
+      // ponytail: mirrors OSH — use HP SDK PlatformSettings temperatureThrottlingPerformance
+      // (BIOS-set thermal limit) instead of hardware MSR TjMax
+      return OmenHardware.GetCpuTempLimit();
     }
 
     async Task RefreshNvidiaPowerLimitAsync() {
@@ -1185,13 +1204,13 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
             if (p != null) { p.WaitForExit(2000); ok = p.ExitCode == 0; }
           }
         }
-        if (ok)
-          DialogHelper.Info($"进程 '{app.ProcessName}' 已终止", Strings.Hint);
-        else
-          DialogHelper.Warn($"进程 '{app.ProcessName}' 终止失败，PID可能已过期或权限不足", Strings.Hint);
-      } catch (Exception ex) {
-        DialogHelper.Error($"结束进程失败: {ex.Message}", Strings.Hint);
-        Logger.Error($"结束进程失败: {ex.Message}");
+	        if (ok)
+	          DialogHelper.Info(Strings.DashboardProcessKilled(app.ProcessName), Strings.Hint);
+	        else
+	          DialogHelper.Warn(Strings.DashboardProcessKillFailed(app.ProcessName), Strings.Hint);
+	      } catch (Exception ex) {
+	        DialogHelper.Error(Strings.DashboardProcessKillError(ex.Message), Strings.Hint);
+	        Logger.Error(Strings.DashboardProcessKillError(ex.Message));
       }
       RefreshGpuAppList();
     }
@@ -1253,6 +1272,60 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
 
     void HpDriverSearch_Click(object sender, RoutedEventArgs e) {
       try { Process.Start(new ProcessStartInfo("https://support.hp.com/cn-zh/product/detect?source=swd") { UseShellExecute = true })?.Dispose(); } catch { }
+    }
+
+    // ═══ ponytail: D-stage one-click kernel driver install ═══
+    // The bundled OmenXHub MSR/PCI driver was previously NEVER installed
+    // by the app — Intel MSR advanced tuning cards (FIVR / clock ratio /
+    // HWP / C-State / PROCHOT / iGPU Power-Ratio) all silently no-op'd.
+    // Click here: elevates via UAC, sc create + sc start OmenXHubDrv.
+    void InstallKernelDriver_Click(object sender, RoutedEventArgs e) {
+      KernelDriverStatus.Text = "…";
+      // Find the .sys next to the exe, then fall back to source tree layout.
+      string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+      string[] candidates = new[] {
+        Path.Combine(baseDir, "OmenXHubDrv.sys"),
+        Path.Combine(baseDir, "driver", "OmenXHubDrv.sys"),
+        Path.Combine(baseDir, "..", "driver", "OmenXHubDrv.sys"),
+      };
+      string sysPath = candidates.FirstOrDefault(File.Exists);
+      if (sysPath == null) { KernelDriverStatus.Text = Strings.AdvDriverInstallFail; return; }
+      sysPath = Path.GetFullPath(sysPath);
+
+      try {
+        // ponytail: sc create/start must run elevated. We shell sc.exe with
+        // Verb=runas so UAC prompts; if the process is already elevated, sc
+        // exits quickly and we re-query IsAvailable.
+        var psiCreate = new ProcessStartInfo("sc.exe",
+          $"create OmenXHubDrv type= kernel binPath=\"{sysPath}\" start= demand") {
+          Verb = "runas", UseShellExecute = true, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden
+        };
+        var psiStart = new ProcessStartInfo("sc.exe", "start OmenXHubDrv") {
+          Verb = "runas", UseShellExecute = true, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden
+        };
+        using (var p1 = Process.Start(psiCreate)) { p1?.WaitForExit(); }
+        // Wait briefly for service to come up, sc start may already start it.
+        System.Threading.Thread.Sleep(300);
+        using (var p2 = Process.Start(psiStart))  { p2?.WaitForExit(); }
+        // Force re-open the device handle (it caches once opened)
+        OmenXHubDriver.Close();
+        bool ok = OmenXHubDriver.IsAvailable;
+        KernelDriverStatus.Text = ok ? Strings.AdvDriverInstallOk : Strings.AdvDriverInstallFail;
+        // refresh the PawnIO status line too, since both depend on real handles
+        try {
+          var pawnIoNow = OmenHardware.IsPawnIOInstalled()
+              ? Strings.SysPawnInstalled + " (" + OmenHardware.GetPawnIOState() + ")"
+              : Strings.SysPawnMissing;
+          SysPawnIoText.Text = pawnIoNow;
+          ConfigService.SysPawnIoText = pawnIoNow;
+          ConfigService.Save("SysPawnIoText");
+        } catch { }
+      } catch (System.ComponentModel.Win32Exception) {
+        // UAC declined (1223) or similar — surface admin requirement cleanly.
+        KernelDriverStatus.Text = Strings.AdvNeedAdmin;
+      } catch (Exception ex) {
+        KernelDriverStatus.Text = Strings.AdvDriverInstallFail + " " + ex.Message;
+      }
     }
   }
 }

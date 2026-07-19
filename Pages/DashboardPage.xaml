@@ -126,6 +126,21 @@
                              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                              VerticalAlignment="Center" HorizontalAlignment="Right"/>
                 </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Static app:Strings.ClockLabel}" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                             VerticalAlignment="Center"/>
+                  <ProgressBar x:Name="CpuClockBar" Grid.Column="1" Height="8" VerticalAlignment="Center"
+                               Margin="8,0,8,0" Minimum="0" Maximum="6000"/>
+                  <TextBlock Grid.Column="2" x:Name="CpuClockText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                </Grid>
               </StackPanel>
               <TextBlock x:Name="CpuOffMessage" Grid.Row="1" Text="{x:Static app:Strings.CpuMonitorOff}"
                          FontSize="12" FontStyle="Italic"
@@ -221,6 +236,21 @@
                              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                              VerticalAlignment="Center" HorizontalAlignment="Right"/>
                 </Grid>
+                <Grid Margin="0,6,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="64"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Static app:Strings.ClockLabel}" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                             VerticalAlignment="Center"/>
+                  <ProgressBar x:Name="GpuClockBar" Grid.Column="1" Height="8" VerticalAlignment="Center"
+                               Margin="8,0,8,0" Minimum="0" Maximum="3000"/>
+                  <TextBlock Grid.Column="2" x:Name="GpuClockText" Text="-" FontSize="11"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                             VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                </Grid>
               </StackPanel>
               <TextBlock x:Name="GpuOffMessage" Grid.Row="1" Text="{x:Static app:Strings.GpuMonitorOff}"
                          FontSize="12" FontStyle="Italic"
@@ -283,7 +313,7 @@
                     <ColumnDefinition Width="48"/>
                     <ColumnDefinition Width="*"/>
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="虚拟" FontSize="11"
+	                  <TextBlock Text="{x:Static app:Strings.DashboardMemoryVirtualLabel}" FontSize="11"
                              Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                              VerticalAlignment="Center"/>
                   <TextBlock Grid.Column="1" x:Name="RamVirtualText" Text="-" FontSize="11"
@@ -446,7 +476,6 @@
               </StackPanel>
               <TextBlock x:Name="SysManufacturerText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
               <TextBlock x:Name="SysModelText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
-              <TextBlock x:Name="SysProductNameText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
               <TextBlock x:Name="SysValidationText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
               <TextBlock x:Name="SysBoardText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
               <TextBlock x:Name="SysBiosText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
@@ -498,6 +527,16 @@
                   <TextBlock Text="{x:Static app:Strings.SysPawnTitle}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock x:Name="SysPawnIoText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                <!-- ponytail: one-click install/start the bundled OmenXHub MSR
+                     driver. Was no install path at all so Intel MSR advanced tuning
+                     cards were silent no-ops on every install. -->
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                  <ui:Button x:Name="BtnInstallKernelDriver" Content="{x:Static app:Strings.AdvInstallOmenDriver}"
+                             MinWidth="120" MinHeight="30" Appearance="Primary"
+                             Click="InstallKernelDriver_Click" Margin="0,0,8,0"/>
+                  <TextBlock x:Name="KernelDriverStatus" FontSize="11" VerticalAlignment="Center"
+                             Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </StackPanel>
               </StackPanel>
             </ui:CardControl.Header>
           </ui:CardControl>
@@ -512,15 +551,15 @@
                   </Grid.ColumnDefinitions>
                   <StackPanel Orientation="Horizontal">
                     <ui:SymbolIcon Symbol="Info24" FontSize="18" Margin="0,0,8,0"/>
-                    <TextBlock Text="HP 驱动下载 / HP Driver Download" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+	                    <TextBlock Text="{x:Static app:Strings.DashboardHpDriverPage}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
                   </StackPanel>
                   <Button Grid.Column="1" Width="26" Height="20" Padding="0" Click="HpDriverSearch_Click">
                     <ui:SymbolIcon Symbol="ArrowRight24" FontSize="14"/>
                   </Button>
                 </Grid>
                 <TextBlock x:Name="SysDriverModelText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
-                           Text="点击右侧按钮打开 HP 官方驱动页面"/>
+	                <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"
+		                           Text="{x:Static app:Strings.DashboardHpDriverDesc}"/>
               </StackPanel>
             </ui:CardControl.Header>
           </ui:CardControl>
@@ -585,7 +624,7 @@
                       <ColumnDefinition Width="*"/>
                       <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="网速" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+	                    <TextBlock Text="{x:Static app:Strings.DashboardNetworkSpeedLabel}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
                     <ComboBox x:Name="MonNetworkCombo" Grid.Column="1" MinWidth="100"
                               SelectionChanged="MonNetwork_SelectionChanged">
                       <ComboBoxItem Content="{x:Static app:Strings.MonitorNetworkOn}"/>
@@ -597,7 +636,7 @@
                       <ColumnDefinition Width="*"/>
                       <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="FPS" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+	                    <TextBlock Text="{x:Static app:Strings.DashboardFpsLabel}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
                     <ComboBox x:Name="MonFpsCombo" Grid.Column="1" MinWidth="100"
                               SelectionChanged="MonFps_SelectionChanged">
                       <ComboBoxItem Content="{x:Static app:Strings.MonitorFpsOn}"/>
