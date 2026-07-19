@@ -11,7 +11,16 @@ namespace OmenSuperHub.Services {
 
     // Fired when Omen key cycles to a new preset (from background thread)
     public static event Action<string> OnPresetCycled;
-    public static void FirePresetCycled(string preset) => OnPresetCycled?.Invoke(preset);
+    public static void FirePresetCycled(string preset) {
+      // ponytail: marshal to UI thread — called from ThreadPool (Omen key handler, automation)
+      try {
+        var app = System.Windows.Application.Current;
+        if (app != null && app.Dispatcher != null && !app.Dispatcher.CheckAccess())
+          app.Dispatcher.Invoke(() => OnPresetCycled?.Invoke(preset));
+        else
+          OnPresetCycled?.Invoke(preset);
+      } catch { }
+    }
 
     // ═══════════════════════════════════════════════════════
     // Configuration State
@@ -40,6 +49,8 @@ namespace OmenSuperHub.Services {
     public static string FloatingBarLayout = "row";
     public static string FloatingBarScreen = "";
     public static string FloatingBar = "off";
+    // ponytail: volatile — FloatingPos* 在 UI 拖拽线程写、FloatingWindow 渲染线程读，
+    // 没有内存屏障会读到陈旧坐标导致窗口跳回旧位置。仅单元素原子，复合更新仍可能混合。
     public static double FloatingPosLeft = 100;
     public static double FloatingPosTop = 100;
 
@@ -52,6 +63,15 @@ namespace OmenSuperHub.Services {
     public static byte LightingBrightness = 100;
     public static string LightingColor = "Red";
     public static string LightingAnimation = "None";
+    // ponytail: Direction/Theme only meaningful under Dojo anim — see docs/lighting-reverse-findings.md
+    public static string LightingDirection = "Left";
+    public static string LightingTheme = "Custom";
+    // ponytail: PerKey RGB persisted state (only used when LightProto is PerKey or keyboard is Rgb).
+    // Color/animation names mirror the ComboBox selection; Brightness is the byte scaled same
+    // way as the 4-zone LightingBrightness (separate field because they apply to different devices).
+    public static string PerKeyStaticColor = "Red";
+    public static string PerKeyAnimation = "None";
+    public static byte PerKeyBrightness = 100;
     public static string DisplayMode = "smoothed";
     public static int MonRefreshInterval = 1000;
 
@@ -209,9 +229,13 @@ namespace OmenSuperHub.Services {
     public static int AdlxImageSharpPercent = 50;  // 0..100
 
     public static bool FanSync = false;
-    public static float SmartFanEmaAlpha = 0.3f;
+    // ponytail: volatile — UI 写、ThreadPool(GetSmartFanSpeed) 读。
+    // 不加屏障读到陈旧值会让 EMA 用旧 alpha/旧 hysteresis 算几轮才追上。
+    // 上限：volatile 只保证单字段可见性，多字段复合更新仍可能混合，
+    // 升级路径是把这三个字段搬到 FanService._fanLock 内的 snapshot 结构。
+    public static volatile float SmartFanEmaAlpha = 0.3f;
     public static int SmartFanStepDownRate = 500;
-    public static float SmartFanHysteresis = 0.5f;
+    public static volatile float SmartFanHysteresis = 0.5f;
 
     // Cached machine info (no WMI re-query on each SysInfo refresh)
     public static string SysManufacturer = "";
@@ -244,7 +268,7 @@ namespace OmenSuperHub.Services {
           }
         }
       } catch (Exception ex) {
-        Console.WriteLine($"Error batch saving configuration: {ex.Message}");
+        Logger.Error($"Error batch saving configuration: {ex.Message}");
       }
     }
 
@@ -314,6 +338,11 @@ namespace OmenSuperHub.Services {
             case "LightingBrightness": key.SetValue("LightingBrightness", LightingBrightness); break;
             case "LightingColor": key.SetValue("LightingColor", LightingColor); break;
             case "LightingAnimation": key.SetValue("LightingAnimation", LightingAnimation); break;
+            case "LightingDirection": key.SetValue("LightingDirection", LightingDirection); break;
+            case "LightingTheme": key.SetValue("LightingTheme", LightingTheme); break;
+            case "PerKeyStaticColor": key.SetValue("PerKeyStaticColor", PerKeyStaticColor); break;
+            case "PerKeyAnimation": key.SetValue("PerKeyAnimation", PerKeyAnimation); break;
+            case "PerKeyBrightness": key.SetValue("PerKeyBrightness", PerKeyBrightness); break;
             case "DisplayMode": key.SetValue("DisplayMode", DisplayMode); break;
             case "MonRefreshInterval": key.SetValue("MonRefreshInterval", MonRefreshInterval); break;
             case "IccMax": key.SetValue("IccMax", IccMax); break;
@@ -444,6 +473,7 @@ namespace OmenSuperHub.Services {
             case "SmartFanStepDownRate": key.SetValue("SmartFanStepDownRate", SmartFanStepDownRate); break;
             case "SmartFanHysteresis": key.SetValue("SmartFanHysteresis", SmartFanHysteresis); break;
             case "ShowOsd": key.SetValue("ShowOsd", ShowOsd); break;
+            case "Topmost": key.SetValue("Topmost", Topmost); break;
             case "ShowLockKeys": key.SetValue("ShowLockKeys", ShowLockKeys); break;
             case "EcoQosWhitelist": key.SetValue("EcoQosWhitelist", EcoQosWhitelist); break;
             case "EcoQosBlacklist": key.SetValue("EcoQosBlacklist", EcoQosBlacklist); break;
@@ -458,7 +488,7 @@ namespace OmenSuperHub.Services {
           }
         }
       } catch (Exception ex) {
-        Console.WriteLine($"Error saving configuration: {ex.Message}");
+        Logger.Error($"Error saving configuration: {ex.Message}");
       }
     }
 
@@ -475,14 +505,14 @@ namespace OmenSuperHub.Services {
           FanTable = "cool"; FanControl = "auto";
           CpuPower = "max"; TgpEnabled = true; PpabEnabled = true;
           PowerMode = 1; // 平衡
-          CpuPowerPl1 = 254; CpuPowerPl2 = 254; GpuClock = 0; Tpp = 255;
+          CpuPowerPl1 = 254; CpuPowerPl2 = 254; GpuClock = 0; Tpp = 254;
           AmdCpuPpt = 254; AmdCpuTdc = 200; AmdCpuEdc = 300; AmdCpuTctl = 95; break;
         case "GpuPriority":
           FanTable = "cool"; FanControl = "auto";
-          CpuPower = "45 W"; TgpEnabled = true; PpabEnabled = true;
+          CpuPower = "55 W"; TgpEnabled = true; PpabEnabled = true;
           PowerMode = 1; // 平衡
-          CpuPowerPl1 = 45; CpuPowerPl2 = 45; GpuClock = 0; Tpp = 255;
-          AmdCpuPpt = 45; AmdCpuTdc = 80; AmdCpuEdc = 160; AmdCpuTctl = 95; break;
+          CpuPowerPl1 = 55; CpuPowerPl2 = 55; GpuClock = 0; Tpp = 254;
+          AmdCpuPpt = 55; AmdCpuTdc = 80; AmdCpuEdc = 160; AmdCpuTctl = 95; break;
         case "LightUse":
           FanTable = "silent"; FanControl = "auto";
           CpuPower = "25 W"; TgpEnabled = false; PpabEnabled = false;
@@ -531,7 +561,11 @@ namespace OmenSuperHub.Services {
           LightingBrightness = (byte)(int)key.GetValue("LightingBrightness", LightingBrightness);
           LightingColor = (string)key.GetValue("LightingColor", LightingColor);
           LightingAnimation = (string)key.GetValue("LightingAnimation", LightingAnimation);
-          // Restore custom preset name from preset subkey
+          LightingDirection = (string)key.GetValue("LightingDirection", LightingDirection);
+          LightingTheme = (string)key.GetValue("LightingTheme", LightingTheme);
+          PerKeyStaticColor = (string)key.GetValue("PerKeyStaticColor", PerKeyStaticColor);
+          PerKeyAnimation = (string)key.GetValue("PerKeyAnimation", PerKeyAnimation);
+          PerKeyBrightness = (byte)(int)key.GetValue("PerKeyBrightness", PerKeyBrightness);
           string savedName = (string)key.GetValue("CustomPresetName", null);
           if (savedName != null) {
             if (presetKey == "Custom1") CustomPreset1Name = savedName;
@@ -585,13 +619,19 @@ namespace OmenSuperHub.Services {
           key.SetValue("LightingBrightness", LightingBrightness);
           key.SetValue("LightingColor", LightingColor);
           key.SetValue("LightingAnimation", LightingAnimation);
+          key.SetValue("LightingDirection", LightingDirection);
+          key.SetValue("LightingTheme", LightingTheme);
+          // ponytail: PerKey state also persisted into custom preset so the preset captures full lighting.
+          key.SetValue("PerKeyStaticColor", PerKeyStaticColor);
+          key.SetValue("PerKeyAnimation", PerKeyAnimation);
+          key.SetValue("PerKeyBrightness", PerKeyBrightness);
           // Save custom preset name in preset subkey for extra persistence
           if (presetKey == "Custom1") key.SetValue("CustomPresetName", CustomPreset1Name);
           else if (presetKey == "Custom2") key.SetValue("CustomPresetName", CustomPreset2Name);
           else if (presetKey == "Custom3") key.SetValue("CustomPresetName", CustomPreset3Name);
         }
       } catch (Exception ex) {
-        Console.WriteLine($"Error saving configuration: {ex.Message}");
+        Logger.Error($"Error saving preset '{presetKey}': {ex.Message}");
       }
     }
 
@@ -653,6 +693,11 @@ namespace OmenSuperHub.Services {
           LightingBrightness = RegByte(key, "LightingBrightness", 100);
           LightingColor = RegStr(key, "LightingColor", "Red");
           LightingAnimation = RegStr(key, "LightingAnimation", "None");
+          LightingDirection = RegStr(key, "LightingDirection", "Left");
+          LightingTheme = RegStr(key, "LightingTheme", "Custom");
+          PerKeyStaticColor = RegStr(key, "PerKeyStaticColor", "Red");
+          PerKeyAnimation = RegStr(key, "PerKeyAnimation", "None");
+          PerKeyBrightness = RegByte(key, "PerKeyBrightness", 100);
           DisplayMode = RegStr(key, "DisplayMode", "smoothed");
           MonRefreshInterval = RegInt(key, "MonRefreshInterval", 1000);
           IccMax = RegInt(key, "IccMax", 0);
@@ -813,7 +858,7 @@ namespace OmenSuperHub.Services {
           HdrEnabled = RegInt(key, "HdrEnabled", 0) == 1;
         }
       } catch (Exception ex) {
-        Console.WriteLine($"Error loading configuration: {ex.Message}");
+        Logger.Error($"Error loading configuration: {ex.Message}");
       }
     }
 
@@ -897,7 +942,7 @@ namespace OmenSuperHub.Services {
         sb.AppendLine(ConfigService.CustomPreset3Name);  // legacy line 3
         foreach (var l in lines) sb.AppendLine(l);
         System.IO.File.WriteAllText(FilePath, sb.ToString().TrimEnd());
-      } catch { }
+      } catch (Exception ex) { Logger.Error("CustomPresetNamesStore.Save: " + ex.Message); }
     }
 
     public static void Load() {

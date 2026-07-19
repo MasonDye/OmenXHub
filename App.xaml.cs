@@ -51,8 +51,10 @@ namespace OmenSuperHub {
         // Re-apply saved preset so its values populate ConfigService fields before RestoreConfig
         if (!string.IsNullOrEmpty(ConfigService.Preset)) {
           PresetManager.SwitchPreset(ConfigService.Preset);
-          // Apply GPU power state via WMI (SwitchPreset only updates in-memory ConfigService)
-          try { OmenHardware.SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled, ConfigService.DState == 2 ? 2 : 1); } catch { }
+          // ponytail: SetGpuPowerState removed here — TPP (ConcurrentTDP) must be
+          // written BEFORE GPU power state for PPAB to use the right power budget.
+          // ApplyPresetHardware in MainWindow.Loaded already does them in the
+          // correct order: CPU power → TPP → GPU power state.
         }
         if (!string.IsNullOrEmpty(ConfigService.Language)) {
           switch (ConfigService.Language) {
@@ -66,6 +68,21 @@ namespace OmenSuperHub {
         if (HardwareService.PowerOnline) {
           try { OmenHardware.ExtractAndPreloadNativeDll("NvidiaApi.dll"); } catch { }
         }
+
+        // Preload OmenLightingSDK.dll for native lighting control
+        try { OmenHardware.ExtractAndPreloadNativeDll("OmenLightingSDK.dll"); } catch { }
+
+        // ponytail: persisted lighting state wasn't reapplied on boot — user had to hit
+        // "Apply Lighting" manually after every reboot. Replay it 5s after launch (off-UI
+        // thread so cold-boot window doesn't block on slow WMI/HID open). PerKey HID path
+        // skipped here (device probe may fail at cold boot; user can hit the PerKey card's
+        // Apply button to re-establish).
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+          try {
+            System.Threading.Thread.Sleep(5000);
+            OmenSuperHub.Pages.LightingPage.ReplaySavedLighting();
+          } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"ReplaySavedLighting: {ex.Message}"); }
+        });
 
         // Initialize System Theme integration
         ThemeService.Initialize();
@@ -218,20 +235,22 @@ namespace OmenSuperHub {
     static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
     protected override void OnExit(ExitEventArgs e) {
-      // Save current custom preset to its registry subkey before exit — fixes data loss on restart
-      try { if (PresetManager.IsCustom(ConfigService.Preset)) PresetManager.SaveCustomPreset(ConfigService.Preset); } catch { }
-      try { MacroController.Stop(); } catch { }
-      try { HardwareApiService.Stop(); } catch { }
-      try { HWiNFOService.Stop(); } catch { }
-      try { HWiNFOReaderService.Stop(); } catch { }
-      try { ThemeService.Cleanup(); } catch { }
-      try { EcoQosService.Cleanup(); } catch { }
-      try { AutomationProcessor.Stop(); } catch { }
-      try { SystemEvents.PowerModeChanged -= TrayService.OnPowerChange; } catch { }
-      try { HardwareService.Close(); } catch { }
-      try { AmdSmuService.Shutdown(); } catch { }
-      try { _mutex?.ReleaseMutex(); } catch { }
-      try { _mutex?.Dispose(); } catch { }
+      // ponytail: 每个 close 操作都独立 try-catch — 任何一个抛出不能阻断后续关闭。
+      // SafeShutdown 顺序与原 OnExit 一致。
+      void SafeShutdown(Action a) { try { a(); } catch (Exception ex) { Logger.Error("OnExit step failed: " + ex.Message); } }
+      if (PresetManager.IsCustom(ConfigService.Preset)) SafeShutdown(() => PresetManager.SaveCustomPreset(ConfigService.Preset));
+      SafeShutdown(MacroController.Stop);
+      SafeShutdown(HardwareApiService.Stop);
+      SafeShutdown(HWiNFOService.Stop);
+      SafeShutdown(HWiNFOReaderService.Stop);
+      SafeShutdown(ThemeService.Cleanup);
+      SafeShutdown(EcoQosService.Cleanup);
+      SafeShutdown(AutomationProcessor.Stop);
+      SafeShutdown(() => SystemEvents.PowerModeChanged -= TrayService.OnPowerChange);
+      SafeShutdown(HardwareService.Close);
+      SafeShutdown(AmdSmuService.Shutdown);
+      SafeShutdown(() => _mutex?.ReleaseMutex());
+      SafeShutdown(() => _mutex?.Dispose());
       base.OnExit(e);
     }
 

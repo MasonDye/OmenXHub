@@ -420,6 +420,13 @@ namespace OmenSuperHub {
     // ponytail: capability-mismatch warnings surfaced by ApplyLightBtn_Click instead of silent drop
     public static string LightingCapabilityAnimBasic => T("当前协议（四分区 Basic）仅支持「星光」「波浪」两种动画，请改用 Dojo 协议或选择「无」", "當前協議（四分割區 Basic）僅支援「星光」「波浪」兩種動畫，請改用 Dojo 協議或選擇「無」", "The Basic 4-Zone protocol only supports Starlight and Wave animations. Switch to Dojo or pick None.");
     public static string LightingCapabilityAnimHpSdk => T("HP SDK 协议仅支持静态颜色，请改用 Dojo 或四分区协议，或将动画设为「无」", "HP SDK 協議僅支援靜態顏色，請改用 Dojo 或四分割區協議，或將動畫設為「無」", "The HP SDK protocol only supports static color. Switch to Dojo or Basic, or set animation to None.");
+    // ponytail: PerKey connection / capability warnings surfaced by LightingPage PerKey handlers
+    public static string LightingCapabilityPerKeyConnect => T("未检测到单键 RGB 设备，请确认 OMEN 中心服务可用并尝试重新打开本页", "未偵測到單鍵 RGB 設備，請確認 OMEN 中心服務可用並嘗試重新開啟本頁", "Per-key RGB device not detected. Make sure the OMEN Gaming Hub service is running, then reopen this page.");
+    public static string LightingPerKeyNotSupported => T("当前平台不支持单键 RGB 灯光", "當前平台不支援單鍵 RGB 燈光", "Per-key RGB lighting is not supported on this platform.");
+    // ponytail: Dojo firmware accepts brightness > 100 — 128 / 228 are the documented extra-bright presets
+    // (see existing LightingBrightnessRangeTip "228开"). Buttons shown only under Dojo protocol.
+    public static string LightingBrightnessHigh => T("超亮 128%", "超亮 128%", "Extra Bright 128%");
+    public static string LightingBrightnessMax => T("最亮 228%", "最亮 228%", "Max Bright 228%");
     public static string LightingBrightnessRangeTip => T("💡 亮度范围可能为0~100，也可能为100关228开",
         "💡 亮度範圍可能為0~100，也可能為100關228開",
         "💡 Brightness range may be 0-100, or 100=off, 228=on");
