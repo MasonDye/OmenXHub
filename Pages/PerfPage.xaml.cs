@@ -28,6 +28,15 @@ namespace OmenSuperHub.Pages {
       _loading = true;   // ponytail: suppress NumberBox ValueChanged during layout/template sync
       InitializeComponent();
       Loaded += PerfPage_Loaded;
+      // ponytail: CachedPageService keeps last 3 pages alive; OnPresetChanged / OnLanguageChanged
+      // 订阅在 Loaded 中、不取消则保留强引用让本页无法 GC。Unloaded 时统一取消，pages
+      // 在被缓存驱逐前会先 Unload。Loaded 内仍用 -= 保证幂等。
+      Unloaded += PerfPage_Unloaded;
+    }
+
+    void PerfPage_Unloaded(object sender, RoutedEventArgs e) {
+      PresetManager.OnPresetChanged -= OnPresetChanged;
+      Strings.OnLanguageChanged -= RefreshHeteroLabels;
     }
 
     void PerfPage_Loaded(object sender, RoutedEventArgs e) {
@@ -91,6 +100,7 @@ namespace OmenSuperHub.Pages {
       public const int DM_PELSWIDTH = 0x80000;
       public const int DM_PELSHEIGHT = 0x100000;
       public const int VREFRESH = 116;
+      public const int CDS_UPDATEREGISTRY = 0x01;
       [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
       [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int ChangeDisplaySettings(ref DEVMODE lpDevMode, int dwFlags);
       [DllImport("user32.dll", CharSet = CharSet.Auto)] public static extern int ChangeDisplaySettingsEx(string lpszDeviceName, ref DEVMODE lpDevMode, IntPtr hwnd, int dwFlags, IntPtr lParam);
@@ -289,8 +299,9 @@ namespace OmenSuperHub.Pages {
     }
 
     static class NativeMethods_Power {
-      public static readonly Guid BEST_POWER_EFFICIENCY = Guid.Parse("961cc777-2547-4f9d-8174-7d86181b8a7a");
-      public static readonly Guid BEST_PERFORMANCE = Guid.Parse("ded574b5-45a0-4f42-8737-46345c09c238");
+      // ponytail: GUID 提取到共享 PowerOverlay (Services/NativeDefs.cs)
+      public static readonly Guid BEST_POWER_EFFICIENCY = PowerOverlay.BestPowerEfficiency;
+      public static readonly Guid BEST_PERFORMANCE = PowerOverlay.BestPerformance;
       [DllImport("powrprof.dll")] public static extern uint PowerSetActiveScheme(IntPtr userPowerKey, ref Guid activePolicyGuid);
       [DllImport("powrprof.dll")] public static extern uint PowerSetActiveOverlayScheme(Guid overlaySchemeGuid);
       [DllImport("powrprof.dll")] public static extern uint PowerGetActiveScheme(IntPtr userPowerKey, out IntPtr activePolicyGuid);
@@ -503,18 +514,6 @@ namespace OmenSuperHub.Pages {
         if (item.Tag != null && item.Tag.Equals(tag)) { combo.SelectedItem = item; return; }
     }
 
-    // ── CPU 功率 ──
-    void SetCpuPowerStatus(bool ok, string mode = "WMI") {
-      string color = ok ? "#1FAF5A" : "#E0463F";
-      string text = ok ? $"{Strings.CpuPowerStatusOk} ({mode})" : Strings.CpuPowerStatusFail;
-      try {
-        CpuPowerStatusDot.Fill = new System.Windows.Media.SolidColorBrush(
-          (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
-        CpuPowerStatusText.Text = text;
-      } catch (Exception ex) { Log("SetCpuPowerStatus UI error: " + ex.Message); }
-      Logger.Info($"PerfPage CPU power write => {(ok ? "ok" : "fail")} via {mode}");
-    }
-
     // ── AMD PPT ComboBox ──
     void AmdPptCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
       if (_loading) return;
@@ -524,9 +523,6 @@ namespace OmenSuperHub.Pages {
         if (item == null) return;
         int watts = (int)item.Tag;
         if (watts == 0) {
-          AmdPptStatusDot.Fill = new System.Windows.Media.SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#888888"));
-          AmdPptStatusText.Text = "未设置";
           AmdCpuPptSlider.Value = 105;
           AmdCpuPptNum.Value = 105;
           ConfigService.AmdCpuPpt = 0; ConfigService.Save("AmdCpuPpt");
@@ -535,13 +531,9 @@ namespace OmenSuperHub.Pages {
         AmdCpuPptSlider.Value = watts;
         AmdCpuPptNum.Value = watts;
         ConfigService.AmdCpuPpt = watts; ConfigService.Save("AmdCpuPpt");
-        bool ok = false;
         // ponytail: PPT 优先 WMI，降级 SMU（与 Intel CPU 功率一致）
-        if (watts <= 255) ok = SetCpuPowerLimit((byte)watts);
-        if (!ok && AmdAdvancedService.IsAvailable) ok = AmdAdvancedService.SetPptLimit((uint)watts * 1000);
-        AmdPptStatusDot.Fill = new System.Windows.Media.SolidColorBrush(
-          (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(ok ? "#1FAF5A" : "#E0463F"));
-        AmdPptStatusText.Text = ok ? $"PPT={watts}W ✓" : "写入失败";
+        if (watts <= 255) SetCpuPowerLimit((byte)watts);
+        else if (AmdAdvancedService.IsAvailable) AmdAdvancedService.SetPptLimit((uint)watts * 1000);
       } finally { _loading = false; }
     }
 
@@ -567,7 +559,7 @@ namespace OmenSuperHub.Pages {
           CpuPowerPL2Slider.Value = 254;
           CpuPowerPL1Num.Value = 254;
           CpuPowerPL2Num.Value = 254;
-          SetCpuPowerStatus(SetCpuPowerLimit(254));
+          SetCpuPowerLimit(254);
           ConfigService.Save("CpuPower");
           return;
         }
@@ -581,12 +573,8 @@ namespace OmenSuperHub.Pages {
           CpuPowerPL2Num.Value = val;
           // ponytail: AMD 优先 WMI，降级 SMU PPT
           bool ok = SetCpuPowerLimit((byte)val);
-          if (!ok && AmdAdvancedService.IsAvailable) {
-            ok = AmdAdvancedService.SetPptLimit((uint)val * 1000);
-            SetCpuPowerStatus(ok, "SMU");
-          } else {
-            SetCpuPowerStatus(ok, "WMI");
-          }
+          if (!ok && AmdAdvancedService.IsAvailable)
+            AmdAdvancedService.SetPptLimit((uint)val * 1000);
           ConfigService.Save("CpuPower");
         }
       } finally { _loading = false; }
@@ -604,7 +592,7 @@ namespace OmenSuperHub.Pages {
         int pl2 = ConfigService.CpuPowerPl2 > 0 ? ConfigService.CpuPowerPl2 : 254;
         if (v > pl2) {
           // 抬高 PL1 越过 PL2：先把 PL2 拉到 PL1 才能生效，原地写 PL1 alone 无意义。
-          if (!SetCpuPowerLimit((byte)v, (byte)v)) { SetCpuPowerStatus(false); return; }
+          if (!SetCpuPowerLimit((byte)v, (byte)v)) return;
           ConfigService.CpuPowerPl1 = v;
           ConfigService.CpuPowerPl2 = v;
           ConfigService.CpuPower = v + " W";
@@ -612,15 +600,13 @@ namespace OmenSuperHub.Pages {
           CpuPowerPL2Num.Value = v;
           SelectCombo(CpuPowerCombo, v + " W");
           ConfigService.Save("CpuPower");
-          SetCpuPowerStatus(true);
           return;
         }
-        if (!SetCpuPowerLimitPL1Only((byte)v)) { SetCpuPowerStatus(false); return; }
+        if (!SetCpuPowerLimitPL1Only((byte)v)) return;
         ConfigService.CpuPowerPl1 = v;
         ConfigService.CpuPower = v + " W";
         SelectCombo(CpuPowerCombo, v + " W");
         ConfigService.Save("CpuPower");
-        SetCpuPowerStatus(true);
       } finally { _loading = false; }
     }
 
@@ -639,11 +625,10 @@ namespace OmenSuperHub.Pages {
           CpuPowerPL2Slider.Value = v;
           CpuPowerPL2Num.Value = v;
         }
-        if (!SetCpuPowerLimitPL2Only((byte)v)) { SetCpuPowerStatus(false); return; }
+        if (!SetCpuPowerLimitPL2Only((byte)v)) return;
         ConfigService.CpuPowerPl2 = v;
         ConfigService.Save("CpuPowerPl2");
         // CPU 功率 UI 值跟 PL1 走，PL2 单改不动它。
-        SetCpuPowerStatus(true);
       } finally { _loading = false; }
     }
 
@@ -825,7 +810,7 @@ namespace OmenSuperHub.Pages {
     void EcoQosBlacklistEdit_Click(object sender, RoutedEventArgs e) { ShowEcoQosListDialog(false); }
 
     void ShowEcoQosListDialog(bool isWhitelist) {
-      string title = isWhitelist ? "进程白名单" : "进程黑名单";
+	      string title = isWhitelist ? Strings.EcoQosWhitelist : Strings.EcoQosBlacklist;
       string current = isWhitelist ? ConfigService.EcoQosWhitelist : ConfigService.EcoQosBlacklist;
       var dlg = new Window {
         Title = title, Width = 400, Height = 300,
@@ -838,10 +823,10 @@ namespace OmenSuperHub.Pages {
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
       sp.Children.Add(tb);
       var btnP = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
-      var ok = new Button { Content = "确定", Width = 80, Height = 30 };
+	      var ok = new Button { Content = Strings.ButtonOK, Width = 80, Height = 30 };
       ok.Click += (_, __) => { dlg.DialogResult = true; dlg.Close(); };
       btnP.Children.Add(ok);
-      var cancel = new Button { Content = "取消", Width = 80, Height = 30, Margin = new Thickness(8, 0, 0, 0) };
+	      var cancel = new Button { Content = Strings.ButtonCancel, Width = 80, Height = 30, Margin = new Thickness(8, 0, 0, 0) };
       cancel.Click += (_, __) => { dlg.DialogResult = false; dlg.Close(); };
       btnP.Children.Add(cancel);
       sp.Children.Add(btnP);
@@ -1420,7 +1405,7 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       _loading = true;
       double? val = TppNum.Value;
-      if (val == null || val < 0 || val > 255) { _loading = false; return; }
+      if (val == null || val < 0 || val > 254) { _loading = false; return; }
       int v = (int)val;
       SetConcurrentTdp((byte)v);
       ConfigService.Tpp = v; ConfigService.Save("Tpp");
@@ -1444,7 +1429,7 @@ namespace OmenSuperHub.Pages {
       bool ppab = ConfigService.PpabEnabled && tgp;
       int dstate = ConfigService.DState;
       string tpp = ConfigService.Tpp > 0 ? $", TPP={ConfigService.Tpp}W" : "";
-      TgpStatus.Text = $"TGP={(tgp ? "开" : "关")}, PPAB={(ppab ? "开" : "关")}, dState={(dstate == 2 ? "低功耗" : "标准")}{tpp}";
+	      TgpStatus.Text = Strings.PerfTgpStatusFormat(tgp, ppab, dstate, tpp);
     }
 
     void CtgpCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
@@ -1456,6 +1441,7 @@ namespace OmenSuperHub.Pages {
       if (!enabled) PpabCheck.IsChecked = false;
       ConfigService.Save("TgpEnabled");
       SetGpuPowerState(enabled, PpabCheck.IsChecked == true, ConfigService.DState == 2 ? 2 : 1);
+      ConfigService.FirePresetCycled(ConfigService.Preset);
       UpdateTppEnabled();
       UpdateTgpStatus();
     }
@@ -1465,6 +1451,7 @@ namespace OmenSuperHub.Pages {
       ConfigService.PpabEnabled = enabled;
       ConfigService.Save("PpabEnabled");
       SetGpuPowerState(ConfigService.TgpEnabled, enabled, ConfigService.DState == 2 ? 2 : 1);
+      ConfigService.FirePresetCycled(ConfigService.Preset);
       UpdateTppEnabled();
       UpdateTgpStatus();
     }
@@ -1475,6 +1462,7 @@ namespace OmenSuperHub.Pages {
       ConfigService.DState = DStateCombo.SelectedIndex == 1 ? 2 : 1;
       ConfigService.Save("DState");
       SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled, ConfigService.DState);
+      ConfigService.FirePresetCycled(ConfigService.Preset);
       UpdateTgpStatus();
     }
 
@@ -1739,8 +1727,11 @@ namespace OmenSuperHub.Pages {
       return result;
     }
 
-    // ponytail: same pattern as ApplyRefreshRate — start from current DEVMODE, change only resolution
-    static void ApplyResolution(int w, int h) {
+    // ponytail: same pattern as ApplyRefreshRate — start from current DEVMODE, change only resolution.
+    // CDS_UPDATEREGISTRY persists the change to the registry so it survives reboots and stays
+    // in sync with Windows Settings — otherwise Windows' own CDS_UPDATEREGISTRY write wins
+    // once the user changes resolution there, and a second switch from here is silently ignored.
+    internal static void ApplyResolution(int w, int h) {
       var deviceName = GetInternalDisplayDeviceName();
       if (deviceName == null) { Log("ApplyResolution: deviceName is null"); return; }
       Log($"ApplyResolution: deviceName={deviceName} target={w}x{h}");
@@ -1751,7 +1742,7 @@ namespace OmenSuperHub.Pages {
       dm.dmPelsWidth = w;
       dm.dmPelsHeight = h;
       dm.dmFields = NativeMethods_Display.DM_PELSWIDTH | NativeMethods_Display.DM_PELSHEIGHT;
-      int result = NativeMethods_Display.ChangeDisplaySettingsEx(deviceName, ref dm, IntPtr.Zero, 0, IntPtr.Zero);
+      int result = NativeMethods_Display.ChangeDisplaySettingsEx(deviceName, ref dm, IntPtr.Zero, NativeMethods_Display.CDS_UPDATEREGISTRY, IntPtr.Zero);
       Log($"ApplyResolution: ChangeDisplaySettingsEx returned {result} (0=OK)");
     }
 
@@ -2193,7 +2184,7 @@ namespace OmenSuperHub.Pages {
 
     void BuildCStateCombo() {
       PawnCStateCombo.Items.Clear();
-      string[] labels = { "无限制", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10" };
+	      string[] labels = { Strings.PerfCStateNone, Strings.PerfCState1, Strings.PerfCState2, Strings.PerfCState3, Strings.PerfCState4, Strings.PerfCState5, Strings.PerfCState6, Strings.PerfCState7, Strings.PerfCState8, Strings.PerfCState9, Strings.PerfCState10 };
       for (int i = 0; i < labels.Length; i++)
         PawnCStateCombo.Items.Add(new ComboBoxItem { Content = labels[i], Tag = i });
       int saved = ConfigService.PawnCStateLimit;
@@ -2454,13 +2445,26 @@ namespace OmenSuperHub.Pages {
       HeteroCpuCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
 
       // ponytail: AMD/Intel CPU power split
-      bool amdSmu = false;
-      try { amdSmu = hasAmd && AmdAdvancedService.IsAvailable; } catch { }
+      bool amdSmuAvailable = false;
+      try { amdSmuAvailable = hasAmd && AmdAdvancedService.IsAvailable; } catch { }
+      bool amdSmu = amdSmuAvailable;
       // DebugShowAllUi 强制显示 AMD 卡片，跳过 SMU 可用性检测
       if (ConfigService.DebugShowAllUi) amdSmu = true;
-      AmdCpuPowerCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
-      // ponytail: TDC/EDC 和 Tctl 按 SMU 可用性直接显示（不再需要点5次 logo）
-      if (AmdCpuPowerCard != null) AmdCpuTdcEdcPanel.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
+
+      // ponytail: AMD power card always visible when AMD CPU detected — PPT has WMI fallback
+      AmdCpuPowerCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
+      AmdCpuTdcEdcPanel.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
+
+      // SMU unavailable → disable TDC/EDC sliders (SMU-only path, no WMI fallback)
+      if (!amdSmuAvailable && !ConfigService.DebugShowAllUi) {
+        AmdCpuTdcNum.IsEnabled = false;
+        AmdCpuTdcSlider.IsEnabled = false;
+        AmdCpuEdcNum.IsEnabled = false;
+        AmdCpuEdcSlider.IsEnabled = false;
+	        AmdCpuPowerStatus.Text = Strings.PerfSmuUnavailable;
+      }
+
+      // ponytail: Tctl temp card still needs SMU (read + write both SMU-only)
       AmdCpuTempCard.Visibility = amdSmu ? Visibility.Visible : Visibility.Collapsed;
       CpuPowerCard.Visibility = hasIntel && !hasAmd ? Visibility.Visible : Visibility.Collapsed;
 
@@ -2508,7 +2512,7 @@ namespace OmenSuperHub.Pages {
       NvTuningCard.Visibility = hasNvidia ? Visibility.Visible : Visibility.Collapsed;
       AdlxCard.Visibility = _hasAmdGpu && AdlxGpuService.IsAvailable ? Visibility.Visible : Visibility.Collapsed;
       if (_hasAmdGpu && AdlxGpuService.IsAvailable) {
-        AdlxStatus.Text = "ADLX 已连接 - RSR/Anti-Lag/Enhanced Sync/Boost/Image Sharpening";
+	        AdlxStatus.Text = Strings.PerfAdlxConnected;
       } else {
         AdlxStatus.Text = AdlxGpuService.IsAvailable ? Strings.FeaturePartialImpl : Strings.HwNotDetected;
       }
@@ -2559,8 +2563,13 @@ namespace OmenSuperHub.Pages {
       ConfigService.Save("PboScalar");
       // ponytail: SDK SetPBOScalar(Bool) only toggles PBO on/off, doesn't set specific scalar
       if (AmdAdvancedService.IsAvailable) {
-        _ = AmdAdvancedService.SetPboAsync(val != 0);
-        PboScalarStatus.Text = val == 0 ? "PBO Auto (SDK)" : $"PBO {val}x (SDK)";
+        // ponytail: was `_ = ...SetPboAsync(...)` — discarded bool → silent
+        // fail. Sync-wait so we can show the actual SetPboScalar result.
+        bool ok = AmdAdvancedService.SetPboAsync(val != 0).GetAwaiter().GetResult();
+        PboScalarStatus.Text = !ok ? Strings.AdvWriteFail
+                                   : val == 0 ? "PBO Auto" : $"PBO {val}x ✓";
+      } else {
+        PboScalarStatus.Text = Strings.AdvWriteFail;
       }
     }
 
@@ -2573,8 +2582,12 @@ namespace OmenSuperHub.Pages {
       int v = (int)val;
       ConfigService.CoAllCoreOffset = v;
       ConfigService.Save("CoAllCoreOffset");
-      if (AmdAdvancedService.IsAvailable)
-        _ = AmdAdvancedService.SetCurveOptimizerAsync((short)v);
+      if (AmdAdvancedService.IsAvailable) {
+        bool ok = AmdAdvancedService.SetCurveOptimizerAsync((short)v).GetAwaiter().GetResult();
+        CoStatus.Text = ok ? $"All-core CO = {v} mV ✓" : Strings.AdvWriteFail;
+      } else {
+        CoStatus.Text = Strings.AdvWriteFail;
+      }
       _loading = false;
     }
     void CoIGpuNum_ValueChanged(object s, RoutedEventArgs e) {
@@ -2584,8 +2597,11 @@ namespace OmenSuperHub.Pages {
       int v = (int)val;
       ConfigService.CoIGpuOffset = v;
       ConfigService.Save("CoIGpuOffset");
-      if (AmdAdvancedService.IsAvailable && AmdAdvancedService.SetCurveOptimizerIGpu(v)) {
-        // ponytail: silent success, no status label on CoCard's iGPU row
+      if (AmdAdvancedService.IsAvailable) {
+        bool ok = AmdAdvancedService.SetCurveOptimizerIGpu(v);
+        CoStatus.Text = ok ? $"iGPU CO = {v} mV ✓" : Strings.AdvWriteFail;
+      } else {
+        CoStatus.Text = Strings.AdvWriteFail;
       }
     }
 
@@ -3065,16 +3081,16 @@ namespace OmenSuperHub.Pages {
 
     /// <summary>从 GPU 读取原始曲线，加载到图表编辑器</summary>
     void VfLoadBtn_Click(object sender, RoutedEventArgs e) {
-      NvVfCurveStatus.Text = "正在读取 V-F 曲线...";
+	      NvVfCurveStatus.Text = Strings.PerfVfReading;
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
         if (GpuAppManager.TryGetVfCurve(out var curve)) {
           Dispatcher.Invoke(() => {
             VfChart.LoadOriginalCurve(curve);
-            NvVfCurveStatus.Text = $"已加载 {curve.Count} 个曲线点 — 拖拽点调频、Ctrl+点击锁平高频段";
+	            NvVfCurveStatus.Text = Strings.PerfVfReadDone(curve.Count);
           });
         } else {
           Dispatcher.Invoke(() => {
-            NvVfCurveStatus.Text = "无法读取 V-F 曲线，请确认 NVIDIA 驱动已加载";
+	            NvVfCurveStatus.Text = Strings.PerfVfReadFail;
           });
         }
       });
@@ -3085,35 +3101,35 @@ namespace OmenSuperHub.Pages {
       if (!VfChart.HasData) return;
       var freqs = VfChart.GetDesiredFrequencies();
       int edited = freqs.Count(f => f.HasValue);
-      NvVfCurveStatus.Text = edited > 0
-          ? $"已编辑 {edited} 个点 — 点击 [应用曲线] 写入 GPU"
-          : "曲线无修改";
+	      NvVfCurveStatus.Text = edited > 0
+	          ? Strings.PerfVfEdited(edited)
+	          : Strings.PerfVfNoChanges;
     }
 
     /// <summary>将用户编辑的曲线逐点写回 GPU，写后自动回读验证并刷新图表</summary>
     void VfApplyBtn_Click(object sender, RoutedEventArgs e) {
-      if (!VfChart.HasData) {
-        NvVfCurveStatus.Text = "请先读取 V-F 曲线";
+	      if (!VfChart.HasData) {
+	        NvVfCurveStatus.Text = Strings.PerfVfReadFirst;
         return;
       }
       var freqs = VfChart.GetDesiredFrequencies();
-      if (!freqs.Any(f => f.HasValue)) {
-        NvVfCurveStatus.Text = "曲线无修改，无需应用";
+	      if (!freqs.Any(f => f.HasValue)) {
+	        NvVfCurveStatus.Text = Strings.PerfVfNoChanges;
         return;
       }
-      NvVfCurveStatus.Text = "正在写入 V-F 曲线...";
+	      NvVfCurveStatus.Text = Strings.PerfVfWriting;
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
         int result = GpuAppManager.ApplyVfCurveFromUserEdits(freqs, out int wrote, out int verified);
         Dispatcher.Invoke(() => {
           // Status based on verification level
-          if (result == 2)
-            NvVfCurveStatus.Text = $"应用成功 — 写入 {wrote} 点，回读验证 {verified}/{wrote} 点匹配";
-          else if (result == 1)
-            NvVfCurveStatus.Text = $"写入 {wrote} 点但回读验证仅 {verified} 点匹配 — GPU 可能不支持 V-F 曲线编辑（OEM 锁）";
-          else if (result == 0)
-            NvVfCurveStatus.Text = "曲线无修改";
-          else
-            NvVfCurveStatus.Text = "V-F 曲线写入失败，请检查 NVIDIA 驱动";
+	          if (result == 2)
+	            NvVfCurveStatus.Text = Strings.PerfVfWriteDone(wrote, verified, wrote);
+	          else if (result == 1)
+	            NvVfCurveStatus.Text = Strings.PerfVfWritePartial(wrote, verified);
+	          else if (result == 0)
+	            NvVfCurveStatus.Text = Strings.PerfVfNoChanges;
+	          else
+	            NvVfCurveStatus.Text = Strings.PerfVfWriteFail;
 
           // Always re-read the actual GPU curve to show ground truth
           RefreshVfChartFromGpu();
@@ -3130,15 +3146,15 @@ namespace OmenSuperHub.Pages {
 
     /// <summary>恢复默认 V-F 曲线 — 所有偏移归零</summary>
     void VfResetBtn_Click(object sender, RoutedEventArgs e) {
-      NvVfCurveStatus.Text = "正在恢复默认 V-F 曲线...";
+	      NvVfCurveStatus.Text = Strings.PerfVfRestoring;
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
         bool ok = GpuAppManager.ResetVfCurve();
         Dispatcher.Invoke(() => {
           if (ok) {
             VfChart.ResetEdits();
-            NvVfCurveStatus.Text = "已恢复默认 V-F 曲线（所有偏移归零）";
-          } else {
-            NvVfCurveStatus.Text = "恢复默认失败，请检查 NVIDIA 驱动";
+	            NvVfCurveStatus.Text = Strings.PerfVfRestoreDone;
+	          } else {
+	            NvVfCurveStatus.Text = Strings.PerfVfRestoreFail;
           }
         });
       });
@@ -3157,19 +3173,25 @@ namespace OmenSuperHub.Pages {
     }
 
     // ── FIVR Undervolt handlers ──
+    // ponytail: previous ApplyFivr discarded the bool; FivrStatus showed the
+    // init-time string ("XTU SDK 已连接" / FeaturePartialImpl) regardless of
+    // per-write result → silent fail. Now reports the actual WriteMsr bool.
     void ApplyFivr() {
-      if (!IntelAdvancedService.IsAvailable) return;
-      _ = IntelAdvancedService.ApplyValuesAsync(new[] {
+      if (!IntelAdvancedService.IsAvailable) { FivrStatus.Text = Strings.AdvWriteFail; return; }
+      bool ok = IntelAdvancedService.ApplyValuesSync(new[] {
         (24u, (decimal)ConfigService.FivrCoreOffset),
         (25u, (decimal)ConfigService.FivrCacheOffset),
         (26u, (decimal)ConfigService.FivrIgpuOffset),
         (27u, (decimal)ConfigService.FivrSaOffset)
       });
+      FivrStatus.Text = ok
+        ? $"Core={ConfigService.FivrCoreOffset} Cache={ConfigService.FivrCacheOffset} iGPU={ConfigService.FivrIgpuOffset} SA={ConfigService.FivrSaOffset} mV ✓"
+        : Strings.AdvWriteFail;
     }
-    void FivrCoreNum_ValueChanged(object s, RoutedEventArgs e) { _loading = true; var v = (int)(FivrCoreNum.Value ?? 0); ConfigService.FivrCoreOffset = v; ConfigService.Save("FivrCoreOffset"); ApplyFivr(); _loading = false; }
-    void FivrCacheNum_ValueChanged(object s, RoutedEventArgs e) { _loading = true; var v = (int)(FivrCacheNum.Value ?? 0); ConfigService.FivrCacheOffset = v; ConfigService.Save("FivrCacheOffset"); ApplyFivr(); _loading = false; }
-    void FivrIgpuNum_ValueChanged(object s, RoutedEventArgs e) { _loading = true; var v = (int)(FivrIgpuNum.Value ?? 0); ConfigService.FivrIgpuOffset = v; ConfigService.Save("FivrIgpuOffset"); ApplyFivr(); _loading = false; }
-    void FivrSaNum_ValueChanged(object s, RoutedEventArgs e) { _loading = true; var v = (int)(FivrSaNum.Value ?? 0); ConfigService.FivrSaOffset = v; ConfigService.Save("FivrSaOffset"); ApplyFivr(); _loading = false; }
+    void FivrCoreNum_ValueChanged(object s, RoutedEventArgs e) { if (_loading) return; _loading = true; var v = (int)(FivrCoreNum.Value ?? 0); ConfigService.FivrCoreOffset = v; ConfigService.Save("FivrCoreOffset"); ApplyFivr(); _loading = false; }
+    void FivrCacheNum_ValueChanged(object s, RoutedEventArgs e) { if (_loading) return; _loading = true; var v = (int)(FivrCacheNum.Value ?? 0); ConfigService.FivrCacheOffset = v; ConfigService.Save("FivrCacheOffset"); ApplyFivr(); _loading = false; }
+    void FivrIgpuNum_ValueChanged(object s, RoutedEventArgs e) { if (_loading) return; _loading = true; var v = (int)(FivrIgpuNum.Value ?? 0); ConfigService.FivrIgpuOffset = v; ConfigService.Save("FivrIgpuOffset"); ApplyFivr(); _loading = false; }
+    void FivrSaNum_ValueChanged(object s, RoutedEventArgs e) { if (_loading) return; _loading = true; var v = (int)(FivrSaNum.Value ?? 0); ConfigService.FivrSaOffset = v; ConfigService.Save("FivrSaOffset"); ApplyFivr(); _loading = false; }
 
     // ── Clock Ratio (per-core) ──
     Slider[] _coreRatioSliders = Array.Empty<Slider>();
@@ -3195,8 +3217,12 @@ namespace OmenSuperHub.Pages {
           int v = (int)e.NewValue;
           ConfigService.ClockRatio = v;
           ConfigService.Save("ClockRatio");
-          if (IntelAdvancedService.IsAvailable)
-            _ = IntelAdvancedService.SetClockRatioAsync(v);
+          if (IntelAdvancedService.IsAvailable) {
+            bool ok = IntelAdvancedService.SetClockRatioAsync(v).GetAwaiter().GetResult();
+            ClockRatioStatus.Text = ok ? $"倍频 = {v} ✓" : Strings.AdvWriteFail;
+          } else {
+            ClockRatioStatus.Text = Strings.AdvWriteFail;
+          }
         };
         Grid.SetColumn(numBox, 0); Grid.SetColumn(slider, 1);
         grid.Children.Add(numBox); grid.Children.Add(slider);
@@ -3243,8 +3269,12 @@ namespace OmenSuperHub.Pages {
         all[i] = (int)_coreRatioSliders[i].Value;
       ConfigService.PerCoreRatios = string.Join(",", all);
       ConfigService.Save("PerCoreRatios");
-      if (IntelAdvancedService.IsAvailable)
-        _ = IntelAdvancedService.SetPerCoreRatiosAsync(all);
+      if (IntelAdvancedService.IsAvailable) {
+        bool ok = IntelAdvancedService.SetPerCoreRatiosAsync(all).GetAwaiter().GetResult();
+        ClockRatioStatus.Text = ok ? $"Core {coreIndex} = {value} ✓" : Strings.AdvWriteFail;
+      } else {
+        ClockRatioStatus.Text = Strings.AdvWriteFail;
+      }
       _settingCoreRatios = false;
     }
 
@@ -3259,8 +3289,12 @@ namespace OmenSuperHub.Pages {
       ConfigService.PowerBalance = v;
       ConfigService.Save("PowerBalance");
       UpdatePowerBalanceLabel();
-      if (IntelAdvancedService.IsAvailable)
-        _ = IntelAdvancedService.SetPowerBalanceAsync(v);
+      if (IntelAdvancedService.IsAvailable) {
+        bool ok = IntelAdvancedService.SetPowerBalanceAsync(v).GetAwaiter().GetResult();
+        PowerBalanceStatus.Text = ok ? $"CPU/GPU = {v}/{31 - v} ✓" : Strings.AdvWriteFail;
+      } else {
+        PowerBalanceStatus.Text = Strings.AdvWriteFail;
+      }
     }
 
     // ── RTSS Frame Limit ──
@@ -3280,15 +3314,24 @@ namespace OmenSuperHub.Pages {
 
     // ── AutoOC Adaptive Undervolt ──
     void AutoOcToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
       bool on = AutoOcToggle.IsChecked == true;
       ConfigService.AutoOcEnabled = on;
       ConfigService.Save("AutoOcEnabled");
       if (on) {
-        if (AmdAdvancedService.IsAvailable)
-          _ = AmdAdvancedService.SetAutoOcOffsetAsync(ConfigService.CoAllCoreOffset > 0 ? ConfigService.CoAllCoreOffset : -ConfigService.CoAllCoreOffset);
-        AutoOcStatus.Text = "AutoOC 已启用 (SDK)";
+        if (AmdAdvancedService.IsAvailable) {
+          // ponytail: was `_ = ...SetAutoOcOffsetAsync(...)` — SetAutoOcOffsetAsync
+          // always returns false (SMU mailbox doesn't support AutoOC), so the
+          // old code showed "PerfAutoOcEnabled" while doing nothing. Surface it.
+          bool ok = AmdAdvancedService.SetAutoOcOffsetAsync(
+              ConfigService.CoAllCoreOffset > 0 ? ConfigService.CoAllCoreOffset : -ConfigService.CoAllCoreOffset)
+              .GetAwaiter().GetResult();
+          AutoOcStatus.Text = ok ? Strings.PerfAutoOcEnabled : Strings.AdvWriteFail;
+        } else {
+          AutoOcStatus.Text = Strings.AdvWriteFail;
+        }
       } else {
-        AutoOcStatus.Text = "已禁用";
+        AutoOcStatus.Text = Strings.PerfAutoOcDisabled;
       }
     }
 
@@ -3300,8 +3343,10 @@ namespace OmenSuperHub.Pages {
       ConfigService.PawnTurboEnabled = on;
       ConfigService.Save("PawnTurboEnabled");
       if (IntelAdvancedService.IsAvailable) {
-        _ = IntelAdvancedService.SetTurboBoostAsync(on);
-        PawnTurboStatus.Text = on ? "睿频已启用" : "睿频已关闭";
+        bool ok = IntelAdvancedService.SetTurboBoostAsync(on).GetAwaiter().GetResult();
+        PawnTurboStatus.Text = !ok ? Strings.AdvWriteFail : (on ? "睿频已启用 ✓" : "睿频已关闭 ✓");
+      } else {
+        PawnTurboStatus.Text = Strings.AdvWriteFail;
       }
     }
 
@@ -3311,8 +3356,12 @@ namespace OmenSuperHub.Pages {
       int v = (int)PawnProchotSlider.Value;
       ConfigService.PawnProchotOffset = v;
       ConfigService.Save("PawnProchotOffset");
-      if (IntelAdvancedService.IsAvailable)
-        _ = IntelAdvancedService.SetProchotOffsetAsync(v);
+      if (IntelAdvancedService.IsAvailable) {
+        bool ok = IntelAdvancedService.SetProchotOffsetAsync(v).GetAwaiter().GetResult();
+        PawnProchotStatus.Text = ok ? $"PROCHOT Offset = {v} ✓" : Strings.AdvWriteFail;
+      } else {
+        PawnProchotStatus.Text = Strings.AdvWriteFail;
+      }
       _loading = false;
     }
 
@@ -3324,8 +3373,10 @@ namespace OmenSuperHub.Pages {
       ConfigService.PawnHwpEpp = v;
       ConfigService.Save("PawnHwpEpp");
       if (IntelAdvancedService.IsAvailable) {
-        _ = IntelAdvancedService.SetHwpEppAsync(v);
-        PawnHwpStatus.Text = $"EPP={v}";
+        bool ok = IntelAdvancedService.SetHwpEppAsync(v).GetAwaiter().GetResult();
+        PawnHwpStatus.Text = ok ? $"EPP={v} ✓" : Strings.AdvWriteFail;
+      } else {
+        PawnHwpStatus.Text = Strings.AdvWriteFail;
       }
       _loading = false;
     }
@@ -3339,8 +3390,10 @@ namespace OmenSuperHub.Pages {
       ConfigService.PawnCStateLimit = v;
       ConfigService.Save("PawnCStateLimit");
       if (IntelAdvancedService.IsAvailable) {
-        _ = IntelAdvancedService.SetCStateLimitAsync(v);
-        PawnCStateStatus.Text = $"C-State Max={v}";
+        bool ok = IntelAdvancedService.SetCStateLimitAsync(v).GetAwaiter().GetResult();
+        PawnCStateStatus.Text = ok ? $"C-State Max={v} ✓" : Strings.AdvWriteFail;
+      } else {
+        PawnCStateStatus.Text = Strings.AdvWriteFail;
       }
     }
 
@@ -3351,8 +3404,12 @@ namespace OmenSuperHub.Pages {
       int v = (int)PawnIgpuPowerSlider.Value;
       ConfigService.PawnIgpuPower = v;
       ConfigService.Save("PawnIgpuPower");
-      if (IntelAdvancedService.IsAvailable)
-        _ = IntelAdvancedService.SetIgpuPowerLimitAsync(v);
+      if (IntelAdvancedService.IsAvailable) {
+        bool ok = IntelAdvancedService.SetIgpuPowerLimitAsync(v).GetAwaiter().GetResult();
+        PawnIgpuPowerStatus.Text = ok ? $"iGPU PL = {v}W ✓" : Strings.AdvWriteFail;
+      } else {
+        PawnIgpuPowerStatus.Text = Strings.AdvWriteFail;
+      }
       _loading = false;
     }
 
@@ -3363,8 +3420,12 @@ namespace OmenSuperHub.Pages {
       int v = (int)PawnIgpuRatioSlider.Value;
       ConfigService.PawnIgpuRatio = v;
       ConfigService.Save("PawnIgpuRatio");
-      if (IntelAdvancedService.IsAvailable)
-        _ = IntelAdvancedService.SetIgpuMaxRatioAsync(v);
+      if (IntelAdvancedService.IsAvailable) {
+        bool ok = IntelAdvancedService.SetIgpuMaxRatioAsync(v).GetAwaiter().GetResult();
+        PawnIgpuRatioStatus.Text = ok ? $"iGPU ratio = {v} ✓" : Strings.AdvWriteFail;
+      } else {
+        PawnIgpuRatioStatus.Text = Strings.AdvWriteFail;
+      }
       _loading = false;
     }
 
@@ -3435,17 +3496,17 @@ namespace OmenSuperHub.Pages {
 
     void BuildPwrPlanOptions() {
       // EPP presets
-      EppCombo.Items.Clear();
-      EppCombo.Items.Add(new ComboBoxItem { Content = "极速响应 (0)", Tag = 0 });
-      EppCombo.Items.Add(new ComboBoxItem { Content = "偏向性能 (20)", Tag = 20 });
-      EppCombo.Items.Add(new ComboBoxItem { Content = "平衡 (50)", Tag = 50 });
-      EppCombo.Items.Add(new ComboBoxItem { Content = "偏向省电 (80)", Tag = 80 });
-      EppCombo.Items.Add(new ComboBoxItem { Content = "极致省电 (100)", Tag = 100 });
+	      EppCombo.Items.Clear();
+	      EppCombo.Items.Add(new ComboBoxItem { Content = Strings.PerfEppInstant, Tag = 0 });
+	      EppCombo.Items.Add(new ComboBoxItem { Content = Strings.PerfEppPerf, Tag = 20 });
+	      EppCombo.Items.Add(new ComboBoxItem { Content = Strings.PerfEppBalanced, Tag = 50 });
+	      EppCombo.Items.Add(new ComboBoxItem { Content = Strings.PerfEppPowerSave, Tag = 80 });
+	      EppCombo.Items.Add(new ComboBoxItem { Content = Strings.PerfEppMaxSave, Tag = 100 });
 
       // Boost Mode presets
       BoostModeCombo.Items.Clear();
-      string[] boostNames = { "已禁用 (关闭睿频)", "已启用 (适中)", "高性能 (积极)", "高效率",
-                               "高性能高效率", "积极且有保障 (满血)", "高效积极且有保障" };
+	      string[] boostNames = { Strings.PerfBoostDisabled, Strings.PerfBoostEnabled, Strings.PerfBoostHighPerf, Strings.PerfBoostHighEff,
+	                               Strings.PerfBoostHighPerfEff, Strings.PerfBoostAggressive, Strings.PerfBoostEffAggressive };
       for (int i = 0; i < boostNames.Length; i++)
         BoostModeCombo.Items.Add(new ComboBoxItem { Content = boostNames[i], Tag = i });
 
@@ -3457,11 +3518,11 @@ namespace OmenSuperHub.Pages {
 
       // Max Frequency presets
       MaxFreqCombo.Items.Clear();
-      MaxFreqCombo.Items.Add(new ComboBoxItem { Content = "不限制 (自动)", Tag = 0 });
+	      MaxFreqCombo.Items.Add(new ComboBoxItem { Content = Strings.PerfMaxFreqAuto, Tag = 0 });
 
       // SMT Policy presets
       SmtPolicyCombo.Items.Clear();
-      string[] smtNames = { "核心 (优先物理核)", "每个线程的核心", "循环配置 (均衡负载)", "顺序" };
+	      string[] smtNames = { Strings.PerfSmtCore, Strings.PerfSmtPerThread, Strings.PerfSmtRoundRobin, Strings.PerfSmtSequential };
       for (int i = 0; i < smtNames.Length; i++)
         SmtPolicyCombo.Items.Add(new ComboBoxItem { Content = smtNames[i], Tag = i });
     }
@@ -3479,7 +3540,7 @@ namespace OmenSuperHub.Pages {
         // Boost Mode — no class 1 variant
         if (_pwrIsClass1) {
           BoostModeCombo.IsEnabled = false;
-          BoostModeCurrentText.Text = "不可用";
+	          BoostModeCurrentText.Text = Strings.PerfStatusUnavailable;
         } else
           LoadPwrSettingValue(scheme, GUID_PERFBOOST, BoostModeCombo, BoostModeCurrentText);
 
@@ -3492,7 +3553,7 @@ namespace OmenSuperHub.Pages {
         // SMT — no class 1 variant
         if (_pwrIsClass1) {
           SmtPolicyCombo.IsEnabled = false;
-          SmtPolicyCurrentText.Text = "不可用";
+	          SmtPolicyCurrentText.Text = Strings.PerfStatusUnavailable;
         } else
           LoadPwrSettingValue(scheme, GUID_SMTUNPARK, SmtPolicyCombo, SmtPolicyCurrentText);
 
@@ -3503,12 +3564,12 @@ namespace OmenSuperHub.Pages {
     void LoadPwrSettingValue(Guid scheme, Guid settingGuid, ComboBox combo, TextBlock statusText) {
       int val = ReadPwrValue(scheme, settingGuid);
       if (val < 0) {
-        statusText.Text = "不可用";
+	        statusText.Text = Strings.PerfStatusUnavailable;
         combo.IsEnabled = false;
         return;
       }
       combo.IsEnabled = true;
-      statusText.Text = "当前: " + val;
+	      statusText.Text = Strings.PerfStatusCurrent + val;
       bool found = false;
       foreach (ComboBoxItem item in combo.Items) {
         if (item.Tag is int tag && tag == val) {
@@ -3553,8 +3614,8 @@ namespace OmenSuperHub.Pages {
     }
 
     void PwrPlanApply_Click(object sender, RoutedEventArgs e) {
-      if (!(PowerPlanCombo.SelectedItem is ComboBoxItem planItem)) {
-        PwrPlanStatus.Text = "请先选择电源计划";
+	      if (!(PowerPlanCombo.SelectedItem is ComboBoxItem planItem)) {
+	        PwrPlanStatus.Text = Strings.PerfPowerPlanSelectFirst;
         return;
       }
       string guidStr = planItem.Tag as string;
@@ -3584,10 +3645,10 @@ namespace OmenSuperHub.Pages {
         }
 
         NativeMethods_Power.PowerSetActiveScheme(IntPtr.Zero, ref scheme);
-        PwrPlanStatus.Text = "已应用" + (_pwrIsDC ? "直流" : "交流") + "设置";
+	        PwrPlanStatus.Text = Strings.PerfPowerPlanApplied(_pwrIsDC ? Strings.PwrSourceDc : Strings.PwrSourceAc);
         LoadPwrPlanSettings();
       } catch (Exception ex) {
-        PwrPlanStatus.Text = "应用失败: " + ex.Message;
+	        PwrPlanStatus.Text = Strings.PerfPowerPlanApplyFailed(ex.Message);
       }
     }
 
@@ -3925,13 +3986,12 @@ namespace OmenSuperHub.Pages {
     void btnPerfDelete_Click(object sender, RoutedEventArgs e) {
       string preset = ConfigService.Preset;
       if (PresetManager.IsBuiltIn(preset)) {
-        DialogHelper.Info("内置预设不可删除。请先切换到自定义预设。", "提示");
+	        DialogHelper.Info(Strings.PerfDeleteBuiltinPreset, Strings.Hint);
         return;
       }
       string displayName = ConfigService.GetCustomPresetDisplayName(preset);
-      if (!DialogHelper.OkCancel(
-        $"确认删除自定义预设「{displayName}」？此操作不可撤销。",
-        "删除预设")) return;
+	      if (!DialogHelper.OkCancel(
+	        Strings.PerfDeleteConfirmMsg($"「{displayName}」"), Strings.PerfDeleteConfirmTitle)) return;
       // save current state away from this preset (SwitchPreset auto-saves on leave)
       ConfigService.Preset = ""; // prevent SwitchPreset from re-saving to the deleted key
       PresetManager.DeleteCustomPreset(preset);
@@ -3945,18 +4005,16 @@ namespace OmenSuperHub.Pages {
     void btnPerfUndo_Click(object sender, RoutedEventArgs e) {
       // 如果有 Apply 快照，优先回滚到快照；否则恢复到默认预设并清空自定义预设
       if (_snapshot != null) {
-        if (!DialogHelper.OkCancel(
-          "将撤销本次 Apply 操作，恢复为 Apply 之前的状态。确认继续？",
-          "撤销应用")) return;
+	        if (!DialogHelper.OkCancel(
+	          Strings.PerfUndoApplyMsg, Strings.PerfUndoApplyTitle)) return;
         ApplyPreset(_snapshot);
         _snapshot = null;
         Log("btnPerfUndo: reverted to snapshot");
         return;
       }
 
-      if (!DialogHelper.OkCancel(
-        "将恢复到默认性能预设 (GpuPriority) 并清空全部自定义预设 (Custom1/2/3)。确认继续？",
-        "恢复默认预设")) return;
+	      if (!DialogHelper.OkCancel(
+	        Strings.PerfResetDefaultsMsg, Strings.PerfResetDefaultsTitle)) return;
 
       // 1. 切换到 GpuPriority 内置预设
       PresetManager.SwitchPreset("GpuPriority");

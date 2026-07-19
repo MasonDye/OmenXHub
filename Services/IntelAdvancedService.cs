@@ -47,7 +47,10 @@ namespace OmenSuperHub.Services {
       return Task.FromResult(OmenXHubDriver.WriteMsr(0x150, VoltageMsr(planeId, offset)));
     }
 
-    // Batch: accepts same (controlId, offset) tuples the old SDK used
+    // Batch: accepts same (controlId, offset) tuples the old SDK used.
+    // ponytail: short-circuit when driver missing so ApplyFivr() can show
+    // AdvWriteFail instead of silently writing 4 MSRs against a closed handle.
+    // Each WriteMsr is guarded by IsAvailable already; stops early on miss.
     public static Task<bool> ApplyValuesAsync(IEnumerable<(uint id, decimal value)> values) {
       if (!OmenXHubDriver.IsAvailable) return Task.FromResult(false);
       var list = values.ToList();
@@ -57,6 +60,17 @@ namespace OmenSuperHub.Services {
         ok &= OmenXHubDriver.WriteMsr(0x150, VoltageMsr(plane, v.value));
       }
       return Task.FromResult(ok);
+    }
+
+    // Synchronous variant used by UI status reporting (no discarded _= await)
+    public static bool ApplyValuesSync((uint id, decimal value)[] values) {
+      if (!OmenXHubDriver.IsAvailable) return false;
+      bool ok = true;
+      foreach (var v in values) {
+        int plane = v.id switch { 24 => 0, 25 => 2, 26 => 1, 27 => 3, _ => 0 };
+        ok &= OmenXHubDriver.WriteMsr(0x150, VoltageMsr(plane, v.value));
+      }
+      return ok;
     }
 
     // ── Power balance, MSR 0x63A / 0x642 ──────────────
