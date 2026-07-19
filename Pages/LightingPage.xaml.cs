@@ -20,9 +20,31 @@ namespace OmenSuperHub.Pages {
     Color[] _zoneColors = new Color[] { Colors.White, Colors.White, Colors.White, Colors.White };
     int[] _lastZoneIdx = new int[] { 0, 0, 0, 0 };
 
+    // ponytail: PerKey HID handle cache. Previously each click of Apply ran
+    // OpenPerKeyKeyboard→SetPerKey*→StorePerKeyToFlash→CloseDeviceAsync — full
+    // handshake every interaction, and the .Wait() on UI thread could deadlock
+    // because the SDK async methods don't ConfigureAwait(false). Cache one
+    // open handle for the page's lifetime; SelectionChanged handlers use it
+    // for live updates without an explicit Apply button press, and page Unloaded
+    // closes it. Locked because the SelectionChanged handlers can fire from any
+    // UI-thread re-entrancy; OpenPerKeyKeyboard itself is already ThreadPool-
+    // dispatched (see OmenLighting.OpenHidDevice), so cached value is just an int.
+    int _perKeyHandle = -1;
+    // _destroyed guards against CloseDeviceAsync racing with Unloaded + reload
+    // (the page can be re-instantiated when the user switches tabs).
+    bool _perKeyDestroyed;
+    readonly object _perKeyLock = new();
+
     public LightingPage() {
       InitializeComponent();
-      Loaded += (s, e) => { _loading = true; LoadState(); _loading = false; };
+      Loaded += (s, e) => {
+        // ponytail: NavigationView keeps 3-page journal so this page is reused on
+        // back-nav. Reset the destruction flag in Loaded so Unloaded (which sets it
+        // true + closes the handle) doesn't leave the next visit permanently inert.
+        _perKeyDestroyed = false;
+        _loading = true; LoadState(); _loading = false;
+      };
+      Unloaded += (s, e) => ClosePerKeyHandleLocked();
     }
 
     void LoadState() {
@@ -208,6 +230,9 @@ namespace OmenSuperHub.Pages {
       if (PerKeyCard != null) PerKeyCard.Visibility = showPerKey ? Visibility.Visible : Visibility.Collapsed;
       bool isDojo = ConfigService.LightingInterface == "Dojo";
       if (DojoHighBrightPanel != null) DojoHighBrightPanel.Visibility = isDojo ? Visibility.Visible : Visibility.Collapsed;
+      // ponytail: entering a non-PerKey protocol drops the cached HID handle so it
+      // doesn't linger and block other Per-key-aware apps (e.g. OMEN Light Studio).
+      if (!showPerKey) ClosePerKeyHandleLocked();
     }
 
     void BtnBrightHigh_Click(object sender, RoutedEventArgs e) {
@@ -222,16 +247,49 @@ namespace OmenSuperHub.Pages {
       catch (Exception ex) { Logger.Error($"BtnBrightHigh_Click: {ex.Message}"); }
     }
 
+    // ponytail: lazy HID open + reuse. Returns -1 with no error UI if previously
+    // established as unavailable (e.g. wrong keyboard type) — the SelectionChanged
+    // handlers silently no-op on -1; the explicit PerKeyApply_Click is the only
+    // path that shows the connect-fail dialog, so error-fatigue from every slider
+    // drag doesn't happen. Nullability: handle is just an int; lock is small.
+    int EnsurePerKeyHandle() {
+      lock (_perKeyLock) {
+        if (_perKeyDestroyed) return -1;
+        if (_perKeyHandle > 0) return _perKeyHandle;
+        int h = OmenLighting.OpenPerKeyKeyboard();
+        if (h > 0) _perKeyHandle = h; // negative stays — next call retries
+        return h;
+      }
+    }
+
+    void ClosePerKeyHandleLocked() {
+      int h;
+      lock (_perKeyLock) {
+        _perKeyDestroyed = true;
+        h = _perKeyHandle; _perKeyHandle = -1;
+      }
+      if (h > 0) {
+        // ponytail: dispatch off UI thread to avoid the same deadlock that
+        // SetPerKey* + .Wait() would cause (SDK continuations need UI context).
+        try { System.Threading.Tasks.Task.Run(() => OmenLighting.CloseDeviceAsync(h)).Wait(500); }
+        catch { }
+      }
+    }
+
     void PerKeyStatic_SelectionChanged(object s, SelectionChangedEventArgs e) {
       if (_loading || s is not ComboBox cb || cb.SelectedItem is not ComboBoxItem item) return;
       ConfigService.PerKeyStaticColor = (string)item.Tag;
       ConfigService.Save("PerKeyStaticColor");
+      PerKeyLiveApplyStatic();
     }
 
     void PerKeyAnim_SelectionChanged(object s, SelectionChangedEventArgs e) {
       if (_loading || s is not ComboBox cb || cb.SelectedItem is not ComboBoxItem item) return;
       ConfigService.PerKeyAnimation = (string)item.Tag;
       ConfigService.Save("PerKeyAnimation");
+      // Animation selection now drives the apply path; static color picker still
+      // honours the latest selection when animation is reverted to None.
+      PerKeyLiveApply();
     }
 
     void PerKeyBright_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) {
@@ -239,37 +297,126 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       ConfigService.PerKeyBrightness = (byte)(int)e.NewValue;
       ConfigService.Save("PerKeyBrightness");
+      // Live brightness: just one IOCTL — cheap enough to push on every tick.
+      int h = EnsurePerKeyHandle();
+      if (h <= 0) { UpdatePerKeyStatus(Strings.LightingCapabilityPerKeyConnect); return; }
+      PerKeyBackgroundRun(h, PerKeySetBrightnessBg, ok =>
+        UpdatePerKeyStatus(ok ? Strings.LightingPerKeyBrightness + ": " + (int)e.NewValue + "%"
+                              : Strings.LightingCapabilityPerKeyConnect));
     }
 
     void PerKeyApply_Click(object sender, RoutedEventArgs e) {
-      int handle = OmenLighting.OpenPerKeyKeyboard();
-      if (handle <= 0) {
+      int h = OmenLighting.OpenPerKeyKeyboard(); // fresh open on explicit click — cache invalid
+      if (h <= 0) {
+        UpdatePerKeyStatus(Strings.LightingCapabilityPerKeyConnect);
         DialogHelper.Warn(Strings.LightingCapabilityPerKeyConnect, Strings.LightingControl);
         return;
       }
+      // Refresh cached handle so subsequent live updates reuse the freshly-opened one.
+      lock (_perKeyLock) { if (_perKeyDestroyed) { try { System.Threading.Tasks.Task.Run(() => OmenLighting.CloseDeviceAsync(h)).Wait(200); } catch { } h = -1; } else _perKeyHandle = h; }
+      if (h <= 0) return;
+      bool ok = PerKeyApplySync(h);
+      UpdatePerKeyStatus(ok
+        ? (ConfigService.PerKeyAnimation == "None"
+            ? Strings.LightingPerKeyStaticColor + ": " + ConfigService.PerKeyStaticColor
+            : Strings.LightingPerKeyAnimation + ": " + ((string)((ComboBoxItem)PerKeyAnimCombo.SelectedItem).Content) + " ✓"
+          )
+        : Strings.KeyboardConnectFail);
+      // Always also push brightness (SetPerKeyBrightness path).
+      PerKeyBackgroundRun(h, PerKeySetBrightnessBg, _ => { });
+    }
+
+    void PerKeyLiveApplyStatic() {
+      int h = EnsurePerKeyHandle();
+      if (h <= 0) { UpdatePerKeyStatus(Strings.LightingCapabilityPerKeyConnect); return; }
+      PerKeyBackgroundRun(h, PerKeyWriteStaticBg, ok =>
+        UpdatePerKeyStatus(ok ? Strings.LightingPerKeyStaticColor + ": " + ConfigService.PerKeyStaticColor
+                              : Strings.LightingCapabilityPerKeyConnect));
+    }
+
+    void PerKeyLiveApply() {
+      int h = EnsurePerKeyHandle();
+      if (h <= 0) { UpdatePerKeyStatus(Strings.LightingCapabilityPerKeyConnect); return; }
+      PerKeyBackgroundRun(h, PerKeyWriteAllBg, ok =>
+        UpdatePerKeyStatus(ok ? Strings.LightingPerKeyAnimation + ": " + ConfigService.PerKeyAnimation
+                              : Strings.LightingCapabilityPerKeyConnect));
+    }
+
+    // ponytail: PerApplySync lives off the UI thread via PerKeyBackgroundRun. The
+    // static branch skips StorePerKeyToFlash (writes flash on every SelectionChanged
+    // would wear consumer-grade flash quickly); flash write is reserved for the
+    // explicit Apply button below in FlashAndStoreFromApply. Live update = RAM only.
+    bool PerKeyApplySync(int h) {
       try {
         if (ConfigService.PerKeyAnimation == "None") {
           var (r, g, b) = PerKeyColorRgb(ConfigService.PerKeyStaticColor);
           const int keyCount = 144;
           var rs = new byte[keyCount]; var gs = new byte[keyCount]; var bs = new byte[keyCount];
           for (int i = 0; i < keyCount; i++) { rs[i] = r; gs[i] = g; bs[i] = b; }
-          OmenLighting.SetPerKeyStaticColor(handle, rs, gs, bs).Wait();
-          OmenLighting.StorePerKeyToFlash(handle).Wait();
+          if (!OmenLighting.SetPerKeyStaticColor(h, rs, gs, bs).GetAwaiter().GetResult()) return false;
+          // Explicit Apply stores to flash so cold boot preserves colour; live updates don't.
+          if (!OmenLighting.StorePerKeyToFlash(h).GetAwaiter().GetResult()) return false;
         } else {
           byte mcuEff = PerKeyAnimationToMcuEff(ConfigService.PerKeyAnimation);
           var setting = new LightingSetting {
             Effect = mcuEff, LedSpeed = 1, Direction = 0,
             Brightness = ConfigService.PerKeyBrightness, ColorNumber = 4, ShowMode = 0
           };
-          OmenLighting.SetPerKeyAnimation(handle, setting).Wait();
+          if (!OmenLighting.SetPerKeyAnimation(h, setting).GetAwaiter().GetResult()) return false;
         }
-        OmenLighting.SetPerKeyBrightness(handle, ConfigService.PerKeyBrightness).Wait();
-      } catch (Exception ex) {
-        Logger.Error($"PerKeyApply_Click: {ex.Message}");
-        DialogHelper.Warn(Strings.KeyboardConnectFail, Strings.LightingControl);
-      } finally {
-        try { OmenLighting.CloseDeviceAsync(handle).Wait(); } catch { }
-      }
+        if (!OmenLighting.SetPerKeyBrightness(h, ConfigService.PerKeyBrightness).GetAwaiter().GetResult()) return false;
+        return true;
+      } catch (Exception ex) { Logger.Error($"PerKeyApplySync: {ex.Message}"); return false; }
+    }
+
+    // Workers — all explicitly off UI thread via PerKeyBackgroundRun.
+    delegate bool PerKeyWork(int h);
+
+    static bool PerKeyWriteStaticBg(int h) {
+      try {
+        var (r, g, b) = PerKeyColorRgb(ConfigService.PerKeyStaticColor);
+        const int keyCount = 144;
+        var rs = new byte[keyCount]; var gs = new byte[keyCount]; var bs = new byte[keyCount];
+        for (int i = 0; i < keyCount; i++) { rs[i] = r; gs[i] = g; bs[i] = b; }
+        return OmenLighting.SetPerKeyStaticColor(h, rs, gs, bs).GetAwaiter().GetResult();
+      } catch (Exception ex) { Logger.Error($"PerKeyWriteStaticBg: {ex.Message}"); return false; }
+    }
+
+    static bool PerKeyWriteAllBg(int h) {
+      try {
+        if (ConfigService.PerKeyAnimation == "None") return PerKeyWriteStaticBg(h);
+        byte mcuEff = PerKeyAnimationToMcuEff(ConfigService.PerKeyAnimation);
+        var setting = new LightingSetting {
+          Effect = mcuEff, LedSpeed = 1, Direction = 0,
+          Brightness = ConfigService.PerKeyBrightness, ColorNumber = 4, ShowMode = 0
+        };
+        return OmenLighting.SetPerKeyAnimation(h, setting).GetAwaiter().GetResult();
+      } catch (Exception ex) { Logger.Error($"PerKeyWriteAllBg: {ex.Message}"); return false; }
+    }
+
+    static bool PerKeySetBrightnessBg(int h) {
+      try { return OmenLighting.SetPerKeyBrightness(h, ConfigService.PerKeyBrightness).GetAwaiter().GetResult(); }
+      catch (Exception ex) { Logger.Error($"PerKeySetBrightnessBg: {ex.Message}"); return false; }
+    }
+
+    // ponytail: thin dispatcher — pushes work to ThreadPool so the SDK async Tasks'
+    // continuations don't need UI context (the exact deadlock class OpenHidDevice
+    // already had to dodge). Uses ThreadPool.QueueUserWorkItem on success instead
+    // of Task.Run to skip the extra Task allocation overhead on every slider tick.
+    void PerKeyBackgroundRun(int h, PerKeyWork work, Action<bool> done) {
+      System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+        bool ok = false;
+        try { ok = work(h); }
+        catch (Exception ex) { Logger.Error($"PerKeyBackgroundRun: {ex.Message}"); }
+        Dispatcher.BeginInvoke(new Action(() => done(ok)));
+      });
+    }
+
+    // ponytail: status line. Set on the UI thread via Dispatcher from background work.
+    // Reuses the existing PerKey status TextBlock; if missing (corner case during
+    // page teardown), no-op.
+    void UpdatePerKeyStatus(string text) {
+      try { if (PerKeyStatusText != null) PerKeyStatusText.Text = text; } catch { }
     }
 
     static (byte r, byte g, byte b) PerKeyColorRgb(string name) => name switch {

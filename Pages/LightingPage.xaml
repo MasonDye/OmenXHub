@@ -294,6 +294,11 @@
               <Button x:Name="PerKeyApplyBtn" Grid.Column="2" Content="{x:Static app:Strings.ApplyLightingBtn}"
                       Click="PerKeyApply_Click" Padding="12,4" Margin="8,0,0,0"/>
             </Grid>
+            <!-- ponytail: status row backing live updates — shows "Brightness: 50%",
+                 "Static Color: Red", "Animation: Wave ✓" or a connect-fail hint so the
+                 user sees what's actually applied instead of guessing from inert buttons. -->
+            <TextBlock x:Name="PerKeyStatusText" FontSize="11" Margin="0,8,0,0"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
           </StackPanel>
         </ui:CardControl.Header>
       </ui:CardControl>
