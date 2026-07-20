@@ -32,6 +32,12 @@ namespace OmenSuperHub.Pages {
     bool _perKeyDestroyed;
     readonly object _perKeyLock = new();
 
+    // ponytail: 硬件能力一次性探测 — 参考 WinForms OmenSuperHub 全局 supportAni/supportLightbar/kbType
+    // 在 LoadState 中赋值，ApplyLightingVisibility 消费。避免每次 SelectionChanged 都打 HP SDK。
+    bool _supportAni;
+    bool _supportLightBar;
+    Omen.OmenFourZoneLighting.KeyboardType _kbType = Omen.OmenFourZoneLighting.KeyboardType.Normal;
+
     public LightingPage() {
       // ponytail: 根因 —— XAML 反序列化期间 Slider 的 Value="100" 触发 ValueChanged 事件 (LightBright_Changed /
       // PerKeyBright_Changed), 此时 _loading 默认 false,事件 handler 进入 ConfigService.Save 或 EnsurePerKeyHandle
@@ -77,6 +83,34 @@ namespace OmenSuperHub.Pages {
         HeadingLighting.Text = $"{Strings.LightingControl} — {kbTypeName}" +
           (lbSupported ? $" | {Strings.LightingLightBar}" : "");
       }
+
+      // ponytail: 一次性硬件能力探测 — 参考 WinForms Program.cs 启动期的 supportAni/supportLightbar/kbType
+      // 赋值。IsAnimationSupported() 内部 FourZoneSupportHelper 有"二次调用返回 false"的缺陷，
+      // 所以只调用一次并缓存到字段。try/catch 兜底：非 OMEN 硬件或 SDK 异常时退化为全 false（最保守）。
+      try { _kbType = FourZoneHelper.GetKeyboardType(); } catch { _kbType = Omen.OmenFourZoneLighting.KeyboardType.Normal; }
+      try { _supportLightBar = FourZoneHelper.IsLightBarSupported(); } catch { _supportLightBar = false; }
+      try { _supportAni = OmenLighting.IsAnimationSupported(); } catch { _supportAni = false; }
+
+      // ponytail: 硬件不支持但持久化值存在 → 复位 config + UI，避免脏值在不可见控件里潜伏。
+      // _loading=true 期间设 SelectedIndex 不会触发 SelectionChanged 副作用。
+      if (!_supportAni && ConfigService.LightingAnimation != "None") {
+        ConfigService.LightingAnimation = "None";
+        ConfigService.Save("LightingAnimation");
+        if (AnimCombo != null) AnimCombo.SelectedIndex = 0;
+      }
+      if (!_supportLightBar && ConfigService.LightingDevice == "lightbar") {
+        ConfigService.LightingDevice = "keyboard";
+        ConfigService.Save("LightingDevice");
+        if (LightDevCombo != null) LightDevCombo.SelectedIndex = 0;
+      }
+      if (_kbType != Omen.OmenFourZoneLighting.KeyboardType.Rgb && ConfigService.LightingInterface == "PerKey") {
+        ConfigService.LightingInterface = "BasicFourZone";
+        ConfigService.Save("LightingInterface");
+        if (LightProtoCombo != null) LightProtoCombo.SelectedIndex = 0;
+      }
+
+      // 再次应用：现在 _supportAni/_supportLightBar/_kbType 已就位
+      ApplyLightingVisibility();
 
       // ponytail: restore PerKey persisted state (only used when the PerKey card is visible).
       // Use OmenLighting.AnimNames as the canonical order so XAML ComboBox + config stay aligned.
@@ -203,21 +237,39 @@ namespace OmenSuperHub.Pages {
     }
 
     void ApplyLightingVisibility() {
-      bool kbIsPerKey = false;
-      try {
-        kbIsPerKey = FourZoneHelper.Available &&
-                     OmenLighting.FourZoneHelper.GetKeyboardType() == Omen.OmenFourZoneLighting.KeyboardType.Rgb;
-      } catch { }
+      // ponytail: 参考 WinForms Program.Menu.cs:908-1006 的可见性规则：
+      //   1. 动画卡仅 _supportAni 时可见（cycle>260）
+      //   2. 灯条设备选项仅 _supportLightBar 时可见
+      //   3. PerKey 协议选项仅 kbType==Rgb 时可见（PerKey 卡本身沿用 kbIsPerKey||isPerKeyProto）
+      // Zone 颜色卡始终显示 4 区——参考 AddLightingUI 也是固定生成 4 个 zone picker，
+      // OneZone/FourZone 区分仅用于状态显示（本页无状态显示区）。
+
+      // 1. 动画卡
+      if (AnimCard != null)
+        AnimCard.Visibility = _supportAni ? Visibility.Visible : Visibility.Collapsed;
+
+      // 2. 灯条设备选项
+      if (LightBarItem != null)
+        LightBarItem.Visibility = _supportLightBar ? Visibility.Visible : Visibility.Collapsed;
+
+      // 3. PerKey 协议选项 + PerKey 卡
+      bool kbIsPerKey = _kbType == Omen.OmenFourZoneLighting.KeyboardType.Rgb;
+      if (PerKeyProtoItem != null)
+        PerKeyProtoItem.Visibility = kbIsPerKey ? Visibility.Visible : Visibility.Collapsed;
       bool isPerKeyProto = LightProtoCombo != null && LightProtoCombo.SelectedIndex == 3;
       bool showPerKey = kbIsPerKey || isPerKeyProto;
       if (PerKeyCard != null) PerKeyCard.Visibility = showPerKey ? Visibility.Visible : Visibility.Collapsed;
+
+      // 4. Dojo 高亮度面板
       bool isDojo = ConfigService.LightingInterface == "Dojo";
       if (DojoHighBrightPanel != null) DojoHighBrightPanel.Visibility = isDojo ? Visibility.Visible : Visibility.Collapsed;
-      // ponytail: direction/theme 仅 Dojo+动画下发,UI 一处统一管控避免双函数状态分歧
+
+      // 5. 方向/主题仅 Dojo+动画下发,UI 一处统一管控避免双函数状态分歧
       bool animEnabled = isDojo && AnimCombo != null && AnimCombo.SelectedIndex > 0;
       if (AnimDirCombo != null) AnimDirCombo.IsEnabled = animEnabled;
       if (AnimThemeCombo != null) AnimThemeCombo.IsEnabled = animEnabled;
-      // ponytail: entering a non-PerKey protocol drops the cached HID handle so it
+
+      // 6. entering a non-PerKey protocol drops the cached HID handle so it
       // doesn't linger and block other Per-key-aware apps (e.g. OMEN Light Studio).
       if (!showPerKey) ClosePerKeyHandleLocked();
     }

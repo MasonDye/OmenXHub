@@ -75,7 +75,7 @@
               <ComboBox x:Name="LightDevCombo" MinWidth="120"
                         SelectionChanged="LightDev_SelectionChanged">
                 <ComboBoxItem Content="{x:Static app:Strings.LightingKeyboard}"/>
-                <ComboBoxItem Content="{x:Static app:Strings.LightingLightBar}"/>
+                <ComboBoxItem x:Name="LightBarItem" Content="{x:Static app:Strings.LightingLightBar}"/>
               </ComboBox>
             </StackPanel>
           </ui:CardControl.Header>
@@ -94,7 +94,7 @@
                 <ComboBoxItem Content="{x:Static app:Strings.LightingProtoDojo}"/>
                 <ComboBoxItem Content="HP SDK" Tag="HpSdk"/>
                 <!-- ponytail: Added in this pass. Selecting PerKey shows the PerKey RGB card below -->
-                <ComboBoxItem Content="{x:Static app:Strings.LightingPerKeyTitle}" Tag="PerKey"/>
+                <ComboBoxItem x:Name="PerKeyProtoItem" Content="{x:Static app:Strings.LightingPerKeyTitle}" Tag="PerKey"/>
               </ComboBox>
             </StackPanel>
           </ui:CardControl.Header>
@@ -254,7 +254,7 @@
         </ui:CardControl>
       </Grid>
 
-      <ui:CardControl Margin="{StaticResource CardMargin}">
+      <ui:CardControl x:Name="AnimCard" Margin="{StaticResource CardMargin}">
         <ui:CardControl.Header>
           <StackPanel>
             <StackPanel Orientation="Horizontal">

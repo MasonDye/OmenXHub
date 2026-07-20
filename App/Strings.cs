@@ -713,9 +713,6 @@ namespace OmenSuperHub {
     public static string AutomationStepRunProgram => T("运行程序", "運行程式", "Run Program");
     public static string AutomationStepDelay => T("延迟", "延遲", "Delay");
     public static string AutomationStepNotification => T("通知", "通知", "Notification");
-    public static string AutomationStepSetIccMax => T("设置IccMax", "設定IccMax", "Set IccMax");
-    public static string AutomationStepSetAcLoadLine => T("设置AC Load Line", "設定AC Load Line", "Set AC Load Line");
-    public static string AutomationStepSetTpp => T("设置TPP", "設定TPP", "Set TPP");
     public static string AutomationStepSetGpuPower => T("设置GPU功率", "設定GPU功率", "Set GPU Power");
     public static string AutomationStepSetTempSensitivity => T("设置温度灵敏度", "設定溫度靈敏度", "Set Temp Sensitivity");
     public static string AutomationStepSetFanCurve => T("设置风扇曲线", "設定風扇曲線", "Set Fan Curve");
@@ -726,9 +723,6 @@ namespace OmenSuperHub {
     public static string AutomationPreset => T("预设方案", "預設方案", "Preset");
     public static string AutomationPowerModeValue => T("电源模式值", "電源模式值", "Power Mode (0=节能/1=平衡/2=性能)");
     public static string AutomationFanModeValue => T("风扇模式", "風扇模式", "Fan Mode");
-    public static string AutomationIccMaxValue => T("电流 (A)", "電流 (A)", "Current (A)");
-    public static string AutomationAcLoadLineValue => T("电阻 (mΩ)", "電阻 (mΩ)", "Resistance (mΩ)");
-    public static string AutomationTppValue => T("功率 (W)", "功率 (W)", "Power (W)");
     public static string AutomationGpuPowerValue => T("TGP 功率 (W)", "TGP 功率 (W)", "TGP Power (W)");
     public static string AutomationTempSensitivityValue => T("灵敏度 (实时/高/中/低)", "靈敏度 (實時/高/中/低)", "Sensitivity (realtime/high/medium/low)");
     public static string AutomationFanCurveValue => T("曲线文件名", "曲線文件名", "Curve file name");
@@ -941,12 +935,6 @@ namespace OmenSuperHub {
     public static string FanSettings => T("风扇设置", "風扇設定", "Fan Settings");
     public static string TempCelsius => T("温度 (°C)", "溫度 (°C)", "Temperature (°C)");
 
-    // ponytail: driver-install status strings (also used by DashboardPage kernel-driver UI).
-    public static string AdvNeedAdmin => T("此操作需要管理员权限", "此操作需要管理員權限", "Administrator privileges required");
-    public static string AdvDriverNotReady => T("驱动未就绪", "驅動未就緒", "Driver not ready");
-    public static string AdvInstallOmenDriver => T("安装内核驱动", "安裝內核驅動", "Install kernel driver");
-    public static string AdvDriverInstallOk => T("驱动已就绪", "驅動已就緒", "Driver ready");
-    public static string AdvDriverInstallFail => T("驱动安装失败，请以管理员运行并检查日志", "驅動安裝失敗，請以管理員執行並檢查日誌", "Driver install failed. Run as administrator and check logs.");
     // AMD CPU Power Limits (PPT only — TDC/EDC/Tctl removed with advanced tuning)
     public static string AmdCpuPowerHeading => T("CPU 功耗限制 (AMD)", "CPU 功耗限制 (AMD)", "CPU Power Limits (AMD)");
     public static string AmdCpuPowerDesc => T("PPT 桌面 AM5 独立 CPU", "PPT 桌面 AM5 獨立 CPU", "PPT desktop AM5 standalone CPU");

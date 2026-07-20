@@ -543,6 +543,7 @@ namespace OmenSuperHub.Views {
           var cb = new ComboBox { Height = 32, FontSize = 13 };
           cb.Items.Add(new ComboBoxItem { Content = "安静模式", Tag = "silent" });
           cb.Items.Add(new ComboBoxItem { Content = "降温模式", Tag = "cool" });
+          cb.Items.Add(new ComboBoxItem { Content = "平衡模式", Tag = "balanced" });
           cb.Items.Add(new ComboBoxItem { Content = "导入自定义曲线", Tag = "import" });
           cb.Items.Add(new ComboBoxItem { Content = "手动模式", Tag = "manual" });
           cb.SelectedIndex = 0;
@@ -668,27 +669,6 @@ namespace OmenSuperHub.Views {
           cb.Items.Add(new ComboBoxItem { Content = "CTGP关+DB关 (min)", Tag = "min" });
           cb.SelectedIndex = 0;
           getValue = () => ((ComboBoxItem)cb.SelectedItem)?.Tag as string ?? "max";
-          return cb;
-        }
-        case "SetAcLoadLine": {
-          var cb = new ComboBox { Height = 32, FontSize = 13 };
-          foreach (var v in new[] { "0", "150", "160", "170" }) cb.Items.Add(v);
-          cb.SelectedIndex = 1;
-          getValue = () => cb.Text;
-          return cb;
-        }
-        case "SetIccMax": {
-          var cb = new ComboBox { Height = 32, FontSize = 13, IsEditable = true };
-          foreach (var v in new[] { "0", "128", "140", "155", "168", "188", "200", "255" }) cb.Items.Add(v);
-          cb.SelectedIndex = 4;
-          getValue = () => cb.Text;
-          return cb;
-        }
-        case "SetTpp": {
-          var cb = new ComboBox { Height = 32, FontSize = 13, IsEditable = true };
-          foreach (var v in new[] { "0", "35", "43", "50", "55", "60" }) cb.Items.Add(v);
-          cb.SelectedIndex = 2;
-          getValue = () => cb.Text;
           return cb;
         }
         default:

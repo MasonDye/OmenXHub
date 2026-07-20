@@ -171,6 +171,16 @@ namespace OmenSuperHub {
       return NbKeyboardLightingType.None;
     }
 
+    // ponytail: 零参包装 — LightingPage 不直接依赖 HP.Omen.Core.Model.Device.Models。
+    // 注意 FourZoneSupportHelper.IsAnimationSupported 首次调用返回正确值，二次调用因
+    // _isAnimationSupported.HasValue 短路返回 false（参考 WinForms 全局 supportAni 一次性
+    // 赋值的行为）；本包装不缓存，调用方需自行缓存。
+    public static bool IsAnimationSupported() {
+      try {
+        return FourZoneSupportHelper.IsAnimationSupported(GetKeyboardType(), DeviceModel.DeviceType);
+      } catch { return false; }
+    }
+
     public static bool IsLightBarPlatform() {
       byte[] result = SendOmenBiosWmi(1, null, 4);
       if (result != null && result.Length > 0) {

@@ -184,8 +184,8 @@ namespace OmenSuperHub.Services {
   internal static class AutomationStepTypes {
     public static readonly string[] All = {
       "SetPreset", "SetRefreshRate", "SetPowerPlan", "SetPowerMode",
-      "SetMaxFrameRate", "SetCpuPower", "SetGpuPower", "SetTpp",
-      "SetIccMax", "SetAcLoadLine", "SetFanMode", "SetFanCurve",
+      "SetMaxFrameRate", "SetCpuPower", "SetGpuPower",
+      "SetFanMode", "SetFanCurve",
       "SetTempSensitivity", "SetGPUHybridMode", "SetBrightness",
       "SetMicrophone", "SetWiFi", "SetBluetooth", "PlaySound",
       "RunProgram", "Delay", "Notification", "RunMacro"
@@ -200,9 +200,6 @@ namespace OmenSuperHub.Services {
         case "SetMaxFrameRate": return Strings.AutomationStepSetMaxFrameRate;
         case "SetCpuPower": return Strings.AutomationStepSetCpuPower;
         case "SetGpuPower": return Strings.AutomationStepSetGpuPower;
-        case "SetTpp": return Strings.AutomationStepSetTpp;
-        case "SetIccMax": return Strings.AutomationStepSetIccMax;
-        case "SetAcLoadLine": return Strings.AutomationStepSetAcLoadLine;
         case "SetFanMode": return Strings.AutomationStepSetFanMode;
         case "SetFanCurve": return Strings.AutomationStepSetFanCurve;
         case "SetTempSensitivity": return Strings.AutomationStepSetTempSensitivity;
@@ -229,9 +226,6 @@ namespace OmenSuperHub.Services {
         case "SetMaxFrameRate": return Strings.AutomationMaxFrameRate;
         case "SetCpuPower": return Strings.AutomationCpuPowerValue;
         case "SetGpuPower": return Strings.AutomationGpuPowerValue;
-        case "SetTpp": return Strings.AutomationTppValue;
-        case "SetIccMax": return Strings.AutomationIccMaxValue;
-        case "SetAcLoadLine": return Strings.AutomationAcLoadLineValue;
         case "SetFanMode": return Strings.AutomationFanModeValue;
         case "SetFanCurve": return Strings.AutomationFanCurveValue;
         case "SetTempSensitivity": return Strings.AutomationTempSensitivityValue;

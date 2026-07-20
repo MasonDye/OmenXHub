@@ -181,21 +181,6 @@ namespace OmenSuperHub.Services {
           if (!string.IsNullOrEmpty(step.Value))
             Views.OsdWindow.ShowTextOsd(step.Value, force: true);
           break;
-        case "SetIccMax":
-          if (int.TryParse(step.Value, out int iccVal) && iccVal > 0 && iccVal <= 255) {
-            ConfigService.IccMax = iccVal;
-            OmenHardware.SetIccMaxByWmi(iccVal);
-          }
-          break;
-        case "SetAcLoadLine":
-          ExecuteSetAcLoadLine(step.Value);
-          break;
-        case "SetTpp":
-          if (int.TryParse(step.Value, out int tppVal) && tppVal > 0 && tppVal <= 254) {
-            ConfigService.Tpp = tppVal;
-            OmenHardware.SetConcurrentTdp((byte)tppVal);
-          }
-          break;
         case "SetGpuPower":
           ExecuteSetGpuPower(step.Value);
           break;
@@ -269,7 +254,7 @@ namespace OmenSuperHub.Services {
     }
 
     static void ExecuteSetFanMode(string value) {
-      if (value == "silent" || value == "cool") {
+      if (value == "silent" || value == "cool" || value == "balanced") {
         ConfigService.FanTable = value;
         ConfigService.FanControl = "";
         FanService.LoadFanConfig(value + ".txt");
@@ -309,15 +294,6 @@ namespace OmenSuperHub.Services {
           Views.OsdWindow.ShowFanModeOsd(pct + "%");
           TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
         }
-      }
-    }
-
-    static void ExecuteSetAcLoadLine(string value) {
-      if (!int.TryParse(value, out int acllVal) || acllVal <= 0) return;
-      int level = (180 - acllVal) / 10; // ponytail: mOhm→level, display formula is 180-10*level
-      if (level >= 1 && level <= 3) {
-        ConfigService.AcLoadLine = level;
-        OmenHardware.SetLoadLine(level);
       }
     }
 

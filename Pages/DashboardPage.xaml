@@ -527,16 +527,6 @@
                   <TextBlock Text="{x:Static app:Strings.SysPawnTitle}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock x:Name="SysPawnIoText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                <!-- ponytail: one-click install/start the bundled OmenXHub MSR
-                     driver. Was no install path at all so Intel MSR advanced tuning
-                     cards were silent no-ops on every install. -->
-                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                  <ui:Button x:Name="BtnInstallKernelDriver" Content="{x:Static app:Strings.AdvInstallOmenDriver}"
-                             MinWidth="120" MinHeight="30" Appearance="Primary"
-                             Click="InstallKernelDriver_Click" Margin="0,0,8,0"/>
-                  <TextBlock x:Name="KernelDriverStatus" FontSize="11" VerticalAlignment="Center"
-                             Foreground="{DynamicResource TextSecondaryBrush}"/>
-                </StackPanel>
               </StackPanel>
             </ui:CardControl.Header>
           </ui:CardControl>

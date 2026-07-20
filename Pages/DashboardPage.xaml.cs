@@ -1,4 +1,4 @@
-﻿// DashboardPage.cs - 主仪表盘页面 + 系统信息卡片
+// DashboardPage.cs - 主仪表盘页面 + 系统信息卡片
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -245,7 +245,7 @@ namespace OmenSuperHub.Pages {
 
       string fc = ConfigService.FanControl;
       string ft = ConfigService.FanTable;
-      if (fc == "custom")
+      if (fc == "smart" || fc == "custom")
         CurrentFanText.Text = Strings.FanCustomCurve;
       else if (fc == "" || fc == "auto")
         CurrentFanText.Text = ft == "cool" ? Strings.FanCoolMode
@@ -327,7 +327,7 @@ namespace OmenSuperHub.Pages {
         }
       } catch { }
       CurrentModeText.Text = PresetDisplayName(presetKey);
-      if (fc == "custom")
+      if (fc == "smart" || fc == "custom")
         CurrentFanText.Text = Strings.FanCustomCurve;
       else if (fc == "" || fc == "auto")
         CurrentFanText.Text = ft == "cool" ? Strings.FanCoolMode
@@ -933,17 +933,8 @@ SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyb
 		            ConfigService.Save("SysPawnIoText");
 		          }
 		        } catch { }
-		        // ponytail: OmenXHub MSR driver handle is live-probed — unlike
-		        // PawnIO, there's no registry state to lie about; IsAvailable is
-		        // the truth. Surface it next to the install button.
-		        try {
-		          if (KernelDriverStatus != null)
-		            KernelDriverStatus.Text = OmenXHubDriver.IsAvailable
-		                ? Strings.AdvDriverInstallOk
-		                : Strings.AdvDriverNotReady;
-		        } catch { }
-		        return;
-	      }
+	        return;
+      }
 	      Task.Run(() => {
         string mfr = null, model = null, bios = null, cpu = null, gpu = null;
         int adapterW = 0;
@@ -1283,60 +1274,6 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
 
     void HpDriverSearch_Click(object sender, RoutedEventArgs e) {
       try { Process.Start(new ProcessStartInfo("https://support.hp.com/cn-zh/product/detect?source=swd") { UseShellExecute = true })?.Dispose(); } catch { }
-    }
-
-    // ═══ ponytail: D-stage one-click kernel driver install ═══
-    // The bundled OmenXHub MSR/PCI driver was previously NEVER installed
-    // by the app — Intel MSR advanced tuning cards (FIVR / clock ratio /
-    // HWP / C-State / PROCHOT / iGPU Power-Ratio) all silently no-op'd.
-    // Click here: elevates via UAC, sc create + sc start OmenXHubDrv.
-    void InstallKernelDriver_Click(object sender, RoutedEventArgs e) {
-      KernelDriverStatus.Text = "…";
-      // Find the .sys next to the exe, then fall back to source tree layout.
-      string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-      string[] candidates = new[] {
-        Path.Combine(baseDir, "OmenXHubDrv.sys"),
-        Path.Combine(baseDir, "driver", "OmenXHubDrv.sys"),
-        Path.Combine(baseDir, "..", "driver", "OmenXHubDrv.sys"),
-      };
-      string sysPath = candidates.FirstOrDefault(File.Exists);
-      if (sysPath == null) { KernelDriverStatus.Text = Strings.AdvDriverInstallFail; return; }
-      sysPath = Path.GetFullPath(sysPath);
-
-      try {
-        // ponytail: sc create/start must run elevated. We shell sc.exe with
-        // Verb=runas so UAC prompts; if the process is already elevated, sc
-        // exits quickly and we re-query IsAvailable.
-        var psiCreate = new ProcessStartInfo("sc.exe",
-          $"create OmenXHubDrv type= kernel binPath=\"{sysPath}\" start= demand") {
-          Verb = "runas", UseShellExecute = true, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden
-        };
-        var psiStart = new ProcessStartInfo("sc.exe", "start OmenXHubDrv") {
-          Verb = "runas", UseShellExecute = true, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden
-        };
-        using (var p1 = Process.Start(psiCreate)) { p1?.WaitForExit(); }
-        // Wait briefly for service to come up, sc start may already start it.
-        System.Threading.Thread.Sleep(300);
-        using (var p2 = Process.Start(psiStart))  { p2?.WaitForExit(); }
-        // Force re-open the device handle (it caches once opened)
-        OmenXHubDriver.Close();
-        bool ok = OmenXHubDriver.IsAvailable;
-        KernelDriverStatus.Text = ok ? Strings.AdvDriverInstallOk : Strings.AdvDriverInstallFail;
-        // refresh the PawnIO status line too, since both depend on real handles
-        try {
-          var pawnIoNow = OmenHardware.IsPawnIOInstalled()
-              ? Strings.SysPawnInstalled + " (" + OmenHardware.GetPawnIOState() + ")"
-              : Strings.SysPawnMissing;
-          SysPawnIoText.Text = pawnIoNow;
-          ConfigService.SysPawnIoText = pawnIoNow;
-          ConfigService.Save("SysPawnIoText");
-        } catch { }
-      } catch (System.ComponentModel.Win32Exception) {
-        // UAC declined (1223) or similar — surface admin requirement cleanly.
-        KernelDriverStatus.Text = Strings.AdvNeedAdmin;
-      } catch (Exception ex) {
-        KernelDriverStatus.Text = Strings.AdvDriverInstallFail + " " + ex.Message;
-      }
     }
   }
 }
