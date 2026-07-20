@@ -17,15 +17,19 @@ namespace OmenSuperHub.Pages
     {
         bool _loading;
 
+        DispatcherTimer _hwinfoTimer;
+
         public OtherPage()
         {
             InitializeComponent();
                 Loaded += (s, e) => { _loading = true; LoadState(); _loading = false; };
-
-            // 定时刷新 HWiNFO 读取器状态（HWiNFO 可能随时启动/停止）
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-            timer.Tick += (s, e) => UpdateHWiNFOReadStatus();
-            timer.Start();
+                Loaded += (s, e) => { _hwinfoTimer?.Start(); };
+                // ponytail: dispatcher timer 必须在 Unloaded 停止，否则页面被导航离开后
+                // timer 仍每 2s 触发 UpdateHWiNFOReadStatus()（注册表读 + WMI 探测），
+                // 而 OtherPage 已脱离可视树，调用对分离元素无效且占 UI 线程。
+                Unloaded += (s, e) => { _hwinfoTimer?.Stop(); };
+            _hwinfoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            _hwinfoTimer.Tick += (s, e) => UpdateHWiNFOReadStatus();
         }
 
         void LoadState()

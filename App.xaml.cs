@@ -18,6 +18,7 @@ using static OmenSuperHub.OmenHardware;
 namespace OmenSuperHub {
   public partial class App : System.Windows.Application {
     static Mutex _mutex;
+    static bool _ownsMutex;  // ponytail: 仅在 createdNew==true 时 ReleaseMutex,否则 SynchronizationLockException
     static int alreadyReadCode = 1000;
 
     protected override void OnStartup(StartupEventArgs e) {
@@ -32,9 +33,8 @@ namespace OmenSuperHub {
 
       try {
         // Single instance check
-        bool isNewInstance;
-        _mutex = new Mutex(true, "MyUniqueAppMutex", out isNewInstance);
-        if (!isNewInstance) {
+        _mutex = new Mutex(true, "MyUniqueAppMutex", out _ownsMutex);
+        if (!_ownsMutex) {
           ShowExistingWindow();
           Shutdown();
           return;
@@ -48,6 +48,9 @@ namespace OmenSuperHub {
         // Load language config
         ConfigService.Load();
         CustomPresetNamesStore.Load(); // file fallback for custom preset names
+        // ponytail: 持久化 FanSync 首次启动的默认 true。若用户已关掉并保存 (注册表有 FanSync=false),
+        // Load 读到 false, Save("FanSync") 把 false 写回, 行为不变。首次安装则 true 落地。
+        try { ConfigService.Save("FanSync"); } catch { }
         // Re-apply saved preset so its values populate ConfigService fields before RestoreConfig
         if (!string.IsNullOrEmpty(ConfigService.Preset)) {
           PresetManager.SwitchPreset(ConfigService.Preset);
@@ -248,8 +251,7 @@ namespace OmenSuperHub {
       SafeShutdown(AutomationProcessor.Stop);
       SafeShutdown(() => SystemEvents.PowerModeChanged -= TrayService.OnPowerChange);
       SafeShutdown(HardwareService.Close);
-      SafeShutdown(AmdSmuService.Shutdown);
-      SafeShutdown(() => _mutex?.ReleaseMutex());
+      SafeShutdown(() => { if (_ownsMutex) _mutex?.ReleaseMutex(); });
       SafeShutdown(() => _mutex?.Dispose());
       base.OnExit(e);
     }

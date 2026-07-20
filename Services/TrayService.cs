@@ -18,6 +18,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.Win32.TaskScheduler;
 using OmenSuperHub.Utils;
 using OmenSuperHub.Views;
+using OmenSuperHub.Pages;
 using static OmenSuperHub.OmenHardware;
 using static OmenSuperHub.OmenLighting;
 
@@ -340,7 +341,7 @@ namespace OmenSuperHub.Services {
       if (fanProtectOn && HardwareService.MonitorFan && HardwareService.CPUTemp > 0) {
         // ponytail: 对齐 OSH 参考实现 —— 只对固定 RPM/百分比模式触发自动保护,
         // 不影响 smart/custom/silent/cool/auto 模式。
-        bool isFixedRpm = ConfigService.FanControl.EndsWith(" RPM") || ConfigService.FanControl.EndsWith("%");
+        bool isFixedRpm = FanService.IsFixedRpm(ConfigService.FanControl);
         if (!_autoProtectActive && isFixedRpm
             && HardwareService.CPUTemp > 95 && HardwareService.FanSpeedNow != null) {
           int maxSpeed = 0;
@@ -378,7 +379,7 @@ namespace OmenSuperHub.Services {
           } else if (_savedFanControl.EndsWith("%") || _savedFanControl.EndsWith(" RPM")) {
             int pct = _savedFanControl.EndsWith("%")
               ? int.Parse(_savedFanControl.TrimEnd('%'))
-              : int.Parse(_savedFanControl.Replace(" RPM", "").Trim()) / 100;
+              : FanService.ParseFanRpm(_savedFanControl) / 100;
             SetMaxFanSpeedOff();
             OmenHardware.SetFanLevel(pct, pct);
             fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -531,11 +532,14 @@ namespace OmenSuperHub.Services {
         } else if (ConfigService.FanControl == "" || ConfigService.FanControl == "auto") {
           SetMaxFanSpeedOff();
         } else if (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom") {
-          var pts = FanService.LoadCustomCurve();
-          if (pts.Count > 0) FanService.ApplyCustomCurve(pts);
+          // ponytail: unify on ApplyPresetCurve. Custom presets → custom_{preset}.txt;
+          // built-in presets → custom_{Extreme/LightUse}.txt or per-preset default curve.
+          // Old code read legacy custom.txt for built-in presets, silently dropping whatever
+          // custom_{Extreme}.txt the user had saved.
+          FanService.ApplyPresetCurve(ConfigService.Preset);
         } else if (ConfigService.FanControl.Contains(" RPM")) {
           SetMaxFanSpeedOff();
-          int rpmValue = int.Parse(ConfigService.FanControl.Replace(" RPM", "").Trim());
+          int rpmValue = FanService.ParseFanRpm(ConfigService.FanControl);
           SetFanLevel(rpmValue / 100, rpmValue / 100);
         }
       }
@@ -561,7 +565,14 @@ namespace OmenSuperHub.Services {
       RestoreFanSettings();
       RestoreTempSensitivity();
       RestoreCpuPower();
-      RestoreGpuPower();
+      // ponytail: GPU power state (TGP/PPAB/dState) must be re-applied here, after CPU power
+      // and TPP. ApplyPresetHardware runs async on a ThreadPool and may race past us, so on a
+      // cold boot PPAB often stays at BIOS default until the user toggles it by hand. Re-applying
+      // here guarantees PPAB uses the restored TPP budget — idempotent for the EC if already set.
+      RestoreGpuPowerState();
+      // ponytail: RestoreGpuPower() reads legacy GpuPower string ("max"/"med"/"min")
+      // and overwrites the preset-backed TgpEnabled/PpabEnabled. GPU power is already
+      // correctly applied by App.xaml.cs:55 + ApplyPresetHardware on startup.
       RestoreGpuClock();
       RestoreMaxFrameRate();
       RestoreDbVersion();
@@ -595,6 +606,9 @@ namespace OmenSuperHub.Services {
       if (ConfigService.FanTable.Contains("cool")) {
         FanService.LoadFanConfig("cool.txt");
         UpdateCheckedState("fanTableGroup", "降温模式");
+      } else if (ConfigService.FanTable.Contains("balanced")) {
+        FanService.LoadFanConfig("balanced.txt");
+        UpdateCheckedState("fanTableGroup", "平衡模式");
       } else {
         FanService.LoadFanConfig("silent.txt");
         UpdateCheckedState("fanTableGroup", "安静模式");
@@ -613,22 +627,18 @@ namespace OmenSuperHub.Services {
       if (ConfigService.FanControl == "" || ConfigService.FanControl == "auto") {
         SetMaxFanSpeedOff();
         if (fanControlTimer != null) fanControlTimer.Change(0, 1000);
-        UpdateCheckedState("fanControlGroup", ConfigService.FanTable == "cool" ? "降温模式" : "安静模式");
+        UpdateCheckedState("fanControlGroup",
+          ConfigService.FanTable == "cool" ? "降温模式"
+          : ConfigService.FanTable == "balanced" ? "平衡模式"
+          : "安静模式");
       } else if (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom") {
-        string curveFile = ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt";
-        FanService.LoadFanConfig(curveFile);
+        // ponytail: scrap redundant LoadFanConfig(cool/silent.txt) — ApplyPresetCurve is the
+        // sole entry. Built-in presets (Extreme/GpuPriority/LightUse) previously read legacy
+        // custom.txt here and silently lost any custom_{Extreme}.txt the user saved; unify on
+        // ApplyPresetCurve which gives per-preset fallback (perf curve for Extreme, etc.).
         FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
         SetMaxFanSpeedOff();
-        string preset = ConfigService.Preset;
-        if (PresetManager.IsCustom(preset)) {
-          var cpuPts = FanService.LoadPresetCurve(preset, false);
-          var gpuPts = FanService.LoadPresetCurve(preset, true);
-          if (cpuPts.Count > 0) FanService.ApplyCustomCurve(cpuPts);
-          if (gpuPts.Count > 0) FanService.ApplyCustomCurveGPU(gpuPts);
-        } else {
-          var pts = FanService.LoadCustomCurve();
-          if (pts.Count > 0) FanService.ApplyCustomCurve(pts);
-        }
+        FanService.ApplyPresetCurve(ConfigService.Preset);
         if (fanControlTimer != null) fanControlTimer.Change(0, 1000);
         UpdateCheckedState("fanControlGroup", "智能自定义曲线");
       } else if (ConfigService.FanControl.EndsWith("%")) {
@@ -645,7 +655,7 @@ namespace OmenSuperHub.Services {
       } else if (ConfigService.FanControl.Contains(" RPM")) {
         SetMaxFanSpeedOff();
         if (fanControlTimer != null) fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
-        int rpmValue = int.Parse(ConfigService.FanControl.Replace(" RPM", "").Trim());
+        int rpmValue = FanService.ParseFanRpm(ConfigService.FanControl);
         SetFanLevel(rpmValue / 100, rpmValue / 100);
         UpdateCheckedState("fanControlGroup", ConfigService.FanControl);
       }
@@ -678,6 +688,20 @@ namespace OmenSuperHub.Services {
         }
         UpdateCheckedState("cpuPowerGroup", ConfigService.CpuPower);
       }
+    }
+
+    // ponytail: re-apply TGP/PPAB using preset-backed config (TgpEnabled/PpabEnabled/Tpp/DState),
+    // NOT the legacy GpuPower string. TPP must be written BEFORE GPU power state so PPAB reads
+    // the right total power budget, otherwise GPU saturates at BIOS default and CPU starves.
+    static void RestoreGpuPowerState() {
+      try {
+        if (ConfigService.Tpp >= 20 && ConfigService.Tpp <= 254)
+          SetConcurrentTdp((byte)ConfigService.Tpp);
+      } catch { }
+      try {
+        SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled,
+          ConfigService.DState == 2 ? 2 : 1);
+      } catch { }
     }
 
     static void RestoreGpuPower() {
@@ -727,6 +751,12 @@ namespace OmenSuperHub.Services {
     static void RestoreDisplay() {
       if (ConfigService.RefreshRate > 0)
         ApplyRefreshRate(ConfigService.RefreshRate);
+      // ponytail: resolution is stored as "WxH"; replay it on boot so the user's last choice sticks.
+      if (!string.IsNullOrEmpty(ConfigService.Resolution)) {
+        var parts = ConfigService.Resolution.Split('x');
+        if (parts.Length == 2 && int.TryParse(parts[0], out int w) && int.TryParse(parts[1], out int h))
+          PerfPage.ApplyResolution(w, h);
+      }
     }
 
     static void RestorePowerPlan() {
@@ -895,11 +925,14 @@ namespace OmenSuperHub.Services {
       SetFanMode((byte)0x31); // Unleash mode
       System.Threading.Tasks.Task.Delay(1000).ContinueWith(_ => {
         RestoreCPUPower();
-        SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled,
-            ConfigService.DState == 2 ? 2 : 1);
+        // ponytail: TPP 必须早于 SetGpuPowerState，否则 PPAB 读到的总预算
+        // 还是 BIOS 默认值（~155W），双烤时 GPU 在 115W 基本占满总预算，
+        // CPU 分不到足够功耗。
         if (ConfigService.Tpp >= 20 && ConfigService.Tpp <= 254) {
           SetConcurrentTdp((byte)ConfigService.Tpp);
         }
+        SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled,
+            ConfigService.DState == 2 ? 2 : 1);
       });
     }
 
@@ -1337,8 +1370,17 @@ namespace OmenSuperHub.Services {
       fanControlTimer?.Dispose();
       optimiseTimer?.Stop();
       checkFloatingTimer?.Stop();
+      // ponytail: 动态图标缓存 GDI 资源 (Bitmap/Graphics/Font) 在 Exit 统一释放;
+      // 之前只在首次启动动态图标后分配,直到进程退出才回收。
+      try {
+        _dynamicIconGraphics?.Dispose();
+        _dynamicIconFont?.Dispose();
+        _dynamicIconBitmap?.Dispose();
+        _dynamicIconGraphics = null;
+        _dynamicIconFont = null;
+        _dynamicIconBitmap = null;
+      } catch { }
       HardwareService.Close();
-      try { AmdSmuService.Shutdown(); } catch { }
       try {
         TrayIcon.Hide();
         TrayIcon.Dispose();
@@ -1352,7 +1394,10 @@ namespace OmenSuperHub.Services {
       if (app != null) {
         app.Dispatcher.BeginInvoke(new System.Action(() => {
           try { app.Shutdown(); } catch { }
-          Environment.Exit(0);
+          // ponytail: Shutdown() may hang on hardware I/O — schedule a hard exit
+          System.Threading.Tasks.Task.Delay(5000).ContinueWith(_ => {
+            try { Environment.Exit(0); } catch { }
+          });
         }), System.Windows.Threading.DispatcherPriority.Normal);
       } else {
         Environment.Exit(0);
@@ -1368,8 +1413,9 @@ namespace OmenSuperHub.Services {
     public const int CDS_UPDATEREGISTRY = 0x00000001;
 
     // Power plan P/Invoke for startup restore
-    public static readonly Guid BEST_POWER_EFFICIENCY = Guid.Parse("961cc777-2547-4f9d-8174-7d86181b8a7a");
-    public static readonly Guid BEST_PERFORMANCE = Guid.Parse("ded574b5-45a0-4f42-8737-46345c09c238");
+    // ponytail: GUID 提取到共享 PowerOverlay (Services/NativeDefs.cs)
+    public static readonly Guid BEST_POWER_EFFICIENCY = PowerOverlay.BestPowerEfficiency;
+    public static readonly Guid BEST_PERFORMANCE = PowerOverlay.BestPerformance;
 
     [System.Runtime.InteropServices.DllImport("powrprof.dll")]
     public static extern uint PowerSetActiveScheme(IntPtr userPowerKey, ref Guid activePolicyGuid);

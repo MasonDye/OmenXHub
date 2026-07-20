@@ -60,8 +60,7 @@ namespace OmenSuperHub.Services {
       // ponytail: if the user is on NVIDIA, NvAPI is the primary path. RTSS is
       // a fallback for non-NVIDIA GPUs. We do not write to shared memory here
       // because that requires hooking into the RTSSLoader process — instead we
-      // tell the user to enable the limit inside RTSS itself. The value is
-      // stored in ConfigService.RtssFrameLimit so the Dashboard OSD can display it.
+      // tell the user to enable the limit inside RTSS itself.
       return false; // no-op; higher layer should use NVIDIA NVAPI or RTSS UI
     }
   }

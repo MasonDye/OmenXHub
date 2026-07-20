@@ -66,11 +66,11 @@ namespace OmenSuperHub.Services {
     // ── 生成文件 ──
     static void DeleteGeneratedFiles(List<string> report) {
       string appDir = AppContext.BaseDirectory;
-      foreach (var f in new[] { "silent.txt", "cool.txt", "error.log", "custom_icon.ico", "CoreKeep.json", "preset_names.txt" })
+      foreach (var f in new[] { "silent.txt", "cool.txt", "balanced.txt", "error.log", "custom_icon.ico", "CoreKeep.json", "preset_names.txt" })
         DeleteFile(Path.Combine(appDir, f), report);
       DeletePattern(Path.Combine(appDir, "Presets"), "*.json", report);
       DeletePattern(Path.Combine(appDir, "FanCurves"), "custom*.txt", report);
-      foreach (var f in new[] { "silent.txt", "cool.txt" })
+      foreach (var f in new[] { "silent.txt", "cool.txt", "balanced.txt" })
         DeleteFile(Path.Combine(@"C:\Windows\SysWOW64", f), report);
     }
 

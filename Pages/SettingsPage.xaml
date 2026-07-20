@@ -215,7 +215,7 @@
             <StackPanel>
               <StackPanel Orientation="Horizontal">
                 <ui:SymbolIcon Symbol="Chat24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="OSD" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+	                <TextBlock Text="{x:Static app:Strings.SettingsOsdHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
               <TextBlock Text="{x:Static app:Strings.OsdToggleDesc}" FontSize="11"
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
@@ -338,12 +338,14 @@
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Globe24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.LanguageMenu}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              </StackPanel>
-            </StackPanel>
+	            <StackPanel>
+	              <StackPanel Orientation="Horizontal">
+	                <ui:SymbolIcon Symbol="Globe24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+	                <TextBlock Text="{x:Static app:Strings.LanguageMenu}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+	              </StackPanel>
+	              <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="24,2,0,0"
+	                         Text="{x:Static app:Strings.LangRestartHint}"/>
+	            </StackPanel>
             <ComboBox x:Name="LangCombo" Grid.Column="1" MinWidth="160"
                       SelectionChanged="Lang_SelectionChanged">
               <ComboBoxItem Content="{x:Static app:Strings.LangSimplified}"/>
@@ -458,8 +460,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="DEBUG: 显示所有UI" FontSize="13" FontWeight="SemiBold"/>
-                <TextBlock Text="强制展示所有隐藏的功能卡片，即使硬件不支持。仅用于开发调试。" FontSize="11"
+	                <TextBlock Text="{x:Static app:Strings.SettingsDebugShowAllUi}" FontSize="13" FontWeight="SemiBold"/>
+		                <TextBlock Text="{x:Static app:Strings.SettingsDebugShowAllUiDesc}" FontSize="11"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ui:ToggleSwitch x:Name="DebugShowAllUiToggle" Grid.Column="1" VerticalAlignment="Center"

@@ -19,9 +19,9 @@
             <StackPanel>
               <StackPanel Orientation="Horizontal">
                 <ui:SymbolIcon Symbol="Settings24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="启用自动化" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              </StackPanel>
-              <TextBlock Text="只有在本程序运行时，自动化才可生效。" FontSize="11"
+	                <TextBlock Text="{x:Static app:Strings.AutoEnableHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+	              </StackPanel>
+	              <TextBlock Text="{x:Static app:Strings.AutoEnableDesc}" FontSize="11"
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="AutoEnableToggle" Grid.Column="1" VerticalAlignment="Center"
@@ -41,12 +41,13 @@
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
           <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-            <TextBlock x:Name="AutoNoPipelines"
-                       Text="当前没有自动化脚本，请点击&#x201C;新建&#x201D;来新建一项。"
-                       FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                       Margin="0,8,0,8" Visibility="Visible"/>
-            <Button x:Name="AutoAddPipelineBtn" Content="新建" MinWidth="100" Height="30"
+		            <TextBlock x:Name="AutoNoPipelines"
+			                       Text="{x:Static app:Strings.AutoNoPipelinesText}"
+			                       FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+			                       Margin="0,8,16,8" HorizontalAlignment="Right" TextAlignment="Right" Visibility="Visible"/>
+		            <Button x:Name="AutoAddPipelineBtn" Content="{x:Static app:Strings.AutoAddNew}" MinWidth="100" Height="30"
                     HorizontalAlignment="Right"
+                    ToolTip="{x:Static app:Strings.AutoAddDisabledTooltip}"
                     Click="AutoAddPipeline_Click"/>
           </StackPanel>
         </Grid>
@@ -65,16 +66,17 @@
               <TextBlock x:Name="AutoQuickActionsText" Text="{x:Static app:Strings.AutomationQuickActions}"
                          FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
             </StackPanel>
-            <TextBlock Text="你可以在系统托盘的图标上右键来快速触发这些快捷操作。" FontSize="11"
+	            <TextBlock Text="{x:Static app:Strings.AutoQuickActionsDesc}" FontSize="11"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0"/>
           </StackPanel>
           <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-            <TextBlock x:Name="AutoNoQuickActions"
-                       Text="没有快捷操作，请点击&#x201C;新建&#x201D;来新建快捷操作。"
-                       FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                       Margin="0,0,0,8" Visibility="Visible"/>
-            <Button x:Name="AutoAddQuickActionBtn" Content="新建" MinWidth="100" Height="30"
+	            <TextBlock x:Name="AutoNoQuickActions"
+			                       Text="{x:Static app:Strings.AutoNoQuickActionsText}"
+			                       FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+			                       Margin="0,0,16,8" HorizontalAlignment="Right" TextAlignment="Right" Visibility="Visible"/>
+		            <Button x:Name="AutoAddQuickActionBtn" Content="{x:Static app:Strings.AutoAddNew}" MinWidth="100" Height="30"
                     HorizontalAlignment="Right"
+                    ToolTip="{x:Static app:Strings.AutoAddDisabledTooltip}"
                     Click="AutoAddQuickAction_Click"/>
           </StackPanel>
         </Grid>

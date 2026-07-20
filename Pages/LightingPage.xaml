@@ -12,17 +12,60 @@
 
       <Grid x:Name="LightGrid">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="*" x:Name="LightCol0"/>
+          <ColumnDefinition Width="12" x:Name="LightColGap"/>
+          <ColumnDefinition Width="*" x:Name="LightCol1"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="8"/>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="8"/>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="8"/>
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ui:CardControl Grid.Row="0" Grid.Column="0" Margin="0,0,6,8">
+        <VisualStateManager.VisualStateGroups>
+          <VisualStateGroup x:Name="LightLayoutStates">
+            <!-- ponytail: Wide = 2 列 2 行;Narrow = 单列 4 行。.cs SizeChanged 调用 GoToState
+                 精确切换(避免 WrapPanel 物理换行临界闪烁 + 左右间距不均)。
+                 Narrow 下:第 2 列宽=0 + 间距列宽=0,4 张卡走 Grid.Row 0/2/4/6 同列。 -->
+            <VisualState x:Name="Wide"/>
+            <VisualState x:Name="Narrow">
+              <Storyboard>
+                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="LightCol1"
+                                               Storyboard.TargetProperty="(ColumnDefinition.Width)">
+                  <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static GridLength.Auto}"/>
+                </ObjectAnimationUsingKeyFrames>
+                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="LightColGap"
+                                               Storyboard.TargetProperty="(ColumnDefinition.Width)">
+                  <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static GridLength.Auto}"/>
+                </ObjectAnimationUsingKeyFrames>
+                <!-- ponytail: Narrow 下把右侧 2 张卡换到 Column 0,Row 2/4(避开 0/2 的左侧卡)。
+                     Grid.Row/Grid.Column 是 attached property,DiscreteObjectKeyFrame 用 Int32 即可。 -->
+                <Int32AnimationUsingKeyFrames Storyboard.TargetName="LightCard1"
+                                              Storyboard.TargetProperty="(Grid.Row)">
+                  <DiscreteInt32KeyFrame KeyTime="0" Value="2"/>
+                </Int32AnimationUsingKeyFrames>
+                <Int32AnimationUsingKeyFrames Storyboard.TargetName="LightCard1"
+                                              Storyboard.TargetProperty="(Grid.Column)">
+                  <DiscreteInt32KeyFrame KeyTime="0" Value="0"/>
+                </Int32AnimationUsingKeyFrames>
+                <Int32AnimationUsingKeyFrames Storyboard.TargetName="LightCard3"
+                                              Storyboard.TargetProperty="(Grid.Row)">
+                  <DiscreteInt32KeyFrame KeyTime="0" Value="6"/>
+                </Int32AnimationUsingKeyFrames>
+                <Int32AnimationUsingKeyFrames Storyboard.TargetName="LightCard3"
+                                              Storyboard.TargetProperty="(Grid.Column)">
+                  <DiscreteInt32KeyFrame KeyTime="0" Value="0"/>
+                </Int32AnimationUsingKeyFrames>
+              </Storyboard>
+            </VisualState>
+          </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <ui:CardControl x:Name="LightCard0" Grid.Row="0" Grid.Column="0" Margin="0,0,0,8">
           <ui:CardControl.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
@@ -38,7 +81,7 @@
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardControl Grid.Row="0" Grid.Column="1" Margin="6,0,0,8">
+        <ui:CardControl x:Name="LightCard1" Grid.Row="0" Grid.Column="2" Margin="0,0,0,8">
           <ui:CardControl.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
@@ -57,7 +100,7 @@
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,0,6,0">
+        <ui:CardControl x:Name="LightCard2" Grid.Row="2" Grid.Column="0" Margin="0,0,0,8">
           <ui:CardControl.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
@@ -87,8 +130,7 @@
                         Click="BtnBrightHigh_Click" Tag="228" Padding="8,2"/>
               </StackPanel>
               <TextBlock Text="{x:Static app:Strings.LightingSpeedHeading}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,8,0,4"/>
-              <ComboBox x:Name="AnimSpeedCombo" MinWidth="140"
-                        SelectionChanged="AnimSpeed_SelectionChanged">
+              <ComboBox x:Name="AnimSpeedCombo" MinWidth="140">
                 <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedSlow}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedMedium}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedFast}"/>
@@ -97,24 +139,57 @@
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardControl Grid.Row="1" Grid.Column="1" Margin="6,0,0,0">
+        <ui:CardControl x:Name="LightCard3" Grid.Row="2" Grid.Column="2" Margin="0,0,0,8">
+          <!-- ponytail: Zone 子 Grid 的 VSM 挂在 LightCard3(Control) 上,因为 GoToState 只接受 Control。
+               Storyboard TargetName 按名字查可跨层级引用 ZoneColGap/Zone2Cell/Zone4Cell。 -->
+          <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ZoneLayoutStates">
+              <VisualState x:Name="Zone2Col"/>
+              <VisualState x:Name="Zone1Col">
+                <Storyboard>
+                  <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ZoneColGap"
+                                                 Storyboard.TargetProperty="(ColumnDefinition.Width)">
+                    <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static GridLength.Auto}"/>
+                  </ObjectAnimationUsingKeyFrames>
+                  <Int32AnimationUsingKeyFrames Storyboard.TargetName="Zone2Cell"
+                                                Storyboard.TargetProperty="(Grid.Row)">
+                    <DiscreteInt32KeyFrame KeyTime="0" Value="2"/>
+                  </Int32AnimationUsingKeyFrames>
+                  <Int32AnimationUsingKeyFrames Storyboard.TargetName="Zone2Cell"
+                                                Storyboard.TargetProperty="(Grid.Column)">
+                    <DiscreteInt32KeyFrame KeyTime="0" Value="0"/>
+                  </Int32AnimationUsingKeyFrames>
+                  <Int32AnimationUsingKeyFrames Storyboard.TargetName="Zone4Cell"
+                                                Storyboard.TargetProperty="(Grid.Row)">
+                    <DiscreteInt32KeyFrame KeyTime="0" Value="6"/>
+                  </Int32AnimationUsingKeyFrames>
+                  <Int32AnimationUsingKeyFrames Storyboard.TargetName="Zone4Cell"
+                                                Storyboard.TargetProperty="(Grid.Column)">
+                    <DiscreteInt32KeyFrame KeyTime="0" Value="0"/>
+                  </Int32AnimationUsingKeyFrames>
+                </Storyboard>
+              </VisualState>
+            </VisualStateGroup>
+          </VisualStateManager.VisualStateGroups>
           <ui:CardControl.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                 <ui:SymbolIcon Symbol="Color24" FontSize="18" Margin="0,0,10,0"/>
                 <TextBlock Text="{x:Static app:Strings.LightingZoneColorHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-              <Grid>
+              <Grid x:Name="ZoneGrid">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="8" x:Name="ZoneColGap"/>
                   <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                   <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="8"/>
                   <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,8">
+                <StackPanel Grid.Row="0" Grid.Column="0" x:Name="Zone1Cell">
                   <TextBlock x:Name="Zone1Text" Text="{x:Static app:Strings.LightingZone1}" Tag="Zone1" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                   <ComboBox x:Name="Zone1Combo" MinWidth="120"
                             SelectionChanged="ZoneColor_SelectionChanged">
@@ -129,7 +204,7 @@
                   </ComboBox>
                 </StackPanel>
 
-                <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,8">
+                <StackPanel Grid.Row="0" Grid.Column="2" x:Name="Zone2Cell">
                   <TextBlock x:Name="Zone2Text" Text="{x:Static app:Strings.LightingZone2}" Tag="Zone2" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                   <ComboBox x:Name="Zone2Combo" MinWidth="120"
                             SelectionChanged="ZoneColor_SelectionChanged">
@@ -144,7 +219,7 @@
                   </ComboBox>
                 </StackPanel>
 
-                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,8,0,0">
+                <StackPanel Grid.Row="2" Grid.Column="0" x:Name="Zone3Cell">
                   <TextBlock x:Name="Zone3Text" Text="{x:Static app:Strings.LightingZone3}" Tag="Zone3" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                   <ComboBox x:Name="Zone3Combo" MinWidth="120"
                             SelectionChanged="ZoneColor_SelectionChanged">
@@ -159,7 +234,7 @@
                   </ComboBox>
                 </StackPanel>
 
-                <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,8,0,0">
+                <StackPanel Grid.Row="2" Grid.Column="2" x:Name="Zone4Cell">
                   <TextBlock x:Name="Zone4Text" Text="{x:Static app:Strings.LightingZone4}" Tag="Zone4" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                   <ComboBox x:Name="Zone4Combo" MinWidth="120"
                             SelectionChanged="ZoneColor_SelectionChanged">

@@ -138,6 +138,8 @@ namespace OmenSuperHub.Services {
           Logger.Error("AutomationService.Save failed: " + ex.Message);
         }
       }
+      // ponytail: 管道增删/启用/禁用都过 Save —— 同步按需启停温度/电池/计划定时器,无需各自插钩子。
+      AutomationProcessor.ReevaluateTimers();
     }
 
 	    public static void AddPipeline(AutomationPipeline pipeline) {

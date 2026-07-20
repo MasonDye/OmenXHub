@@ -11,7 +11,7 @@
       <!-- ponytail: same DockPanel source as PerfPage — shares the global PresetManager / ConfigService.Preset. -->
       <DockPanel Margin="0,0,0,12">
         <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" HorizontalAlignment="Left">
-          <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center">预设:</TextBlock>
+	          <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center" Text="{x:Static app:Strings.FanPresetLabel}"/>
           <ComboBox x:Name="cbxFanPreset" Width="200" Height="36" SelectionChanged="cbxFanPreset_SelectionChanged"/>
         </StackPanel>
       </DockPanel>
@@ -32,6 +32,7 @@
                         SelectionChanged="FanMode_SelectionChanged">
                 <ComboBoxItem Content="{x:Static app:Strings.FanSilentMode}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.FanCoolMode}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.FanModeDefault}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.FanCustomCurve}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.FanManualMode}"/>
               </ComboBox>
@@ -88,9 +89,9 @@
             </Grid>
             <StackPanel Margin="0,12,0,12">
               <TextBlock x:Name="FanCurveTipText" Text="{x:Static app:Strings.FanCurveTip}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-              <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Text="可右键创建或删除控制点"/>
-              <TextBlock FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"
-                         Text="💡 拖拽调整后需切换一次风扇模式（如切到静音再切回自定义）才能实时生效"/>
+	              <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Text="{x:Static app:Strings.FanDragHint}"/>
+		              <TextBlock FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"
+		                         Text="{x:Static app:Strings.FanModeChangeHint}"/>
             </StackPanel>
                <Grid>
                  <Grid.ColumnDefinitions>
@@ -117,13 +118,13 @@
                  <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,12,0,0" HorizontalAlignment="Center">
                    <ui:Button x:Name="FanImportBtn" Content="{x:Static app:Strings.FanCurveImport}" Width="84" Height="32" FontSize="12"
                               Click="FanImportBtn_Click" Appearance="Secondary"
-                              ToolTip="从 JSON 文件或剪贴板分享码导入风扇曲线"/>
-                   <ui:Button x:Name="FanExportBtn" Content="{x:Static app:Strings.FanCurveExport}" Width="84" Height="32" FontSize="12" Margin="8,0,0,0"
-                              Click="FanExportBtn_Click" Appearance="Primary"
-                              ToolTip="将当前风扇曲线保存为 JSON 文件"/>
-                   <ui:Button x:Name="FanShareBtn" Content="{x:Static app:Strings.FanCurveShare}" Width="84" Height="32" FontSize="12" Margin="8,0,0,0"
-                              Click="FanShareBtn_Click" Appearance="Secondary"
-                              ToolTip="生成分享码并复制到剪贴板"/>
+		                              ToolTip="{x:Static app:Strings.FanImportTooltip}"/>
+		                   <ui:Button x:Name="FanExportBtn" Content="{x:Static app:Strings.FanCurveExport}" Width="84" Height="32" FontSize="12" Margin="8,0,0,0"
+		                              Click="FanExportBtn_Click" Appearance="Primary"
+		                              ToolTip="{x:Static app:Strings.FanExportTooltip}"/>
+		                   <ui:Button x:Name="FanShareBtn" Content="{x:Static app:Strings.FanCurveShare}" Width="84" Height="32" FontSize="12" Margin="8,0,0,0"
+		                              Click="FanShareBtn_Click" Appearance="Secondary"
+		                              ToolTip="{x:Static app:Strings.FanShareTooltip}"/>
                  </StackPanel>
                </Grid>
            </StackPanel>
@@ -158,9 +159,9 @@
                  <TextBlock Text="{x:Static app:Strings.FanSmartEmaHint}" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                </StackPanel>
                <ComboBox x:Name="SmartEmaAlphaCombo" Grid.Row="0" Grid.Column="1" MinWidth="100" SelectionChanged="SmartEmaAlpha_Changed">
-                 <ComboBoxItem Content="0.1 (快)"/>
-                 <ComboBoxItem Content="0.3 (中)" IsSelected="True"/>
-                 <ComboBoxItem Content="0.5 (慢)"/>
+	                 <ComboBoxItem Content="{x:Static app:Strings.FanResponseFast}"/>
+	                 <ComboBoxItem Content="{x:Static app:Strings.FanResponseMedium}" IsSelected="True"/>
+	                 <ComboBoxItem Content="{x:Static app:Strings.FanResponseSlow}"/>
                </ComboBox>
                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,6,0,0">
                  <TextBlock Text="{x:Static app:Strings.FanSmartStepDown}" FontSize="12" VerticalAlignment="Center"/>

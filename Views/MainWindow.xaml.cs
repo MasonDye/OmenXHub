@@ -99,6 +99,10 @@ namespace OmenSuperHub.Views {
     public MainWindow() {
       InitializeComponent();
       _instance = this;
+      // ponytail: restore persisted topmost state — XAML defaults to False
+      Topmost = ConfigService.Topmost;
+      PinIcon.Symbol = Topmost ? SymbolRegular.Pin24 : SymbolRegular.PinOff24;
+      PinButton.ToolTip = Topmost ? Strings.MainWindowPinTooltipOn : Strings.MainWindowPinTooltipOff;
       NavigationView.SetPageService(new Services.CachedPageService());
 
       ThemeService.ThemeChanged += OnThemeChanged;
@@ -264,11 +268,21 @@ namespace OmenSuperHub.Views {
       if (_wheelHandler != null && _wheelRoot != null)
         _wheelRoot.RemoveHandler(UIElement.PreviewMouseWheelEvent, _wheelHandler);
 
-      var root = System.Windows.Media.VisualTreeHelper.GetParent(page);
+      // ponytail: walk up visual tree to find the root UIElement.
+      // VisualTreeHelper.GetParent throws on ContentElement nodes (e.g. Run, TextElement),
+      // so skip any non-UIElement along the way.
+      DependencyObject root = page;
+      try { root = System.Windows.Media.VisualTreeHelper.GetParent(page); } catch { }
       while (root != null) {
-        var parent = System.Windows.Media.VisualTreeHelper.GetParent(root);
-        if (parent == null) break;
-        root = parent;
+        try {
+          var parent = System.Windows.Media.VisualTreeHelper.GetParent(root);
+          if (parent == null) break;
+          root = parent;
+        } catch {
+          // ponytail: ContentElement in the visual tree ancestry — skip it,
+          // the real visual parent is higher up.
+          break;
+        }
       }
       if (root is System.Windows.UIElement uiRoot) {
         _wheelRoot = uiRoot;
@@ -436,42 +450,18 @@ namespace OmenSuperHub.Views {
       });
     }
 
-    void UpdateStatusBar() {
-      string online = HardwareService.PowerOnline ? "\U0001f50c" : "\U0001f50b";
-      StatusBarText.Text = $"{online} CPU {HardwareService.CPUTemp:F0}\u00b0C \u00b7 GPU {HardwareService.GPUTemp:F0}\u00b0C";
-    }
+	    void UpdateStatusBar() {
+	      string icon = HardwareService.PowerOnline ? "\U0001f50c" : "\U0001f50b";
+	      StatusBarIcon.Text = icon;
+	      StatusBarText.Text = Strings.MainWindowStatusBarFormat(HardwareService.CPUTemp, HardwareService.GPUTemp);
+	    }
 
     void PinToggle_Click(object sender, RoutedEventArgs e) {
       Topmost = !Topmost;
+      ConfigService.Topmost = Topmost;
+      ConfigService.Save("Topmost");
       PinIcon.Symbol = Topmost ? SymbolRegular.Pin24 : SymbolRegular.PinOff24;
-      PinButton.ToolTip = Topmost ? "取消顶置" : "顶置";
-    }
-
-    // ── Logo 5-click easter egg: unlock advanced tuning ──
-    int _logoClickCount;
-    DateTime _logoFirstClick;
-
-    void Logo_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) {
-      var now = DateTime.UtcNow;
-      if ((now - _logoFirstClick).TotalSeconds > 3) {
-        _logoClickCount = 0;
-        _logoFirstClick = now;
-      }
-      _logoClickCount++;
-      if (_logoClickCount >= 5) {
-        _logoClickCount = 0;
-        ConfigService.AdvancedTuningUnlocked = !ConfigService.AdvancedTuningUnlocked;
-        ConfigService.Save("AdvancedTuningUnlocked");
-        // Refresh PerfPage if it's the active page
-        if (_activePage is PerfPage perfPage) {
-          perfPage.RefreshAdvancedVisibility();
-        }
-        string msg = ConfigService.AdvancedTuningUnlocked
-          ? "高级调校已解锁！性能页将显示 CPU/GPU 进阶选项。"
-          : "高级调校已隐藏。再次点击 logo 5 次可重新解锁。";
-        // Show a brief status in the status bar
-        StatusBarText.Text = msg;
-      }
+	      PinButton.ToolTip = Topmost ? Strings.MainWindowPinTooltipOn : Strings.MainWindowPinTooltipOff;
     }
   }
 }

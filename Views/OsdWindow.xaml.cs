@@ -29,33 +29,53 @@ namespace OmenSuperHub.Views {
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
+    // ponytail: 200 ms Polling caps/numlock is the most frequent timer in the app.
+    // Start symmetric Stop via RefreshMonitorState driven by SettingsPage. Tick lambda
+    // pulled to a named method so Unload path can detach and the DispatcherTimer becomes GC-eligible.
     public static void StartLockKeyMonitor() {
+      // ponytail: ShowOsd=false 用户已显式关闭 OSD —— 键状态轮询无消费方,不启动。
+      if (!ConfigService.ShowOsd) return;
       if (_monitoringStarted) return;
       _monitoringStarted = true;
       _lastCapsLock = Console.CapsLock;
       _lastNumLock = Console.NumberLock;
       _lockKeyTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-      _lockKeyTimer.Tick += (s, e) => {
-        if (!ConfigService.ShowOsd) return;
-        if (Console.CapsLock != _lastCapsLock) {
-          _lastCapsLock = Console.CapsLock;
-          ShowOsd(_lastCapsLock ? Strings.CapsLockOn : Strings.CapsLockOff,
-                  _lastCapsLock ? SymbolRegular.Keyboard24 : SymbolRegular.Keyboard24);
-        }
-        if (Console.NumberLock != _lastNumLock) {
-          _lastNumLock = Console.NumberLock;
-          ShowOsd(_lastNumLock ? Strings.NumLockOn : Strings.NumLockOff,
-                  _lastNumLock ? SymbolRegular.Keyboard24 : SymbolRegular.Keyboard24);
-        }
-      };
+      _lockKeyTimer.Tick += _lockKeyTick;
       _lockKeyTimer.Start();
+    }
+
+    static void _lockKeyTick(object s, EventArgs e) {
+      if (!ConfigService.ShowOsd) {
+        // ponytail: 设置页关掉 OSD 后由 RefreshMonitorState 走 Stop 路径,这里仅兜底。
+        RefreshMonitorState();
+        return;
+      }
+      if (Console.CapsLock != _lastCapsLock) {
+        _lastCapsLock = Console.CapsLock;
+        ShowOsd(_lastCapsLock ? Strings.CapsLockOn : Strings.CapsLockOff,
+                SymbolRegular.Keyboard24);
+      }
+      if (Console.NumberLock != _lastNumLock) {
+        _lastNumLock = Console.NumberLock;
+        ShowOsd(_lastNumLock ? Strings.NumLockOn : Strings.NumLockOff,
+                SymbolRegular.Keyboard24);
+      }
     }
 
     public static void StopLockKeyMonitor() {
       if (_lockKeyTimer != null) {
+        _lockKeyTimer.Tick -= _lockKeyTick;
         _lockKeyTimer.Stop();
         _lockKeyTimer = null;
       }
+      _monitoringStarted = false;
+    }
+
+    // ponytail: SettingsPage 在 ShowOsd 切换后调用,把定时器对齐到当前 ShowOsd 状态。
+    // 之前 _lockKeyTimer 启动后从不停,即使 ShowOsd=false 也每分钟 300 次读 Console.CapsLock。
+    public static void RefreshMonitorState() {
+      if (ConfigService.ShowOsd) StartLockKeyMonitor();
+      else StopLockKeyMonitor();
     }
 
     public static void Dismiss() {
@@ -93,6 +113,7 @@ namespace OmenSuperHub.Views {
       switch (mode) {
         case "silent": text = Strings.FanSilentMode; icon = SymbolRegular.WeatherMoon24; break;
         case "cool": text = Strings.FanCoolMode; icon = SymbolRegular.WeatherSunny24; break;
+        case "balanced": text = Strings.FanModeDefault; icon = SymbolRegular.WeatherSunny24; break;
         case "smart":
         case "custom": text = Strings.FanCustomCurve; icon = SymbolRegular.Bot24; break;
         default:

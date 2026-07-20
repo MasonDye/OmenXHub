@@ -31,8 +31,17 @@ namespace OmenSuperHub.Services {
     public static string ReadSmallProcessorMask() {
       try {
         using (var key = Registry.LocalMachine.OpenSubKey(KGroupPath)) {
-          if (key?.GetValue("SmallProcessorMask") is byte[] raw)
-            return string.Concat(raw.Select(b => b.ToString("X2")));
+          var val = key?.GetValue("SmallProcessorMask");
+          // REG_DWORD (int) — correct format
+          if (val is int dword)
+            return $"{(uint)dword:X8}";
+          // REG_BINARY (byte[]) — old buggy format, convert for migration
+          if (val is byte[] raw && raw.Length > 0) {
+            uint recovered = 0;
+            for (int i = 0; i < raw.Length && i < 4; i++)
+              recovered |= (uint)(raw[i]) << (i * 8);
+            return $"{recovered:X8}";
+          }
         }
       } catch { }
       return "FFFF0000";
@@ -55,11 +64,11 @@ namespace OmenSuperHub.Services {
     public static void WriteSmallProcessorMask(string hex) {
       try {
         hex = hex?.Replace(" ", "").Replace("0x", "").Replace("0X", "") ?? "";
-        if (hex.Length % 2 != 0) hex = "0" + hex;
-        var bytes = Enumerable.Range(0, hex.Length / 2)
-          .Select(i => Convert.ToByte(hex.Substring(i * 2, 2), 16)).ToArray();
+        // Parse as uint (max 8 hex chars = 32-bit DWORD)
+        uint mask = uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out uint parsed)
+          ? parsed : 0xFFFF0000u;
         using (var key = Registry.LocalMachine.CreateSubKey(KGroupPath))
-          key?.SetValue("SmallProcessorMask", bytes, RegistryValueKind.Binary);
+          key?.SetValue("SmallProcessorMask", (int)mask, RegistryValueKind.DWord);
       } catch (Exception ex) {
         Logger.Error($"WriteSmallProcessorMask error: {ex.Message}");
       }
@@ -189,11 +198,13 @@ namespace OmenSuperHub.Services {
     }
 
     static string GenerateMask(int totalLp, int ccd0Count) {
-      int byteCount = Math.Max(8, ((totalLp + 7) / 8));
-      byte[] mask = new byte[byteCount];
-      for (int i = 0; i < ccd0Count && i < totalLp; i++)
-        mask[i / 8] |= (byte)(1 << (i % 8));
-      return string.Concat(mask.Select(b => b.ToString("X2")));
+      // SmallProcessorMask 二进制 0=小核, 1=大核
+      // 默认约定 FFFF0000: CCD1(LP 16-31)=大核, CCD0(LP 0-15)=小核
+      // 所以标记 ccd0Count..totalLp-1 位为 1(大核)
+      uint mask = 0;
+      for (int i = ccd0Count; i < totalLp; i++)
+        mask |= 1u << i;
+      return $"{mask:X8}";
     }
 
     public static string GetCpuInfo() {

@@ -55,11 +55,9 @@ namespace OmenSuperHub.Services {
 	      SubscribeProcessEvents();
 	      SubscribePowerEvents();
 	      SubscribeSessionEvents();
-	      SubscribeBatteryEvents();
-	      SubscribeDisplayEvents();
-	      SubscribeLidEvents();
-	      StartScheduleTimer();
-      StartTempPollTimer();
+	      // ponytail: 只有实际存在对应轮询触发器的管道才启定时器,空载用户不再每 2/5/15s 空转。
+	      ReevaluateTimers();
+      SubscribeDisplayEvents();
 
       // Init hotkey message window
       InitHotkeyHwnd();
@@ -68,6 +66,33 @@ namespace OmenSuperHub.Services {
       FireTrigger("Startup", "");
 
       Logger.Info("AutomationProcessor started");
+    }
+
+    // ponytail: 根据当前已启用管道的真实触发器集 Start/Stop 三个轮询定时器。
+    // 增删/启用/禁用管道后由 AutomationService.Save() 触发。Stop() 已会 Dispose,这里只在运行中调用。
+    public static void ReevaluateTimers() {
+      if (!_running) return;
+      bool needTemp = HasPolledTriggerType(t => t == "CpuTempAbove" || t == "GpuTempAbove");
+      bool needBattery = HasPolledTriggerType(t => t == "BatteryAbove" || t == "BatteryBelow");
+      bool needSchedule = HasPolledTriggerType(t => t == "TimeSchedule");
+
+      if (needTemp && _tempPollTimer == null) StartTempPollTimer();
+      else if (!needTemp && _tempPollTimer != null) { _tempPollTimer.Dispose(); _tempPollTimer = null; }
+
+      if (needBattery && _batteryPollTimer == null) SubscribeBatteryEvents();
+      else if (!needBattery && _batteryPollTimer != null) { _batteryPollTimer.Dispose(); _batteryPollTimer = null; }
+
+      if (needSchedule && _scheduleTimer == null) StartScheduleTimer();
+      else if (!needSchedule && _scheduleTimer != null) { _scheduleTimer.Dispose(); _scheduleTimer = null; }
+    }
+
+    static bool HasPolledTriggerType(Func<string, bool> matcher) {
+      foreach (var p in AutomationService.GetEnabledPipelines()) {
+        foreach (var t in p.Triggers) {
+          if (t.Enabled && matcher(t.Type)) return true;
+        }
+      }
+      return false;
     }
 
     public static void Stop() {
@@ -93,6 +118,7 @@ namespace OmenSuperHub.Services {
         _executing = true;
         _currentPipelineName = pipeline.Name;
       }
+      // ponytail: fire on calling thread (UI thread for button clicks, ThreadPool for timers)
       ExecutionStatusChanged?.Invoke(pipeline.Name);
       Task.Run(async () => {
         try {
@@ -105,7 +131,14 @@ namespace OmenSuperHub.Services {
           Logger.Error("AutomationProcessor.ExecutePipeline error: " + ex.Message);
         } finally {
           lock (ExecLock) { _executing = false; _currentPipelineName = null; }
-          ExecutionStatusChanged?.Invoke(null);
+          // ponytail: marshal to UI thread for anyone subscribing from XAML/code-behind
+          try {
+            var app = System.Windows.Application.Current;
+            if (app != null && app.Dispatcher != null && !app.Dispatcher.CheckAccess())
+              app.Dispatcher.Invoke(() => ExecutionStatusChanged?.Invoke(null));
+            else
+              ExecutionStatusChanged?.Invoke(null);
+          } catch { }
         }
       });
     }
@@ -158,7 +191,7 @@ namespace OmenSuperHub.Services {
           ExecuteSetAcLoadLine(step.Value);
           break;
         case "SetTpp":
-          if (int.TryParse(step.Value, out int tppVal) && tppVal > 0 && tppVal <= 255) {
+          if (int.TryParse(step.Value, out int tppVal) && tppVal > 0 && tppVal <= 254) {
             ConfigService.Tpp = tppVal;
             OmenHardware.SetConcurrentTdp((byte)tppVal);
           }
@@ -209,6 +242,10 @@ namespace OmenSuperHub.Services {
             if (macro != null) MacroController.PlayMacro(macro);
           }
           break;
+        case "Delay":
+          // ponytail: DelayMs 已在 ExecutePipeline 循环开头 await Task.Delay(step.DelayMs),
+          // "Delay" 步骤本身只是个占位/分隔器——这里显式 break 表明是 no-op 而非 switch 漏处理。
+          break;
       }
     }
 
@@ -241,7 +278,10 @@ namespace OmenSuperHub.Services {
         Views.OsdWindow.ShowFanModeOsd(value);
       } else if (value == "smart" || value == "custom") {
         ConfigService.FanControl = "smart";
-        FanService.LoadFanConfig(ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt");
+        FanService.LoadFanConfig(
+          ConfigService.FanTable == "cool" ? "cool.txt"
+          : ConfigService.FanTable == "balanced" ? "balanced.txt"
+          : "silent.txt");
         FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
         SetMaxFanSpeedOff();
         TrayService.fanControlTimer.Change(0, 1000);
@@ -550,18 +590,19 @@ namespace OmenSuperHub.Services {
         if (pct == _lastBatteryPercent) return;
         _lastBatteryPercent = pct;
         foreach (var p in AutomationService.GetEnabledPipelines()) {
-          p.EnsureTriggers();
           foreach (var t in p.Triggers) {
             if (!t.Enabled) continue;
-            if ((t.Type == "BatteryAbove" && int.TryParse(t.Value, out int above) && pct >= above) ||
-                (t.Type == "BatteryBelow" && int.TryParse(t.Value, out int below) && pct <= below)) {
-              string latchKey = (p.Name ?? "") + ":" + t.Type;
-              if (!_tempTriggerFired.Contains(latchKey)) {
-                _tempTriggerFired.Add(latchKey);
-                ExecutePipeline(p);
-              }
-            } else {
-              string latchKey = (p.Name ?? "") + ":" + t.Type;
+            // ponytail: A1 之后 _lastBatteryPercent 仅由本 5s timer 维护,
+            // 上面 pct==_lastBatteryPercent 提前 return 意味着只有电量真实变化才走到这里。
+            // 阈值 latch 通过 _tempTriggerFired 防止电量在阈值上下反复抖动时重复执行 preset 切换。
+            string latchKey = (p.Name ?? "") + ":" + t.Type;
+            bool matched = false;
+            if (t.Type == "BatteryAbove" && int.TryParse(t.Value, out int above) && pct >= above) matched = true;
+            else if (t.Type == "BatteryBelow" && int.TryParse(t.Value, out int below) && pct <= below) matched = true;
+            if (matched && !_tempTriggerFired.Contains(latchKey)) {
+              _tempTriggerFired.Add(latchKey);
+              ExecutePipeline(p);
+            } else if (!matched) {
               _tempTriggerFired.Remove(latchKey);
             }
           }
@@ -581,13 +622,6 @@ namespace OmenSuperHub.Services {
       }
     }
 
-    private static void SubscribeLidEvents() {
-      try {
-        var query = new WqlEventQuery("SELECT * FROM Win32_SystemLaunchCondition");
-        GC.KeepAlive(query);
-      } catch (Exception ex) { Logger.Verbose($"SubscribeLidEvents: {ex.Message}"); }
-    }
-
     private static void StartTempPollTimer() {
       _tempPollTimer = new Timer(PollTemperatureTriggers, null, 2000, 2000);
     }
@@ -602,7 +636,8 @@ namespace OmenSuperHub.Services {
         _lastGpuTemp = gpuTemp;
         if (tempChanged) {
           foreach (var p in AutomationService.GetEnabledPipelines()) {
-            p.EnsureTriggers();
+            // ponytail: GetEnabledPipelines() 已对每个 pipeline 调 EnsureTriggers()，无需重复。
+            // inner loop 只看 CpuTempAbove/GpuTempAbove， latch 防 CPU/GPU 在阈值上下抖动重复执行。
             foreach (var t in p.Triggers) {
               if (!t.Enabled) continue;
               string latchKey = (p.Name ?? "") + ":" + t.Type;
@@ -626,25 +661,30 @@ namespace OmenSuperHub.Services {
             }
           }
         }
-
-        int batPct = (int)(System.Windows.Forms.SystemInformation.PowerStatus.BatteryLifePercent * 100);
-        if (batPct >= 0 && batPct <= 100 && batPct != _lastBatteryPercent) {
-          _lastBatteryPercent = batPct;
-          FireTrigger("BatteryAbove", batPct.ToString());
-          FireTrigger("BatteryBelow", batPct.ToString());
-        }
+        // ponytail: 电池触发只走专用的 _batteryPollTimer（PollBatteryTrigger，已有 latch）。
+        // 之前这里每 2s 用无 latch 的 FireTrigger 触发 BatteryAbove/Below，并写入 _lastBatteryPercent，
+        // 让 5s 周期的 PollBatteryTrigger 几乎永远 pct==_lastBatteryPercent 提前 return，
+        // 直接废掉了阈值触发的 "首次触发 latch" —— 电池反复在阈值上下抖动会重复执行 preset/refresh 切换。
       } catch { }
     }
 
 	internal static void PollSchedule(object state) {
 	      if (!_running) return;
 	      try {
-	        string now = DateTime.Now.ToString("HH:mm");
-	        FireTrigger("TimeSchedule", now);
+	        // ponytail: 15s 轮询但只对该分钟第一次触发发火——MatchTriggerValue 用 "HH:mm" 精确相等，
+	        // 同一分钟内最多 4 个 tick 都会匹配并重复执行 preset/refresh 切换等副作用步骤。
+	        string minute = DateTime.Now.ToString("HH:mm");
+	        if (minute != _lastScheduleMinute) {
+	          _lastScheduleMinute = minute;
+	          FireTrigger("TimeSchedule", minute);
+	        }
 	      } catch { }
 	    }
 
+	    private static string _lastScheduleMinute;
+
 	    private static void StartScheduleTimer() {
+	      _lastScheduleMinute = null;
 	      _scheduleTimer = new Timer(PollSchedule, null, 0, 15000);
 	    }
 
@@ -697,8 +737,9 @@ namespace OmenSuperHub.Services {
     }
 
     private static class NativeMethods_Power {
-      public static readonly Guid BEST_POWER_EFFICIENCY = Guid.Parse("961cc777-2547-4f9d-8174-7d86181b8a7a");
-      public static readonly Guid BEST_PERFORMANCE = Guid.Parse("ded574b5-45a0-4f42-8737-46345c09c238");
+      // ponytail: GUID 提取到共享 PowerOverlay (Services/NativeDefs.cs) — 4 处不再重复定义
+      public static readonly Guid BEST_POWER_EFFICIENCY = PowerOverlay.BestPowerEfficiency;
+      public static readonly Guid BEST_PERFORMANCE = PowerOverlay.BestPerformance;
 
       [System.Runtime.InteropServices.DllImport("powrprof.dll")]
       public static extern uint PowerSetActiveScheme(IntPtr userPowerKey, ref Guid activePolicyGuid);

@@ -246,6 +246,8 @@ namespace OmenSuperHub.Pages {
     void OsdToggle_Changed(object sender, RoutedEventArgs e) {
       ConfigService.ShowOsd = OsdToggle.IsChecked == true;
       ConfigService.Save("ShowOsd");
+      // ponytail: 对齐 lock-key 轮询到新状态 —— 之前 ShowOsd=false 后 _lockKeyTimer 仍每 200 ms 跑空 tick。
+      Views.OsdWindow.RefreshMonitorState();
       if (!ConfigService.ShowOsd) Views.OsdWindow.Dismiss();
     }
 
@@ -275,7 +277,7 @@ namespace OmenSuperHub.Pages {
       ConfigService.Save("DebugShowAllUi");
       // 通知性能页刷新可见性
       if (PerfPage.Instance != null)
-        PerfPage.Instance.RefreshAdvancedVisibility();
+        PerfPage.Instance.ApplyHardwareVisibility();
     }
 
     void CustomLogoSelect_Click(object sender, RoutedEventArgs e) {

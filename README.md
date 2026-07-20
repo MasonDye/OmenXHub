@@ -51,7 +51,7 @@ CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、电源模式/计划、EcoQo
 
 | 流水线列表 | 编辑管道 |
 |:---:|:---:|
-| ![自动化](Preview/Automation.png) | ![编辑](Preview/Automation-Edit.png) |
+| ![自动化](Preview/Automation.png) | ![其他](Preview/Other.png) |
 
 ### 键盘宏 (Macro)
 
@@ -69,9 +69,9 @@ CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、电源模式/计划、EcoQo
 
 浮窗显示（位置/布局/字体/透明度/多显示器）、Omen 键、OSD 提示、托盘图标（原版/自定义/动态）、开机自启、自定义主界面 LOGO、主题（深色/亮色）、语言、自定义背景（透明度/高斯模糊）、数据本地化、调试日志。
 
-| 浮窗设置 | 界面 & 系统设置 |
+| 浮窗设置 | 性能控制 |
 |:---:|:---:|
-| ![设置1](Preview/Settings-1.png) | ![设置2](Preview/Settings-2.png) |
+| ![灯光](Preview/Lighting.png) | ![性能](Preview/Perf-Full.png) |
 
 ## 预设管理
 

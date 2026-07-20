@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using HP.Omen.Core.Model.Device.Models;
 using HP.Omen.Core.Model.Device.Enums;
+using HP.Omen.Core.Common.PowerControl;
 
 namespace OmenSuperHub {
   internal class OmenHardware {
@@ -398,6 +399,10 @@ namespace OmenSuperHub {
     }
 
     public static bool SetConcurrentTdp(byte value) {
+      // ponytail: 0xFF 是 EC 的 0x29 "保持原值" 哨兵，所以 TPP 最大值不 能用 255。
+      // 255(0xFF) → EC 忽略当前字段，双烤 CPU 功耗将受限于 BIOS 默认 TPP(~155W)。
+      // 钳位到 254(0xFE)，确保 EC 能识别并应用该值。
+      if (value >= 255) value = 254;
       SetUnleashMode();
       var result = SendOmenBiosWmi(0x29, new byte[] { 0xFF, 0xFF, 0xFF, value }, 0);
       return result != null;
@@ -860,57 +865,34 @@ namespace OmenSuperHub {
       return false;
     }
 
-    // ─── Product Validation (mirrors master) ─────────────────────────
+    // ─── Product Validation (mirrors OSH) ────────────────────────────
+    // ponytail: displayName is obtained externally (DashboardPage fetches
+    // it via DeviceModel.OmenPlatform with WMI fallback) and passed in,
+    // avoiding the stale-cache problem where the property internally
+    // queries the SDK before it's ready and caches false forever.
     private static bool? _isGamingProduct;
-    public static bool IsGamingProduct {
-      get {
-        if (!_isGamingProduct.HasValue) {
-          _isGamingProduct = false;
-          try {
-            // ponytail: DeviceModel.OmenPlatform can throw when the SDK
-            // doesn't recognise this platform.  Gracefully fall back to
-            // WMI Win32_ComputerSystem.Model so we still get a model name
-            // for partial support UX (VICTUS / PAVILION fans, etc.).
-            string displayName = null;
-            try { displayName = DeviceModel.OmenPlatform.DisplayName; } catch { }
-            if (string.IsNullOrEmpty(displayName)) {
-              try {
-                using (var searcher = new ManagementObjectSearcher(
-                  "SELECT Model FROM Win32_ComputerSystem"))
-                using (var col = searcher.Get()) {
-                  foreach (ManagementBaseObject obj in col) {
-                    displayName = obj["Model"]?.ToString() ?? "";
-                    break;
-                  }
-                }
-              } catch { }
-            }
-            if (string.IsNullOrEmpty(displayName)) return false;
+    public static bool IsGamingProduct(string displayName) {
+      if (!_isGamingProduct.HasValue) {
+        _isGamingProduct = false;
 
-            if (displayName.Contains("OMEN")) {
+        if (displayName.Contains("OMEN")) {
+          _isGamingProduct = true;
+        } else {
+          if (DeviceModel.FeatureByte.Contains("7K") && DeviceModel.FeatureByte.Contains("fd")) {
+            if (displayName.Contains("PAVILION") || displayName.Contains("VICTUS")) {
               _isGamingProduct = true;
-            } else {
-              string fb = null;
-              try {
-                var fbytes = DeviceModel.FeatureByte;
-                if (fbytes != null) fb = string.Join("", fbytes);
-              } catch { }
-              if (fb != null && fb.Contains("7K") && fb.Contains("fd")) {
-                if (displayName.Contains("PAVILION") || displayName.Contains("VICTUS"))
-                  _isGamingProduct = true;
-              } else if (displayName.Contains("VICTUS")) {
-                _isGamingProduct = true;
-              }
             }
-          } catch { }
+          } else if (displayName.Contains("VICTUS")) {
+            _isGamingProduct = true;
+          }
         }
-        return _isGamingProduct.Value;
       }
+      return _isGamingProduct.Value;
     }
 
-    public static int Validation() {
+    public static int Validation(string displayName) {
       try {
-        if (IsGamingProduct) return 2;
+        if (IsGamingProduct(displayName)) return 2;
         // ponytail: each DeviceModel call wrapped separately. On non-HP
         // hardware individual calls can throw — we don't want one failure
         // to mask the other.
@@ -918,6 +900,30 @@ namespace OmenSuperHub {
         try { if (DeviceModel.IsHP) return 1; } catch { }
         return 0;
       } catch { return 0; }
+    }
+
+    // ponytail: mirrors OSH InitMaxTemp — reads BIOS-set temperature throttling
+    // limit from HP SDK PlatformSettings instead of hardware MSR TjMax.
+    public static int GetCpuTempLimit() {
+      try {
+        string sku = PerformanceControlHelper.GetPlatformSku(isInit: true);
+        var ps = PerformanceControlHelper.GetPlatformSettings(
+            DeviceModel.DeviceType.ToString(), sku);
+        if (ps != null && ps.temperatureThrottlingPerformance > 0)
+          return ps.temperatureThrottlingPerformance;
+      } catch { }
+      return 100;
+    }
+
+    // ponytail: IccMax 卡可见性 — 由 HP SDK PlatformSettings.UnleashedModeMaxIccMax 决定，
+    // 而非仅按 CPU 厂商。封装在此处避免 PerfPage 直接依赖 HP.Omen 命名空间。
+    public static bool IsIccMaxSupported() {
+      try {
+        string sku = PerformanceControlHelper.GetPlatformSku(isInit: false);
+        var ps = PerformanceControlHelper.GetPlatformSettings(
+            DeviceModel.DeviceType.ToString(), sku);
+        return ps != null && ps.UnleashedModeMaxIccMax > 0;
+      } catch { return false; }
     }
 
     // ─── BIOS Settings ────────────────────────────────────────────────

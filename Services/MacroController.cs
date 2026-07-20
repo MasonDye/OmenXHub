@@ -12,6 +12,7 @@ namespace OmenSuperHub.Services {
     const int WH_KEYBOARD_LL = 13;
     const int WH_MOUSE_LL = 14;
     const uint MAGIC_NUMBER = 1337;
+    const uint VK_ESCAPE = 0x1B;
     const int WM_KEYDOWN = 0x0100;
     const int WM_KEYUP = 0x0101;
     const int WM_SYSKEYDOWN = 0x0104;
@@ -31,7 +32,7 @@ namespace OmenSuperHub.Services {
     static HookProc _mouseProc;
     static bool _enabled = true;
     static bool _recording;
-    static bool _playing;
+    static int _playing; // ponytail: 0/1 原子标志，钩子线程读、Task.Run 线程写，Interlocked 防竞态
     static MacroSequence _recordingTarget;
     static bool _captureMouse;
     static readonly HashSet<uint> _pressedKeys = new HashSet<uint>();
@@ -39,7 +40,7 @@ namespace OmenSuperHub.Services {
     static CancellationTokenSource _playCts;
 
     public static bool IsRecording => _recording;
-    public static bool IsPlaying => _playing;
+    public static bool IsPlaying => Volatile.Read(ref _playing) != 0;
 
     public static void Start() {
       _kbProc = LowLevelKeyboardProc;
@@ -85,20 +86,25 @@ namespace OmenSuperHub.Services {
     }
 
     public static void PlayMacro(MacroSequence macro) {
-      if (_playing || macro == null || macro.Events.Count == 0) return;
-      _playing = true;
+      if (macro == null || macro.Events.Count == 0) return;
+      if (Interlocked.CompareExchange(ref _playing, 1, 0) != 0) return;
       _playCts = new CancellationTokenSource();
       var token = _playCts.Token;
-      Task.Run(() => {
+      Task.Run(async () => {
         try {
           for (int r = 0; r < macro.RepeatCount; r++) {
             if (token.IsCancellationRequested) break;
-            PlayEvents(macro, token).GetAwaiter().GetResult();
+            await PlayEvents(macro, token);
           }
+        } catch (OperationCanceledException) {
+          // 正常取消，静默
         } catch (Exception ex) {
           Logger.Error("MacroController.PlayMacro error: " + ex.Message);
         } finally {
-          _playing = false;
+          var cts = _playCts;
+          _playCts = null;
+          cts?.Dispose();
+          Interlocked.Exchange(ref _playing, 0);
         }
       }, token);
     }
@@ -173,14 +179,14 @@ namespace OmenSuperHub.Services {
               Key = vk, DelayMs = delay
             });
           }
-          if (vk == 0x1B) {
+          if (vk == VK_ESCAPE) {
             System.Windows.Application.Current?.Dispatcher.Invoke(() => StopRecording());
             return (IntPtr)1;
           }
           return (IntPtr)1;
         }
 
-        if (_enabled && !_playing) {
+        if (_enabled && !IsPlaying) {
           MacroSequence macro = MacroService.GetByTriggerKey(vk);
           if (macro != null && (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN)) {
             PlayMacro(macro);
@@ -188,7 +194,7 @@ namespace OmenSuperHub.Services {
           }
         }
 
-        if (_playing) {
+        if (IsPlaying) {
           MacroSequence macro = MacroService.GetByTriggerKey(vk);
           if (macro != null && macro.InterruptOnOtherKey) {
             CancelPlayback();

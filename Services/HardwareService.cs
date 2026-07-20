@@ -148,6 +148,9 @@ namespace OmenSuperHub.Services {
       // ponytail: HWiNFO Read 启用时，跳过 LibreHardwareMonitor 传感器轮询及后续覆盖
       float libreTempCPU = -300;
       float librePowerCPU = -1;
+      // ponytail: per-snapshot max so CPUClock/GPUClock reflect current clock, not historical peak.
+      float snapCpuClock = 0;
+      float snapGpuClock = 0;
       bool getGPU = false;
       if (ConfigService.HWiNFOReadEnabled) {
         // 跳过 Libre 传感器读取 + temp/power 赋值，直接进入 GPU 启停逻辑
@@ -172,7 +175,8 @@ namespace OmenSuperHub.Services {
                 CPUUsage = (float)sensor.Value.GetValueOrDefault();
               }
               if (sensor.SensorType == LibreSensorType.Clock) {
-                CPUClock = Math.Max(CPUClock, (float)sensor.Value.GetValueOrDefault());
+                float v = (float)sensor.Value.GetValueOrDefault();
+                if (v > snapCpuClock) snapCpuClock = v;
               }
             } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuNvidia) {
               if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
@@ -190,7 +194,8 @@ namespace OmenSuperHub.Services {
                 GPUUsage = (float)sensor.Value.GetValueOrDefault();
               }
               if (sensor.SensorType == LibreSensorType.Clock && (sensor.Name == "GPU Core" || sensor.Name.Contains("Core"))) {
-                GPUClock = Math.Max(GPUClock, (float)sensor.Value.GetValueOrDefault());
+                float v = (float)sensor.Value.GetValueOrDefault();
+                if (v > snapGpuClock) snapGpuClock = v;
               }
             } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuAmd) {
               if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
@@ -209,7 +214,8 @@ namespace OmenSuperHub.Services {
                 GPUUsage = (float)sensor.Value.GetValueOrDefault();
               }
               if (sensor.SensorType == LibreSensorType.Clock && (sensor.Name == "GPU Core" || sensor.Name.Contains("Core"))) {
-                GPUClock = Math.Max(GPUClock, (float)sensor.Value.GetValueOrDefault());
+                float v = (float)sensor.Value.GetValueOrDefault();
+                if (v > snapGpuClock) snapGpuClock = v;
               }
             } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuIntel) {
               if (sensor.SensorType == LibreSensorType.Load) {
@@ -220,6 +226,9 @@ namespace OmenSuperHub.Services {
           }
         }
       }
+
+      CPUClock = snapCpuClock;
+      GPUClock = snapGpuClock;
 
       if (openLib && libreTempCPU > -299 && librePowerCPU >= 0) {
         openLib = false;

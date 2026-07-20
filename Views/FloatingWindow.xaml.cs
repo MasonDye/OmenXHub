@@ -403,23 +403,38 @@ namespace OmenSuperHub.Views {
       ApplyLayout();
       double fontSize = ConfigService.TextSize;
       if (fontSize < 8) fontSize = 8;
+      // ponytail: em ≈ FontSize * 0.6 for Consolas (DIP). Reserve fixed per-field widths so digit-count
+      // changes don't squeeze the whole bar — NVIDIA-OSD-style stable window width.
+      double EmW(double fs, int chars) => Math.Ceiling(fs * 0.6 * chars);
       CpuLabel.FontSize = fontSize;
       CpuTempText.FontSize = fontSize;
+      CpuTempText.Width = EmW(fontSize, 7); CpuTempText.TextAlignment = TextAlignment.Right;
       CpuPowerText.FontSize = fontSize - 2;
+      CpuPowerText.Width = EmW(fontSize - 2, 5); CpuPowerText.TextAlignment = TextAlignment.Right;
       GpuLabel.FontSize = fontSize;
       GpuTempText.FontSize = fontSize;
+      GpuTempText.Width = EmW(fontSize, 7); GpuTempText.TextAlignment = TextAlignment.Right;
       GpuPowerText.FontSize = fontSize - 2;
+      GpuPowerText.Width = EmW(fontSize - 2, 5); GpuPowerText.TextAlignment = TextAlignment.Right;
       FanLabel.FontSize = fontSize;
       FanSpeedText.FontSize = fontSize - 2;
+      FanSpeedText.Width = EmW(fontSize - 2, 11); FanSpeedText.TextAlignment = TextAlignment.Right;
       MemLabel.FontSize = fontSize;
       MemPctText.FontSize = fontSize;
+      MemPctText.Width = EmW(fontSize, 4); MemPctText.TextAlignment = TextAlignment.Right;
       MemUsedText.FontSize = fontSize - 2;
+      MemUsedText.Width = EmW(fontSize - 2, 10); MemUsedText.TextAlignment = TextAlignment.Right;
       NetLabel.FontSize = fontSize;
       NetDownText.FontSize = fontSize;
+      NetDownText.Width = EmW(fontSize, 7); NetDownText.TextAlignment = TextAlignment.Right;
       NetUpText.FontSize = fontSize - 2;
+      NetUpText.Width = EmW(fontSize - 2, 7); NetUpText.TextAlignment = TextAlignment.Right;
       FpsLabel.FontSize = fontSize;
       FpsValueText.FontSize = fontSize;
-      FpsAppText.FontSize = Math.Max(8, fontSize - 4);
+      FpsValueText.Width = EmW(fontSize, 4); FpsValueText.TextAlignment = TextAlignment.Right;
+      double fpsAppFs = Math.Max(8, fontSize - 4);
+      FpsAppText.FontSize = fpsAppFs;
+      FpsAppText.Width = EmW(fpsAppFs, 14); FpsAppText.TextAlignment = TextAlignment.Left;
     }
 
     private void UpdatePosition() {

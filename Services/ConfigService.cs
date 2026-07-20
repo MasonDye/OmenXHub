@@ -140,95 +140,15 @@ namespace OmenSuperHub.Services {
     public static bool HttpApiEnabled = false;
     public static bool AutomationEnabled = true;
     public static bool MacroEnabled = true;
-    public static bool AdvancedTuningUnlocked = false; // 点击 logo 5 次解锁
     public static bool DebugShowAllUi = false;   // DEBUG: 强制显示所有 UI 卡片
-    // Advanced CPU tuning
-    public static int PboScalar = 0;         // 0=auto, 1-10
-    public static int CoAllCoreOffset = 0;   // -50 to +30
-    public static int FivrCoreOffset = 0;    // -250 to +250 mV
-    public static int FivrCacheOffset = 0;
-    public static int FivrIgpuOffset = 0;
-    public static int FivrSaOffset = 0;
-    public static int ClockRatio = 0;
-    public static string PerCoreRatios = "";
-    public static int PowerBalance = 16;     // 0-31, 16=balanced
-    // Advanced GPU tuning
-    public static int NvVoltCurveOffset = 0; // -1000 to +1000 mV (legacy simple offset)
-    public static int NvPowerLimit = 0;      // 0=unset, 1..max (NVML)
-    public static int NvMaxGpuClock = 0;     // 0=unlocked, 400..4000 MHz (NVML)
-    public static int RtssFrameLimit = 0;    // 0=off, 1-999
-    public static bool AutoOcEnabled = false;
-    // UXTU / PawnIO MSR
-    public static bool PawnTurboEnabled = true;
-    public static int PawnProchotOffset = 0;
-    public static int PawnHwpEpp = 128;
-    public static int PawnCStateLimit = 0;
-    public static int PawnIgpuPower = 0;
-    public static int PawnIgpuRatio = 0;
-    // AMD APU advanced tuning (SMU mailbox)
-    public static int AmdStapmLimit = 0;       // mW, 0=unset
-    public static int AmdFastLimit = 0;        // mW, 0=unset
-    public static int AmdSlowLimit = 0;        // mW, 0=unset
-    public static int AmdStapmTime = 0;        // seconds, 0=unset
-    public static int AmdSlowTime = 0;         // seconds, 0=unset
-    public static int AmdVrmCurrent = 0;       // mA, 0=unset
-    public static int AmdVrmSocCurrent = 0;    // mA, 0=unset
-    public static int AmdVrmMaxCurrent = 0;    // mA, 0=unset
-    public static int AmdVrmSocMaxCurrent = 0; // mA, 0=unset
-    public static int AmdTctlTemp = 0;         // °C, 0=unset
-    public static int AmdSkinTempLimit = 0;    // mW, 0=unset
-    public static int AmdApuSkinTemp = 0;      // °C, 0=unset
-    public static int AmdDgpuSkinTemp = 0;     // °C, 0=unset
-    public static int AmdGfxClk = 0;           // MHz, 0=unset
-    // AMD CPU-level advanced tuning (independent of APU STAPM/Fast/Slow)
+    // ponytail: 高级调教字段已全数移除（机型上不可用）。IccMax/AcLoadLine/AmdCpuPpt 等基础卡字段保留。
+    // AMD CPU-level basic tuning (independent of APU STAPM/Fast/Slow)
     public static int AmdCpuPpt = 0;           // mW, 0=unset  (AM5 CPU TDP)
-    public static int AmdCpuTdc = 0;           // mA, 0=unset
-    public static int AmdCpuEdc = 0;           // mA, 0=unset
-    public static int AmdCpuTctl = 0;          // °C, 0=unset  (CPU hard throttle temp)
-    // Curve Optimiser — iGPU offset + per-core offsets (CCD1: 0..11, CCD2: 12..23)
-    public static int CoIGpuOffset = 0;        // -30 to +30
-    // ponytail: array persisted as 24 reg keys "CoPc0".."CoPc23" to avoid collection-serialization overhead
-    public static int[] CoPerCore = new int[24];
-
-    // ── UXTU-style master toggles (per-card enable/disable) ──
-    // Default=true preserves existing behaviour (sliders are active by default)
-    public static bool FivrMasterEnabled = true;
-    public static bool ApuPowerMasterEnabled = true;
-    public static bool ApuVrmMasterEnabled = true;
-    public static bool ApuTempMasterEnabled = true;
-    public static bool ApuGfxClkMasterEnabled = true;
-    public static bool AmdCpuPowerMasterEnabled = true;
-    public static bool AmdCpuTempMasterEnabled = true;
-    // ponytail: extended set — covers all advanced cards, added in batch so a
-    // future "disable all" can flip them all in one place. Each card reads its
-    // own flag in InitMasterToggle().
-    // NOTE: advanced tuning cards default to DISABLED so users explicitly opt in.
-    public static bool PboScalarMasterEnabled = false;
-    public static bool CoMasterEnabled = false;
-    public static bool CcdAffinityMasterEnabled = false;
-    public static bool AutoOcMasterEnabled = false;
-    public static bool ClockRatioMasterEnabled = false;
-    public static bool PowerBalanceMasterEnabled = false;
-    public static bool PawnTurboMasterEnabled = false;
-    public static bool PawnProchotMasterEnabled = false;
-    public static bool PawnHwpMasterEnabled = false;
-    public static bool PawnCStateMasterEnabled = false;
-    public static bool PawnIgpuPowerMasterEnabled = false;
-    public static bool PawnIgpuRatioMasterEnabled = false;
-    public static bool NvTuningMasterEnabled = false;
-    public static bool RtssMasterEnabled = false;
-    public static bool AdlxMasterEnabled = false;
-    // ADLX / AMD GPU advanced
-    public static bool AdlxRsrEnabled = false;     // Radeon Super Resolution
-    public static int AdlxRsrSharpness = 50;       // 0..100
-    public static bool AdlxAntiLagEnabled = false;
-    public static bool AdlxEnhancedSyncEnabled = false;
-    public static bool AdlxBoostEnabled = false;
-    public static int AdlxBoostPercent = 0;        // -20..+20
-    public static bool AdlxImageSharpEnabled = false;
-    public static int AdlxImageSharpPercent = 50;  // 0..100
-
-    public static bool FanSync = false;
+    public static bool AmdCpuPowerMasterEnabled = true;  // ponytail: PPT 卡总开关；保留写路径
+    // ponytail: 仅 PPT 一组保留走 WMI；TDC/EDC/Tctl 三组已随高级调教删除（依赖 SMU 服务，本机不可用）。
+    // ponytail: 首次启动默认开启风扇一致性 (CPU/GPU 同转速); 用户在 FanPage 关掉后
+    // RegBool 会读到 false 并保留 — 默认 true 仅在注册表无 FanSync 键时生效 (新安装/首次运行)。
+    public static bool FanSync = true;
     // ponytail: volatile — UI 写、ThreadPool(GetSmartFanSpeed) 读。
     // 不加屏障读到陈旧值会让 EMA 用旧 alpha/旧 hysteresis 算几轮才追上。
     // 上限：volatile 只保证单字段可见性，多字段复合更新仍可能混合，
@@ -393,81 +313,9 @@ namespace OmenSuperHub.Services {
             case "HttpApiEnabled": key.SetValue("HttpApiEnabled", HttpApiEnabled); break;
             case "AutomationEnabled": key.SetValue("AutomationEnabled", AutomationEnabled); break;
             case "MacroEnabled": key.SetValue("MacroEnabled", MacroEnabled); break;
-            case "AdvancedTuningUnlocked": key.SetValue("AdvancedTuningUnlocked", AdvancedTuningUnlocked ? 1 : 0); break;
             case "DebugShowAllUi": key.SetValue("DebugShowAllUi", DebugShowAllUi ? 1 : 0); break;
-            case "PboScalar": key.SetValue("PboScalar", PboScalar); break;
-            case "CoAllCoreOffset": key.SetValue("CoAllCoreOffset", CoAllCoreOffset); break;
-            case "FivrCoreOffset": key.SetValue("FivrCoreOffset", FivrCoreOffset); break;
-            case "FivrCacheOffset": key.SetValue("FivrCacheOffset", FivrCacheOffset); break;
-            case "FivrIgpuOffset": key.SetValue("FivrIgpuOffset", FivrIgpuOffset); break;
-            case "FivrSaOffset": key.SetValue("FivrSaOffset", FivrSaOffset); break;
-            case "ClockRatio": key.SetValue("ClockRatio", ClockRatio); break;
-            case "PerCoreRatios": key.SetValue("PerCoreRatios", PerCoreRatios); break;
-            case "PowerBalance": key.SetValue("PowerBalance", PowerBalance); break;
-            case "NvVoltCurveOffset": key.SetValue("NvVoltCurveOffset", NvVoltCurveOffset); break;
-            case "NvPowerLimit": key.SetValue("NvPowerLimit", NvPowerLimit); break;
-            case "NvMaxGpuClock": key.SetValue("NvMaxGpuClock", NvMaxGpuClock); break;
-            case "RtssFrameLimit": key.SetValue("RtssFrameLimit", RtssFrameLimit); break;
-            case "AutoOcEnabled": key.SetValue("AutoOcEnabled", AutoOcEnabled); break;
-            case "PawnTurboEnabled": key.SetValue("PawnTurboEnabled", PawnTurboEnabled); break;
-            case "PawnProchotOffset": key.SetValue("PawnProchotOffset", PawnProchotOffset); break;
-            case "PawnHwpEpp": key.SetValue("PawnHwpEpp", PawnHwpEpp); break;
-            case "PawnCStateLimit": key.SetValue("PawnCStateLimit", PawnCStateLimit); break;
-            case "PawnIgpuPower": key.SetValue("PawnIgpuPower", PawnIgpuPower); break;
-            case "PawnIgpuRatio": key.SetValue("PawnIgpuRatio", PawnIgpuRatio); break;
-            case "AmdStapmLimit": key.SetValue("AmdStapmLimit", AmdStapmLimit); break;
-            case "AmdFastLimit": key.SetValue("AmdFastLimit", AmdFastLimit); break;
-            case "AmdSlowLimit": key.SetValue("AmdSlowLimit", AmdSlowLimit); break;
-            case "AmdStapmTime": key.SetValue("AmdStapmTime", AmdStapmTime); break;
-            case "AmdSlowTime": key.SetValue("AmdSlowTime", AmdSlowTime); break;
-            case "AmdVrmCurrent": key.SetValue("AmdVrmCurrent", AmdVrmCurrent); break;
-            case "AmdVrmSocCurrent": key.SetValue("AmdVrmSocCurrent", AmdVrmSocCurrent); break;
-            case "AmdVrmMaxCurrent": key.SetValue("AmdVrmMaxCurrent", AmdVrmMaxCurrent); break;
-            case "AmdVrmSocMaxCurrent": key.SetValue("AmdVrmSocMaxCurrent", AmdVrmSocMaxCurrent); break;
-            case "AmdTctlTemp": key.SetValue("AmdTctlTemp", AmdTctlTemp); break;
-            case "AmdSkinTempLimit": key.SetValue("AmdSkinTempLimit", AmdSkinTempLimit); break;
-            case "AmdApuSkinTemp": key.SetValue("AmdApuSkinTemp", AmdApuSkinTemp); break;
-            case "AmdDgpuSkinTemp": key.SetValue("AmdDgpuSkinTemp", AmdDgpuSkinTemp); break;
-            case "AmdGfxClk": key.SetValue("AmdGfxClk", AmdGfxClk); break;
             case "AmdCpuPpt": key.SetValue("AmdCpuPpt", AmdCpuPpt); break;
-            case "AmdCpuTdc": key.SetValue("AmdCpuTdc", AmdCpuTdc); break;
-            case "AmdCpuEdc": key.SetValue("AmdCpuEdc", AmdCpuEdc); break;
-            case "AmdCpuTctl": key.SetValue("AmdCpuTctl", AmdCpuTctl); break;
-            case "CoIGpuOffset": key.SetValue("CoIGpuOffset", CoIGpuOffset); break;
-            case "CoPerCore":
-                // ponytail: 24 keys flat — keeps serialization one-liner, no JSON plumbing
-                for (int i = 0; i < CoPerCore.Length; i++) key.SetValue("CoPc" + i, CoPerCore[i]);
-                key.SetValue("CoPcCount", CoPerCore.Length); break;
-            case "FivrMasterEnabled": key.SetValue("FivrMasterEnabled", FivrMasterEnabled); break;
-            case "ApuPowerMasterEnabled": key.SetValue("ApuPowerMasterEnabled", ApuPowerMasterEnabled); break;
-            case "ApuVrmMasterEnabled": key.SetValue("ApuVrmMasterEnabled", ApuVrmMasterEnabled); break;
-            case "ApuTempMasterEnabled": key.SetValue("ApuTempMasterEnabled", ApuTempMasterEnabled); break;
-            case "ApuGfxClkMasterEnabled": key.SetValue("ApuGfxClkMasterEnabled", ApuGfxClkMasterEnabled); break;
             case "AmdCpuPowerMasterEnabled": key.SetValue("AmdCpuPowerMasterEnabled", AmdCpuPowerMasterEnabled); break;
-            case "AmdCpuTempMasterEnabled": key.SetValue("AmdCpuTempMasterEnabled", AmdCpuTempMasterEnabled); break;
-            case "PboScalarMasterEnabled": key.SetValue("PboScalarMasterEnabled", PboScalarMasterEnabled); break;
-            case "CoMasterEnabled": key.SetValue("CoMasterEnabled", CoMasterEnabled); break;
-            case "CcdAffinityMasterEnabled": key.SetValue("CcdAffinityMasterEnabled", CcdAffinityMasterEnabled); break;
-            case "AutoOcMasterEnabled": key.SetValue("AutoOcMasterEnabled", AutoOcMasterEnabled); break;
-            case "ClockRatioMasterEnabled": key.SetValue("ClockRatioMasterEnabled", ClockRatioMasterEnabled); break;
-            case "PowerBalanceMasterEnabled": key.SetValue("PowerBalanceMasterEnabled", PowerBalanceMasterEnabled); break;
-            case "PawnTurboMasterEnabled": key.SetValue("PawnTurboMasterEnabled", PawnTurboMasterEnabled); break;
-            case "PawnProchotMasterEnabled": key.SetValue("PawnProchotMasterEnabled", PawnProchotMasterEnabled); break;
-            case "PawnHwpMasterEnabled": key.SetValue("PawnHwpMasterEnabled", PawnHwpMasterEnabled); break;
-            case "PawnCStateMasterEnabled": key.SetValue("PawnCStateMasterEnabled", PawnCStateMasterEnabled); break;
-            case "PawnIgpuPowerMasterEnabled": key.SetValue("PawnIgpuPowerMasterEnabled", PawnIgpuPowerMasterEnabled); break;
-            case "PawnIgpuRatioMasterEnabled": key.SetValue("PawnIgpuRatioMasterEnabled", PawnIgpuRatioMasterEnabled); break;
-            case "NvTuningMasterEnabled": key.SetValue("NvTuningMasterEnabled", NvTuningMasterEnabled); break;
-            case "RtssMasterEnabled": key.SetValue("RtssMasterEnabled", RtssMasterEnabled); break;
-            case "AdlxMasterEnabled": key.SetValue("AdlxMasterEnabled", AdlxMasterEnabled); break;
-            case "AdlxRsrEnabled": key.SetValue("AdlxRsrEnabled", AdlxRsrEnabled ? 1 : 0); break;
-            case "AdlxRsrSharpness": key.SetValue("AdlxRsrSharpness", AdlxRsrSharpness); break;
-            case "AdlxAntiLagEnabled": key.SetValue("AdlxAntiLagEnabled", AdlxAntiLagEnabled ? 1 : 0); break;
-            case "AdlxEnhancedSyncEnabled": key.SetValue("AdlxEnhancedSyncEnabled", AdlxEnhancedSyncEnabled ? 1 : 0); break;
-            case "AdlxBoostEnabled": key.SetValue("AdlxBoostEnabled", AdlxBoostEnabled ? 1 : 0); break;
-            case "AdlxBoostPercent": key.SetValue("AdlxBoostPercent", AdlxBoostPercent); break;
-            case "AdlxImageSharpEnabled": key.SetValue("AdlxImageSharpEnabled", AdlxImageSharpEnabled ? 1 : 0); break;
-            case "AdlxImageSharpPercent": key.SetValue("AdlxImageSharpPercent", AdlxImageSharpPercent); break;
             case "FanSync": key.SetValue("FanSync", FanSync); break;
             case "SmartFanEmaAlpha": key.SetValue("SmartFanEmaAlpha", SmartFanEmaAlpha); break;
             case "SmartFanStepDownRate": key.SetValue("SmartFanStepDownRate", SmartFanStepDownRate); break;
@@ -506,19 +354,19 @@ namespace OmenSuperHub.Services {
           CpuPower = "max"; TgpEnabled = true; PpabEnabled = true;
           PowerMode = 1; // 平衡
           CpuPowerPl1 = 254; CpuPowerPl2 = 254; GpuClock = 0; Tpp = 254;
-          AmdCpuPpt = 254; AmdCpuTdc = 200; AmdCpuEdc = 300; AmdCpuTctl = 95; break;
+          AmdCpuPpt = 254; break;
         case "GpuPriority":
-          FanTable = "cool"; FanControl = "auto";
+          FanTable = "balanced"; FanControl = "auto";
           CpuPower = "55 W"; TgpEnabled = true; PpabEnabled = true;
           PowerMode = 1; // 平衡
           CpuPowerPl1 = 55; CpuPowerPl2 = 55; GpuClock = 0; Tpp = 254;
-          AmdCpuPpt = 55; AmdCpuTdc = 80; AmdCpuEdc = 160; AmdCpuTctl = 95; break;
+          AmdCpuPpt = 55; break;
         case "LightUse":
           FanTable = "silent"; FanControl = "auto";
           CpuPower = "25 W"; TgpEnabled = false; PpabEnabled = false;
           PowerMode = 0; // 最佳能效
           CpuPowerPl1 = 25; CpuPowerPl2 = 25; GpuClock = 0; Tpp = 0;
-          AmdCpuPpt = 30; AmdCpuTdc = 40; AmdCpuEdc = 80; AmdCpuTctl = 85; break;
+          AmdCpuPpt = 30; break;
       }
     }
 
@@ -536,9 +384,6 @@ namespace OmenSuperHub.Services {
           GpuClock = (int)key.GetValue("GpuClock", GpuClock);
           Tpp = (int)key.GetValue("Tpp", Tpp);
           AmdCpuPpt = (int)key.GetValue("AmdCpuPpt", AmdCpuPpt);
-          AmdCpuTdc = (int)key.GetValue("AmdCpuTdc", AmdCpuTdc);
-          AmdCpuEdc = (int)key.GetValue("AmdCpuEdc", AmdCpuEdc);
-          AmdCpuTctl = (int)key.GetValue("AmdCpuTctl", AmdCpuTctl);
           DisplayMode = (string)key.GetValue("DisplayMode", DisplayMode);
           GpuPowerTgp = (string)key.GetValue("GpuPowerTgp", GpuPowerTgp);
           GpuPowerPpab = (string)key.GetValue("GpuPowerPpab", GpuPowerPpab);
@@ -576,6 +421,24 @@ namespace OmenSuperHub.Services {
       } catch { }
     }
 
+    // ponytail: thin writer that records only the per-preset fan-mode fields.
+    // Used by FanPage RPM slider/combo changes so a user's manual RPM on a
+    // built-in preset (Extreme/GpuPriority/LightUse) survives preset switch
+    // and restart — without pulling the 20+ monitor/GPU session fields that
+    // SavePresetToRegistry writes (and that SwitchPreset doesn't read back).
+    // SwitchPreset reads these two keys back via PresetSubKey to override the
+    // hardcoded GetBuiltInDefaults FanControl="auto".
+    public static void SavePresetFanState(string presetKey) {
+      if (string.IsNullOrEmpty(presetKey)) return;
+      try {
+        using (RegistryKey key = Registry.CurrentUser.CreateSubKey(PresetSubKey(presetKey))) {
+          if (key == null) return;
+          key.SetValue("FanControl", FanControl ?? "");
+          key.SetValue("FanTable", FanTable ?? "");
+        }
+      } catch { }
+    }
+
     public static void SavePresetToRegistry(string presetKey) {
       // Save ALL presets (built-in and custom) to registry
       try {
@@ -606,9 +469,6 @@ namespace OmenSuperHub.Services {
           key.SetValue("CpuPowerPl1", CpuPowerPl1);
           key.SetValue("CpuPowerPl2", CpuPowerPl2);
           key.SetValue("AmdCpuPpt", AmdCpuPpt);
-          key.SetValue("AmdCpuTdc", AmdCpuTdc);
-          key.SetValue("AmdCpuEdc", AmdCpuEdc);
-          key.SetValue("AmdCpuTctl", AmdCpuTctl);
           key.SetValue("MaxFrameRate", MaxFrameRate);
           key.SetValue("RefreshRate", RefreshRate);
           key.SetValue("PowerPlanGuid", PowerPlanGuid);
@@ -751,83 +611,10 @@ namespace OmenSuperHub.Services {
           HttpApiEnabled = RegBool(key, "HttpApiEnabled", false);
           AutomationEnabled = RegBool(key, "AutomationEnabled", true);
           MacroEnabled = RegBool(key, "MacroEnabled", true);
-          AdvancedTuningUnlocked = RegInt(key, "AdvancedTuningUnlocked", 0) != 0;
           DebugShowAllUi = RegInt(key, "DebugShowAllUi", 0) != 0;
-            PboScalar = RegInt(key, "PboScalar", 0);
-            CoAllCoreOffset = RegInt(key, "CoAllCoreOffset", 0);
-            FivrCoreOffset = RegInt(key, "FivrCoreOffset", 0);
-            FivrCacheOffset = RegInt(key, "FivrCacheOffset", 0);
-            FivrIgpuOffset = RegInt(key, "FivrIgpuOffset", 0);
-            FivrSaOffset = RegInt(key, "FivrSaOffset", 0);
-            ClockRatio = RegInt(key, "ClockRatio", 0);
-            PerCoreRatios = RegStr(key, "PerCoreRatios", "");
-            PowerBalance = RegInt(key, "PowerBalance", 16);
-            NvVoltCurveOffset = RegInt(key, "NvVoltCurveOffset", 0);
-            NvPowerLimit = RegInt(key, "NvPowerLimit", 0);
-            NvMaxGpuClock = RegInt(key, "NvMaxGpuClock", 0);
-            RtssFrameLimit = RegInt(key, "RtssFrameLimit", 0);
-            AutoOcEnabled = RegBool(key, "AutoOcEnabled", false);
-            PawnTurboEnabled = RegBool(key, "PawnTurboEnabled", true);
-            PawnProchotOffset = RegInt(key, "PawnProchotOffset", 0);
-            PawnHwpEpp = RegInt(key, "PawnHwpEpp", 128);
-            PawnCStateLimit = RegInt(key, "PawnCStateLimit", 0);
-            PawnIgpuPower = RegInt(key, "PawnIgpuPower", 0);
-            PawnIgpuRatio = RegInt(key, "PawnIgpuRatio", 0);
-            AmdStapmLimit = RegInt(key, "AmdStapmLimit", 0);
-            AmdFastLimit = RegInt(key, "AmdFastLimit", 0);
-            AmdSlowLimit = RegInt(key, "AmdSlowLimit", 0);
-            AmdStapmTime = RegInt(key, "AmdStapmTime", 0);
-            AmdSlowTime = RegInt(key, "AmdSlowTime", 0);
-            AmdVrmCurrent = RegInt(key, "AmdVrmCurrent", 0);
-            AmdVrmSocCurrent = RegInt(key, "AmdVrmSocCurrent", 0);
-            AmdVrmMaxCurrent = RegInt(key, "AmdVrmMaxCurrent", 0);
-            AmdVrmSocMaxCurrent = RegInt(key, "AmdVrmSocMaxCurrent", 0);
-            AmdTctlTemp = RegInt(key, "AmdTctlTemp", 0);
-            AmdSkinTempLimit = RegInt(key, "AmdSkinTempLimit", 0);
-            AmdApuSkinTemp = RegInt(key, "AmdApuSkinTemp", 0);
-            AmdDgpuSkinTemp = RegInt(key, "AmdDgpuSkinTemp", 0);
-            AmdGfxClk = RegInt(key, "AmdGfxClk", 0);
             AmdCpuPpt = RegInt(key, "AmdCpuPpt", 0);
-            AmdCpuTdc = RegInt(key, "AmdCpuTdc", 0);
-            AmdCpuEdc = RegInt(key, "AmdCpuEdc", 0);
-            AmdCpuTctl = RegInt(key, "AmdCpuTctl", 0);
-            CoIGpuOffset = RegInt(key, "CoIGpuOffset", 0);
-            {
-              int cnt = RegInt(key, "CoPcCount", 24);
-              if (cnt < 0 || cnt > CoPerCore.Length) cnt = CoPerCore.Length;
-              for (int i = 0; i < CoPerCore.Length; i++) CoPerCore[i] = i < cnt ? RegInt(key, "CoPc" + i, 0) : 0;
-            }
-            FivrMasterEnabled = RegBool(key, "FivrMasterEnabled", true);
-            ApuPowerMasterEnabled = RegBool(key, "ApuPowerMasterEnabled", true);
-            ApuVrmMasterEnabled = RegBool(key, "ApuVrmMasterEnabled", true);
-            ApuTempMasterEnabled = RegBool(key, "ApuTempMasterEnabled", true);
-            ApuGfxClkMasterEnabled = RegBool(key, "ApuGfxClkMasterEnabled", true);
             AmdCpuPowerMasterEnabled = RegBool(key, "AmdCpuPowerMasterEnabled", true);
-            AmdCpuTempMasterEnabled = RegBool(key, "AmdCpuTempMasterEnabled", true);
-            PboScalarMasterEnabled = RegBool(key, "PboScalarMasterEnabled", false);
-            CoMasterEnabled = RegBool(key, "CoMasterEnabled", false);
-            CcdAffinityMasterEnabled = RegBool(key, "CcdAffinityMasterEnabled", false);
-            AutoOcMasterEnabled = RegBool(key, "AutoOcMasterEnabled", false);
-            ClockRatioMasterEnabled = RegBool(key, "ClockRatioMasterEnabled", false);
-            PowerBalanceMasterEnabled = RegBool(key, "PowerBalanceMasterEnabled", false);
-            PawnTurboMasterEnabled = RegBool(key, "PawnTurboMasterEnabled", false);
-            PawnProchotMasterEnabled = RegBool(key, "PawnProchotMasterEnabled", false);
-            PawnHwpMasterEnabled = RegBool(key, "PawnHwpMasterEnabled", false);
-            PawnCStateMasterEnabled = RegBool(key, "PawnCStateMasterEnabled", false);
-            PawnIgpuPowerMasterEnabled = RegBool(key, "PawnIgpuPowerMasterEnabled", false);
-            PawnIgpuRatioMasterEnabled = RegBool(key, "PawnIgpuRatioMasterEnabled", false);
-            NvTuningMasterEnabled = RegBool(key, "NvTuningMasterEnabled", false);
-            RtssMasterEnabled = RegBool(key, "RtssMasterEnabled", false);
-            AdlxMasterEnabled = RegBool(key, "AdlxMasterEnabled", false);
-            AdlxRsrEnabled = RegBool(key, "AdlxRsrEnabled", false);
-            AdlxRsrSharpness = RegInt(key, "AdlxRsrSharpness", 50);
-            AdlxAntiLagEnabled = RegBool(key, "AdlxAntiLagEnabled", false);
-            AdlxEnhancedSyncEnabled = RegBool(key, "AdlxEnhancedSyncEnabled", false);
-            AdlxBoostEnabled = RegBool(key, "AdlxBoostEnabled", false);
-            AdlxBoostPercent = RegInt(key, "AdlxBoostPercent", 0);
-            AdlxImageSharpEnabled = RegBool(key, "AdlxImageSharpEnabled", false);
-            AdlxImageSharpPercent = RegInt(key, "AdlxImageSharpPercent", 50);
-            FanSync = RegBool(key, "FanSync", false);
+            FanSync = RegBool(key, "FanSync", true);
             SmartFanEmaAlpha = (float)RegDouble(key, "SmartFanEmaAlpha", 0.3);
           SmartFanStepDownRate = RegInt(key, "SmartFanStepDownRate", 500);
           SmartFanHysteresis = (float)RegDouble(key, "SmartFanHysteresis", 0.5);

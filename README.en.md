@@ -51,7 +51,7 @@ Keyboard / light bar devices, Basic/Dojo 4-zone protocols. 10 animation effects,
 
 | Pipeline List | Edit Pipeline |
 |:---:|:---:|
-| ![Automation](Preview/Automation.png) | ![Edit](Preview/Automation-Edit.png) |
+| ![Automation](Preview/Automation.png) | ![Other](Preview/Other.png) |
 
 ### Keyboard Macro
 
@@ -69,9 +69,9 @@ Smart charging, Num Lock, Caps Lock, touchpad lock, HWiNFO64 integration, HTTP A
 
 Overlay display (position / layout / font / opacity / multi-monitor), Omen Key, OSD toast, tray icon (default / custom / dynamic), auto-start, custom main logo, theme (dark / light), language, custom background (opacity / Gaussian blur), data localization, debug log.
 
-| Overlay Settings | UI & System Settings |
+| Overlay Settings | Performance Control |
 |:---:|:---:|
-| ![Settings1](Preview/Settings-1.png) | ![Settings2](Preview/Settings-2.png) |
+| ![Lighting](Preview/Lighting.png) | ![Performance](Preview/Perf-Full.png) |
 
 ## Preset Management
 

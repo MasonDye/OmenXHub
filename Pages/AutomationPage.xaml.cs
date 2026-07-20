@@ -52,8 +52,10 @@ namespace OmenSuperHub.Pages {
       var pipelines = AutomationService.Pipelines;
       if (pipelines != null) {
         foreach (var p in pipelines) {
-          bool isQuickAction = p.Triggers.Count == 1 && p.Triggers[0].Type == "QuickAction";
-          if (isQuickAction) continue;
+          // ponytail: 复用 AutomationPipeline.IsQuickAction getter —— 它自己会 EnsureTriggers()，
+          // 既避免本页手写 `Triggers.Count==1 && Triggers[0].Type=="QuickAction"` 的重复,
+          // 也保证 pipeline 是从老版本配置加载（Triggers 为 null）时不出 NRE。
+          if (p.IsQuickAction) continue;
           hasPipeline = true;
           AutoPipelineList.Children.Add(BuildPipelineCard(p));
         }

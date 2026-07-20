@@ -91,46 +91,9 @@ namespace OmenSuperHub.Pages {
           _gpuAppsLoaded = true;
         }
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ConfigService.MonRefreshInterval) };
-        _refreshTimer.Tick += (s2, e2) => {
-          // ponytail: move ALL hardware queries (WMI/SMBIOS/LibreHW) to a
-          // background thread so window dragging never blocks on them.
-          // Only read ConfigService (registry-backed, <1 µs) on the UI thread.
-          bool cpuOn = ConfigService.MonitorCPU;
-          bool gpuOn = ConfigService.MonitorGPU;
-          bool memOn = ConfigService.MonitorMemory;
-          string presetKey = ConfigService.Preset;
-          string fc = ConfigService.FanControl;
-          string ft = ConfigService.FanTable;
-          Task.Run(() => {
-            var mem = memOn ? GetMemoryStatus() : default;
-            int cpuTemp = cpuOn ? (int)HardwareService.GetDisplayCpuTemp() : 0;
-            double cpuUtil = cpuOn ? HardwareService.CPUUsage : 0;
-            double cpuFan = cpuOn ? HardwareService.FanSpeedNow[0] * 100 : 0;
-            double cpuPower = cpuOn ? HardwareService.CPUPower : 0;
-            double cpuClock = cpuOn ? HardwareService.CPUClock : 0;
-            int gpuTemp = gpuOn ? (int)HardwareService.GetDisplayGpuTemp() : 0;
-            double gpuUtil = gpuOn ? HardwareService.GPUUsage : 0;
-            double gpuFan = gpuOn ? HardwareService.FanSpeedNow[1] * 100 : 0;
-            double gpuPower = gpuOn ? HardwareService.GPUPower : 0;
-            double gpuClock = gpuOn ? HardwareService.GPUClock : 0;
-            int ir = GetSensorTemperature(0);
-            int amb = GetSensorTemperature(1);
-            int pch = GetSensorTemperature(2);
-            int vr = GetSensorTemperature(3);
-            // Push results back to UI thread
-            Dispatcher.BeginInvoke(new Action(() =>
-              RefreshDashboardCore(cpuOn, gpuOn, memOn, mem, cpuTemp, cpuUtil, cpuFan, cpuPower, cpuClock,
-                  gpuTemp, gpuUtil, gpuFan, gpuPower, gpuClock, presetKey, fc, ft)
-            ), DispatcherPriority.Background);
-            Dispatcher.BeginInvoke(new Action(() =>
-              RefreshSensorsCore(cpuTemp, gpuOn ? gpuTemp : 0, ir, amb, pch, vr)
-            ), DispatcherPriority.Background);
-            // ponytail: refresh floating window on same timer so network speed & other data stay live
-            Dispatcher.BeginInvoke(new Action(() =>
-              Views.FloatingWindow.UpdateAllText()
-            ), DispatcherPriority.Background);
-          });
-        };
+        // ponytail: Tick 用命名方法 —— Unloaded 才能 -= 解除,使 CachedPageService 缓存的 Page 不被 lambda
+        // 捕获 this 永久挂住,且每 Loaded/Unloaded 避免 (s2,e2)=>{} lambda 多次叠加触发相同 tick。
+        _refreshTimer.Tick += _refreshTimer_Tick;
         _refreshTimer.Start();
         ConfigService.OnPresetCycled -= OnPresetCycled;
         ConfigService.OnPresetCycled -= _presetCycledHandler;
@@ -138,9 +101,53 @@ namespace OmenSuperHub.Pages {
         ConfigService.OnPresetCycled += _presetCycledHandler;
       };
       Unloaded += (s, e) => {
-        _refreshTimer?.Stop();
-        _refreshTimer = null;
+        if (_refreshTimer != null) {
+          // ponytail: 与 Loaded 对称 —— Tick 解绑 + Stop,定时器对象本身才可被 GC。
+          _refreshTimer.Tick -= _refreshTimer_Tick;
+          _refreshTimer.Stop();
+          _refreshTimer = null;
+        }
       };
+    }
+
+    // ponytail: tick 主体 —— 拆自 Loaded 里的 lambda。所有硬件查询仍在 Task.Run 后台,
+    // 仅 ConfigService 读在 UI 线程。行为不变,只是让 Unloaded 能解绑订阅避免 Page 泄漏。
+    void _refreshTimer_Tick(object sender, EventArgs e) {
+      bool cpuOn = ConfigService.MonitorCPU;
+      bool gpuOn = ConfigService.MonitorGPU;
+      bool memOn = ConfigService.MonitorMemory;
+      string presetKey = ConfigService.Preset;
+      string fc = ConfigService.FanControl;
+      string ft = ConfigService.FanTable;
+      Task.Run(() => {
+        var mem = memOn ? GetMemoryStatus() : default;
+        int cpuTemp = cpuOn ? (int)HardwareService.GetDisplayCpuTemp() : 0;
+        double cpuUtil = cpuOn ? HardwareService.CPUUsage : 0;
+        double cpuFan = cpuOn ? HardwareService.FanSpeedNow[0] * 100 : 0;
+        double cpuPower = cpuOn ? HardwareService.CPUPower : 0;
+        double cpuClock = cpuOn ? HardwareService.CPUClock : 0;
+        int gpuTemp = gpuOn ? (int)HardwareService.GetDisplayGpuTemp() : 0;
+        double gpuUtil = gpuOn ? HardwareService.GPUUsage : 0;
+        double gpuFan = gpuOn ? HardwareService.FanSpeedNow[1] * 100 : 0;
+        double gpuPower = gpuOn ? HardwareService.GPUPower : 0;
+        double gpuClock = gpuOn ? HardwareService.GPUClock : 0;
+        int ir = GetSensorTemperature(0);
+        int amb = GetSensorTemperature(1);
+        int pch = GetSensorTemperature(2);
+        int vr = GetSensorTemperature(3);
+        // Push results back to UI thread
+        Dispatcher.BeginInvoke(new Action(() =>
+          RefreshDashboardCore(cpuOn, gpuOn, memOn, mem, cpuTemp, cpuUtil, cpuFan, cpuPower, cpuClock,
+              gpuTemp, gpuUtil, gpuFan, gpuPower, gpuClock, presetKey, fc, ft)
+        ), DispatcherPriority.Background);
+        Dispatcher.BeginInvoke(new Action(() =>
+          RefreshSensorsCore(cpuTemp, gpuOn ? gpuTemp : 0, ir, amb, pch, vr)
+        ), DispatcherPriority.Background);
+        // ponytail: refresh floating window on same timer so network speed & other data stay live
+        Dispatcher.BeginInvoke(new Action(() =>
+          Views.FloatingWindow.UpdateAllText()
+        ), DispatcherPriority.Background);
+      });
     }
 
     void RefreshDashboard() {
@@ -241,7 +248,9 @@ namespace OmenSuperHub.Pages {
       if (fc == "custom")
         CurrentFanText.Text = Strings.FanCustomCurve;
       else if (fc == "" || fc == "auto")
-        CurrentFanText.Text = ft == "cool" ? Strings.FanCoolMode : Strings.FanSilentMode;
+        CurrentFanText.Text = ft == "cool" ? Strings.FanCoolMode
+                            : ft == "balanced" ? Strings.FanModeDefault
+                            : Strings.FanSilentMode;
       else if (fc.EndsWith("%"))
         CurrentFanText.Text = Strings.FanManualMode + ": " + fc;
       else if (fc.Contains(" RPM"))
@@ -321,7 +330,9 @@ namespace OmenSuperHub.Pages {
       if (fc == "custom")
         CurrentFanText.Text = Strings.FanCustomCurve;
       else if (fc == "" || fc == "auto")
-        CurrentFanText.Text = ft == "cool" ? Strings.FanCoolMode : Strings.FanSilentMode;
+        CurrentFanText.Text = ft == "cool" ? Strings.FanCoolMode
+                            : ft == "balanced" ? Strings.FanModeDefault
+                            : Strings.FanSilentMode;
       else if (fc.EndsWith("%"))
         CurrentFanText.Text = Strings.FanManualMode + ": " + fc;
       else if (fc.Contains(" RPM"))

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+    <Configuration Condition="'$(Configuration)'==''">Release</Configuration>
+    <Platform Condition="'$(Platform)'==''">x64</Platform>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ConfigurationType>Driver</ConfigurationType>
+    <TargetVersion>Windows10</TargetVersion>
+    <OutDir>$(MSBuildProjectDir)Build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(MSBuildProjectDir)Build\$(Platform)\$(Configuration)\obj\</IntDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <Optimize>false</Optimize>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>_AMD64_;_WIN32_WINNT=0x0A00;DBG=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>
+        %(AdditionalIncludeDirectories);
+        $(NuGetPackageRoot)microsoft.windows.wdk.x64\10.0.28000.1839\c\Include\10.0.28000.0\km;
+        $(NuGetPackageRoot)microsoft.windows.wdk.x64\10.0.28000.1839\c\Include\10.0.28000.0\shared;
+        $(NuGetPackageRoot)microsoft.windows.wdk.x64\10.0.28000.1839\c\Include\10.0.28000.0\um;
+        $(NuGetPackageRoot)microsoft.windows.wdk.x64\10.0.28000.1839\c\Include\10.0.28000.0\ucrt
+      </AdditionalIncludeDirectories>
+      <AdditionalOptions>/kernel %(AdditionalOptions)</AdditionalOptions>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <CompileAs>Default</CompileAs>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>
+        $(NuGetPackageRoot)microsoft.windows.wdk.x64\10.0.28000.1839\c\Lib\10.0.28000.0\km\x64;
+        $(NuGetPackageRoot)microsoft.windows.wdk.x64\10.0.28000.1839\c\Lib\10.0.28000.0\um\x64
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>ntoskrnl.lib;hal.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EntryPoint>DriverEntry</EntryPoint>
+      <SubSystem>Native</SubSystem>
+      <Driver>Driver</Driver>
+      <TargetMachine>MachineX64</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <ItemGroup>
+    <ClCompile Include="OmenXHubDrv.c" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

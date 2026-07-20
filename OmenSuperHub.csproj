@@ -64,14 +64,6 @@
       <HintPath>Resources\McuSDK2.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="AMDRyzenSDK">
-      <HintPath>Resources\AMDRyzenSDK.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-    <Reference Include="IntelXTUSDK">
-      <HintPath>Resources\IntelXTUSDK.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
     <Reference Include="SMBiosSDK">
       <HintPath>Resources\SMBiosSDK.dll</HintPath>
       <Private>true</Private>
@@ -85,21 +77,12 @@
       <HintPath>Resources\PerformanceControl.dll</HintPath>
       <Private>true</Private>
     </Reference>
+    <Reference Include="OmenFourZoneLighting">
+      <HintPath>Resources\OmenFourZoneLighting.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
     <Reference Include="Microsoft.Win32.TaskScheduler">
       <HintPath>lib\Microsoft.Win32.TaskScheduler.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-    <!-- ADLX: AMD GPU driver-level controls (RSR/Anti-Lag/Enhanced Sync/Boost/Image Sharpening/FPS Limit) -->
-    <Reference Include="ADLX_AutoTuning">
-      <HintPath>Resources\ADLX_AutoTuning.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-    <Reference Include="ADLX_DisplaySettings">
-      <HintPath>Resources\ADLX_DisplaySettings.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-    <Reference Include="ADLX_PerformanceMetrics">
-      <HintPath>Resources\ADLX_PerformanceMetrics.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
@@ -145,15 +128,11 @@
     <EmbeddedResource Include="Resources\HP.Omen.Core.Logger.dll" />
     <EmbeddedResource Include="Resources\HP.Omen.Logger.dll" />
     <EmbeddedResource Include="Resources\HP.Omen.Logger.APIs.dll" />
-    <EmbeddedResource Include="Resources\AMDRyzenSDK.dll" />
-    <EmbeddedResource Include="Resources\RyzenSMU.bin" />
-    <EmbeddedResource Include="Resources\IntelXTUSDK.dll" />
     <EmbeddedResource Include="Resources\SMBiosSDK.dll" />
     <EmbeddedResource Include="Resources\Utf8Json.dll" />
     <EmbeddedResource Include="Resources\PerformanceControl.dll" />
-    <EmbeddedResource Include="Resources\ADLX_AutoTuning.dll" />
-    <EmbeddedResource Include="Resources\ADLX_DisplaySettings.dll" />
-    <EmbeddedResource Include="Resources\ADLX_PerformanceMetrics.dll" />
+    <EmbeddedResource Include="Resources\OmenFourZoneLighting.dll" />
+    <EmbeddedResource Include="Resources\OmenLightingSDK.dll" />
   </ItemGroup>
 
   <!-- Resource (Fluent Icons) -->

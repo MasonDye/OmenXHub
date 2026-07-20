@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:app="clr-namespace:OmenSuperHub"
-        Title="OMEN X Hub" Width="700" Height="620"
+	        Title="{x:Static app:Strings.HelpWindowTitleBar}" Width="700" Height="620"
         WindowStartupLocation="CenterScreen" Topmost="True"
         ResizeMode="CanMinimize" ShowInTaskbar="True"
         WindowBackdropType="Mica"
@@ -82,14 +82,14 @@
             <TextBlock FontSize="13" Margin="0,0,0,16">
               <Run Text="MasonDye" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
-              <Run Text="OMEN X Hub GUI设计，功能打磨"/>
+	              <Run Text="{x:Static app:Strings.HelpCreditsGuiDesign}"/>
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/MasonDye" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/MasonDye</Hyperlink>
             </TextBlock>
             <TextBlock FontSize="13" Margin="0,0,0,16">
               <Run Text="breadeding" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
-              <Run Text="OmenSuperHub 提供本项目主要框架及代码"/>
+	              <Run Text="{x:Static app:Strings.HelpCreditsSuperHub}"/>
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/breadeding" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/breadeding</Hyperlink>
               <LineBreak/>
@@ -98,14 +98,14 @@
             <TextBlock FontSize="13" Margin="0,0,0,16">
               <Run Text="GeographicCone" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
-              <Run Text="OmenMon OmenHwCtl - 本项目的主要灵感来源，提供了交互命令与探索OGH交互的方法。"/>
+	              <Run Text="{x:Static app:Strings.HelpCreditsOmenMon}"/>
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/GeographicCone" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/GeographicCone</Hyperlink>
             </TextBlock>
             <TextBlock FontSize="13" Margin="0,0,0,16">
               <Run Text="OpenHardwareMonitor / hexagon-oss / LibreHardwareMonitor" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
-              <Run Text="硬件监控核心库支持"/>
+	              <Run Text="{x:Static app:Strings.HelpCreditsLhm}"/>
               <LineBreak/>
               <Hyperlink NavigateUri="https://openhardwaremonitor.org/" RequestNavigate="Hyperlink_RequestNavigate">https://openhardwaremonitor.org/</Hyperlink>
               <LineBreak/>

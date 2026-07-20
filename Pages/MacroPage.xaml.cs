@@ -15,15 +15,31 @@ namespace OmenSuperHub.Pages {
   public partial class MacroPage : Page {
     bool _capturingKey;
     Action<uint> _keyCaptureCallback;
+    // ponytail: 主题刷子一次性缓存，避免每次 BuildMacroCard/ShowEditDialog 调 TryFindResource。
+    static Brush _cardBg, _textSec, _borderSubtle, _altCardBg;
+    static bool _brushesCached;
+    static void CacheBrushes(System.Windows.FrameworkElement fe) {
+      if (_brushesCached) return;
+      _cardBg = fe.TryFindResource("CardBackgroundFillColorDefaultBrush") as Brush
+                ?? System.Windows.Media.Brushes.White;
+      _altCardBg = _cardBg;
+      _textSec = fe.TryFindResource("TextFillColorSecondaryBrush") as Brush
+                 ?? System.Windows.Media.Brushes.Gray;
+      _borderSubtle = fe.TryFindResource("BorderSubtleBrush") as Brush
+                      ?? System.Windows.Media.Brushes.Transparent;
+      _brushesCached = true;
+    }
 
     public MacroPage() {
       InitializeComponent();
       Loaded += (s, e) => {
+        CacheBrushes(this);
         MacroMasterToggle.IsChecked = ConfigService.MacroEnabled;
         MacroController.SetEnabled(ConfigService.MacroEnabled);
         AddMacroBtn.IsEnabled = ConfigService.MacroEnabled;
         RefreshList();
       };
+      Unloaded += (s, e) => { StopRecordingWatcher(); };
     }
 
     void RefreshList() {
@@ -43,7 +59,7 @@ namespace OmenSuperHub.Pages {
       var card = new Border {
         Margin = new Thickness(0, 0, 0, 8),
         CornerRadius = new CornerRadius(8),
-        Background = TryFindResource("CardBackgroundFillColorDefaultBrush") as Brush ?? SystemColors.WindowBrush,
+        Background = _cardBg,
         Padding = new Thickness(12, 10, 12, 10)
       };
       var sp = new StackPanel();
@@ -65,9 +81,14 @@ namespace OmenSuperHub.Pages {
       string triggerName = MacroController.GetKeyName(m.TriggerKey);
       namePanel.Children.Add(new TextBlock {
         Text = "[" + triggerName + "]", FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
-        Foreground = TryFindResource("TextFillColorSecondaryBrush") as Brush ?? Brushes.Gray,
+        Foreground = _textSec,
         TextTrimming = TextTrimming.CharacterEllipsis
       });
+      var recHint = new TextBlock {
+        Text = Strings.MacroRecordingCardHint, FontSize = 11, Margin = new Thickness(6, 0, 0, 0),
+        Foreground = System.Windows.Media.Brushes.OrangeRed, Visibility = Visibility.Collapsed
+      };
+      namePanel.Children.Add(recHint);
       Grid.SetColumn(namePanel, 1);
       header.Children.Add(namePanel);
 
@@ -81,14 +102,15 @@ namespace OmenSuperHub.Pages {
       sp.Children.Add(header);
 
       var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(24, 8, 0, 0) };
-      buttons.Children.Add(MakeBtn(Strings.MacroRecord, SymbolRegular.Record24, (s, e) => {
+      var recordBtn = MakeBtn(Strings.MacroRecord, SymbolRegular.Record24, null);
+      recordBtn.Click += (s, e) => {
         if (MacroController.IsRecording) return;
         MacroController.StartRecording(m, true);
-        DialogHelper.Info(Strings.MacroRecordHint, Strings.MacroRecording);
-        MacroController.StopRecording();
-        MacroService.Save();
-        RefreshList();
-      }));
+        recHint.Visibility = Visibility.Visible;
+        recordBtn.IsEnabled = false;
+        StartRecordingWatcher(m, recordBtn, recHint);
+      };
+      buttons.Children.Add(recordBtn);
       buttons.Children.Add(MakeBtn(Strings.MacroPlayTest, SymbolRegular.Play24, (s, e) => {
         if (!MacroController.IsPlaying)
           MacroController.PlayMacro(m);
@@ -115,15 +137,40 @@ namespace OmenSuperHub.Pages {
       inner.Children.Add(new SymbolIcon { Symbol = icon, FontSize = 12, Margin = new Thickness(0, 0, 4, 0) });
       inner.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
       btn.Content = inner;
-      btn.Click += click;
+      if (click != null) btn.Click += click;
       return btn;
     }
 
+    // Recording watcher: ESC inside hook triggers StopRecording; we poll IsRecording
+    // to finalize Save + Refresh and restore the record button. Minimal overhead.
+    static System.Windows.Threading.DispatcherTimer _recWatcher;
+    static MacroPage _watcherPage;
+    void StartRecordingWatcher(MacroSequence m, Button recordBtn, TextBlock recHint) {
+      StopRecordingWatcher();
+      _watcherPage = this;
+      _recWatcher = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+      _recWatcher.Tick += (s2, e2) => {
+        if (!MacroController.IsRecording) {
+          _recWatcher.Stop();
+          _recWatcher = null;
+          recHint.Visibility = Visibility.Collapsed;
+          recordBtn.IsEnabled = true;
+          MacroService.Save();
+          _watcherPage?.RefreshList();
+          _watcherPage = null;
+        }
+      };
+      _recWatcher.Start();
+    }
+
+    static void StopRecordingWatcher() {
+      if (_recWatcher != null) { _recWatcher.Stop(); _recWatcher = null; }
+    }
+
     void AddMacro_Click(object sender, RoutedEventArgs e) {
-      var m = new MacroSequence { Name = "New Macro" };
+	      var m = new MacroSequence { Name = Strings.MacroNewMacro };
       if (ShowEditDialog(m) == true) {
         MacroService.AddMacro(m);
-        MacroService.Save();
       }
       RefreshList();
     }
@@ -142,7 +189,7 @@ namespace OmenSuperHub.Pages {
       root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
       var titleBar = new Border {
-        BorderBrush = TryFindResource("BorderSubtleBrush") as Brush ?? System.Windows.Media.Brushes.Transparent,
+        BorderBrush = _borderSubtle,
         BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(16, 12, 16, 12)
       };
       titleBar.Child = new StackPanel { Orientation = Orientation.Horizontal, Children = {
@@ -156,7 +203,7 @@ namespace OmenSuperHub.Pages {
 
       // Macro Name card
       fields.Children.Add(new Border {
-        Background = TryFindResource("CardBackgroundFillColorDefaultBrush") as Brush ?? System.Windows.Media.Brushes.White,
+        Background = _cardBg,
         CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 14, 12, 14), Margin = new Thickness(0, 0, 0, 8),
         Child = new Grid {
           ColumnDefinitions = { new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) } },
@@ -171,7 +218,7 @@ namespace OmenSuperHub.Pages {
 
       // Trigger Key card
       fields.Children.Add(new Border {
-        Background = TryFindResource("CardBackgroundFillColorDefaultBrush") as Brush ?? System.Windows.Media.Brushes.White,
+        Background = _cardBg,
         CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 14, 12, 14), Margin = new Thickness(0, 0, 0, 8),
         Child = new StackPanel { Children = {
           new TextBlock { Text = Strings.MacroTriggerKey, FontSize = 13, Margin = new Thickness(0, 0, 0, 8) }
@@ -181,7 +228,7 @@ namespace OmenSuperHub.Pages {
       var triggerText = new TextBlock {
         Text = MacroController.GetKeyName(m.TriggerKey), VerticalAlignment = VerticalAlignment.Center,
         MinWidth = 100, Margin = new Thickness(0, 0, 8, 0), FontSize = 13,
-        Foreground = TryFindResource("TextFillColorSecondaryBrush") as Brush ?? System.Windows.Media.Brushes.Gray
+        Foreground = _textSec
       };
       triggerRow.Children.Add(triggerText);
       var captureBtn = new Button {
@@ -207,18 +254,18 @@ namespace OmenSuperHub.Pages {
       clearInner.Children.Add(new SymbolIcon { Symbol = SymbolRegular.Delete24, FontSize = 12, Margin = new Thickness(0, 0, 4, 0) });
       clearInner.Children.Add(new TextBlock { Text = Strings.MacroClearKey, VerticalAlignment = VerticalAlignment.Center });
       clearBtn.Content = clearInner;
-      clearBtn.Click += (s, e) => { m.TriggerKey = 0; triggerText.Text = "(none)"; };
+	      clearBtn.Click += (s, e) => { m.TriggerKey = 0; triggerText.Text = Strings.MacroNone; };
       triggerRow.Children.Add(clearBtn);
       var eventsText = new TextBlock {
         Text = Strings.MacroEventsCount(m.Events.Count), VerticalAlignment = VerticalAlignment.Center,
-        FontSize = 11, Foreground = TryFindResource("TextFillColorSecondaryBrush") as Brush ?? System.Windows.Media.Brushes.Gray
+        FontSize = 11, Foreground = _textSec
       };
       triggerRow.Children.Add(eventsText);
       ((StackPanel)((Border)fields.Children[fields.Children.Count - 1]).Child).Children.Add(triggerRow);
 
       // Repeat Count card
       fields.Children.Add(new Border {
-        Background = TryFindResource("CardBackgroundFillColorDefaultBrush") as Brush ?? System.Windows.Media.Brushes.White,
+        Background = _cardBg,
         CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 14, 12, 14), Margin = new Thickness(0, 0, 0, 8),
         Child = new Grid {
           ColumnDefinitions = { new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) } },
@@ -233,7 +280,7 @@ namespace OmenSuperHub.Pages {
 
       // Options card
       fields.Children.Add(new Border {
-        Background = TryFindResource("CardBackgroundFillColorDefaultBrush") as Brush ?? System.Windows.Media.Brushes.White,
+        Background = _cardBg,
         CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 14, 12, 14), Margin = new Thickness(0, 0, 0, 8),
         Child = new StackPanel { Children = {
           new Grid {
@@ -264,7 +311,7 @@ namespace OmenSuperHub.Pages {
 
       // Button bar
       var btnBar = new Border {
-        BorderBrush = TryFindResource("BorderSubtleBrush") as Brush ?? System.Windows.Media.Brushes.Transparent,
+        BorderBrush = _borderSubtle,
         BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 10, 16, 10)
       };
       var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
@@ -281,6 +328,14 @@ namespace OmenSuperHub.Pages {
           m.RepeatCount = r;
         m.IgnoreDelays = ignoreToggle.IsChecked == true;
         m.InterruptOnOtherKey = interruptToggle.IsChecked == true;
+        // Trigger-key conflict: prevent silent shadowing of an enabled macro sharing the same key.
+        if (m.TriggerKey != 0 && m.Enabled) {
+          var conflict = MacroService.Macros.Find(x => x != m && x.TriggerKey == m.TriggerKey && x.Enabled);
+          if (conflict != null) {
+            DialogHelper.Warn(Strings.MacroTriggerConflict(conflict.Name), Strings.MacroTriggerConflictTitle);
+            return;
+          }
+        }
         win.DialogResult = true;
       };
       btnPanel.Children.Add(saveBtn);

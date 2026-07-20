@@ -45,6 +45,18 @@ namespace OmenSuperHub.Pages {
       }
       FanCurveCanvas.SizeChanged += (s, e) => { if (_curvePoints != null) DrawFanCurve(); };
       Loaded += FanPage_Loaded;
+      // ponytail: 见 PerfPage.Unloaded 同理 — CachedPageService 缓存导致 Loaded 多次触发
+      // 而订阅永不去订阅；Unloaded 取消以让页面可 GC。
+      Unloaded += FanPage_Unloaded;
+    }
+
+    void FanPage_Unloaded(object sender, RoutedEventArgs e) {
+      PresetManager.OnPresetChanged -= OnPresetChanged;
+      // ponytail: CachedPageService 缓存 Page 但 Canvas 子控件 (Polyline/Ellipse) 一旦被
+      // _polylineElement/_circleElements 持有就阻止 GC。卸载时同时清空 Canvas 子控件与引用。
+      FanCurveCanvas.Children.Clear();
+      _polylineElement = null;
+      _circleElements = null;
     }
 
     void OnPresetChanged(string preset) {
@@ -75,9 +87,9 @@ namespace OmenSuperHub.Pages {
       UpdateFanModeUI();
       _loading = false;
       ApplyPresetFanConfig();
-      // only the curve workspace (mode 2) shows preset curves; modes 0/1/3 have no UI
-      // surface for per-preset curve files.
-      if (FanModeCombo.SelectedIndex != 2) return;
+      // only the curve workspace (mode 3 = 自定义曲线) shows preset curves;
+      // modes 0=静音/1=降温/2=平衡/4=手动 have no UI surface for per-preset curve files.
+      if (FanModeCombo.SelectedIndex != 3) return;
       LoadPresetCurvePoints(_currentPresetKey);
     }
 
@@ -121,7 +133,7 @@ namespace OmenSuperHub.Pages {
       _loading = true;
       LoadConfigState();
       UpdateFanModeUI();
-      if (FanModeCombo.SelectedIndex == 2) {
+      if (FanModeCombo.SelectedIndex == 3) {
         _currentPresetKey = ConfigService.Preset;
         LoadPresetCurvePoints(_currentPresetKey);
       }
@@ -153,20 +165,25 @@ namespace OmenSuperHub.Pages {
     void LoadConfigState() {
       try {
       string fc = ConfigService.FanControl;
-      if (fc == "smart" || fc == "custom") FanModeCombo.SelectedIndex = 2;
-      else if (fc == "" || fc == "auto" || fc == "silent" || fc == "cool") {
-        FanModeCombo.SelectedIndex = ConfigService.FanTable == "cool" ? 1 : 0;
+      if (fc == "smart" || fc == "custom") FanModeCombo.SelectedIndex = 3;
+      else if (fc == "" || fc == "auto" || fc == "silent" || fc == "cool" || fc == "balanced") {
+        // FanModeCombo 现映射 5 档: 0=静音 / 1=降温 / 2=平衡 / 3=自定义曲线 / 4=手动。
+        // 平衡档对应 FanTable=="balanced"，是 GpuPriority 等内置预设的默认曲线。
+        switch (ConfigService.FanTable) {
+          case "cool": FanModeCombo.SelectedIndex = 1; break;
+          case "balanced": FanModeCombo.SelectedIndex = 2; break;
+          default: FanModeCombo.SelectedIndex = 0; break; // silent / 空
+        }
       } else if (fc.Contains(" RPM")) {
-        FanModeCombo.SelectedIndex = 3;
-        _initRpm = int.Parse(fc.Replace(" RPM", "").Trim());
+        FanModeCombo.SelectedIndex = 4;
+        _initRpm = FanService.ParseFanRpm(fc);
         FanRpmSlider.Value = _initRpm;
       } else if (fc.EndsWith("%")) {
-        FanModeCombo.SelectedIndex = 3;
-        int pct = int.Parse(fc.TrimEnd('%'));
-        _initRpm = pct * 100;
+        FanModeCombo.SelectedIndex = 4;
+        _initRpm = FanService.ParseFanRpm(fc);
         FanRpmSlider.Value = _initRpm;
       } else {
-        FanModeCombo.SelectedIndex = 3;
+        FanModeCombo.SelectedIndex = 4;
         _initRpm = 2500;
         FanRpmSlider.Value = _initRpm;
       }
@@ -191,9 +208,9 @@ namespace OmenSuperHub.Pages {
 
     void UpdateFanModeUI() {
       int mode = FanModeCombo.SelectedIndex;
-      bool isSmartCurve = mode == 2;
-      bool isManual = mode == 3;
-      bool isAuto = (mode == 0 || mode == 1);
+      bool isSmartCurve = mode == 3;
+      bool isManual = mode == 4;
+      bool isAuto = (mode == 0 || mode == 1 || mode == 2); // 静音/降温/平衡 都走温度敏感自动档
       FanCurveCard.Visibility = isSmartCurve ? Visibility.Visible : Visibility.Collapsed;
       SmartFanCard.Visibility = isSmartCurve ? Visibility.Visible : Visibility.Collapsed;
       ManualControlCard.Visibility = isManual ? Visibility.Visible : Visibility.Collapsed;
@@ -211,21 +228,25 @@ namespace OmenSuperHub.Pages {
         ConfigService.FanControl = "";
         ConfigService.FanTable = "cool";
       } else if (mode == 2) {
+        ConfigService.FanControl = "";
+        ConfigService.FanTable = "balanced";
+      } else if (mode == 3) {
         ConfigService.FanControl = "smart";
-        string curveFile = ConfigService.FanTable == "cool" ? "cool.txt" : "silent.txt";
-        FanService.LoadFanConfig(curveFile);
+        // ponytail: ApplyPresetCurve (called by LoadPresetCurvePoints below) is the sole
+        // curve source. The old LoadFanConfig(cool/silent.txt) here only pre-stuffed the
+        // maps with the wrong curve for a couple ticks before LoadPresetCurvePoints cleared
+        // them — pure noise + startup skitter. InitSmartFanState is still needed to reset EMA.
         FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
         _currentPresetKey = ConfigService.Preset;
         LoadPresetCurvePoints(_currentPresetKey);
         SetMaxFanSpeedOff();
         TrayService.fanControlTimer.Change(0, 1000);
-} else if (mode == 3) {
+} else if (mode == 4) {
       // ponytail: parse existing FanControl for the current manual RPM instead of
       // hardcoding 2500 — otherwise switching back to manual mode always resets
       // the slider to 2500, regardless of what the user set before or what the
       // current preset stores.
-      if (!int.TryParse(ConfigService.FanControl?.Replace(" RPM", "").Trim(), out int rpm) || rpm < 500 || rpm > 6000)
-        rpm = 2500;
+      int rpm = FanService.ParseFanRpm(ConfigService.FanControl);
       ConfigService.FanControl = rpm + " RPM";
       SetMaxFanSpeedOff();
       TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -257,28 +278,37 @@ namespace OmenSuperHub.Pages {
         SetMaxFanSpeedOff();
         TrayService.fanControlTimer.Change(0, 1000);
       } else if (mode == 2) {
+        Views.OsdWindow.ShowFanModeOsd("balanced");
+        FanService.LoadFanConfig("balanced.txt");
+        SetMaxFanSpeedOff();
+        TrayService.fanControlTimer.Change(0, 1000);
+      } else if (mode == 3) {
         Views.OsdWindow.ShowFanModeOsd("smart");
         SetMaxFanSpeedOff();
         FanService.ApplyCustomCurve(_curvePoints);
         if (_curvePointsGPU != null) FanService.ApplyCustomCurveGPU(_curvePointsGPU);
         TrayService.fanControlTimer.Change(0, 1000);
-      } else if (mode == 3) {
+      } else if (mode == 4) {
         Views.OsdWindow.ShowFanModeOsd(ConfigService.FanControl);
         TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
-        int rpm = 2500;
-        int.TryParse(ConfigService.FanControl.Replace(" RPM", "").Trim(), out rpm);
+        int rpm = FanService.ParseFanRpm(ConfigService.FanControl);
         SetFanLevel(0, 0);
         SetFanLevel(rpm / 100, rpm / 100);
       }
-      // ponytail: fan mode is part of the preset snapshot (FanControl/FanTable).
-      // If the current preset is a custom preset, write the new fan mode back into
-      // its JSON/registry so that switching away and back doesn't revert to the
-      // old value.  Without this, changing the fan mode in the fan page felt like
-      // it only took effect after the next preset switch kicked ApplyPresetHardware,
-      // and switching presets could silently restore a stale fan mode.
-      // Built-in presets (Extreme/GpuPriority/LightUse) are fixed — don't overwrite.
+      // ponytail: fan mode is part of the preset snapshot (FanControl). For built-in
+      // presets we persist only the manual-RPM choice (mode==4 → "NN NN RPM" form) to the
+      // Presets\<key> subkey, so a user's manual RPM survives preset switch/restart —
+      // PresetManager.SwitchPreset reads it back to override GetBuiltInDefaults' "auto".
+      // Non-manual modes (silent/cool/balanced/smart) are NOT persist-restored on built-in
+      // presets: FanTable is the preset's semantic default (Extreme=cool/GpuPriority=balanced/
+      // LightUse=silent) and should rebound to that default on re-entry. Persisting them
+      // would let a stale legacy subkey (e.g. old SavePresetFanState wrote FanTable=cool onto
+      // GpuPriority) permanently shadow the preset's real semantic.
+      // Custom preset path always writes via SaveCustomPreset (writes JSON + registry).
       if (PresetManager.IsCustom(ConfigService.Preset)) {
         PresetManager.SaveCustomPreset(ConfigService.Preset);
+      } else if (mode == 4) {
+        ConfigService.SavePresetFanState(ConfigService.Preset);
       }
     }
 
@@ -341,7 +371,7 @@ namespace OmenSuperHub.Pages {
 
     void FanRpmCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
       if (_loading) return;
-      if (FanModeCombo.SelectedIndex != 3) return;
+      if (FanModeCombo.SelectedIndex != 4) return;
       _loading = true;
       var item = FanRpmCombo.SelectedItem as ComboBoxItem;
       if (item == null) { _loading = false; return; }
@@ -352,16 +382,22 @@ namespace OmenSuperHub.Pages {
       SetFanLevel(rpm / 100, rpm / 100);
       ConfigService.FanControl = rpm + " RPM";
       ConfigService.Save("FanControl");
-      // ponytail: per-mode-value writeback for custom presets (see FanMode_SelectionChanged)
+      // ponytail: per-mode-value writeback. Custom preset → JSON/registry via
+      // SaveCustomPreset; built-in preset → only the FanControl/FanTable keys
+      // under Presets\<key> so the user's RPM survives preset switch/restart
+      // (see PresetManager.SwitchPreset reading those keys back to override
+      // the hardcoded GetBuiltInDefaults FanControl="auto").
       if (PresetManager.IsCustom(ConfigService.Preset)) {
         PresetManager.SaveCustomPreset(ConfigService.Preset);
+      } else {
+        ConfigService.SavePresetFanState(ConfigService.Preset);
       }
       _loading = false;
     }
 
     void FanRpmNum_ValueChanged(object s, RoutedEventArgs e) {
       if (_loading) return;
-      if (FanModeCombo.SelectedIndex != 3) return;
+      if (FanModeCombo.SelectedIndex != 4) return;
       _loading = true;
       double? val = FanRpmNum.Value;
       if (val == null || val < 500 || val > 6000) { _loading = false; return; }
@@ -372,9 +408,11 @@ namespace OmenSuperHub.Pages {
       ConfigService.FanControl = rpm + " RPM";
       ConfigService.Save("FanControl");
       SelectComboItem(FanRpmCombo, rpm + " RPM");
-      // ponytail: per-mode-value writeback for custom presets
+      // ponytail: per-mode-value writeback — mirrors FanRpmCombo_SelectionChanged.
       if (PresetManager.IsCustom(ConfigService.Preset)) {
         PresetManager.SaveCustomPreset(ConfigService.Preset);
+      } else {
+        ConfigService.SavePresetFanState(ConfigService.Preset);
       }
       _loading = false;
     }
@@ -423,7 +461,9 @@ namespace OmenSuperHub.Pages {
       double chartW = w - padL - padR;
       double chartH = h - padT - padB;
 
-      for (int t = 0; t <= 100; t += 20) {
+      // ponytail: 刻度从 MinTemp(20°) 起、每 10° 一档到 MaxTemp(100°)，自此 20 30 40 ... 100。
+      // 旧版从 t=0 起步，第一根虚线和 “0°” label 实际落在 padL 左侧画外（-0.25*chartW）。
+      for (int t = (int)MinTemp; t <= (int)MaxTemp; t += 10) {
         double x = padL + (t - MinTemp) / (MaxTemp - MinTemp) * chartW;
         FanCurveCanvas.Children.Add(new Line { X1 = x, Y1 = padT, X2 = x, Y2 = padT + chartH, Stroke = gridBrush, StrokeThickness = 0.5, StrokeDashArray = new DoubleCollection { 4, 4 } });
         var label = new TextBlock { Text = t + "\u00b0", FontSize = 10, Foreground = mutedBrush };
@@ -570,7 +610,7 @@ namespace OmenSuperHub.Pages {
     void FanExportBtn_Click(object sender, RoutedEventArgs e) {
       var points = _showGpuCurve ? _curvePointsGPU : _curvePoints;
       if (points == null || points.Count < 2) {
-        DialogHelper.Info("当前无可导出的曲线数据", "提示");
+	        DialogHelper.Info(Strings.FanShareNoData, Strings.Hint);
         return;
       }
       var dlg = new Microsoft.Win32.SaveFileDialog {
@@ -583,10 +623,15 @@ namespace OmenSuperHub.Pages {
         string name = _showGpuCurve ? "GPU Fan Curve" : "CPU Fan Curve";
         string json = FanService.ExportCurveToJson(points, name);
         if (!string.IsNullOrEmpty(json)) {
-          File.WriteAllText(dlg.FileName, json, System.Text.Encoding.UTF8);
-          DialogHelper.Info(Strings.FanCurveExportSuccess + "\n" + dlg.FileName, "OMEN X Hub");
-        } else {
-          DialogHelper.Error(Strings.FanCurveExportFailed, "OMEN X Hub");
+          try {
+            File.WriteAllText(dlg.FileName, json, System.Text.Encoding.UTF8);
+		        DialogHelper.Info(Strings.FanCurveExportSuccess + "\n" + dlg.FileName, Strings.HelpWindowTitleBar);
+          } catch (Exception ex) {
+            // ponytail: 引用代理3 报告 — 之前 File.WriteAllText 无保护，磁盘满/无权限/路径过长会崩溃
+            DialogHelper.Error(Strings.FanCurveExportFailed + "\n" + ex.Message, Strings.HelpWindowTitleBar);
+          }
+		        } else {
+		          DialogHelper.Error(Strings.FanCurveExportFailed, Strings.HelpWindowTitleBar);
         }
       }
     }
@@ -598,9 +643,9 @@ namespace OmenSuperHub.Pages {
       bool hasShareCode = !string.IsNullOrEmpty(clip) && clip.StartsWith("OXFC:", StringComparison.OrdinalIgnoreCase);
 
       if (hasShareCode) {
-        int r = DialogHelper.YesNoCancel(
-            "检测到剪贴板中有分享码：\n" + clip.Substring(0, Math.Min(clip.Length, 40)) + "...\n\n点击「是」从分享码导入\n点击「否」选择文件导入",
-            Strings.FanCurveImportTitle);
+	        int r = DialogHelper.YesNoCancel(
+	            Strings.FanShareCodeDetected(clip.Substring(0, Math.Min(clip.Length, 40)) + "..."),
+	            Strings.FanCurveImportTitle);
         if (r == 1) {
           ImportFromCode(clip);
           return;
@@ -629,13 +674,13 @@ namespace OmenSuperHub.Pages {
     void FanShareBtn_Click(object sender, RoutedEventArgs e) {
       var points = _showGpuCurve ? _curvePointsGPU : _curvePoints;
       if (points == null || points.Count < 2) {
-        DialogHelper.Info("当前无可分享的曲线数据", "提示");
+	        DialogHelper.Info(Strings.FanShareNoDataToShare, Strings.Hint);
         return;
       }
       string name = _showGpuCurve ? "GPU" : "CPU";
       string code = FanService.GenerateShareCode(points, name);
       if (string.IsNullOrEmpty(code)) {
-        DialogHelper.Error("生成分享码失败", "OMEN X Hub");
+	        DialogHelper.Error(Strings.FanShareGenerateFail, Strings.HelpWindowTitleBar);
         return;
       }
       try {
@@ -644,15 +689,15 @@ namespace OmenSuperHub.Pages {
       } catch {
         // Clipboard may fail, show dialog with manual copy
         var dlg = new System.Windows.Window {
-          Title = "分享码",
+	          Title = Strings.FanShareWindowTitle,
           Width = 500, Height = 200,
           WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner,
           Owner = System.Windows.Window.GetWindow(this),
           Content = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) }
         };
         var stack = dlg.Content as System.Windows.Controls.StackPanel;
-        stack.Children.Add(new System.Windows.Controls.TextBlock {
-          Text = "手动复制以下分享码：", FontSize = 13, Margin = new System.Windows.Thickness(0, 0, 0, 8)
+	        stack.Children.Add(new System.Windows.Controls.TextBlock {
+	          Text = Strings.FanShareCopyInstruction, FontSize = 13, Margin = new System.Windows.Thickness(0, 0, 0, 8)
         });
         var box = new System.Windows.Controls.TextBox {
           Text = code, IsReadOnly = true, FontSize = 11,
@@ -661,7 +706,7 @@ namespace OmenSuperHub.Pages {
         };
         stack.Children.Add(box);
         var btn = new System.Windows.Controls.Button {
-          Content = "关闭", Width = 60, Height = 28, Margin = new System.Windows.Thickness(0, 8, 0, 0),
+	          Content = Strings.FanShareClose, Width = 60, Height = 28, Margin = new System.Windows.Thickness(0, 8, 0, 0),
           HorizontalAlignment = System.Windows.HorizontalAlignment.Right
         };
         btn.Click += (s2, e2) => dlg.Close();
@@ -673,20 +718,20 @@ namespace OmenSuperHub.Pages {
     void ImportFromCode(string code) {
       var parsed = FanService.ParseShareCode(code);
       if (parsed == null) {
-        DialogHelper.Error("无效的分享码", "OMEN X Hub");
+	        DialogHelper.Error(Strings.FanShareInvalidCode, Strings.HelpWindowTitleBar);
         return;
       }
       ApplyImportedCurve(parsed.Value.points, parsed.Value.name);
     }
 
-    void ImportFromJson(string json) {
-      var parsed = FanService.ImportCurveFromJson(json);
-      if (parsed == null) {
-        DialogHelper.Error(Strings.FanCurveImportFailed, "OMEN X Hub");
-        return;
-      }
-      ApplyImportedCurve(parsed.Value.points, parsed.Value.name);
-    }
+	    void ImportFromJson(string json) {
+	      var parsed = FanService.ImportCurveFromJson(json);
+	      if (parsed == null) {
+	        DialogHelper.Error(Strings.FanCurveImportFailed, Strings.HelpWindowTitleBar);
+	        return;
+	      }
+	      ApplyImportedCurve(parsed.Value.points, parsed.Value.name);
+	    }
 
     void ApplyImportedCurve(List<(float temp, int rpm)> points, string name) {
       if (_showGpuCurve) {
@@ -750,21 +795,24 @@ namespace OmenSuperHub.Pages {
         string fc = ConfigService.FanControl;
         string ft = ConfigService.FanTable;
         if (fc == "smart" || fc == "custom") {
-          FanService.LoadFanConfig(ft == "cool" ? "cool.txt" : "silent.txt");
+          FanService.LoadFanConfig(
+            ft == "cool" ? "cool.txt"
+            : ft == "balanced" ? "balanced.txt"
+            : "silent.txt");
           FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
           FanService.ApplyPresetCurve(ConfigService.Preset);
           SetMaxFanSpeedOff();
           TrayService.fanControlTimer.Change(0, 1000);
         } else if (fc != null && fc.Contains(" RPM")) {
-          int rpm = 2500;
-          int.TryParse(fc.Replace(" RPM", "").Trim(), out rpm);
-          if (rpm < 500) rpm = 500; if (rpm > 6000) rpm = 6000;
+          int rpm = FanService.ParseFanRpm(fc);
           SetMaxFanSpeedOff();
           SetFanLevel(0, 0);
           SetFanLevel(rpm / 100, rpm / 100);
           TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
         } else {
-          string table = ft == "cool" ? "cool.txt" : "silent.txt";
+          string table = ft == "cool" ? "cool.txt"
+                       : ft == "balanced" ? "balanced.txt"
+                       : "silent.txt";
           FanService.LoadFanConfig(table);
           SetMaxFanSpeedOff();
           TrayService.fanControlTimer.Change(0, 1000);

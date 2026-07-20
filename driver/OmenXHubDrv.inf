@@ -1,0 +1,45 @@
+;
+; OmenXHubDrv.inf — installation INF for the OmenXHub kernel driver
+;
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = System
+ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider    = %ProviderString%
+DriverVer   = 07/10/2026,1.0.0.0
+CatalogFile = OmenXHubDrv.cat
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+[DefaultInstall]
+OptionDesc = %ServiceDescription%
+CopyFiles  = DriverFiles
+
+[DefaultInstall.Services]
+AddService = OmenXHubDrv, 0x00000002, DriverService
+
+[DriverFiles]
+OmenXHubDrv.sys
+
+[DriverService]
+DisplayName    = %ServiceDisplayName%
+Description    = %ServiceDescription%
+ServiceBinary  = %12%\OmenXHubDrv.sys
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START (3 = manual, can be set to 2 = auto)
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+LoadOrderGroup = Extended Base
+
+[SourceDisksFiles]
+OmenXHubDrv.sys = 1
+
+[SourceDisksNames]
+1 = %DiskName%,,,
+
+[Strings]
+ProviderString      = "OmenXHub"
+ServiceDisplayName  = "OmenXHub Driver"
+ServiceDescription  = "MSR and PCI MMIO access driver for OmenXHub"
+DiskName            = "OmenXHub Driver Installation"

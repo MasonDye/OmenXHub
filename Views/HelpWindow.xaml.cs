@@ -35,13 +35,13 @@ namespace OmenSuperHub.Views {
       _instance = null;
     }
 
-    private void BtnGitHub_Click(object sender, RoutedEventArgs e) {
-        Process.Start("https://github.com/breadeding/OmenSuperHub")?.Dispose();
-    }
+	    private void BtnGitHub_Click(object sender, RoutedEventArgs e) {
+	        Process.Start("https://github.com/MasonDye/OmenXHub")?.Dispose();
+	    }
 
-    private void BtnUpdate_Click(object sender, RoutedEventArgs e) {
-        Process.Start("https://github.com/breadeding/OmenSuperHub/releases")?.Dispose();
-    }
+	    private void BtnUpdate_Click(object sender, RoutedEventArgs e) {
+	        Process.Start("https://github.com/MasonDye/OmenXHub/releases")?.Dispose();
+	    }
 
     private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e) {
         Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri))?.Dispose();
@@ -88,7 +88,7 @@ namespace OmenSuperHub.Views {
       // ── Tab 2: 风扇配置 / Fan Config ─────────────────────────────
       FanConfigHelp.Text =
           "风扇配置提供两种基础模式及自定义曲线：\n\n" +
-          "【安静模式 (Silent)】以 BIOS 默认风扇曲线的 80% 运行，适合日常办公和轻度使用。\n\n" +
+          "【安静模式 (Silent)】针对轻度负载分段优化：50~70°C 区间大幅降低转速以保持安静，高温端保持散热转速，适合日常办公和轻度使用。\n\n" +
           "【降温模式 (Cool)】以 BIOS 默认风扇曲线的 100% 运行，适合游戏和高负载场景。\n\n" +
           "【灵敏度的选择】控制温度响应速度：\"实时\"立即响应；\"高\"轻微平滑（默认）；\"中\"和\"低\"减少风扇变速频率。\n\n" +
           "【自定义风扇曲线】\n" +
@@ -154,8 +154,11 @@ namespace OmenSuperHub.Views {
           "风扇模式（自动/最大/固定 RPM）、温度灵敏度（实时/高/中/低）、" +
           "曲线选择（安静/降温/自定义）、AutoFanProtect 开关、风扇除尘。\n\n" +
           "═══ 灯光 (Lighting) ═══\n" +
-          "支持键盘 / 灯条（实验性）设备。协议：四分区 Basic / Dojo 四分区。\n" +
+          "支持键盘 / 灯条（实验性）设备。协议：四分区 Basic / Dojo 四分区 / HP SDK。\n" +
           "动画：无 / 颜色循环 / 星光 / 呼吸 / 波浪 / 雨滴 / 音频脉冲 / 五彩纸屑 / 太阳 / 划过。\n" +
+          "Dojo 协议下可设置方向（左/右）与主题（银河/火山/丛林/海洋/自定义）；" +
+          "Basic 协议仅实际下发「星光」「波浪」两种动画；" +
+          "HP SDK 协议仅支持静态颜色——选择不支持的组合时 Apply 会弹窗提示而不是静默丢弃。\n" +
           "4 区单独颜色设定（红/绿/蓝/白/冰蓝/粉/黄）+ 亮度与速度滑块。\n\n" +
           "═══ 设置 (Settings) ═══\n" +
           "浮窗：开关 / 字体大小 / 位置 / 显示器选择 / 背景透明度 / 文字透明度\n" +

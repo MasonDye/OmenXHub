@@ -1,4 +1,4 @@
-﻿// Strings.cs - 多语言字符串资源管理
+// Strings.cs - 多语言字符串资源管理
 // 提供简体中文、繁体中文、英文三种语言的UI字符串，支持运行时切换
 using System;
 
@@ -107,7 +107,7 @@ namespace OmenSuperHub {
     public static string FanRespLow => T("低", "低", "Low");
     public static string FanAuto => T("自动", "自動", "Auto");
     public static string FanMax => T("最大风扇", "最大風扇", "Max Fan");
-    public static string FanCustomCurve => T("智能自定义曲线", "智能自訂曲線", "Smart Custom Curve");
+    public static string FanCustomCurve => T("自定义曲线", "自訂曲線", "Custom Curve");
     public static string FanManualMode => T("手动模式", "手動模式", "Manual Mode");
     public static string FanSmartMode => T("智能风扇", "智能風扇", "Smart Fan");
     public static string FanModePerformance => T("狂暴模式", "狂暴模式", "Performance Mode");
@@ -423,6 +423,8 @@ namespace OmenSuperHub {
     // ponytail: PerKey connection / capability warnings surfaced by LightingPage PerKey handlers
     public static string LightingCapabilityPerKeyConnect => T("未检测到单键 RGB 设备，请确认 OMEN 中心服务可用并尝试重新打开本页", "未偵測到單鍵 RGB 設備，請確認 OMEN 中心服務可用並嘗試重新開啟本頁", "Per-key RGB device not detected. Make sure the OMEN Gaming Hub service is running, then reopen this page.");
     public static string LightingPerKeyNotSupported => T("当前平台不支持单键 RGB 灯光", "當前平台不支援單鍵 RGB 燈光", "Per-key RGB lighting is not supported on this platform.");
+    // ponytail: PerKey Apply 按钮独有动作 = StorePerKeyToFlash,冷启动保留当前 RGB 设置
+    public static string LightingPerKeyFlashSaved => T("已保存到闪存（冷启动生效）", "已儲存到閃存（冷開機生效）", "Saved to flash (applies on cold boot)");
     // ponytail: Dojo firmware accepts brightness > 100 — 128 / 228 are the documented extra-bright presets
     // (see existing LightingBrightnessRangeTip "228开"). Buttons shown only under Dojo protocol.
     public static string LightingBrightnessHigh => T("超亮 128%", "超亮 128%", "Extra Bright 128%");
@@ -529,7 +531,7 @@ namespace OmenSuperHub {
 
     // Fan page headings & labels
     public static string FanConfigHeading => T("风扇配置", "風扇配置", "Fan Config");
-    public static string FanCurveHeading => T("智能自定义风扇曲线", "智能自訂風扇曲線", "Smart Custom Fan Curve");
+    public static string FanCurveHeading => T("自定义曲线", "自訂曲線", "Custom Curve");
     public static string TempSensitivityHeading => T("温度灵敏度", "溫度靈敏度", "Temp Sensitivity");
     public static string FanSpeedControlHeading => T("转速控制", "轉速控制", "Fan Speed Control");
     public static string CleanCreekHeading => T("风扇除尘", "風扇除塵", "Fan Dust Removal");
@@ -554,7 +556,7 @@ namespace OmenSuperHub {
     public static string AutoFanProtectDesc => T("CPU温度>95°C且固定转速时强制切换为降温曲线", "CPU溫度>95°C且固定轉速時強制切換為降溫曲線", "Forces cool curve when CPU >95°C with fixed fan speed");
     public static string FanSync => T("风扇一致性", "風扇一致性", "Fan Consistency");
     public static string FanSyncDesc => T("所有风扇转速与CPU风扇保持一致", "所有風扇轉速與CPU風扇保持一致", "Keep all fan speeds synchronized with CPU fan");
-    public static string FanSmartSettings => T("智能风扇设置", "智能風扇設置", "Smart Curve Settings");
+    public static string FanSmartSettings => T("曲线温度设置", "曲線溫度設置", "Curve Temperature Settings");
     public static string FanSmartEmaAlpha => T("温度平滑系数", "溫度平滑係數", "Temp Smoothing (EMA)");
     public static string FanSmartEmaAlphaDesc => T("新温度读数的权重，越低越平滑但响应越慢", "新溫度讀數的權重，越低越平滑但響應越慢", "Weight of new temp readings. Lower = smoother but slower");
     public static string FanSmartStepDown => T("降速保护 (RPM/s)", "降速保護 (RPM/s)", "Step-Down Rate (RPM/s)");
@@ -846,6 +848,9 @@ namespace OmenSuperHub {
     public static string MacroEditTitle => T("编辑宏", "編輯巨集", "Edit Macro");
     public static string MacroDelete => T("删除", "刪除", "Delete");
     public static string MacroEventsCount(int count) => T($"{count} 个事件", $"{count} 個事件", $"{count} events");
+    public static string MacroTriggerConflict(string name) => T($"触发键已被宏 \"{name}\" 占用", $"觸發鍵已被巨集 \"{name}\" 佔用", $"Trigger key already used by macro \"{name}\"");
+    public static string MacroTriggerConflictTitle => T("触发键冲突", "觸發鍵衝突", "Trigger Key Conflict");
+    public static string MacroRecordingCardHint => T("录制中…按 ESC 停止", "錄製中…按 ESC 停止", "Recording… press ESC to stop");
 
     // EcoQoS edit button
     public static string EcoQosEdit => T("编辑", "編輯", "Edit");
@@ -936,75 +941,15 @@ namespace OmenSuperHub {
     public static string FanSettings => T("风扇设置", "風扇設定", "Fan Settings");
     public static string TempCelsius => T("温度 (°C)", "溫度 (°C)", "Temperature (°C)");
 
-    // ═══ Advanced CPU Tuning cards ═══
-    public static string PerfGroupCpuAdv => T("CPU 高级调校", "CPU 高級調校", "Advanced CPU Tuning");
-    public static string PerfGroupGpuAdv => T("GPU 高级调校", "GPU 高級調校", "Advanced GPU Tuning");
-    // ponytail: only 2 added here; the rest live in the later block near PerfAdlxConnected.
+    // ponytail: driver-install status strings (also used by DashboardPage kernel-driver UI).
     public static string AdvNeedAdmin => T("此操作需要管理员权限", "此操作需要管理員權限", "Administrator privileges required");
-    public static string AdvInstallPawnIoGuide => T("查看 PawnIO(UXTU) 安装说明", "查看 PawnIO(UXTU) 安裝說明", "View PawnIO (UXTU) install guide");
-    // ponytail: advanced-tuning silent-failure surface — handlers used to
-    // `_ = Service.SetXxx(...)` and write a fixed "✓" / "SMU 已连接" status
-    // regardless of return value. These strings replace that lie.
-    public static string AdvWriteFail => T("写入失败 / 驱动未就绪", "寫入失敗 / 驅動未就緒", "Write failed / driver not ready");
     public static string AdvDriverNotReady => T("驱动未就绪", "驅動未就緒", "Driver not ready");
     public static string AdvInstallOmenDriver => T("安装内核驱动", "安裝內核驅動", "Install kernel driver");
     public static string AdvDriverInstallOk => T("驱动已就绪", "驅動已就緒", "Driver ready");
     public static string AdvDriverInstallFail => T("驱动安装失败，请以管理员运行并检查日志", "驅動安裝失敗，請以管理員執行並檢查日誌", "Driver install failed. Run as administrator and check logs.");
-    // PBO Scalar (AMD)
-    public static string PboScalarHeading => T("PBO Scalar (AMD)", "PBO Scalar (AMD)", "PBO Scalar (AMD)");
-    public static string PboScalarDesc => T("调节 Precision Boost Overdrive 缩放倍数", "調節 Precision Boost Overdrive 縮放倍數", "Adjust Precision Boost Overdrive scalar multiplier");
-    // Curve Optimiser (AMD)
-    public static string CoHeading => T("Curve Optimiser (AMD)", "Curve Optimiser (AMD)", "Curve Optimiser (AMD)");
-    public static string CoDesc => T("全核电压曲线偏移", "全核電壓曲線偏移", "All-core voltage curve offset");
-    public static string CoAllCoreLabel => T("全核偏移 (mV)", "全核偏移 (mV)", "All-core Offset (mV)");
-    public static string CoIGpuLabel => T("iGPU 偏移", "iGPU 偏移", "iGPU Offset");
-    public static string CoPerCoreLabel => T("每核心偏移 (mV)", "每核心偏移 (mV)", "Per-core Offset (mV)");
-    // Per-Core Curve Optimiser (AMD)
-    public static string Ccd1CoHeading => T("CCD1 单核调校 (AMD)", "CCD1 單核調校 (AMD)", "CCD1 Per-Core CO (AMD)");
-    public static string Ccd1CoDesc => T("Core 0~11 每核心电压曲线偏移", "Core 0~11 每核心電壓曲線偏移", "Core 0~11 per-core voltage curve offset");
-    public static string Ccd2CoHeading => T("CCD2 单核调校 (AMD)", "CCD2 單核調校 (AMD)", "CCD2 Per-Core CO (AMD)");
-    public static string Ccd2CoDesc => T("Core 12~23 每核心电压曲线偏移。仅双 CCD 可见。", "Core 12~23 每核心電壓曲線偏移。僅雙 CCD 可見。", "Core 12~23 per-core CO. Dual-CCD only.");
-    // AMD CPU Power Limits (AM5 desktop)
+    // AMD CPU Power Limits (PPT only — TDC/EDC/Tctl removed with advanced tuning)
     public static string AmdCpuPowerHeading => T("CPU 功耗限制 (AMD)", "CPU 功耗限制 (AMD)", "CPU Power Limits (AMD)");
-    public static string AmdCpuPowerDesc => T("PPT/TDC/EDC 桌面 AM5 独立 CPU", "PPT/TDC/EDC 桌面 AM5 獨立 CPU", "PPT/TDC/EDC desktop AM5 standalone CPU");
-    // AMD CPU Temperature
-    public static string CpuTempHeading => T("CPU 温度限制 (AMD)", "CPU 溫度限制 (AMD)", "CPU Temp Limit (AMD)");
-    public static string CpuTempDesc => T("Tctl 硬降频温度阈值", "Tctl 硬降頻溫度閾值", "Tctl hard throttle temperature threshold");
-    // CCD Affinity (AMD)
-    public static string CcdAffinityHeading => T("CCD 亲和性 (AMD)", "CCD 親和性 (AMD)", "CCD Affinity (AMD)");
-    public static string CcdAffinityDesc => T("双 CCD 调度优化，模拟大小核", "雙 CCD 調度優化，模擬大小核", "Dual-CCD scheduling, simulated hybrid");
-    // FIVR Undervolt (Intel)
-    public static string FivrHeading => T("FIVR 降压 (Intel)", "FIVR 降壓 (Intel)", "FIVR Undervolt (Intel)");
-    public static string FivrDesc => T("调节 CPU 核心/缓存/核显/SA 电压偏移", "調節 CPU 核心/快取/內顯/SA 電壓偏移", "Adjust core/cache/iGPU/SA voltage offsets");
-    public static string FivrCoreLabel => T("核心偏移 (mV)", "核心偏移 (mV)", "Core Offset (mV)");
-    public static string FivrCacheLabel => T("缓存偏移 (mV)", "快取偏移 (mV)", "Cache Offset (mV)");
-    public static string FivrIgpuLabel => T("核显偏移 (mV)", "內顯偏移 (mV)", "iGPU Offset (mV)");
-    public static string FivrSaLabel => T("SA 偏移 (mV)", "SA 偏移 (mV)", "SA Offset (mV)");
-    // Clock Ratio (Intel)
-    public static string ClockRatioHeading => T("时钟比例 (Intel)", "時鐘比例 (Intel)", "Clock Ratio (Intel)");
-    public static string ClockRatioDesc => T("调节 CPU 倍频", "調節 CPU 倍頻", "Adjust CPU multiplier");
-    // Power Balance (Intel)
-    public static string PowerBalanceHeading => T("Power Balance (Intel)", "Power Balance (Intel)", "Power Balance (Intel)");
-    public static string PowerBalanceDesc => T("CPU/GPU 功率分配比例", "CPU/GPU 功率分配比例", "CPU/GPU power distribution");
-    // NVIDIA Voltage Curve
-    public static string NvVoltCurveHeading => T("NVIDIA 电压曲线", "NVIDIA 電壓曲線", "NVIDIA Voltage Curve");
-    public static string NvVoltCurveDesc => T("电压-频率曲线调节（降压超频）", "電壓-頻率曲線調節（降壓超頻）", "Voltage-frequency curve tuning (undervolt)");
-    public static string NvVoltCurveOffsetLabel => T("电压偏移 (mV)", "電壓偏移 (mV)", "Voltage Offset (mV)");
-    public static string NvVoltCurveNote => T("负值为降压，慎用大幅度正值。实时生效。", "負值為降壓，慎用大幅度正值。即時生效。", "Negative = undervolt. Large positive values may cause instability.");
-    // ADLX Radeon (AMD GPU)
-    public static string AdlxHeading => T("Radeon 设置 (AMD GPU)", "Radeon 設定 (AMD GPU)", "Radeon Settings (AMD GPU)");
-    public static string AdlxDesc => T("Anti-Lag / RSR / Boost / Image Sharpening", "Anti-Lag / RSR / Boost / Image Sharpening", "Anti-Lag / RSR / Boost / Image Sharpening");
-    // RTSS Frame Limit
-    public static string RtssHeading => T("RTSS 帧率限制", "RTSS 幀率限制", "RTSS Frame Limit");
-    public static string RtssDesc => T("通过 RivaTuner 精确锁定帧率", "通過 RivaTuner 精確鎖定幀率", "Precise frame rate limiter via RivaTuner");
-    // AutoOC Adaptive Undervolt
-    public static string AutoOcHeading => T("AutoOC 自适应降压", "AutoOC 自適應降壓", "AutoOC Adaptive Undervolt");
-    public static string AutoOcDesc => T("自动稳定性测试的动态电压优化", "自動穩定性測試的動態電壓優化", "Dynamic stability-tested voltage optimisation");
-    // Status messages
-    public static string HwNotSupported => T("当前硬件不支持此功能", "目前硬體不支援此功能", "Not supported on this hardware");
-    public static string HwNotDetected => T("未检测到对应硬件", "未檢測到對應硬體", "Required hardware not detected");
-    public static string DriverWriteNotAvail => T("需要 PawnIO 内核写入权限", "需要 PawnIO 內核寫入權限", "Requires PawnIO kernel write access");
-    public static string FeaturePartialImpl => T("此功能为预览版，部分调节可能无效", "此功能為預覽版，部分調節可能無效", "Preview: some adjustments may not apply");
+    public static string AmdCpuPowerDesc => T("PPT 桌面 AM5 独立 CPU", "PPT 桌面 AM5 獨立 CPU", "PPT desktop AM5 standalone CPU");
 
     // Perf page
     public static string PerfAdjustCpuPower => T("调整 CPU 功率限制", "調整 CPU 功率限制", "Adjust CPU Power Limit");
@@ -1160,15 +1105,6 @@ namespace OmenSuperHub {
 	    $"CPU {cpuTemp:F0}°C  GPU {gpuTemp:F0}°C",
 	    $"CPU {cpuTemp:F0}°C  GPU {gpuTemp:F0}°C",
 	    $"CPU {cpuTemp:F0}°C  GPU {gpuTemp:F0}°C");
-	  public static string MainWindowAdvancedUnlocked => T(
-	    "高级调校已解锁！性能页将显示 CPU/GPU 进阶选项。",
-	    "高級調校已解鎖！效能頁將顯示 CPU/GPU 進階選項。",
-	    "Advanced tuning unlocked! CPU/GPU advanced options will appear on Performance page.");
-	  public static string MainWindowAdvancedHidden => T(
-	    "高级调校已隐藏。再次点击 logo 5 次可重新解锁。",
-	    "高級調校已隱藏。再次點擊 logo 5 次可重新解鎖。",
-	    "Advanced tuning hidden. Click the logo 5 more times to re-unlock.");
-
 	  public static string FloatLabelCpu => T("CPU", "CPU", "CPU");
 	  public static string FloatLabelGpu => T("GPU", "GPU", "GPU");
 	  public static string FloatLabelMem => T("MEM", "MEM", "MEM");
@@ -1188,11 +1124,8 @@ namespace OmenSuperHub {
 	  // ═══ Phase 2: PerfPage.xaml hardcoded strings ═══
 	  public static string PerfPresetLabel => T("预设:", "預設:", "Preset:");
 	  public static string PerfPresetCopyRename => T("复制并重命名预设:", "複製並重新命名預設:", "Copy & Rename Preset:");
-	  // AMD PPT/TDC/EDC
+	  // AMD PPT (TDC/EDC/Tctl removed with advanced tuning)
 	  public static string AmdPptLabel => T("PPT (CPU Package Power) (W)", "PPT (CPU Package Power) (W)", "PPT (CPU Package Power) (W)");
-	  public static string AmdTdcLabel => T("TDC (VRM 持续电流) (A)", "TDC (VRM 持續電流) (A)", "TDC (VRM Continuous Current) (A)");
-	  public static string AmdEdcLabel => T("EDC (VRM 峰值电流) (A)", "EDC (VRM 峰值電流) (A)", "EDC (VRM Peak Current) (A)");
-	  public static string AmdTctlLabel => T("CPU Tctl 硬降频温度 (°C)", "CPU Tctl 硬降頻溫度 (°C)", "CPU Tctl Hard Throttle Temp (°C)");
 	  public static string IccMaxDesc => T(
 	    "限制电流峰值。⚠️ 过低降频易死机，过高可能触发保护。",
 	    "限制電流峰值。⚠️ 過低降頻易死機，過高可能觸發保護。",
@@ -1261,84 +1194,6 @@ namespace OmenSuperHub {
 	    "调节显卡总功耗及动态功耗分配策略。",
 	    "調節顯示卡總功耗及動態功耗分配策略。",
 	    "Adjust total GPU power and dynamic power distribution.");
-	  // Advanced CPU cards
-	  public static string AdvCpuBias => T("CPU 偏向", "CPU 偏向", "CPU Bias");
-	  public static string AdvTurboBoost => T("睿频开关 (MSR 0x1A0)", "睿頻開關 (MSR 0x1A0)", "Turbo Boost (MSR 0x1A0)");
-	  public static string AdvTurboBoostDesc => T(
-	    "直写 MSR 0x1A0 bit 38，关闭/启用 Intel Turbo Boost。",
-	    "直寫 MSR 0x1A0 bit 38，關閉/啟用 Intel Turbo Boost。",
-	    "Write MSR 0x1A0 bit 38 to disable/enable Intel Turbo Boost.");
-	  public static string AdvProchot => T("过温保护偏移 (MSR 0x1A2)", "過溫保護偏移 (MSR 0x1A2)", "PROCHOT Offset (MSR 0x1A2)");
-	  public static string AdvProchotDesc => T(
-	    "调整CPU降频温度阈值。0=最高上限，数值越大越早降频。",
-	    "調整CPU降頻溫度閾值。0=最高上限，數值越大越早降頻。",
-	    "Adjust CPU throttle temp threshold. 0=highest limit, higher=earlier throttle.");
-	  public static string AdvProchotOffset => T("PROCHOT 偏移 (°C)", "PROCHOT 偏移 (°C)", "PROCHOT Offset (°C)");
-	  public static string AdvHwp => T("HWP 能效偏好 (MSR 0x774)", "HWP 能效偏好 (MSR 0x774)", "HWP Energy Efficiency (MSR 0x774)");
-	  public static string AdvHwpDesc => T(
-	    "调节Intel Speed Shift能效/性能偏向。0=最高性能, 255=最高能效。",
-	    "調節Intel Speed Shift能效/性能偏向。0=最高性能, 255=最高能效。",
-	    "Adjust Intel Speed Shift energy/perf bias. 0=max perf, 255=max efficient.");
-	  public static string AdvCState => T("C-State 限制 (MSR 0xE2)", "C-State 限制 (MSR 0xE2)", "C-State Limit (MSR 0xE2)");
-	  public static string AdvCStateDesc => T(
-	    "最大C-State深度。数字越小延迟越低，功耗越高。",
-	    "最大C-State深度。數字越小延遲越低，功耗越高。",
-	    "Max C-State depth. Lower = lower latency, higher power.");
-	  public static string AdvApuPower => T("APU 功耗调教 (SMU)", "APU 功耗調教 (SMU)", "APU Power Tuning (SMU)");
-	  public static string AdvApuPowerDesc => T(
-	    "STAPM 持续功耗 · Fast 峰值 · Slow 平均 · 持续时间窗口。参考 RyzenAdj/UXTU。",
-	    "STAPM 持續功耗 · Fast 峰值 · Slow 平均 · 持續時間窗口。參考 RyzenAdj/UXTU。",
-	    "STAPM sustained power · Fast peak · Slow avg · duration window. See RyzenAdj/UXTU.");
-	  public static string AdvStapmLabel => T("STAPM 持续功耗 (W)", "STAPM 持續功耗 (W)", "STAPM Sustained (W)");
-	  public static string AdvFastPptLabel => T("Fast PPT 峰值功耗 (W)", "Fast PPT 峰值功耗 (W)", "Fast PPT Peak (W)");
-	  public static string AdvSlowPptLabel => T("Slow PPT 平均功耗 (W)", "Slow PPT 平均功耗 (W)", "Slow PPT Average (W)");
-	  public static string AdvStapmDuration => T("STAPM 持续时间 (秒)", "STAPM 持續時間 (秒)", "STAPM Duration (s)");
-	  public static string AdvSlowPptDuration => T("Slow PPT 持续时间 (秒)", "Slow PPT 持續時間 (秒)", "Slow PPT Duration (s)");
-	  public static string AdvVrmCurrent => T("VRM 电流限制 (SMU)", "VRM 電流限制 (SMU)", "VRM Current Limit (SMU)");
-	  public static string AdvVrmCurrentDesc => T(
-	    "CPU/SoC VRM 持续电流 (TDC) 与峰值电流 (EDC)。",
-	    "CPU/SoC VRM 持續電流 (TDC) 與峰值電流 (EDC)。",
-	    "CPU/SoC VRM continuous (TDC) and peak (EDC) current.");
-	  public static string AdvCpuTdcLabel => T("CPU TDC 持续电流 (A)", "CPU TDC 持續電流 (A)", "CPU TDC (A)");
-	  public static string AdvSocTdcLabel => T("SoC TDC 持续电流 (A)", "SoC TDC 持續電流 (A)", "SoC TDC (A)");
-	  public static string AdvCpuEdcLabel => T("CPU EDC 峰值电流 (A)", "CPU EDC 峰值電流 (A)", "CPU EDC (A)");
-	  public static string AdvSocEdcLabel => T("SoC EDC 峰值电流 (A)", "SoC EDC 峰值電流 (A)", "SoC EDC (A)");
-	  public static string AdvTempLimit => T("温度限制 (SMU)", "溫度限制 (SMU)", "Temp Limit (SMU)");
-	  public static string AdvTempLimitDesc => T("Tctl 热阈值 · 皮肤温度限制。", "Tctl 熱閾值 · 皮膚溫度限制。", "Tctl thermal threshold · skin temp limit.");
-	  public static string AdvTctlLimit => T("Tctl 温度上限 (°C)", "Tctl 溫度上限 (°C)", "Tctl Max (°C)");
-	  public static string AdvSkinTemp => T("APU 皮肤温度 (°C)", "APU 皮膚溫度 (°C)", "APU Skin Temp (°C)");
-	  public static string AdvDgpuSkinTemp => T("dGPU 皮肤温度 (°C)", "dGPU 皮膚溫度 (°C)", "dGPU Skin Temp (°C)");
-	  // Advanced GPU cards
-	  public static string AdvGpuTuning => T("NVIDIA GPU Tuning", "NVIDIA GPU Tuning", "NVIDIA GPU Tuning");
-	  public static string AdvGpuTuningDesc => T(
-	    "核心/显存超频 · 功耗墙 · 频率锁 · 电压曲线",
-	    "核心/記憶體超頻 · 功耗牆 · 頻率鎖 · 電壓曲線",
-	    "Core/memory OC · power limit · clock lock · V-F curve");
-	  public static string AdvGpuPowerLimit => T("GPU 功耗墙 (W)", "GPU 功耗牆 (W)", "GPU Power Limit (W)");
-	  public static string AdvVfCurveHeading => T("V-F 曲线编辑器", "V-F 曲線編輯器", "V-F Curve Editor");
-	  public static string AdvVfCurveRead => T("读取曲线", "讀取曲線", "Read Curve");
-	  public static string AdvVfCurveReadTip => T("从 GPU 读取当前 V-F 曲线", "從 GPU 讀取目前 V-F 曲線", "Read current V-F curve from GPU");
-	  public static string AdvVfCurveApply => T("应用曲线", "應用曲線", "Apply Curve");
-	  public static string AdvVfCurveApplyTip => T("将编辑后的曲线写入 GPU（需管理员权限）", "將編輯後的曲線寫入 GPU（需管理員權限）", "Write edited curve to GPU (admin required)");
-	  public static string AdvVfCurveReset => T("恢复默认", "恢復預設", "Reset Defaults");
-	  public static string AdvVfCurveResetTip => T("清除所有 V-F 偏移，恢复出厂曲线", "清除所有 V-F 偏移，恢復出廠曲線", "Clear all V-F offsets, restore factory curve");
-	  public static string AdvRsr => T("RSR", "RSR", "RSR");
-	  public static string AdvRsrSharpness => T("锐度:", "銳度:", "Sharpness:");
-	  public static string AdvIgpuPowerWall => T("iGPU 功耗墙 (MSR 0x621)", "iGPU 功耗牆 (MSR 0x621)", "iGPU Power Limit (MSR 0x621)");
-	  public static string AdvIgpuPowerWallDesc => T(
-	    "直写GT VR功率限制，解锁iGPU功耗上限。",
-	    "直寫GT VR功率限制，解鎖iGPU功耗上限。",
-	    "Write GT VR power limit to unlock iGPU power ceiling.");
-	  public static string AdvIgpuMaxRatio => T("iGPU 最大倍频 (MSR 0x1A2)", "iGPU 最大倍頻 (MSR 0x1A2)", "iGPU Max Ratio (MSR 0x1A2)");
-	  public static string AdvIgpuMaxRatioDesc => T(
-	    "调节iGPU最高运行频率。8=800MHz, 60=6000MHz。⚠️ 过高可能死机。",
-	    "調節iGPU最高運行頻率。8=800MHz, 60=6000MHz。⚠️ 過高可能死機。",
-	    "Set iGPU max clock. 8=800MHz, 60=6000MHz. ⚠️ Too high may crash.");
-	  public static string AdvIgpuClockOverride => T("iGPU 时钟覆盖 (SMU)", "iGPU 時鐘覆蓋 (SMU)", "iGPU Clock Override (SMU)");
-	  public static string AdvIgpuClockOverrideDesc => T(
-	    "强制设定 iGPU 运行频率 (gfx-clk)。0=自动。",
-	    "強制設定 iGPU 運行頻率 (gfx-clk)。0=自動。",
-	    "Force iGPU frequency (gfx-clk). 0=Auto.");
 	  // Perf action button tooltips
 	  public static string PerfBtnResetDefaultsTip => T("恢复默认预设并清空自定义预设", "恢復預設預設並清空自訂預設", "Reset to defaults and clear custom presets");
 	  public static string PerfBtnReloadTip => T("重新加载当前预设的值", "重新載入目前預設的值", "Reload current preset values");
@@ -1354,21 +1209,6 @@ namespace OmenSuperHub {
 	    $"TGP={(tgp ? "开" : "关")}, PPAB={(ppab ? "开" : "关")}, dState={(dstate == 2 ? "低功耗" : "标准")}{tpp}",
 	    $"TGP={(tgp ? "開" : "關")}, PPAB={(ppab ? "開" : "關")}, dState={(dstate == 2 ? "低功耗" : "標準")}{tpp}",
 	    $"TGP={(tgp ? "On" : "Off")}, PPAB={(ppab ? "On" : "Off")}, dState={(dstate == 2 ? "LowPower" : "Standard")}{tpp}");
-	  public static string PerfSmuUnavailable => T(
-	    "SMU 服务不可用 — TDC/EDC 调节需安装 PawnIO 驱动",
-	    "SMU 服務不可用 — TDC/EDC 調節需安装 PawnIO 驅動",
-	    "SMU service unavailable — TDC/EDC adjustment requires PawnIO driver");
-
-	  // ponytail: advanced-tuning failure strings (AdvWriteFail / AdvDriverNotReady /
-	  // AdvInstallOmenDriver / AdvDriverInstallOk / AdvDriverInstallFail /
-	  // AdvNeedAdmin / AdvInstallPawnIoGuide) are defined up in the
-	  // "Advanced CPU Tuning cards" block. This block keeps one source of truth.
-	  public static string PerfAdlxConnected => T(
-	    "ADLX 已连接 - RSR/Anti-Lag/Enhanced Sync/Boost/Image Sharpening",
-	    "ADLX 已連接 - RSR/Anti-Lag/Enhanced Sync/Boost/Image Sharpening",
-	    "ADLX Connected - RSR/Anti-Lag/Enhanced Sync/Boost/Image Sharpening");
-	  public static string PerfAutoOcEnabled => T("AutoOC 已启用 (SDK)", "AutoOC 已啟用 (SDK)", "AutoOC Enabled (SDK)");
-	  public static string PerfAutoOcDisabled => T("已禁用", "已禁用", "Disabled");
 	  public static string PerfStatusUnavailable => T("不可用", "不可用", "Unavailable");
 	  public static string PerfStatusCurrent => T("当前: ", "目前: ", "Current: ");
 	  public static string PerfPowerPlanSelectFirst => T("请先选择电源计划", "請先選擇電源計劃", "Please select a power plan first");
@@ -1376,32 +1216,6 @@ namespace OmenSuperHub {
 	    $"已应用{dcac}设置", $"已應用{dcac}設置", $"Applied {dcac} settings");
 	  public static string PerfPowerPlanApplyFailed(string msg) => T(
 	    $"应用失败: {msg}", $"應用失敗: {msg}", $"Apply failed: {msg}");
-	  // V-F Curve status
-	  public static string PerfVfReading => T("正在读取 V-F 曲线...", "正在讀取 V-F 曲線...", "Reading V-F curve...");
-	  public static string PerfVfReadDone(int count) => T(
-	    $"已加载 {count} 个曲线点 — 拖拽点调频、Ctrl+点击锁平高频段",
-	    $"已載入 {count} 個曲線點 — 拖拽點調頻、Ctrl+點擊鎖平高頻段",
-	    $"Loaded {count} curve points — drag to adjust freq, Ctrl+click to flatten high end");
-	  public static string PerfVfReadFail => T("无法读取 V-F 曲线，请确认 NVIDIA 驱动已加载", "無法讀取 V-F 曲線，請確認 NVIDIA 驅動已載入", "Cannot read V-F curve. Ensure NVIDIA driver is loaded");
-	  public static string PerfVfEdited(int count) => T(
-	    $"已编辑 {count} 个点 — 点击 [应用曲线] 写入 GPU",
-	    $"已編輯 {count} 個點 — 點擊 [應用曲線] 寫入 GPU",
-	    $"Edited {count} points — click [Apply Curve] to write GPU");
-	  public static string PerfVfNoChanges => T("曲线无修改", "曲線無修改", "No changes");
-	  public static string PerfVfReadFirst => T("请先读取 V-F 曲线", "請先讀取 V-F 曲線", "Read V-F curve first");
-	  public static string PerfVfWriting => T("正在写入 V-F 曲线...", "正在寫入 V-F 曲線...", "Writing V-F curve...");
-	  public static string PerfVfWriteDone(int wrote, int matched, int total) => T(
-	    $"应用成功 — 写入 {wrote} 点，回读验证 {matched}/{total} 点匹配",
-	    $"應用成功 — 寫入 {wrote} 點，回讀驗證 {matched}/{total} 點匹配",
-	    $"Applied — wrote {wrote} points, readback verified {matched}/{total} points");
-	  public static string PerfVfWritePartial(int wrote, int matched) => T(
-	    $"写入 {wrote} 点但回读验证仅 {matched} 点匹配 — GPU 可能不支持 V-F 曲线编辑（OEM 锁）",
-	    $"寫入 {wrote} 點但回讀驗證僅 {matched} 點匹配 — GPU 可能不支援 V-F 曲線編輯（OEM 鎖）",
-	    $"Wrote {wrote} points but only {matched} verified — GPU may not support V-F editing (OEM lock)");
-	  public static string PerfVfWriteFail => T("V-F 曲线写入失败，请检查 NVIDIA 驱动", "V-F 曲線寫入失敗，請檢查 NVIDIA 驅動", "V-F curve write failed. Check NVIDIA driver");
-	  public static string PerfVfRestoring => T("正在恢复默认 V-F 曲线...", "正在恢復預設 V-F 曲線...", "Restoring default V-F curve...");
-	  public static string PerfVfRestoreDone => T("已恢复默认 V-F 曲线（所有偏移归零）", "已恢復預設 V-F 曲線（所有偏移歸零）", "Restored default V-F curve (all offsets zeroed)");
-	  public static string PerfVfRestoreFail => T("恢复默认失败，请检查 NVIDIA 驱动", "恢復預設失敗，請檢查 NVIDIA 驅動", "Restore failed. Check NVIDIA driver");
 	  // Dialog messages
 	  public static string PerfDeleteBuiltinPreset => T("内置预设不可删除。请先切换到自定义预设。", "內建預設不可刪除。請先切換到自訂預設。", "Cannot delete built-in preset. Switch to a custom preset first.");
 	  public static string PerfDeleteConfirmMsg(string name) => T(
@@ -1482,6 +1296,7 @@ namespace OmenSuperHub {
 	  public static string AutoNoPipelinesText => T("当前没有自动化脚本，请点击「新建」来新建一项。", "目前沒有自動化腳本，請點擊「新建」來新建一項。", "No automation pipelines yet. Click New to create one.");
 	  public static string AutoNoQuickActionsText => T("没有快捷操作，请点击「新建」来新建快捷操作。", "沒有快捷操作，請點擊「新建」來新建快捷操作。", "No quick actions yet. Click New to create one.");
 	  public static string AutoAddNew => T("新建", "新建", "New");
+	  public static string AutoAddDisabledTooltip => T("需先启用顶部的「启用自动化」开关才能新建", "需先啟用頂部的「啟用自動化」開關才能新建", "Enable \"Enable Automation\" above to create new pipelines");
 	  public static string AutoQuickActionsDesc => T("你可以在系统托盘的图标上右键来快速触发这些快捷操作。", "你可以在系統托盤的圖示上按右鍵來快速觸發這些快捷操作。", "Right-click the tray icon to quickly trigger these actions.");
 	  
 	  // ponytail: PerfPage C-State combo items used in code-behind

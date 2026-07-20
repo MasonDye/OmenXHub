@@ -37,7 +37,7 @@
           </Grid.ColumnDefinitions>
           <StackPanel Orientation="Horizontal">
             <ui:SymbolIcon Symbol="Keyboard24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBlock Text="宏列表" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <TextBlock Text="{x:Static app:Strings.MacroListHeading}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
           </StackPanel>
           <Button x:Name="AddMacroBtn" Grid.Column="1" MinWidth="90" Height="30"
                   Padding="10,0" FontSize="12" Click="AddMacro_Click">

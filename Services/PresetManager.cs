@@ -46,10 +46,8 @@ namespace OmenSuperHub.Services {
     [DataMember(Order = 20)] public string CustomPresetName { get; set; } = "";
 
     // ── AMD CPU 调校参数 ──
+    // ponytail: TDC/EDC/Tctl 已随高级调教删除（依赖 SMU 服务，本机不可用）；仅保留 PPT 走 WMI。
     [DataMember(Order = 21)] public int AmdCpuPpt { get; set; }
-    [DataMember(Order = 22)] public int AmdCpuTdc { get; set; }
-    [DataMember(Order = 23)] public int AmdCpuEdc { get; set; }
-    [DataMember(Order = 24)] public int AmdCpuTctl { get; set; }
     internal bool IsFromCustomSubkey { get; set; } = false;
   }
 
@@ -108,15 +106,15 @@ namespace OmenSuperHub.Services {
           d.PowerMode = 1;  // 平衡
           d.GpuClock = 0;   // 无限制
           d.TgpEnabled = true; d.PpabEnabled = true; d.Tpp = 254;
-          d.AmdCpuPpt = 254; d.AmdCpuTdc = 200; d.AmdCpuEdc = 300; d.AmdCpuTctl = 95;
+          d.AmdCpuPpt = 254;
           break;
         case "GpuPriority":
           d.CpuPower = "55 W"; d.CpuPowerPl1 = 55; d.CpuPowerPl2 = 55;
-          d.FanTable = "cool"; d.FanControl = "auto";
+          d.FanTable = "balanced"; d.FanControl = "auto";
           d.PowerMode = 0;  // 最佳能效
           d.GpuClock = 0;
           d.TgpEnabled = true; d.PpabEnabled = true; d.Tpp = 254;
-          d.AmdCpuPpt = 55; d.AmdCpuTdc = 80; d.AmdCpuEdc = 160; d.AmdCpuTctl = 95;
+          d.AmdCpuPpt = 55;
           break;
         case "LightUse":
           d.CpuPower = "25 W"; d.CpuPowerPl1 = 25; d.CpuPowerPl2 = 25;
@@ -124,7 +122,7 @@ namespace OmenSuperHub.Services {
           d.PowerMode = 0;  // 最佳能效
           d.GpuClock = 0;
           d.TgpEnabled = false; d.PpabEnabled = false; d.Tpp = 0;
-          d.AmdCpuPpt = 30; d.AmdCpuTdc = 40; d.AmdCpuEdc = 80; d.AmdCpuTctl = 85;
+          d.AmdCpuPpt = 30;
           break;
       }
       return d;
@@ -164,9 +162,6 @@ namespace OmenSuperHub.Services {
 
       // ── AMD CPU 调校（始终写入，内置预设也有意义） ──
       if (d.AmdCpuPpt > 0) ConfigService.AmdCpuPpt = d.AmdCpuPpt;
-      if (d.AmdCpuTdc > 0) ConfigService.AmdCpuTdc = d.AmdCpuTdc;
-      if (d.AmdCpuEdc > 0) ConfigService.AmdCpuEdc = d.AmdCpuEdc;
-      if (d.AmdCpuTctl > 0) ConfigService.AmdCpuTctl = d.AmdCpuTctl;
 
       // ── 1.2 自定义预设专属绑定参数 (仅自定义预设) ──
       // 内置预设不触碰这些参数，保持独立 (dState 默认正常=1，其他保持原值)
@@ -192,8 +187,7 @@ namespace OmenSuperHub.Services {
         ConfigService.Save("FanTable"); ConfigService.Save("FanControl"); ConfigService.Save("PowerMode");
         ConfigService.Save("GpuClock"); ConfigService.Save("TgpEnabled"); ConfigService.Save("PpabEnabled");
         ConfigService.Save("Tpp");
-        ConfigService.Save("AmdCpuPpt"); ConfigService.Save("AmdCpuTdc");
-        ConfigService.Save("AmdCpuEdc"); ConfigService.Save("AmdCpuTctl");
+        ConfigService.Save("AmdCpuPpt");
         if (d.IsFromCustomSubkey) {
           ConfigService.Save("DState"); ConfigService.Save("MaxFrameRate"); ConfigService.Save("RefreshRate");
           ConfigService.Save("GpuCoreOverclock"); ConfigService.Save("GpuMemoryOverclock");
@@ -220,9 +214,6 @@ namespace OmenSuperHub.Services {
         Tpp = ConfigService.Tpp,
         // AMD CPU 调校
         AmdCpuPpt = ConfigService.AmdCpuPpt,
-        AmdCpuTdc = ConfigService.AmdCpuTdc,
-        AmdCpuEdc = ConfigService.AmdCpuEdc,
-        AmdCpuTctl = ConfigService.AmdCpuTctl,
         // 1.2
         DState = ConfigService.DState,
         MaxFrameRate = ConfigService.MaxFrameRate,
@@ -337,11 +328,8 @@ namespace OmenSuperHub.Services {
         key.SetValue("EcoQosThrottlePlugged", d.EcoQosThrottlePlugged ? 1 : 0);
         // ponytail: AMD CPU tuning — JSON path stores these via DataMember, but the
         // registry fallback omitted them, so an AMD machine falling back to registry
-        // silently dropped PPT/TDC/EDC/Tctl. Keep in sync with the JSON member set.
+        // silently dropped PPT. Keep in sync with the JSON member set. (TDC/EDC/Tctl removed.)
         key.SetValue("AmdCpuPpt", d.AmdCpuPpt);
-        key.SetValue("AmdCpuTdc", d.AmdCpuTdc);
-        key.SetValue("AmdCpuEdc", d.AmdCpuEdc);
-        key.SetValue("AmdCpuTctl", d.AmdCpuTctl);
         if (!string.IsNullOrEmpty(d.CustomPresetName)) key.SetValue("CustomPresetName", d.CustomPresetName);
       }
     }
@@ -372,11 +360,8 @@ namespace OmenSuperHub.Services {
         d.CoreKeepEnabled = Convert.ToInt32(key.GetValue("CoreKeepEnabled", 0)) == 1;
         d.EcoQosEnabled = Convert.ToInt32(key.GetValue("EcoQosEnabled", 0)) == 1;
         d.EcoQosThrottlePlugged = Convert.ToInt32(key.GetValue("EcoQosThrottlePlugged", 0)) == 1;
-        // ponytail: AMD CPU tuning — match SaveCustomPresetToRegistry.
+        // ponytail: AMD CPU tuning — match SaveCustomPresetToRegistry. (TDC/EDC/Tctl removed.)
         d.AmdCpuPpt = (int)key.GetValue("AmdCpuPpt", d.AmdCpuPpt);
-        d.AmdCpuTdc = (int)key.GetValue("AmdCpuTdc", d.AmdCpuTdc);
-        d.AmdCpuEdc = (int)key.GetValue("AmdCpuEdc", d.AmdCpuEdc);
-        d.AmdCpuTctl = (int)key.GetValue("AmdCpuTctl", d.AmdCpuTctl);
       }
       return d;
     }
@@ -398,6 +383,32 @@ namespace OmenSuperHub.Services {
         data = LoadCustomPreset(preset) ?? GetBuiltInDefaults("GpuPriority");
 
       if (data == null) return;
+
+      // ponytail: 内置预设出厂默认把 FanControl 写死成 "auto"。但用户在该预设下手改过
+      // RPM（如 Extreme→4500 RPM）后，ApplyPresetData 会用硬编码默认覆盖回 auto，造成
+      // "上次手动转速没保存"。这里读回 Presets\<preset> 子键里已存的 FanControl（见
+      // ConfigService.SavePresetFanControl 由 FanPage 拖动 RPM 时写入），用用户值覆盖硬编码默认。
+      // 关键: 只覆盖 FanControl，**不覆盖 FanTable**。FanTable 是预设语义的固有映射
+      // (Extreme=cool / GpuPriority=balanced / LightUse=silent)，跨预设切换应回归预设默认，
+      // 旧版本残留的子键 FanTable=cool 也会让 GpuPriority 默认 balanced 被错误覆盖回 cool。
+      // 用户主动切档（silent/cool/balanced）的偏好通过全局 FanTable 注册表键保留 — 不持久化到预设子键。
+      // 子键不存在 (新机器或未改过风扇) → 保持硬编码默认，行为不变。
+      try {
+        using (var key = Registry.CurrentUser.OpenSubKey(PresetSubKey(preset))) {
+          if (key != null) {
+            var savedFc = key.GetValue("FanControl") as string;
+            // ponytail: 仅保留用户手改的 RPM 形态（"4000 RPM"/"60%"），不保留 "smart"/"auto"/""
+            // —— 后者会被 ApplyPresetData 用预设默认重置，但若用户在某预设下切到 smart 模式且
+            // 走 fan mode 切换路径会被 SaveCustomPreset 处理（仅自定义预设）。Built-in 预设下的
+            // smart 选择仅在当前会话有效（FC 字符串=smart 走 ApplyPresetHardware smart 分支），
+            // 不应跨会话覆盖预设语义 "auto" → 跳过。
+            if (!string.IsNullOrEmpty(savedFc)
+                && (savedFc.Contains(" RPM") || savedFc.EndsWith("%"))) {
+              data.FanControl = savedFc;
+            }
+          }
+        }
+      } catch { }
 
       // 1. 写入 ConfigService (1.1 始终写入，1.2 仅自定义)
       ApplyPresetData(data);
@@ -472,115 +483,14 @@ namespace OmenSuperHub.Services {
     }
 
     // ═══════════════════════════════════════════════════════
-    // ponytail: advanced-tuning reapply. One source of truth shared by
-    // ApplyPresetHardware (preset switch / boot) and PerfPage.Reload.
-    // MasterToggle gates each card; values default to 0 / "off" so unset
-    // items are skipped. Ceiling: HVCI/VBS systems may reject MSR writes
-    // at the driver layer — the handlers in PerfPage already surface
-    // AdvWriteFail for that; bounds clamp is in the service layer.
-    /// <summary>
-    /// Reapply advanced CPU tuning to hardware. Call from any page that just
-    /// reloaded advanced settings (e.g. PerfPage Reload), so slider updates
-    /// actually reach the MSR / SMU backend instead of moving UI silently.
-    /// </summary>
+    // ponytail: 高级调教已全数移除（机型不可用）。仅保留 AMD PPT 经 WMI 复写，
+    // 作为预设切换 / PerfPage.Reload 后的状态恢复入口。
+    // 上限：WMI 路径仅接受 0~255W；超过此范围的 PPT 由 PerfPage 滑条上限约束。
     internal static void ApplyAdvanced() {
-      try { if (OmenHardware.HasIntelCpu()) ApplyIntelAdvanced(); } catch { }
-      try { if (OmenHardware.HasAmdCpu())   ApplyAmdAdvanced();   } catch { }
-    }
-
-    static void ApplyIntelAdvanced() {
-      if (!IntelAdvancedService.IsAvailable) return;
-
-      // FIVR voltage offsets (MSR 0x150) — squares with PerfPage.ApplyFivr()
-      if (ConfigService.FivrMasterEnabled) {
-        IntelAdvancedService.ApplyValuesAsync(new[] {
-          (24u, (decimal)ConfigService.FivrCoreOffset),
-          (25u, (decimal)ConfigService.FivrCacheOffset),
-          (26u, (decimal)ConfigService.FivrIgpuOffset),
-          (27u, (decimal)ConfigService.FivrSaOffset)
-        }).GetAwaiter().GetResult();
-      }
-      // Per-core clock ratios (MSR 0x1AD)
-      if (ConfigService.ClockRatioMasterEnabled) {
-        var parts = ConfigService.PerCoreRatios.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-        int cc = IntelAdvancedService.CoreCount;
-        if (parts.Length >= cc) {
-          int[] all = parts.Take(cc).Select(t => int.TryParse(t, out var v) ? v : ConfigService.ClockRatio).ToArray();
-          IntelAdvancedService.SetPerCoreRatiosAsync(all).GetAwaiter().GetResult();
-        } else if (ConfigService.ClockRatio > 0) {
-          IntelAdvancedService.SetClockRatioAsync(ConfigService.ClockRatio).GetAwaiter().GetResult();
-        }
-      }
-      // Power balance (MSR 0x63A / 0x642)
-      if (ConfigService.PowerBalanceMasterEnabled)
-        IntelAdvancedService.SetPowerBalanceAsync(ConfigService.PowerBalance).GetAwaiter().GetResult();
-      // PawnIO MSR cards — match the original 6-item stub, all zero-safe
-      int cs = ConfigService.PawnCStateLimit;
-      if (cs > 0) IntelAdvancedService.SetCStateLimitAsync(cs).GetAwaiter().GetResult();
-      IntelAdvancedService.SetTurboBoostAsync(ConfigService.PawnTurboEnabled).GetAwaiter().GetResult();
-      IntelAdvancedService.SetHwpEppAsync(ConfigService.PawnHwpEpp).GetAwaiter().GetResult();
-      IntelAdvancedService.SetProchotOffsetAsync(ConfigService.PawnProchotOffset).GetAwaiter().GetResult();
-      if (ConfigService.PawnIgpuPower > 0) IntelAdvancedService.SetIgpuPowerLimitAsync(ConfigService.PawnIgpuPower).GetAwaiter().GetResult();
-      if (ConfigService.PawnIgpuRatio > 0) IntelAdvancedService.SetIgpuMaxRatioAsync(ConfigService.PawnIgpuRatio).GetAwaiter().GetResult();
-    }
-
-    static void ApplyAmdAdvanced() {
-      // PPT/TDC/EDC/Tctl — WMI first for PPT, then SMU
-      if (ConfigService.AmdCpuPpt > 0) {
-        bool pptOk = ConfigService.AmdCpuPpt <= 255 && OmenHardware.SetCpuPowerLimit((byte)ConfigService.AmdCpuPpt);
-        if (!pptOk && AmdAdvancedService.IsAvailable)
-          AmdAdvancedService.SetPptLimit((uint)ConfigService.AmdCpuPpt * 1000);
-      }
-      if (ConfigService.AmdCpuTdc > 0 && AmdAdvancedService.IsAvailable) AmdAdvancedService.SetTdcLimit((uint)ConfigService.AmdCpuTdc * 1000);
-      if (ConfigService.AmdCpuEdc > 0 && AmdAdvancedService.IsAvailable) AmdAdvancedService.SetEdcLimit((uint)ConfigService.AmdCpuEdc * 1000);
-      if (ConfigService.AmdCpuTctl > 0 && AmdAdvancedService.IsAvailable) AmdAdvancedService.SetTctlTemp((uint)ConfigService.AmdCpuTctl);
-      // PBO Scalar — only when master on and PBO is non-auto
-      if (ConfigService.PboScalarMasterEnabled && AmdAdvancedService.IsAvailable && ConfigService.PboScalar != 0)
-        AmdAdvancedService.SetPboAsync(true).GetAwaiter().GetResult();
-      // Curve Optimiser — all-core / iGPU / per-CCD
-      if (ConfigService.CoMasterEnabled && AmdAdvancedService.IsAvailable) {
-        if (ConfigService.CoAllCoreOffset != 0)
-          AmdAdvancedService.SetCurveOptimizerAsync((short)ConfigService.CoAllCoreOffset).GetAwaiter().GetResult();
-        if (ConfigService.CoIGpuOffset != 0)
-          AmdAdvancedService.SetCurveOptimizerIGpu(ConfigService.CoIGpuOffset);
-        for (int i = 0; i < ConfigService.CoPerCore.Length; i++) {
-          int v = ConfigService.CoPerCore[i];
-          if (v == 0) continue;
-          int ccd = i / 12;
-          int coreLocal = i % 12;
-          if (ccd > 1 || coreLocal > 11) continue;
-          AmdAdvancedService.SetCurveOptimizerPerCore(ccd, coreLocal, v);
-        }
-      }
-      // APU STAPM / Fast / Slow PPT + time windows
-      if (ConfigService.ApuPowerMasterEnabled && AmdAdvancedService.IsAvailable) {
-        if (ConfigService.AmdStapmLimit > 0) AmdAdvancedService.SetStapmLimit((uint)ConfigService.AmdStapmLimit * 1000);
-        if (ConfigService.AmdFastLimit  > 0) AmdAdvancedService.SetFastLimit ((uint)ConfigService.AmdFastLimit  * 1000);
-        if (ConfigService.AmdSlowLimit  > 0) AmdAdvancedService.SetSlowLimit ((uint)ConfigService.AmdSlowLimit  * 1000);
-        if (ConfigService.AmdStapmTime > 0)  AmdAdvancedService.SetStapmTime ((uint)ConfigService.AmdStapmTime);
-        if (ConfigService.AmdSlowTime  > 0)  AmdAdvancedService.SetSlowTime  ((uint)ConfigService.AmdSlowTime);
-      }
-      // APU VRM current limits (TDC / SoC TDC / EDC / SoC EDC)
-      if (ConfigService.ApuVrmMasterEnabled && AmdAdvancedService.IsAvailable) {
-        if (ConfigService.AmdVrmCurrent    > 0) AmdAdvancedService.SetVrmCurrent    ((uint)ConfigService.AmdVrmCurrent    * 1000);
-        if (ConfigService.AmdVrmSocCurrent> 0)  AmdAdvancedService.SetVrmSocCurrent ((uint)ConfigService.AmdVrmSocCurrent * 1000);
-        if (ConfigService.AmdVrmMaxCurrent > 0) AmdAdvancedService.SetVrmMaxCurrent ((uint)ConfigService.AmdVrmMaxCurrent * 1000);
-        if (ConfigService.AmdVrmSocMaxCurrent> 0) AmdAdvancedService.SetVrmSocMaxCurrent ((uint)ConfigService.AmdVrmSocMaxCurrent * 1000);
-      }
-      // APU temperature limits (Tctl / APU skin / dGPU skin)
-      if (ConfigService.ApuTempMasterEnabled && AmdAdvancedService.IsAvailable) {
-        if (ConfigService.AmdTctlTemp    > 0) AmdAdvancedService.SetTctlTemp     ((uint)ConfigService.AmdTctlTemp);
-        if (ConfigService.AmdApuSkinTemp > 0) AmdAdvancedService.SetApuSkinTemp  ((uint)ConfigService.AmdApuSkinTemp);
-        if (ConfigService.AmdDgpuSkinTemp> 0) AmdAdvancedService.SetDgpuSkinTemp ((uint)ConfigService.AmdDgpuSkinTemp);
-      }
-      // AutoOC — simply toggles PBO/CO; re-issued so presets pick up the on/off state.
-      if (ConfigService.AutoOcEnabled && AmdAdvancedService.IsAvailable && ConfigService.CoAllCoreOffset != 0)
-        AmdAdvancedService.SetAutoOcOffsetAsync(
-          ConfigService.CoAllCoreOffset > 0 ? ConfigService.CoAllCoreOffset : -ConfigService.CoAllCoreOffset
-        ).GetAwaiter().GetResult();
-      // iGPU clock override (PSMU gfx-clk)
-      if (ConfigService.ApuGfxClkMasterEnabled && AmdAdvancedService.IsAvailable && ConfigService.AmdGfxClk > 0)
-        AmdAdvancedService.SetGfxClk((uint)ConfigService.AmdGfxClk);
+      try {
+        if (OmenHardware.HasAmdCpu() && ConfigService.AmdCpuPpt > 0 && ConfigService.AmdCpuPpt <= 255)
+          OmenHardware.SetCpuPowerLimit((byte)ConfigService.AmdCpuPpt);
+      } catch { }
     }
 
     // ═══════════════════════════════════════════════════════
@@ -623,15 +533,8 @@ namespace OmenSuperHub.Services {
         try { OmenHardware.SetGpuPowerState(tgp, ppab, ConfigService.DState == 2 ? 2 : 1); } catch { }
         try { ApplyPowerModeOverlay(powerMode); } catch { }
 
-        // AMD CPU 调校（仅 AMD 平台，若 SMU 可用则始终应用） ──
-        // ponytail: Intel/AMD advanced-tuning reapply consolidated into
-        // ApplyIntelAdvanced / ApplyAmdAdvanced. Previously only 6 MSR + 4 SMU
-        // values were reapplied, so FIVR / clock ratio / power balance / PBO
-        // scalar / Curve Optimiser / APU STAPM-Fast-Slow + time windows /
-        // VRM TDC-EDC / APU temps / AutoOC / ApuGfxClk were set once on first
-        // slider move and lost on every preset switch / reload.
-        try { if (OmenHardware.HasIntelCpu()) ApplyIntelAdvanced(); } catch { }
-        try { if (OmenHardware.HasAmdCpu())   ApplyAmdAdvanced();   } catch { }
+        // ponytail: 高级调教已删除；ApplyAdvanced 现仅写 AMD PPT 经 WMI。
+        try { ApplyAdvanced(); } catch { }
 
         // ── 风扇配置 ──
         try {
@@ -651,7 +554,11 @@ namespace OmenSuperHub.Services {
             if (speed < 0) speed = 0; if (speed > 100) speed = 100;
             OmenHardware.SetFanLevel(speed, speed);
           } else {
-            string table = ft == "cool" ? "cool.txt" : "silent.txt";
+            // ponytail: 按 FanTable 选用全局曲线文件 —— cool/silent/balanced 三档平级。
+            // balanced.txt = G-Helper Balanced (主要给 GpuPriority 预设用)。
+            string table = ft == "cool" ? "cool.txt"
+                         : ft == "balanced" ? "balanced.txt"
+                         : "silent.txt";
             FanService.LoadFanConfig(table);
           }
         } catch { }

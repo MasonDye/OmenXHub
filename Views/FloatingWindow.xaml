@@ -1,7 +1,8 @@
 <Window x:Class="OmenSuperHub.Views.FloatingWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        WindowStyle="None" AllowsTransparency="True"
+	        xmlns:app="clr-namespace:OmenSuperHub"
+	        WindowStyle="None" AllowsTransparency="True"
         Background="Transparent" Topmost="True"
         ShowInTaskbar="False" ShowActivated="False"
         SizeToContent="WidthAndHeight"
@@ -20,11 +21,12 @@
   <Grid Background="Transparent" MouseLeftButtonDown="ContentBorder_MouseLeftButtonDown">
     <!-- ponytail: no background — text floats on desktop directly -->
     <Border CornerRadius="4" Padding="4">
-      <StackPanel x:Name="DataPanel">
+      <!-- ponytail: StackPanel 横排时每项数据 TextBlock 由 .cs 里给的固定 em-width 占位,数字位数变化不再挤动整窗 -->
+      <StackPanel x:Name="DataPanel" HorizontalAlignment="Left">
         <!-- ponytail: separator `|` lives inside each row so it hides when the row is collapsed -->
         <!-- CPU Row -->
         <StackPanel x:Name="CpuRow" Orientation="Horizontal" Margin="0">
-          <TextBlock Text="CPU" FontFamily="Consolas"
+	          <TextBlock Text="{x:Static app:Strings.FloatLabelCpu}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="CpuLabel"/>
           <TextBlock x:Name="CpuTempText" FontFamily="Consolas"
@@ -38,7 +40,7 @@
         </StackPanel>
         <!-- GPU Row -->
         <StackPanel x:Name="GpuRow" Orientation="Horizontal" Margin="0">
-          <TextBlock Text="GPU" FontFamily="Consolas"
+	          <TextBlock Text="{x:Static app:Strings.FloatLabelGpu}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="GpuLabel"/>
           <TextBlock x:Name="GpuTempText" FontFamily="Consolas"
@@ -52,7 +54,7 @@
         </StackPanel>
         <!-- Memory Row -->
         <StackPanel x:Name="MemRow" Orientation="Horizontal" Margin="0">
-          <TextBlock Text="MEM" FontFamily="Consolas"
+	          <TextBlock Text="{x:Static app:Strings.FloatLabelMem}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#66BB6A" VerticalAlignment="Center" x:Name="MemLabel"/>
           <TextBlock x:Name="MemPctText" FontFamily="Consolas"
@@ -66,7 +68,7 @@
         </StackPanel>
         <!-- Network Row -->
         <StackPanel x:Name="NetRow" Orientation="Horizontal" Margin="0">
-          <TextBlock Text="NET" FontFamily="Consolas"
+	          <TextBlock Text="{x:Static app:Strings.FloatLabelNet}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#4DD0E1" VerticalAlignment="Center" x:Name="NetLabel"/>
           <TextBlock x:Name="NetDownText" FontFamily="Consolas"
@@ -80,21 +82,24 @@
         </StackPanel>
         <!-- FPS Row -->
         <StackPanel x:Name="FpsRow" Orientation="Horizontal" Margin="0">
-          <TextBlock Text="FPS" FontFamily="Consolas"
+	          <TextBlock Text="{x:Static app:Strings.FloatLabelFps}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#FF9800" VerticalAlignment="Center" x:Name="FpsLabel"/>
-          <TextBlock x:Name="FpsValueText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#FF9800" Margin="4,0,0,0" VerticalAlignment="Center"/>
-          <TextBlock x:Name="FpsAppText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="11"
-                     Foreground="#AAA" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <!-- ponytail: FPS value + app name stacked vertically inside the bar item, app name on its own line below the number -->
+          <StackPanel Orientation="Vertical" Margin="4,0,0,0">
+            <TextBlock x:Name="FpsValueText" FontFamily="Consolas"
+                       FontWeight="Bold" FontSize="13"
+                       Foreground="#FF9800" VerticalAlignment="Center"/>
+            <TextBlock x:Name="FpsAppText" FontFamily="Consolas"
+                       FontWeight="Bold" FontSize="11"
+                       Foreground="#AAA" VerticalAlignment="Center"/>
+          </StackPanel>
           <TextBlock x:Name="Sep5" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
                      Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
         </StackPanel>
         <!-- Fan Row (last row — no trailing separator) -->
         <StackPanel x:Name="FanRow" Orientation="Horizontal" Margin="0">
-          <TextBlock Text="FAN" FontFamily="Consolas"
+	          <TextBlock Text="{x:Static app:Strings.FloatLabelFan}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#4FC3F7" VerticalAlignment="Center" x:Name="FanLabel"/>
           <TextBlock x:Name="FanSpeedText" FontFamily="Consolas"
