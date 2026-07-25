@@ -421,6 +421,41 @@ namespace OmenSuperHub.Services {
       return LoadCurveFromFile(path);
     }
 
+    // ponytail: smart 参数按预设持久化到 FanCurves/custom_<preset>_smart.txt，
+    // 与曲线文件同目录同生命周期。文件不存在时返回 null，调用方继承当前内存值
+    // (对齐 EnsurePresetCurveFile 的"克隆当前内存"语义)。
+    // 升级路径: 与曲线一起搬进 PresetData JSON。
+    public static string PresetSmartParamsPath(string presetKey) =>
+        Path.Combine(FanCurvesDir, $"custom_{presetKey}_smart.txt");
+
+    public static void SavePresetSmartParams(string presetKey, float emaAlpha, int stepDown, float hysteresis) {
+      string path = PresetSmartParamsPath(presetKey);
+      Directory.CreateDirectory(Path.GetDirectoryName(path));
+      var lines = new[] {
+        $"FanSmartEmaAlpha={emaAlpha.ToString(System.Globalization.CultureInfo.InvariantCulture)}",
+        $"FanSmartStepDown={stepDown}",
+        $"FanSmartHysteresis={hysteresis.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+      };
+      File.WriteAllLines(path, lines);
+    }
+
+    public static (float emaAlpha, int stepDown, float hysteresis)? LoadPresetSmartParams(string presetKey) {
+      string path = PresetSmartParamsPath(presetKey);
+      if (!File.Exists(path)) return null;
+      float? alpha = null; int? stepDown = null; float? hy = null;
+      foreach (var line in File.ReadAllLines(path)) {
+        int eq = line.IndexOf('=');
+        if (eq < 0) continue;
+        string k = line.Substring(0, eq).Trim();
+        string v = line.Substring(eq + 1).Trim();
+        if (k == "FanSmartEmaAlpha" && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float a)) alpha = a;
+        else if (k == "FanSmartStepDown" && int.TryParse(v, out int s)) stepDown = s;
+        else if (k == "FanSmartHysteresis" && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float h)) hy = h;
+      }
+      if (alpha.HasValue && stepDown.HasValue && hy.HasValue) return (alpha.Value, stepDown.Value, hy.Value);
+      return null;
+    }
+
     // ponytail: 创建自定义预设时不预生成曲线文件的话，首次重启会回退到默认曲线，
     // 而默认曲线与用户预期不符。早期实现无条件落盘 GetDefaultPresetCurve(presetKey)
     // (balanced 档)，新建"Game"预设用户期望继承当前预设的曲线却拿到平衡曲线。

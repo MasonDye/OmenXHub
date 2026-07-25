@@ -90,15 +90,8 @@
     </Setter>
   </Style>
 
-  <Style x:Key="OmenWindow" TargetType="Window">
-    <Setter Property="Background" Value="{DynamicResource BgPrimaryBrush}"/>
-    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
-    <Setter Property="FontSize" Value="13"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
-    <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
-  </Style>
+  <!-- ponytail: OmenWindow/OmenTabControl/OmenTabItem/OmenHeading/OmenSubHeading/OmenBody/
+       OmenCaption/OmenStatValue/OmenStatUnit/OmenToolTip/OmenGroupCard/OmenProgressBar 0 引用已删除 -->
 
   <Style TargetType="Hyperlink">
     <Setter Property="Foreground" Value="{DynamicResource AccentOmenBrush}"/>
@@ -108,133 +101,6 @@
         <Setter Property="Foreground" Value="{DynamicResource AccentOmenLightBrush}"/>
       </Trigger>
     </Style.Triggers>
-  </Style>
-
-  <Style x:Key="OmenTabControl" TargetType="TabControl">
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="Padding" Value="0"/>
-  </Style>
-
-  <Style x:Key="OmenTabItem" TargetType="TabItem">
-    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
-    <Setter Property="FontSize" Value="13"/>
-    <Setter Property="Padding" Value="16,10"/>
-    <Setter Property="Cursor" Value="Hand"/>
-    <Setter Property="Template">
-      <Setter.Value>
-        <ControlTemplate TargetType="TabItem">
-          <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}"
-                  BorderThickness="0,0,0,2" BorderBrush="Transparent" SnapsToDevicePixels="True">
-            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-          </Border>
-          <ControlTemplate.Triggers>
-            <Trigger Property="IsSelected" Value="True">
-              <Setter Property="Foreground" Value="{DynamicResource AccentOmenBrush}"/>
-              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentOmenBrush}"/>
-            </Trigger>
-            <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgHoverBrush}"/>
-            </Trigger>
-          </ControlTemplate.Triggers>
-        </ControlTemplate>
-      </Setter.Value>
-    </Setter>
-  </Style>
-
-  <Style x:Key="OmenHeading" TargetType="TextBlock">
-    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
-    <Setter Property="FontSize" Value="22"/>
-    <Setter Property="FontWeight" Value="Bold"/>
-  </Style>
-
-  <Style x:Key="OmenSubHeading" TargetType="TextBlock">
-    <Setter Property="Foreground" Value="{DynamicResource AccentOmenBrush}"/>
-    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
-    <Setter Property="FontSize" Value="14"/>
-    <Setter Property="FontWeight" Value="SemiBold"/>
-  </Style>
-
-  <Style x:Key="OmenBody" TargetType="TextBlock">
-    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
-    <Setter Property="FontSize" Value="13"/>
-    <Setter Property="TextWrapping" Value="Wrap"/>
-    <Setter Property="LineHeight" Value="22"/>
-  </Style>
-
-  <Style x:Key="OmenCaption" TargetType="TextBlock">
-    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
-    <Setter Property="FontSize" Value="11"/>
-  </Style>
-
-  <Style x:Key="OmenStatValue" TargetType="TextBlock">
-    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
-    <Setter Property="FontSize" Value="28"/>
-    <Setter Property="FontWeight" Value="Bold"/>
-  </Style>
-
-  <Style x:Key="OmenStatUnit" TargetType="TextBlock">
-    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
-    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
-    <Setter Property="FontSize" Value="12"/>
-    <Setter Property="Margin" Value="4,0,0,4"/>
-    <Setter Property="VerticalAlignment" Value="Bottom"/>
-  </Style>
-
-  <Style x:Key="OmenToolTip" TargetType="ToolTip">
-    <Setter Property="Background" Value="{DynamicResource BgCardBrush}"/>
-    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource BorderDefaultBrush}"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Padding" Value="10,6"/>
-    <Setter Property="FontFamily" Value="{DynamicResource DefaultFontFamily}"/>
-    <Setter Property="FontSize" Value="12"/>
-    <Setter Property="Template">
-      <Setter.Value>
-        <ControlTemplate TargetType="ToolTip">
-          <Border Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="6" Padding="{TemplateBinding Padding}">
-            <ContentPresenter/>
-          </Border>
-        </ControlTemplate>
-      </Setter.Value>
-    </Setter>
-  </Style>
-
-  <Style x:Key="OmenGroupCard" TargetType="Border">
-    <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource CardElevationBorderBrush}"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Padding" Value="16,14"/>
-    <Setter Property="Margin" Value="0,0,0,12"/>
-    <Style.Triggers>
-      <Trigger Property="IsMouseOver" Value="True">
-        <Setter Property="BorderBrush">
-          <Setter.Value>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-              <GradientStop Color="#FF55E1" Offset="0.0"/>
-              <GradientStop Color="#FF0402" Offset="0.5"/>
-              <GradientStop Color="#FFB402" Offset="1.0"/>
-            </LinearGradientBrush>
-          </Setter.Value>
-        </Setter>
-      </Trigger>
-    </Style.Triggers>
-  </Style>
-
-  <Style x:Key="OmenProgressBar" TargetType="ProgressBar">
-    <Setter Property="Height" Value="4"/>
-    <Setter Property="Background" Value="{DynamicResource SliderTrackFill}"/>
-    <Setter Property="Foreground" Value="{DynamicResource AccentOmenBrush}"/>
-    <Setter Property="BorderThickness" Value="0"/>
   </Style>
 
 </ResourceDictionary>

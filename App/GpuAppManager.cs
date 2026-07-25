@@ -70,8 +70,10 @@ namespace OmenSuperHub {
         using (var searcher = new ManagementObjectSearcher($"SELECT ExecutablePath FROM Win32_Process WHERE ProcessId = {pid}"))
         using (var results = searcher.Get()) {
           foreach (ManagementObject obj in results) {
-            string path = obj["ExecutablePath"]?.ToString();
-            if (!string.IsNullOrEmpty(path)) return path;
+            using (obj) {
+              string path = obj["ExecutablePath"]?.ToString();
+              if (!string.IsNullOrEmpty(path)) return path;
+            }
           }
         }
       } catch { }
@@ -89,10 +91,12 @@ namespace OmenSuperHub {
         string query = "SELECT * FROM Win32_PnPEntity WHERE PNPClass = 'Display'";
         using (var searcher = new ManagementObjectSearcher(query)) {
           foreach (ManagementObject device in searcher.Get()) {
-            string description = device["Description"]?.ToString();
-            if (!string.IsNullOrEmpty(description) && description.IndexOf("nvidia", StringComparison.OrdinalIgnoreCase) >= 0) {
-              instanceId = device["PNPDeviceID"]?.ToString();
-              break;
+            using (device) {
+              string description = device["Description"]?.ToString();
+              if (!string.IsNullOrEmpty(description) && description.IndexOf("nvidia", StringComparison.OrdinalIgnoreCase) >= 0) {
+                instanceId = device["PNPDeviceID"]?.ToString();
+                break;
+              }
             }
           }
         }
@@ -107,30 +111,17 @@ namespace OmenSuperHub {
         using (var searcher = new ManagementObjectSearcher("SELECT Name, AdapterCompatibility FROM Win32_VideoController"))
         using (var collection = searcher.Get()) {
           foreach (ManagementObject obj in collection) {
-            string name = obj["Name"]?.ToString() ?? "";
-            string compatibility = obj["AdapterCompatibility"]?.ToString() ?? "";
-            if (name.Contains("Microsoft") || compatibility.Contains("Microsoft")) continue;
-            if (name.Contains("Display")) continue;
-            if (!string.IsNullOrWhiteSpace(name)) gpuNames.Add(name.Trim());
+            using (obj) {
+              string name = obj["Name"]?.ToString() ?? "";
+              string compatibility = obj["AdapterCompatibility"]?.ToString() ?? "";
+              if (name.Contains("Microsoft") || compatibility.Contains("Microsoft")) continue;
+              if (name.Contains("Display")) continue;
+              if (!string.IsNullOrWhiteSpace(name)) gpuNames.Add(name.Trim());
+            }
           }
         }
       } catch { }
       return gpuNames;
-    }
-
-    public static List<(string Name, int ModelNum)> GetNvidiaGpuInfoList() {
-      var result = new List<(string Name, int ModelNum)>();
-      try {
-        using (var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_VideoController WHERE Name LIKE '%NVIDIA%'")) {
-          foreach (ManagementObject obj in searcher.Get()) {
-            string name = obj["Name"]?.ToString() ?? "";
-            var m = Regex.Match(name, @"\b(\d{3,})\b");
-            int modelNum = m.Success ? int.Parse(m.Value) : -1;
-            result.Add((name, modelNum));
-          }
-        }
-      } catch { }
-      return result;
     }
 
     public static bool HasNvidiaGpu() {
@@ -144,12 +135,6 @@ namespace OmenSuperHub {
         }
       } catch { }
       return false;
-    }
-
-    public static bool IsAbove50Series() {
-      var gpus = GetNvidiaGpuInfoList();
-      if (gpus.Count == 0) return true;
-      return gpus.All(g => g.ModelNum >= 5000);
     }
 
     public static float[] GetGpuPowerLimits() {
@@ -181,16 +166,6 @@ namespace OmenSuperHub {
         }
       } catch { }
       return limit;
-    }
-
-    public static string GetGpuVRAM() {
-      try {
-        var result = ExecuteCommand("nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits");
-        if (result.ExitCode == 0 && float.TryParse(result.Output.Trim(), out float mb)) {
-          return (mb / 1024).ToString("F0");
-        }
-      } catch { }
-      return null;
     }
 
     public static bool CheckDBVersion(int kind) {
@@ -342,307 +317,6 @@ namespace OmenSuperHub {
       }
     }
 
-    public static int GetGraphicsBoostClock() {
-      try {
-        PhysicalGPU[] gpus = PhysicalGPU.GetPhysicalGPUs();
-        if (gpus.Length == 0) return 0;
-        PhysicalGPU gpu = gpus[0];
-        var info = GPUApi.GetAllClockFrequencies(gpu.Handle, new ClockFrequenciesV2(ClockType.BoostClock));
-        foreach (var kvp in info.Clocks) {
-          if (kvp.Key == PublicClockDomain.Graphics && kvp.Value.IsPresent) {
-            return (int)(kvp.Value.Frequency / 1000);
-          }
-        }
-      } catch { }
-      return 0;
-    }
-
-    // ─── NVIDIA V-F Curve (via private NVAPI, like UXTU) ───
-
-    /// <summary>V-F 曲线点: 索引/电压(mV)/频率(MHz)</summary>
-    public struct VfPoint {
-      public int Index, VoltageMv, FrequencyMHz;
-      public VfPoint(int idx, int mv, int mhz) { Index = idx; VoltageMv = mv; FrequencyMHz = mhz; }
-    }
-
-    public const int VfPointCount = 127;
-    const int VoltageStepMv = 25;      // 电压步进 25mV
-    const int RampStartMv = 725;       // ramp 起始电压阈值
-    const int VfToleranceMHz = 35;     // 验证容差 ±35MHz
-
-    static bool _vfApiInited;
-    static IntPtr _vfGetStatusPtr;
-    static IntPtr _vfSetControlPtr;
-
-    static bool InitVfApi() {
-      if (_vfApiInited) return _vfGetStatusPtr != IntPtr.Zero;
-      _vfApiInited = true;
-      try {
-        _vfGetStatusPtr = NvApiPrivate.QueryInterface(0x21537AD4);
-        _vfSetControlPtr = NvApiPrivate.QueryInterface(0x0733E009);
-      } catch { }
-      return _vfGetStatusPtr != IntPtr.Zero && _vfSetControlPtr != IntPtr.Zero;
-    }
-
-    static int ReadLe32(byte[] buf, int off) => buf[off] | (buf[off + 1] << 8) | (buf[off + 2] << 16) | (buf[off + 3] << 24);
-    static void WriteLe32(byte[] buf, int off, int val) {
-      buf[off] = (byte)val; buf[off + 1] = (byte)(val >> 8); buf[off + 2] = (byte)(val >> 16); buf[off + 3] = (byte)(val >> 24);
-    }
-
-    public static bool TryGetVfCurve(out List<VfPoint> points) {
-      points = new List<VfPoint>();
-      if (!InitVfApi()) return false;
-      if (!NvApiPrivate.TryGetFirstGpuHandle(out IntPtr gpu)) return false;
-      var getStatus = Marshal.GetDelegateForFunctionPointer<NvApiPrivate.GpuBufferDelegate>(_vfGetStatusPtr);
-      const int statusSize = 0x1C28, statusVersion = (1 << 16) | statusSize, statusMaskOffset = 0x04;
-      const int statusNumClocksOffset = 0x14, statusEntriesOffset = 0x48, statusEntryStride = 0x1C;
-      byte[] buffer = new byte[statusSize];
-      WriteLe32(buffer, 0, statusVersion);
-      for (int i = 0; i < 16; i++) buffer[statusMaskOffset + i] = 0xFF;
-      WriteLe32(buffer, statusNumClocksOffset, 15);
-      if (getStatus(gpu, buffer) != 0) return false;
-      for (int i = 0; i < VfPointCount; i++) {
-        int off = statusEntriesOffset + i * statusEntryStride;
-        uint freqKhz = (uint)ReadLe32(buffer, off);
-        uint voltUv = (uint)ReadLe32(buffer, off + 4);
-        if (freqKhz > 0 && voltUv > 0)
-          points.Add(new VfPoint(i, (int)(voltUv / 1000), (int)(freqKhz / 1000)));
-      }
-      return points.Count > 0;
-    }
-
-    static bool SetVfPointOffset(int pointIndex, int freqOffsetKhz, int voltOffsetUv) {
-      if (!InitVfApi()) return false;
-      if (pointIndex < 0 || pointIndex >= VfPointCount) return false;
-      if (!NvApiPrivate.TryGetFirstGpuHandle(out IntPtr gpu)) return false;
-      var setControl = Marshal.GetDelegateForFunctionPointer<NvApiPrivate.GpuBufferDelegate>(_vfSetControlPtr);
-      const int controlSize = 0x2420, controlVersion = (1 << 16) | controlSize;
-      const int controlMaskOffset = 0x04, controlEntriesOffset = 0x20, controlEntryStride = 0x48;
-      byte[] buffer = new byte[controlSize];
-      WriteLe32(buffer, 0, controlVersion);
-      buffer[controlMaskOffset + pointIndex / 8] = (byte)(1 << (pointIndex % 8));
-      int entryOff = controlEntriesOffset + pointIndex * controlEntryStride;
-      WriteLe32(buffer, entryOff, freqOffsetKhz);
-      WriteLe32(buffer, entryOff + 4, voltOffsetUv);
-      return setControl(gpu, buffer) == 0;
-    }
-
-    // ─── Legacy simple offset (kept for backward compat) ───
-    public static bool SetVoltageCurveOffset(int offsetMv) {
-      try {
-        if (!TryGetVfCurve(out var curve)) return false;
-        int ok = 0;
-        foreach (var pt in curve)
-          if (SetVfPointOffset(pt.Index, 0, offsetMv * 1000)) ok++;
-        return ok > 0;
-      } catch { return false; }
-    }
-
-    // ─── V-F Curve Remapping (UXTU-style, true undervolt) ───
-
-    /// <summary>
-    /// 真正的 V-F 曲线降压：指定目标电压和频率，压平高频段曲线。
-    /// 返回: 1=成功验证, 0=写入但验证不通过, -1=失败
-    /// </summary>
-    public static int SetUndervoltCurveFromDefault(int maxVoltageMv, int maxClockMhz) {
-      if (maxVoltageMv < 600 || maxVoltageMv > 1300) return -1;
-      if (maxClockMhz < 300 || maxClockMhz > 4500) return -1;
-      try {
-        if (!TryGetVfCurve(out var curve)) return -1;
-        var usable = curve
-            .Where(p => p.Index >= 0 && p.Index < VfPointCount)
-            .OrderBy(p => p.VoltageMv).ThenBy(p => p.Index).ToList();
-        if (usable.Count == 0) return -1;
-
-        int alignedMaxVoltageMv = AlignToSupportedVoltage(usable, maxVoltageMv);
-
-        var pivot = usable
-            .OrderBy(p => Math.Abs(p.VoltageMv - alignedMaxVoltageMv))
-            .ThenBy(p => Math.Abs(p.FrequencyMHz - maxClockMhz))
-            .First();
-
-        var rampStart = usable
-            .Where(p => p.VoltageMv <= RampStartMv)
-            .OrderByDescending(p => p.VoltageMv)
-            .FirstOrDefault();
-        if (rampStart.Equals(default(VfPoint))) rampStart = usable.First();
-
-        int ok = 0, fail = 0;
-        foreach (var pt in usable) {
-          CalculateDesiredPoint(pt, rampStart, pivot,
-              alignedMaxVoltageMv, maxClockMhz,
-              out int desiredVoltageMv, out int desiredFrequencyMhz);
-          int freqOffKhz = (desiredFrequencyMhz - pt.FrequencyMHz) * 1000;
-          int voltOffUv = (desiredVoltageMv - pt.VoltageMv) * 1000;
-          if (SetVfPointOffset(pt.Index, freqOffKhz, voltOffUv)) ok++; else fail++;
-        }
-        if (ok == 0) return -1;
-        return VerifyUndervoltCurve(alignedMaxVoltageMv, maxClockMhz) ? 1 : 0;
-      } catch { return -1; }
-    }
-
-    /// <summary>逐点计算降压目标值: rampStart以下保持, rampStart~pivot线性插值, pivot以上压平</summary>
-    static void CalculateDesiredPoint(VfPoint pt, VfPoint rampStart, VfPoint pivot,
-        int targetVoltageMv, int targetClockMhz, out int desiredVoltageMv, out int desiredFrequencyMhz) {
-      if (pt.VoltageMv <= rampStart.VoltageMv) {
-        desiredVoltageMv = pt.VoltageMv;
-        desiredFrequencyMhz = pt.FrequencyMHz;
-        return;
-      }
-      if (pt.VoltageMv < pivot.VoltageMv) {
-        double denom = Math.Max(1, pivot.VoltageMv - rampStart.VoltageMv);
-        double progress = (pt.VoltageMv - rampStart.VoltageMv) / denom;
-        desiredVoltageMv = AlignTo25Mv(
-            (int)Math.Round(rampStart.VoltageMv + (targetVoltageMv - rampStart.VoltageMv) * progress));
-        desiredFrequencyMhz = (int)Math.Round(
-            rampStart.FrequencyMHz + (targetClockMhz - rampStart.FrequencyMHz) * progress);
-        return;
-      }
-      desiredVoltageMv = targetVoltageMv;
-      desiredFrequencyMhz = targetClockMhz;
-    }
-
-    static int AlignTo25Mv(int mv) => (int)Math.Round(mv / (double)VoltageStepMv) * VoltageStepMv;
-
-    static int AlignToSupportedVoltage(List<VfPoint> points, int requestedMv) {
-      int aligned = AlignTo25Mv(requestedMv);
-      return points.OrderBy(p => Math.Abs(p.VoltageMv - aligned))
-          .ThenBy(p => Math.Abs(p.VoltageMv - requestedMv)).First().VoltageMv;
-    }
-
-    /// <summary>
-    /// 预览降压曲线（只计算不写入硬件）。
-    /// 返回原始曲线点列表和降压后的目标点列表，供 UI 绘制曲线图。
-    /// </summary>
-    public static bool PreviewDesiredCurve(int maxVoltageMv, int maxClockMhz,
-        out List<VfPoint> original, out List<VfPoint> desired,
-        out VfPoint pivot, out VfPoint rampStart) {
-      original = null; desired = null;
-      pivot = default; rampStart = default;
-      if (maxVoltageMv < 600 || maxVoltageMv > 1300) return false;
-      if (maxClockMhz < 300 || maxClockMhz > 4500) return false;
-      try {
-        if (!TryGetVfCurve(out var curve)) return false;
-        original = curve.Where(p => p.Index >= 0 && p.Index < VfPointCount)
-            .OrderBy(p => p.VoltageMv).ThenBy(p => p.Index).ToList();
-        if (original.Count == 0) return false;
-
-        int alignedMaxVoltageMv = AlignToSupportedVoltage(original, maxVoltageMv);
-
-        pivot = original
-            .OrderBy(p => Math.Abs(p.VoltageMv - alignedMaxVoltageMv))
-            .ThenBy(p => Math.Abs(p.FrequencyMHz - maxClockMhz))
-            .First();
-
-        rampStart = original
-            .Where(p => p.VoltageMv <= RampStartMv)
-            .OrderByDescending(p => p.VoltageMv)
-            .FirstOrDefault();
-        if (rampStart.Equals(default(VfPoint))) rampStart = original.First();
-
-        desired = new List<VfPoint>(original.Count);
-        foreach (var pt in original) {
-          CalculateDesiredPoint(pt, rampStart, pivot,
-              alignedMaxVoltageMv, maxClockMhz,
-              out int dMv, out int dMhz);
-          desired.Add(new VfPoint(pt.Index, dMv, dMhz));
-        }
-        return true;
-      } catch { return false; }
-    }
-
-    /// <summary>验证降压结果: 电压 ≥ maxVoltageMv 的点中，多数频率应在 targetClock ±35MHz 内</summary>
-    static bool VerifyUndervoltCurve(int maxVoltageMv, int targetClockMhz) {
-      if (!TryGetVfCurve(out var verified)) return false;
-      var upper = verified
-          .Where(p => p.Index >= 0 && p.Index < VfPointCount && p.VoltageMv >= maxVoltageMv)
-          .OrderBy(p => p.VoltageMv).ThenBy(p => p.Index).ToList();
-      if (upper.Count == 0) return false;
-      int matchClock = upper.Count(p => Math.Abs(p.FrequencyMHz - targetClockMhz) <= VfToleranceMHz);
-      int matchVolt = upper.Count(p => Math.Abs(p.VoltageMv - maxVoltageMv) <= VoltageStepMv);
-      return matchClock >= Math.Max(1, upper.Count / 2) &&
-             matchVolt >= Math.Max(1, upper.Count / 2);
-    }
-
-    /// <summary>恢复默认 V-F 曲线 —— 将所有 127 个点的偏移归零</summary>
-    public static bool ResetVfCurve() {
-      try {
-        if (!InitVfApi()) return false;
-        int ok = 0;
-        for (int i = 0; i < VfPointCount; i++)
-          if (SetVfPointOffset(i, 0, 0)) ok++;
-        return ok > 0;
-      } catch { return false; }
-    }
-
-    /// <summary>
-    /// 按用户编辑逐点写回 GPU —— 微星小飞机风格
-    /// desiredFreq[127]: null=不修改, 非null=目标频率MHz
-    /// 写入后立即回读验证。
-    /// 返回: 2=成功写入且回读验证通过, 1=NVAPI返回成功但回读未匹配(可能GPU/驱动不支持V-F编辑), 0=无任何点被写入, -1=失败
-    /// </summary>
-    public static int ApplyVfCurveFromUserEdits(int?[] desiredFreq, out int wrote, out int verified) {
-      wrote = 0; verified = 0;
-      try {
-        if (desiredFreq == null || !InitVfApi()) return -1;
-        if (!TryGetVfCurve(out var before)) return -1;
-        if (before.Count == 0) return -1;
-
-        // Build index → frequency map from the pre-write read
-        var beforeMap = new Dictionary<int, int>();
-        foreach (var p in before) beforeMap[p.Index] = p.FrequencyMHz;
-
-        // Collect all offsets first, then write each
-        var toWrite = new List<(int idx, int deltaKhz)>();
-        for (int i = 0; i < VfPointCount; i++) {
-          if (!desiredFreq[i].HasValue) continue;
-          if (!beforeMap.TryGetValue(i, out int curFreq)) continue;
-          int desiredMhz = desiredFreq[i].Value;
-          int deltaKhz = (desiredMhz - curFreq) * 1000;
-          if (deltaKhz == 0) continue;
-          toWrite.Add((i, deltaKhz));
-        }
-        if (toWrite.Count == 0) return 0;
-
-        // Write each offset
-        foreach (var (idx, dKhz) in toWrite)
-          if (SetVfPointOffset(idx, dKhz, 0))
-            wrote++;
-
-        if (wrote == 0) return -1;
-
-        // ── Verify by re-reading the curve (same approach as UXTU) ──
-        if (!TryGetVfCurve(out var after)) return 1; // wrote but can't verify
-        var afterMap = new Dictionary<int, int>();
-        foreach (var p in after) afterMap[p.Index] = p.FrequencyMHz;
-
-        foreach (var (idx, dKhz) in toWrite) {
-          if (!afterMap.TryGetValue(idx, out int afterFreq)) continue;
-          if (!beforeMap.TryGetValue(idx, out int beforeFreq)) continue;
-          int expectedFreq = beforeFreq + dKhz / 1000;
-          if (Math.Abs(afterFreq - expectedFreq) <= 2) // ±2 MHz tolerance (rounding)
-            verified++;
-        }
-
-        return verified == toWrite.Count ? 2 : (verified > 0 ? 1 : 1);
-      } catch { return -1; }
-    }
-
-    public static int GetMemoryBoostClock() {
-      try {
-        PhysicalGPU[] gpus = PhysicalGPU.GetPhysicalGPUs();
-        if (gpus.Length == 0) return 0;
-        PhysicalGPU gpu = gpus[0];
-        var info = GPUApi.GetAllClockFrequencies(gpu.Handle, new ClockFrequenciesV2(ClockType.BoostClock));
-        foreach (var kvp in info.Clocks) {
-          if (kvp.Key == PublicClockDomain.Memory && kvp.Value.IsPresent) {
-            return (int)(kvp.Value.Frequency / 1000);
-          }
-        }
-      } catch { }
-      return 0;
-    }
-
     // ─── NVML Power Limit ───
     // Direct NVML P/Invoke (no CLI parsing, instant apply)
     public static bool SetPowerLimit(int watts) {
@@ -667,28 +341,16 @@ namespace OmenSuperHub {
       } catch { return false; }
     }
 
-    // ─── NVIDIA Max GPU Clock Lock (NVML) ───
-    public static bool SetMaxGpuClock(int clockMHz) {
-      try {
-        if (!Nvml.TryGetGpu(out IntPtr gpu)) return false;
-        // clockMHz=0 → unlock, otherwise lock to [0, clockMHz]
-        int ret = clockMHz > 0
-            ? Nvml.nvmlDeviceSetGpuLockedClocks(gpu, 0, (uint)clockMHz)
-            : Nvml.nvmlDeviceResetGpuLockedClocks(gpu);
-        return ret == 0;
-      } catch { return false; }
-    }
-
-    public static int GetMaxGpuClockLock() {
-      // ponytail: uses NVAPI (faster than NVML for this query)
-      try {
-        NVIDIA.Initialize();
-        PhysicalGPU gpu = PhysicalGPU.GetPhysicalGPUs()[0];
-        var data = GPUApi.GetClockBoostLock(gpu.Handle);
-        return (int)data.ClockBoostLocks[0].VoltageInMicroV / 1000;
-      } catch { return 0; }
-      finally { NVIDIA.Unload(); }
-    }
+    // ponytail: V-F 曲线死代码已删除
+    //   删除项：VfPoint/VfPointCount/VoltageStepMv/RampStartMv/VfToleranceMHz 常量、
+    //   _vfApiInited/_vfGetStatusPtr/_vfSetControlPtr 字段、InitVfApi/ReadLe32/WriteLe32、
+    //   TryGetVfCurve/SetVfPointOffset/SetVoltageCurveOffset/SetUndervoltCurveFromDefault、
+    //   CalculateDesiredPoint/AlignTo25Mv/AlignToSupportedVoltage/PreviewDesiredCurve、
+    //   VerifyUndervoltCurve/ResetVfCurve/ApplyVfCurveFromUserEdits、
+    //   GetNvidiaGpuInfoList/IsAbove50Series/GetGpuVRAM、
+    //   GetGraphicsBoostClock/GetMemoryBoostClock、
+    //   SetMaxGpuClock/GetMaxGpuClockLock、NvApiPrivate 嵌套类
+    //   外部零调用，全为 V-F 降压子系统残留
 
     // ─── NVML P/Invoke wrapper (like UXTU) ───
     static class Nvml {
@@ -786,29 +448,6 @@ namespace OmenSuperHub {
       public int ExitCode { get; set; }
       public string Output { get; set; }
       public string Error { get; set; }
-    }
-
-    // ─── Private NVAPI (undocumented function IDs, like UXTU) ───
-    static class NvApiPrivate {
-      [DllImport("nvapi64.dll", EntryPoint = "nvapi_QueryInterface", CallingConvention = CallingConvention.Cdecl)]
-      public static extern IntPtr QueryInterface(uint functionId);
-      [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-      public delegate int GpuBufferDelegate(IntPtr gpuHandle, [In, Out] byte[] buffer);
-      public static bool TryGetFirstGpuHandle(out IntPtr gpu) {
-        gpu = IntPtr.Zero;
-        IntPtr initPtr = QueryInterface(0x0150E828);
-        IntPtr enumPtr = QueryInterface(0xE5AC921F);
-        if (initPtr == IntPtr.Zero || enumPtr == IntPtr.Zero) return false;
-        var init = Marshal.GetDelegateForFunctionPointer<Action>(initPtr);
-        var enumGpus = Marshal.GetDelegateForFunctionPointer<EnumGpusDelegate>(enumPtr);
-        init();
-        IntPtr[] handles = new IntPtr[64];
-        if (enumGpus(handles, out int count) != 0 || count <= 0) return false;
-        gpu = handles[0];
-        return true;
-      }
-      [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-      delegate int EnumGpusDelegate([Out] IntPtr[] gpuHandles, out int gpuCount);
     }
   }
 }

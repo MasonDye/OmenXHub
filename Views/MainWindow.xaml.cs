@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using OmenSuperHub.Controls;
 using OmenSuperHub.Pages;
 using OmenSuperHub.Services;
 using OmenSuperHub.Utils;
@@ -90,8 +91,19 @@ namespace OmenSuperHub.Views {
         _instance.Activate();
       }
       _instance.Dispatcher.BeginInvoke(new Action(() => {
+        var nsw = System.Diagnostics.Stopwatch.StartNew();
+        try {
+          System.IO.File.AppendAllText(
+            System.IO.Path.Combine(System.IO.Path.GetTempPath(), "OmenXHub_ck.log"),
+            $"[{DateTime.Now:HH:mm:ss.fff}] NavigateToPage: Navigate({pageTag}) start\n");
+        } catch { }
         if (_pageTypeMap.TryGetValue(pageTag, out var type))
           _instance.NavigationView.Navigate(type);
+        try {
+          System.IO.File.AppendAllText(
+            System.IO.Path.Combine(System.IO.Path.GetTempPath(), "OmenXHub_ck.log"),
+            $"[{DateTime.Now:HH:mm:ss.fff}] NavigateToPage: Navigate({pageTag}) done={nsw.ElapsedMilliseconds}ms\n");
+        } catch { }
         _instance.Activate();
       }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
@@ -345,7 +357,7 @@ namespace OmenSuperHub.Views {
       foreach (var kvp in _pageInfos) {
         if (kvp.Value.pageType == page.GetType()) {
           TitleText.Text = kvp.Value.title;
-          NavIcon.Symbol = kvp.Value.icon;
+          NavIcon.Content = kvp.Value.icon;
           return;
         }
       }
@@ -356,20 +368,24 @@ namespace OmenSuperHub.Views {
       { "Perf", typeof(PerfPage) }, { "Lighting", typeof(LightingPage) },
       { "Automation", typeof(AutomationPage) },
       { "Macro", typeof(MacroPage) },
-      { "Other", typeof(OtherPage) }, { "Settings", typeof(SettingsPage) }
+      { "Other", typeof(OtherPage) }, { "Settings", typeof(SettingsPage) },
+      // ponytail: 二级菜单——仅从 PerfPage 跳转按钮进入，不显示在侧边栏
+      { "CoreKeep", typeof(CoreKeepPage) }
     };
 
-    struct PageInfo { public Type pageType; public string title; public SymbolRegular icon; }
+    struct PageInfo { public Type pageType; public string title; public object icon; }
 
     static readonly Dictionary<string, PageInfo> _pageInfos = new Dictionary<string, PageInfo> {
-      { "Dashboard", new PageInfo { pageType = typeof(DashboardPage), title = Strings.PageDashboard, icon = SymbolRegular.Home24 } },
-      { "Fan", new PageInfo { pageType = typeof(FanPage), title = Strings.PageFan, icon = SymbolRegular.ArrowSync24 } },
-      { "Perf", new PageInfo { pageType = typeof(PerfPage), title = Strings.PagePerf, icon = SymbolRegular.Gauge24 } },
-      { "Lighting", new PageInfo { pageType = typeof(LightingPage), title = Strings.PageLighting, icon = SymbolRegular.Lightbulb24 } },
-      { "Automation", new PageInfo { pageType = typeof(AutomationPage), title = Strings.PageAutomation, icon = SymbolRegular.Rocket24 } },
-      { "Macro", new PageInfo { pageType = typeof(MacroPage), title = Strings.PageMacro, icon = SymbolRegular.Keyboard24 } },
-      { "Other", new PageInfo { pageType = typeof(OtherPage), title = Strings.PageOther, icon = SymbolRegular.MoreHorizontal24 } },
-      { "Settings", new PageInfo { pageType = typeof(SettingsPage), title = Strings.PageSettings, icon = SymbolRegular.Settings24 } }
+      { "Dashboard", new PageInfo { pageType = typeof(DashboardPage), title = Strings.PageDashboard, icon = new SymbolIcon(SymbolRegular.Home24) { FontSize = 14 } } },
+      { "Fan", new PageInfo { pageType = typeof(FanPage), title = Strings.PageFan, icon = new FanIcon() { IconSize = 14 } } },
+      { "Perf", new PageInfo { pageType = typeof(PerfPage), title = Strings.PagePerf, icon = new SymbolIcon(SymbolRegular.Gauge24) { FontSize = 14 } } },
+      { "Lighting", new PageInfo { pageType = typeof(LightingPage), title = Strings.PageLighting, icon = new SymbolIcon(SymbolRegular.Lightbulb24) { FontSize = 14 } } },
+      { "Automation", new PageInfo { pageType = typeof(AutomationPage), title = Strings.PageAutomation, icon = new SymbolIcon(SymbolRegular.Rocket24) { FontSize = 14 } } },
+      { "Macro", new PageInfo { pageType = typeof(MacroPage), title = Strings.PageMacro, icon = new SymbolIcon(SymbolRegular.Keyboard24) { FontSize = 14 } } },
+      { "Other", new PageInfo { pageType = typeof(OtherPage), title = Strings.PageOther, icon = new SymbolIcon(SymbolRegular.MoreHorizontal24) { FontSize = 14 } } },
+      { "Settings", new PageInfo { pageType = typeof(SettingsPage), title = Strings.PageSettings, icon = new SymbolIcon(SymbolRegular.Settings24) { FontSize = 14 } } },
+      // ponytail: 二级菜单——仅从 PerfPage 跳转按钮进入，不显示在侧边栏
+      { "CoreKeep", new PageInfo { pageType = typeof(CoreKeepPage), title = Strings.PageCoreKeep, icon = new SymbolIcon(SymbolRegular.AppsList24) { FontSize = 14 } } }
     };
 
     // ══════════════════════════════════════════════════════

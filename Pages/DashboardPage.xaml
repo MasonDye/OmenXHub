@@ -16,7 +16,7 @@
               <Rectangle x:Name="PART_Track" RadiusX="4" RadiusY="4"
                          Fill="{DynamicResource ControlFillSecondaryBrush}"/>
               <Rectangle x:Name="PART_Indicator" RadiusX="4" RadiusY="4"
-                         Fill="{TemplateBinding Foreground}" 
+                         Fill="{TemplateBinding Foreground}"
                          HorizontalAlignment="Left"/>
             </Grid>
           </ControlTemplate>
@@ -155,12 +155,10 @@
         <ui:CardControl Grid.Row="0" Grid.Column="2">
           <ui:CardControl.Header>
             <Grid>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto"/>
@@ -459,6 +457,7 @@
       <Grid x:Name="SysInfoGrid">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="12"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -466,7 +465,7 @@
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,4,0">
+        <StackPanel Grid.Row="0" Grid.Column="0">
           <ui:CardControl Margin="0,0,0,8">
           <ui:CardControl.Header>
             <StackPanel>
@@ -518,7 +517,7 @@
           </ui:CardControl>
         </StackPanel>
 
-        <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,0">
+        <StackPanel Grid.Row="0" Grid.Column="2">
           <ui:CardControl Margin="0,0,0,8">
             <ui:CardControl.Header>
               <StackPanel>

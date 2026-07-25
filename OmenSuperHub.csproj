@@ -64,14 +64,7 @@
       <HintPath>Resources\McuSDK2.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="SMBiosSDK">
-      <HintPath>Resources\SMBiosSDK.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-    <Reference Include="Utf8Json">
-      <HintPath>Resources\Utf8Json.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
+    <!-- ponytail: SMBiosSDK/Utf8Json 零引用，已删除 DLL + Reference + EmbeddedResource -->
     <!-- PerformanceControl: HP firmware control helper, required for DeviceModel.IsHP etc. -->
     <Reference Include="PerformanceControl">
       <HintPath>Resources\PerformanceControl.dll</HintPath>
@@ -90,10 +83,9 @@
   <!-- Framework References -->
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Windows.Forms.DataVisualization" />
     <Reference Include="System.Management" />
     <Reference Include="System.Numerics" />
-    <Reference Include="WindowsFormsIntegration" />
+    <!-- ponytail: System.Windows.Forms.DataVisualization / WindowsFormsIntegration 0 引用已删除 -->
   </ItemGroup>
 
   <!-- Project Reference -->
@@ -122,14 +114,7 @@
     <EmbeddedResource Include="Resources\McuSDK2.dll" />
     <EmbeddedResource Include="Resources\HP.Omen.Core.Common.dll" />
     <EmbeddedResource Include="Resources\HP.Omen.Core.Model.Device.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Api.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Model.DataStructure.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Utilities.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Logger.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Logger.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Logger.APIs.dll" />
-    <EmbeddedResource Include="Resources\SMBiosSDK.dll" />
-    <EmbeddedResource Include="Resources\Utf8Json.dll" />
+    <!-- ponytail: HP.Omen.Core.Api/Model.DataStructure/Utilities/Logger/Logger.APIs/Logger 零引用，已删除 -->
     <EmbeddedResource Include="Resources\PerformanceControl.dll" />
     <EmbeddedResource Include="Resources\OmenFourZoneLighting.dll" />
     <EmbeddedResource Include="Resources\OmenLightingSDK.dll" />

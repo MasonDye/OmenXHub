@@ -18,6 +18,8 @@ namespace OmenSuperHub.Models {
     [DataMember] public int BoostModeIndex { get; set; }
     [DataMember] public int MaxProcStateIndex { get; set; }
     [DataMember] public string MaxProcStateText { get; set; }
+    [DataMember] public int MinProcStateIndex { get; set; }
+    [DataMember] public string MinProcStateText { get; set; }
     [DataMember] public int MaxFreqIndex { get; set; }
     [DataMember] public string MaxFreqText { get; set; }
     [DataMember] public int SmtPolicyIndex { get; set; }

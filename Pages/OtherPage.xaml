@@ -9,29 +9,6 @@
     <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
       <TextBlock x:Name="HeadingOther" Text="{x:Static app:Strings.PageOther}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
 
-      <ui:CardControl x:Name="BatteryChargeCard" Margin="{StaticResource CardMargin}">
-        <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="BatteryCharge24" FontSize="18" Margin="0,0,8,0"/>
-                <TextBlock x:Name="BatteryChargeLabel" Text="{x:Static app:Strings.BatteryChargeHeading}" Tag="BatteryCharge" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
-              </StackPanel>
-              <TextBlock x:Name="BatteryChargeDescText" Text="{x:Static app:Strings.BatteryChargeDesc}" Tag="BatteryChargeDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
-              <TextBlock x:Name="BatteryChargeHint" Text="{x:Static app:Strings.BatteryChargeHint}" Tag="BatteryChargeHint"
-                         FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                         Visibility="Collapsed" Margin="0,2,0,0"/>
-            </StackPanel>
-            <ui:ToggleSwitch x:Name="BatteryChargeToggle" Grid.Column="1" 
-                          IsChecked="False" Checked="BatteryChargeToggle_Changed" Unchecked="BatteryChargeToggle_Changed"/>
-          </Grid>
-        </ui:CardControl.Header>
-      </ui:CardControl>
-
       <ui:CardControl Margin="{StaticResource CardMargin}">
         <ui:CardControl.Header>
           <Grid>
@@ -86,8 +63,28 @@
               </StackPanel>
               <TextBlock x:Name="TouchpadLockDescText" Text="{x:Static app:Strings.TouchpadLockDesc}" Tag="TouchpadLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
-            <ui:ToggleSwitch x:Name="TouchpadLockToggle" Grid.Column="1" 
+            <ui:ToggleSwitch x:Name="TouchpadLockToggle" Grid.Column="1"
                           Checked="TouchpadLockToggle_Changed" Unchecked="TouchpadLockToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" Margin="0,0,8,0"/>
+                <TextBlock x:Name="WinLockText" Text="{x:Static app:Strings.WinLockHeading}" Tag="WinLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="WinLockDescText" Text="{x:Static app:Strings.WinLockDesc}" Tag="WinLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="WinLockToggle" Grid.Column="1"
+                          Checked="WinLockToggle_Changed" Unchecked="WinLockToggle_Changed"/>
           </Grid>
         </ui:CardControl.Header>
       </ui:CardControl>

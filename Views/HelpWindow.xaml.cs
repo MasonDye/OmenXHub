@@ -20,14 +20,19 @@ namespace OmenSuperHub.Views {
       LoadContent();
     }
 
-    public static void ShowInstance() {
+    public static void ShowInstance(bool isFirstRun = false) {
       Application.Current?.Dispatcher.Invoke(() => {
         if (_instance == null || !_instance.IsLoaded) {
           _instance = new HelpWindow();
         }
+        _instance.BtnIAgree.Visibility = isFirstRun ? Visibility.Visible : Visibility.Collapsed;
         _instance.Show();
         _instance.Activate();
       });
+    }
+
+    private void BtnIAgree_Click(object sender, RoutedEventArgs e) {
+      Close();
     }
 
     protected override void OnClosed(EventArgs e) {
@@ -177,7 +182,6 @@ namespace OmenSuperHub.Views {
           "  播放音频 / 运行程序 / 延迟 / 通知 / 执行宏\n" +
           "快捷操作：右击流水线设为快捷操作后，在托盘菜单或页面按钮一键触发。\n\n" +
           "═══ 其它 (Other) ═══\n" +
-          "智能充电：充至 80% 停止（需 BIOS 支持 Adaptive Battery Optimizer）\n" +
           "数字锁定 / 大写锁定 / 触摸板锁定 — 一键 ToggleSwitch\n" +
           "HWiNFO64 集成：共享温度/风扇/功耗到 HWiNFO64\n" +
           "HTTP API 服务：localhost:5000 提供硬件状态 REST API\n\n" +

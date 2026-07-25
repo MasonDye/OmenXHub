@@ -656,12 +656,6 @@ namespace OmenSuperHub.Views {
           getValue = () => tb.Text;
           return sp;
         }
-        case "SetFanCurve": {
-          var cb = new ComboBox { Height = 32, FontSize = 13, IsEditable = true };
-          foreach (var v in new[] { "silent", "cool", "custom" }) cb.Items.Add(v);
-          getValue = () => cb.Text;
-          return cb;
-        }
         case "SetGpuPower": {
           var cb = new ComboBox { Height = 32, FontSize = 13 };
           cb.Items.Add(new ComboBoxItem { Content = "CTGP开+DB开 (max)", Tag = "max" });

@@ -22,7 +22,6 @@ packages/
 
 # Build intermediates
 extracted/
-lib/
 FodyWeavers.xsd
 
 # Temp / generated
@@ -32,7 +31,6 @@ battery-report.html
 temp_*.svg
 temp_*.txt
 packages.config
-nul
 TempBuild2/
 E TempBuild2/
 
@@ -45,17 +43,22 @@ PROJECT_SUMMARY.md
 .opencode/
 .agent/
 .workbuddy/
+.zcode/
+.uploads/
 
-# Temp / misc
+# Dev tools / temp
 clean_oxh.bat
 clean_oxh.txt
 test_chinese.txt
+test_pm.csx
+pm_help.txt
+check_fan_preset.ps1
+build.bat
+build.ps1
+nul
+null
 Resources/RyzenSMU.bin
 
 # OS
 Thumbs.db
 .DS_Store
-.zcode/
-pm_help.txt
-	driver/
-	Services/OmenXHubDriver.cs

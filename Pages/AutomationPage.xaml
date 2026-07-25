@@ -6,7 +6,7 @@
       Title="{x:Static app:Strings.PageAutomation}">
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
-      <TextBlock x:Name="HeadingAutomation" Text="{x:Static app:Strings.AutomationHeading}" Tag="AutomationHeading" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
+      <TextBlock x:Name="HeadingAutomation" Text="{x:Static app:Strings.AutomationHeading}" Tag="AutomationHeading" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
 
       <!-- ══════ 1. 主开关卡片 ══════ -->
       <ui:CardControl Margin="0,0,0,8">

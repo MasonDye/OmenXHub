@@ -173,32 +173,6 @@ namespace OmenSuperHub.Services {
       } catch { }
     }
 
-    private static Color ChangeColorBrightness(Color color, float correctionFactor) {
-        float red = (float)color.R;
-        float green = (float)color.G;
-        float blue = (float)color.B;
-
-        if (correctionFactor < 0) {
-            correctionFactor = 1 + correctionFactor;
-            red *= correctionFactor;
-            green *= correctionFactor;
-            blue *= correctionFactor;
-        } else {
-            red = (255 - red) * correctionFactor + red;
-            green = (255 - green) * correctionFactor + green;
-            blue = (255 - blue) * correctionFactor + blue;
-        }
-
-        return Color.FromRgb((byte)red, (byte)green, (byte)blue);
-    }
-
-    private static Color MixColor(Color color1, Color color2, double percentage) {
-        byte r = (byte)(color1.R * percentage + color2.R * (1 - percentage));
-        byte g = (byte)(color1.G * percentage + color2.G * (1 - percentage));
-        byte b = (byte)(color1.B * percentage + color2.B * (1 - percentage));
-        return Color.FromRgb(r, g, b);
-    }
-
     public static void Cleanup() {
       try { SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged; } catch { }
     }

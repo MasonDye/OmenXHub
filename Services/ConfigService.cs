@@ -12,11 +12,12 @@ namespace OmenSuperHub.Services {
     // Fired when Omen key cycles to a new preset (from background thread)
     public static event Action<string> OnPresetCycled;
     public static void FirePresetCycled(string preset) {
-      // ponytail: marshal to UI thread — called from ThreadPool (Omen key handler, automation)
+      // ponytail: 改用 BeginInvoke 异步分发避免阻塞调用线程；
+      // 订阅者侧已全是 UI 操作，等价语义但避免嵌套 Invoke 死锁
       try {
         var app = System.Windows.Application.Current;
         if (app != null && app.Dispatcher != null && !app.Dispatcher.CheckAccess())
-          app.Dispatcher.Invoke(() => OnPresetCycled?.Invoke(preset));
+          app.Dispatcher.BeginInvoke(new Action(() => OnPresetCycled?.Invoke(preset)));
         else
           OnPresetCycled?.Invoke(preset);
       } catch { }
@@ -86,7 +87,6 @@ namespace OmenSuperHub.Services {
     public static string CustomPreset3Name = "Custom 3";
     // ponytail: dynamic custom preset names dict — key=preset file key, value=display name
     public static Dictionary<string, string> CustomPresetNames = new Dictionary<string, string>();
-    public static double FloatingOpacity = 0.85;
     public static double FloatingTextOpacity = 1.0;
     public static bool VerboseLogging = false;
 
@@ -103,13 +103,6 @@ namespace OmenSuperHub.Services {
     public static string CustomBgPath = "";
     public static double CustomBgOpacity = 0.5;
     public static bool CustomBgBlurEnabled = true;
-    public static string GpuPowerTgp = "on";
-    public static string GpuPowerPpab = "on";
-    public static string GpuPowerDState = "normal";
-    public static string GpuPowerTpp = "null";
-    public static string GpuPowerIccMax = "null";
-    public static string GpuPowerAcLoadLine = "null";
-    public static string CpuPowerValue = "null";
     public static int CpuPowerPl1 = -1;
     public static int CpuPowerPl2 = -1;
     public static int GpuCoreOverclock = -1;
@@ -124,17 +117,15 @@ namespace OmenSuperHub.Services {
     public static string AccentColor = "#FFFFFFFF";
     public static bool Topmost = true;
     public static bool ShowOsd = true;
-    public static bool ShowLockKeys = true;
+    public static string OsdPosition = "bottomCenter";
+    public static bool TrayHoverPopup = true;
     public static bool EcoQosEnabled = false;
     public static bool EcoQosThrottlePlugged = false;
     public static string EcoQosWhitelist = "";
     public static string EcoQosBlacklist = "";
-    public static int DisableDynamicBoost = 0;
     public static string Resolution = "";   // "WxH" format, "" = don't restore
     public static int DpiScale = 0;          // 0 = don't restore, 100/125/150/...
     public static bool HdrEnabled = false;   // HDR state for custom presets
-    public static bool BatteryChargeLimit = false;
-    public static bool BatteryWmiUnsupported = false;
     public static bool HWiNFOEnabled = false;
     public static bool HWiNFOReadEnabled = false;    // 从 HWiNFO64 读取传感器数据
     public static bool HttpApiEnabled = false;
@@ -199,7 +190,6 @@ namespace OmenSuperHub.Services {
           if (string.IsNullOrEmpty(setting)) {
             key.SetValue("Preset", Preset);
             key.SetValue("ShowOsd", ShowOsd);
-            key.SetValue("ShowLockKeys", ShowLockKeys);
             key.SetValue("Topmost", Topmost);
             key.SetValue("SysManufacturer", SysManufacturer);
             key.SetValue("SysModel", SysModel);
@@ -274,8 +264,6 @@ namespace OmenSuperHub.Services {
             case "CustomPreset1Name": key.SetValue("CustomPreset1Name", CustomPreset1Name); break;
             case "CustomPreset2Name": key.SetValue("CustomPreset2Name", CustomPreset2Name); break;
             case "CustomPreset3Name": key.SetValue("CustomPreset3Name", CustomPreset3Name); break;
-            case "FloatingOpacity": key.SetValue("FloatingOpacity", FloatingOpacity); break;
-            case "FloatingBarOpacity": key.SetValue("FloatingOpacity", FloatingOpacity); break;
             case "FloatingTextOpacity": key.SetValue("FloatingTextOpacity", FloatingTextOpacity); break;
             case "VerboseLogging": key.SetValue("VerboseLogging", VerboseLogging); break;
             case "HeteroCpuSmallMask": key.SetValue("HeteroCpuSmallMask", HeteroCpuSmallMask); break;
@@ -286,13 +274,6 @@ namespace OmenSuperHub.Services {
             case "HeteroCpuPolicyMask": key.SetValue("HeteroCpuPolicyMask", HeteroCpuPolicyMask); break;
             case "HeteroCpuImportantPriority": key.SetValue("HeteroCpuImportantPriority", HeteroCpuImportantPriority); break;
             case "AutoFanProtect": key.SetValue("AutoFanProtect", AutoFanProtect); break;
-            case "GpuPowerTgp": key.SetValue("GpuPowerTgp", GpuPowerTgp); break;
-            case "GpuPowerPpab": key.SetValue("GpuPowerPpab", GpuPowerPpab); break;
-            case "GpuPowerDState": key.SetValue("GpuPowerDState", GpuPowerDState); break;
-            case "GpuPowerTpp": key.SetValue("GpuPowerTpp", GpuPowerTpp); break;
-            case "GpuPowerIccMax": key.SetValue("GpuPowerIccMax", GpuPowerIccMax); break;
-            case "GpuPowerAcLoadLine": key.SetValue("GpuPowerAcLoadLine", GpuPowerAcLoadLine); break;
-            case "CpuPowerValue": key.SetValue("CpuPowerValue", CpuPowerValue); break;
             case "CpuPowerPl1": key.SetValue("CpuPowerPl1", CpuPowerPl1); break;
             case "CpuPowerPl2": key.SetValue("CpuPowerPl2", CpuPowerPl2); break;
             case "GpuCoreOverclock": key.SetValue("GpuCoreOverclock", GpuCoreOverclock); break;
@@ -306,8 +287,6 @@ namespace OmenSuperHub.Services {
             case "AccentColor": key.SetValue("AccentColor", AccentColor); break;
             case "EcoQosEnabled": key.SetValue("EcoQosEnabled", EcoQosEnabled); break;
             case "EcoQosThrottlePlugged": key.SetValue("EcoQosThrottlePlugged", EcoQosThrottlePlugged); break;
-            case "BatteryChargeLimit": key.SetValue("BatteryChargeLimit", BatteryChargeLimit); break;
-            case "BatteryWmiUnsupported": key.SetValue("BatteryWmiUnsupported", BatteryWmiUnsupported); break;
             case "HWiNFOEnabled": key.SetValue("HWiNFOEnabled", HWiNFOEnabled); break;
             case "HWiNFOReadEnabled": key.SetValue("HWiNFOReadEnabled", HWiNFOReadEnabled); break;
             case "HttpApiEnabled": key.SetValue("HttpApiEnabled", HttpApiEnabled); break;
@@ -317,19 +296,19 @@ namespace OmenSuperHub.Services {
             case "AmdCpuPpt": key.SetValue("AmdCpuPpt", AmdCpuPpt); break;
             case "AmdCpuPowerMasterEnabled": key.SetValue("AmdCpuPowerMasterEnabled", AmdCpuPowerMasterEnabled); break;
             case "FanSync": key.SetValue("FanSync", FanSync); break;
-            case "SmartFanEmaAlpha": key.SetValue("SmartFanEmaAlpha", SmartFanEmaAlpha); break;
-            case "SmartFanStepDownRate": key.SetValue("SmartFanStepDownRate", SmartFanStepDownRate); break;
-            case "SmartFanHysteresis": key.SetValue("SmartFanHysteresis", SmartFanHysteresis); break;
+            // ponytail: SmartFanEmaAlpha/StepDown/Hysteresis 不再走注册表，
+            // 改为按预设持久化到 FanCurves/custom_<preset>_smart.txt (见 FanService)。
+            // 字段仍保留作为运行时缓存，由 FanPage 在 LoadConfigState/切换预设时写回。
             case "ShowOsd": key.SetValue("ShowOsd", ShowOsd); break;
+            case "OsdPosition": key.SetValue("OsdPosition", OsdPosition); break;
+            case "TrayHoverPopup": key.SetValue("TrayHoverPopup", TrayHoverPopup ? 1 : 0); break;
             case "Topmost": key.SetValue("Topmost", Topmost); break;
-            case "ShowLockKeys": key.SetValue("ShowLockKeys", ShowLockKeys); break;
             case "EcoQosWhitelist": key.SetValue("EcoQosWhitelist", EcoQosWhitelist); break;
             case "EcoQosBlacklist": key.SetValue("EcoQosBlacklist", EcoQosBlacklist); break;
             case "CustomLogoPath": key.SetValue("CustomLogoPath", CustomLogoPath); break;
             case "CustomBgPath": key.SetValue("CustomBgPath", CustomBgPath); break;
             case "CustomBgOpacity": key.SetValue("CustomBgOpacity", CustomBgOpacity); break;
             case "CustomBgBlurEnabled": key.SetValue("CustomBgBlurEnabled", CustomBgBlurEnabled ? 1 : 0); break;
-            case "DisableDynamicBoost": key.SetValue("DisableDynamicBoost", DisableDynamicBoost); break;
             case "Resolution": key.SetValue("Resolution", Resolution); break;
             case "DpiScale": key.SetValue("DpiScale", DpiScale); break;
             case "HdrEnabled": key.SetValue("HdrEnabled", HdrEnabled ? 1 : 0); break;
@@ -385,11 +364,6 @@ namespace OmenSuperHub.Services {
           Tpp = (int)key.GetValue("Tpp", Tpp);
           AmdCpuPpt = (int)key.GetValue("AmdCpuPpt", AmdCpuPpt);
           DisplayMode = (string)key.GetValue("DisplayMode", DisplayMode);
-          GpuPowerTgp = (string)key.GetValue("GpuPowerTgp", GpuPowerTgp);
-          GpuPowerPpab = (string)key.GetValue("GpuPowerPpab", GpuPowerPpab);
-          GpuPowerDState = (string)key.GetValue("GpuPowerDState", GpuPowerDState);
-          GpuPowerTpp = (string)key.GetValue("GpuPowerTpp", GpuPowerTpp);
-          CpuPowerValue = (string)key.GetValue("CpuPowerValue", CpuPowerValue);
           MaxFrameRate = (int)key.GetValue("MaxFrameRate", MaxFrameRate);
           RefreshRate = (int)key.GetValue("RefreshRate", RefreshRate);
           PowerPlanGuid = (string)key.GetValue("PowerPlanGuid", PowerPlanGuid);
@@ -461,11 +435,6 @@ namespace OmenSuperHub.Services {
           key.SetValue("MonitorNetwork", MonitorNetwork);
           key.SetValue("MonitorFPS", MonitorFPS);
           key.SetValue("MonitorCPU", MonitorCPU);
-          key.SetValue("GpuPowerTgp", GpuPowerTgp);
-          key.SetValue("GpuPowerPpab", GpuPowerPpab);
-          key.SetValue("GpuPowerDState", GpuPowerDState);
-          key.SetValue("GpuPowerTpp", GpuPowerTpp);
-          key.SetValue("CpuPowerValue", CpuPowerValue);
           key.SetValue("CpuPowerPl1", CpuPowerPl1);
           key.SetValue("CpuPowerPl2", CpuPowerPl2);
           key.SetValue("AmdCpuPpt", AmdCpuPpt);
@@ -569,7 +538,6 @@ namespace OmenSuperHub.Services {
           CustomPreset1Name = RegStr(key, "CustomPreset1Name", "Custom 1");
           CustomPreset2Name = RegStr(key, "CustomPreset2Name", "Custom 2");
           CustomPreset3Name = RegStr(key, "CustomPreset3Name", "Custom 3");
-          FloatingOpacity = RegDouble(key, "FloatingOpacity", 0.85);
           FloatingTextOpacity = RegDouble(key, "FloatingTextOpacity", 1.0);
           VerboseLogging = RegBool(key, "VerboseLogging", false);
           HeteroCpuSmallMask = RegStr(key, "HeteroCpuSmallMask", "FFFF0000");
@@ -580,13 +548,6 @@ namespace OmenSuperHub.Services {
           HeteroCpuPolicyMask = RegInt(key, "HeteroCpuPolicyMask", 7);
           HeteroCpuImportantPriority = RegInt(key, "HeteroCpuImportantPriority", 8);
           AutoFanProtect = RegStr(key, "AutoFanProtect", "on");
-          GpuPowerTgp = RegStr(key, "GpuPowerTgp", "on");
-          GpuPowerPpab = RegStr(key, "GpuPowerPpab", "on");
-          GpuPowerDState = RegStr(key, "GpuPowerDState", "normal");
-          GpuPowerTpp = RegStr(key, "GpuPowerTpp", "null");
-          GpuPowerIccMax = RegStr(key, "GpuPowerIccMax", "null");
-          GpuPowerAcLoadLine = RegStr(key, "GpuPowerAcLoadLine", "null");
-          CpuPowerValue = RegStr(key, "CpuPowerValue", "null");
           CpuPowerPl1 = RegInt(key, "CpuPowerPl1", -1);
           CpuPowerPl2 = RegInt(key, "CpuPowerPl2", -1);
           GpuCoreOverclock = RegInt(key, "GpuCoreOverclock", -1);
@@ -601,11 +562,10 @@ namespace OmenSuperHub.Services {
           AccentColor = RegStr(key, "AccentColor", "#FFFFFFFF");
           Topmost = RegBool(key, "Topmost", true);
           ShowOsd = RegBool(key, "ShowOsd", true);
-          ShowLockKeys = RegBool(key, "ShowLockKeys", true);
+          OsdPosition = RegStr(key, "OsdPosition", "bottomCenter");
+          TrayHoverPopup = RegInt(key, "TrayHoverPopup", 1) == 1;
           EcoQosEnabled = RegBool(key, "EcoQosEnabled", false);
           EcoQosThrottlePlugged = RegBool(key, "EcoQosThrottlePlugged", false);
-          BatteryChargeLimit = RegBool(key, "BatteryChargeLimit", false);
-          BatteryWmiUnsupported = RegBool(key, "BatteryWmiUnsupported", false);
           HWiNFOEnabled = RegBool(key, "HWiNFOEnabled", false);
           HWiNFOReadEnabled = RegBool(key, "HWiNFOReadEnabled", false);
           HttpApiEnabled = RegBool(key, "HttpApiEnabled", false);
@@ -615,10 +575,8 @@ namespace OmenSuperHub.Services {
             AmdCpuPpt = RegInt(key, "AmdCpuPpt", 0);
             AmdCpuPowerMasterEnabled = RegBool(key, "AmdCpuPowerMasterEnabled", true);
             FanSync = RegBool(key, "FanSync", true);
-            SmartFanEmaAlpha = (float)RegDouble(key, "SmartFanEmaAlpha", 0.3);
-          SmartFanStepDownRate = RegInt(key, "SmartFanStepDownRate", 500);
-          SmartFanHysteresis = (float)RegDouble(key, "SmartFanHysteresis", 0.5);
-          EcoQosWhitelist = RegStr(key, "EcoQosWhitelist", "");
+            // ponytail: smart 参数不再从注册表读，由 FanPage 从 FanCurves/custom_<preset>_smart.txt 加载后写回
+            EcoQosWhitelist = RegStr(key, "EcoQosWhitelist", "");
           EcoQosBlacklist = RegStr(key, "EcoQosBlacklist", "");
           SysManufacturer = RegStr(key, "SysManufacturer", "");
           SysModel = RegStr(key, "SysModel", "");
@@ -639,7 +597,6 @@ namespace OmenSuperHub.Services {
           CustomBgPath = RegStr(key, "CustomBgPath", "");
           CustomBgOpacity = RegDouble(key, "CustomBgOpacity", 0.5);
           CustomBgBlurEnabled = RegInt(key, "CustomBgBlurEnabled", 1) == 1;
-          DisableDynamicBoost = RegInt(key, "DisableDynamicBoost", 0);
           Resolution = RegStr(key, "Resolution", "");
           DpiScale = RegInt(key, "DpiScale", 0);
           HdrEnabled = RegInt(key, "HdrEnabled", 0) == 1;

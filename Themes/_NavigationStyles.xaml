@@ -4,7 +4,7 @@
 
   <!-- NavigationView ItemTemplate override: icon centered above text, text hidden when active -->
   <ControlTemplate x:Key="OmenNavItemTemplate" TargetType="{x:Type ui:NavigationViewItem}">
-    <Grid>
+    <Grid MinHeight="80">
       <Grid.RowDefinitions>
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
@@ -24,7 +24,7 @@
                               Content="{TemplateBinding Icon}" Margin="0,6,0,0"
                               HorizontalAlignment="Center" VerticalAlignment="Center"
                               TextElement.Foreground="{DynamicResource NavigationViewItemForeground}"/>
-            <Grid x:Name="ContentGrid" Margin="0,2,0,6">
+            <Grid x:Name="ContentGrid" MaxHeight="30" Margin="0,2,0,6">
               <TextBlock FontSize="10" FontWeight="SemiBold"
                          Text="{TemplateBinding Content}"
                          TextAlignment="Center" TextWrapping="Wrap"
@@ -35,9 +35,41 @@
       </Border>
     </Grid>
     <ControlTemplate.Triggers>
+      <!-- ponytail: 参照 LLT.NavigationStore.xaml —— 进入激活时 ContentGrid 折叠 + 淡出,
+          ActiveBar 渐入; 退出激活反向。160ms 线性 (与 LLT 一致, 无 easing)。
+          Ceiling: 用 Storyboard 触发 DoubleAnimation, WPF 渲染线程跑动画; 性能损耗可忽略。
+          升级路径: 把 Storyboard 提到 Style.Triggers 共享, 但 ControlTemplate.Triggers 已够用。 -->
       <Trigger Property="IsActive" Value="True">
-        <Setter TargetName="ActiveBar" Property="Opacity" Value="1"/>
-        <Setter TargetName="ContentGrid" Property="Visibility" Value="Collapsed"/>
+        <Trigger.EnterActions>
+          <BeginStoryboard>
+            <Storyboard>
+              <DoubleAnimation Storyboard.TargetName="ContentGrid"
+                               Storyboard.TargetProperty="MaxHeight"
+                               From="30" To="0" Duration="0:0:0.16"/>
+              <DoubleAnimation Storyboard.TargetName="ContentGrid"
+                               Storyboard.TargetProperty="Opacity"
+                               From="1" To="0" Duration="0:0:0.16"/>
+              <DoubleAnimation Storyboard.TargetName="ActiveBar"
+                               Storyboard.TargetProperty="Opacity"
+                               From="0" To="1" Duration="0:0:0.16"/>
+            </Storyboard>
+          </BeginStoryboard>
+        </Trigger.EnterActions>
+        <Trigger.ExitActions>
+          <BeginStoryboard>
+            <Storyboard>
+              <DoubleAnimation Storyboard.TargetName="ContentGrid"
+                               Storyboard.TargetProperty="MaxHeight"
+                               From="0" To="30" Duration="0:0:0.16"/>
+              <DoubleAnimation Storyboard.TargetName="ContentGrid"
+                               Storyboard.TargetProperty="Opacity"
+                               From="0" To="1" Duration="0:0:0.16"/>
+              <DoubleAnimation Storyboard.TargetName="ActiveBar"
+                               Storyboard.TargetProperty="Opacity"
+                               From="1" To="0" Duration="0:0:0.16"/>
+            </Storyboard>
+          </BeginStoryboard>
+        </Trigger.ExitActions>
         <Setter TargetName="MainBorder" Property="Background">
           <Setter.Value>
             <SolidColorBrush Color="{DynamicResource ControlFillColorDefault}"/>

@@ -42,6 +42,8 @@ namespace OmenSuperHub.Utils {
     }
 
     void OnMouseEnter() {
+      // ponytail: 用户可在设置页关闭悬停浮窗 — 关闭后不创建 TrayPopupWindow。
+      if (!ConfigService.TrayHoverPopup) return;
       System.Windows.Application.Current?.Dispatcher.Invoke(() => {
         if (_popupWindow != null) return;
         try {
@@ -185,13 +187,13 @@ namespace OmenSuperHub.Utils {
           AddMenuItem(qa.Name, () => AutomationProcessor.ExecutePipeline(qa), SymbolRegular.Play24);
         _contextMenu.Items.Add(new System.Windows.Controls.Separator());
       }
-      AddNavMenuItem(Strings.SidebarDashboard, "Dashboard", SymbolRegular.Home24);
-      AddNavMenuItem(Strings.SidebarFan, "Fan", SymbolRegular.ArrowSync24);
-      AddNavMenuItem(Strings.SidebarPerf, "Perf", SymbolRegular.Gauge24);
-      AddNavMenuItem(Strings.SidebarLighting, "Lighting", SymbolRegular.Lightbulb24);
-      AddNavMenuItem(Strings.SidebarAutomation, "Automation", SymbolRegular.Rocket24);
-      AddNavMenuItem(Strings.SidebarOther, "Other", SymbolRegular.MoreHorizontal24);
-      AddNavMenuItem(Strings.SidebarSettings, "Settings", SymbolRegular.Settings24);
+      AddNavMenuItem(Strings.SidebarDashboard, "Dashboard", new SymbolIcon(SymbolRegular.Home24));
+      AddNavMenuItem(Strings.SidebarFan, "Fan", new OmenSuperHub.Controls.FanIcon() { IconSize = 14 });
+      AddNavMenuItem(Strings.SidebarPerf, "Perf", new SymbolIcon(SymbolRegular.Gauge24));
+      AddNavMenuItem(Strings.SidebarLighting, "Lighting", new SymbolIcon(SymbolRegular.Lightbulb24));
+      AddNavMenuItem(Strings.SidebarAutomation, "Automation", new SymbolIcon(SymbolRegular.Rocket24));
+      AddNavMenuItem(Strings.SidebarOther, "Other", new SymbolIcon(SymbolRegular.MoreHorizontal24));
+      AddNavMenuItem(Strings.SidebarSettings, "Settings", new SymbolIcon(SymbolRegular.Settings24));
       _contextMenu.Items.Add(new System.Windows.Controls.Separator());
       AddMenuItem(Strings.OmenKeyShowMain, () => _bringToForeground(), SymbolRegular.Window24);
       var langMenu = new System.Windows.Controls.MenuItem {
@@ -207,10 +209,10 @@ namespace OmenSuperHub.Utils {
       AddMenuItem(Strings.Exit, () => TrayService.Exit(), SymbolRegular.SignOut24);
     }
 
-    void AddNavMenuItem(string header, string pageTag, SymbolRegular icon) {
+    void AddNavMenuItem(string header, string pageTag, object icon) {
       var item = new System.Windows.Controls.MenuItem {
         Header = header,
-        Icon = new SymbolIcon { Symbol = icon }
+        Icon = icon as UIElement
       };
       item.Click += (s, e) => { _contextMenu.IsOpen = false; Views.MainWindow.NavigateToPage(pageTag); };
       _contextMenu.Items.Add(item);

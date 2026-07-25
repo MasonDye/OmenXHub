@@ -78,6 +78,21 @@ namespace OmenSuperHub.Pages {
           _optionsBuilt = true;
         }
 
+        // ponytail: 学 LLT.ProgressBarAnimateBehavior —— 250ms 线性过渡动画。
+        // 每次 Loaded 都调（CachedPageService 缓存导致多次 Loaded），
+        // EnableAnimation 内部 ConditionalWeakTable 自动防重入。
+        ProgressBarAnimation.EnableAnimation(CpuTempBar);
+        ProgressBarAnimation.EnableAnimation(CpuUtilBar);
+        ProgressBarAnimation.EnableAnimation(CpuFanBar);
+        ProgressBarAnimation.EnableAnimation(CpuPowerBar);
+        ProgressBarAnimation.EnableAnimation(CpuClockBar);
+        ProgressBarAnimation.EnableAnimation(GpuTempBar);
+        ProgressBarAnimation.EnableAnimation(GpuUtilBar);
+        ProgressBarAnimation.EnableAnimation(GpuFanBar);
+        ProgressBarAnimation.EnableAnimation(GpuPowerBar);
+        ProgressBarAnimation.EnableAnimation(GpuClockBar);
+        ProgressBarAnimation.EnableAnimation(RamUsageBar);
+
         _loading = true;
         LoadPresetState();
         LoadSysInfoState();
@@ -837,22 +852,30 @@ namespace OmenSuperHub.Pages {
 
     void ExpandSysInfoGrid() {
       if (SysInfoGrid == null) return;
-      var col1 = SysInfoGrid.ColumnDefinitions[1];
-      col1.Width = new GridLength(1, GridUnitType.Star);
+      // ponytail: 对齐 MetricsGrid/StatusGrid 的双列模式 —— gap列保持12px、右卡片放col2。
+      // 之前把 right 塞进 col1(gap)并把 gap 设为 Star，三列均 Star 导致右卡片只占1/3、
+      // col2 留1/3空白，整组卡片视觉偏左（系统信息/传感器温度/PawnIO/HP驱动/硬件监控均受影响）。
+      var gapDef = SysInfoGrid.ColumnDefinitions[1];
+      var rightDef = SysInfoGrid.ColumnDefinitions[2];
+      gapDef.Width = new GridLength(12, GridUnitType.Pixel);
+      rightDef.Width = new GridLength(1, GridUnitType.Star);
       var left = SysInfoGrid.Children[0] as FrameworkElement;
       var right = SysInfoGrid.Children[1] as FrameworkElement;
-      if (left != null) { Grid.SetRow(left, 0); Grid.SetColumn(left, 0); Grid.SetColumnSpan(left, 1); left.Margin = new Thickness(0, 0, 4, 0); }
-      if (right != null) { Grid.SetRow(right, 0); Grid.SetColumn(right, 1); Grid.SetColumnSpan(right, 1); right.Margin = new Thickness(4, 0, 0, 0); }
+      if (left != null) { Grid.SetRow(left, 0); Grid.SetColumn(left, 0); Grid.SetColumnSpan(left, 1); left.Margin = new Thickness(0); }
+      if (right != null) { Grid.SetRow(right, 0); Grid.SetColumn(right, 2); Grid.SetColumnSpan(right, 1); right.Margin = new Thickness(0); }
     }
 
     void CollapseSysInfoGrid() {
       if (SysInfoGrid == null) return;
-      var col1 = SysInfoGrid.ColumnDefinitions[1];
-      col1.Width = new GridLength(0, GridUnitType.Pixel);
+      // ponytail: 单列折叠 —— gap/right列归零，左右卡片各 ColumnSpan=3 占满整行。
+      var gapDef = SysInfoGrid.ColumnDefinitions[1];
+      var rightDef = SysInfoGrid.ColumnDefinitions[2];
+      gapDef.Width = new GridLength(0, GridUnitType.Pixel);
+      rightDef.Width = new GridLength(0, GridUnitType.Pixel);
       var left = SysInfoGrid.Children[0] as FrameworkElement;
       var right = SysInfoGrid.Children[1] as FrameworkElement;
-      if (left != null) { Grid.SetRow(left, 0); Grid.SetColumn(left, 0); Grid.SetColumnSpan(left, 2); left.Margin = new Thickness(0); }
-      if (right != null) { Grid.SetRow(right, 1); Grid.SetColumn(right, 0); Grid.SetColumnSpan(right, 2); right.Margin = new Thickness(0); }
+      if (left != null) { Grid.SetRow(left, 0); Grid.SetColumn(left, 0); Grid.SetColumnSpan(left, 3); left.Margin = new Thickness(0, 0, 0, 8); }
+      if (right != null) { Grid.SetRow(right, 1); Grid.SetColumn(right, 0); Grid.SetColumnSpan(right, 3); right.Margin = new Thickness(0); }
     }
 
     void LayoutDashGrid(Grid grid, int col1, int col2) {

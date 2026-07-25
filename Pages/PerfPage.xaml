@@ -1,4 +1,4 @@
-﻿<Page x:Class="OmenSuperHub.Pages.PerfPage"
+<Page x:Class="OmenSuperHub.Pages.PerfPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -88,7 +88,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.CpuPowerHeading}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="DeveloperBoard24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.CpuPowerHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfAdjustCpuPower}" FontSize="12"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
@@ -170,15 +173,21 @@
 
         <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="AcLoadLineCard">
           <ui:CardControl.Header>
-              <StackPanel>
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal">
                   <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.AcLoadLineHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-	                <TextBlock Text="{x:Static app:Strings.AcLoadLineDesc}" FontSize="12"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-                <ComboBox x:Name="AcLoadLineCombo"  Margin="0,8,0,0"
+                <ComboBox x:Name="AcLoadLineCombo" Grid.Column="1" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
                         SelectionChanged="AcLoadLine_Changed"/>
+              </Grid>
+              <TextBlock Text="{x:Static app:Strings.AcLoadLineDesc}" FontSize="12"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
           </ui:CardControl.Header>
         </ui:CardControl>
@@ -294,7 +303,24 @@
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <!-- 4. Maximum Processor Frequency -->
+            <!-- 4. Minimum Processor State -->
+            <StackPanel Margin="0,0,0,10">
+              <TextBlock Text="{x:Static app:Strings.MinProcStateLabel}" FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4"/>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ComboBox x:Name="MinProcStateCombo" MinWidth="180" IsEditable="True" Margin="0,0,8,0"
+                          SelectionChanged="MinProcStateCombo_SelectionChanged"/>
+                <TextBlock x:Name="MinProcStateCurrentText" Grid.Column="1" Text="-" FontSize="11" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              </Grid>
+              <TextBlock Text="{x:Static app:Strings.MinProcStateHint}" FontSize="11"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- 5. Maximum Processor Frequency -->
             <StackPanel Margin="0,0,0,10">
 	              <TextBlock Text="{x:Static app:Strings.MaxFreqLabel}" FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4"/>
               <Grid>
@@ -311,7 +337,7 @@
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <!-- 5. SMT Thread Unpark Policy -->
+            <!-- 6. SMT Thread Unpark Policy -->
             <StackPanel Margin="0,0,0,10">
 	              <TextBlock Text="{x:Static app:Strings.SmtPolicyLabel}" FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4"/>
               <Grid>
@@ -346,59 +372,56 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardControl Grid.Row="2" Grid.Column="1" Margin="4,0,0,8" x:Name="EcoQosCard">
-          <ui:CardControl.Header>
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="LeafOne24" Margin="0,0,6,0"/>
-                <TextBlock Text="{x:Static app:Strings.EcoQosHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              </StackPanel>
-              <TextBlock Text="{x:Static app:Strings.PerfEcoQosDesc}" FontSize="12"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
-          </ui:CardControl.Header>
-          <StackPanel>
+        <ui:CardExpander Grid.Row="2" Grid.Column="1" Margin="4,0,0,8" x:Name="EcoQosCard"
+                         Icon="LeafOne24">
+          <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock Text="{x:Static app:Strings.EcoQosEnable}" FontSize="12" VerticalAlignment="Center"/>
-              <ui:ToggleSwitch x:Name="EcoQosToggle" Grid.Column="1"
-                              VerticalAlignment="Center"
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="LeafOne24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.EcoQosHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.PerfEcoQosDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="EcoQosToggle" Grid.Column="1" VerticalAlignment="Top"
                               Checked="EcoQosToggle_Checked" Unchecked="EcoQosToggle_Unchecked"/>
             </Grid>
-            <StackPanel x:Name="EcoQosExtra" Margin="0,6,0,0">
-              <Grid Margin="0,4,0,0">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{x:Static app:Strings.EcoQosThrottlePlugged}" FontSize="12" VerticalAlignment="Center"/>
-                <ui:ToggleSwitch x:Name="EcoQosThrottlePluggedToggle" Grid.Column="1"
-                                Checked="EcoQosThrottlePlugged_Changed" Unchecked="EcoQosThrottlePlugged_Changed"/>
-              </Grid>
-              <Grid Margin="0,8,0,0">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{x:Static app:Strings.EcoQosWhitelist}" FontSize="12" VerticalAlignment="Center"/>
-                <ui:Button x:Name="EcoQosWhitelistEdit" Grid.Column="1"
-                        MinWidth="60" Height="24" Padding="8,0" Content="{x:Static app:Strings.ButtonEdit}" Click="EcoQosWhitelistEdit_Click" Appearance="Secondary"/>
-              </Grid>
-              <Grid Margin="0,8,0,0">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{x:Static app:Strings.EcoQosBlacklist}" FontSize="12" VerticalAlignment="Center"/>
-                <ui:Button x:Name="EcoQosBlacklistEdit" Grid.Column="1"
-                        MinWidth="60" Height="24" Padding="8,0" Content="{x:Static app:Strings.ButtonEdit}" Click="EcoQosBlacklistEdit_Click" Appearance="Secondary"/>
-              </Grid>
-            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel x:Name="EcoQosExtra">
+            <Grid Margin="0,4,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{x:Static app:Strings.EcoQosThrottlePlugged}" FontSize="12" VerticalAlignment="Center"/>
+              <ui:ToggleSwitch x:Name="EcoQosThrottlePluggedToggle" Grid.Column="1"
+                              Checked="EcoQosThrottlePlugged_Changed" Unchecked="EcoQosThrottlePlugged_Changed"/>
+            </Grid>
+            <Grid Margin="0,8,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{x:Static app:Strings.EcoQosWhitelist}" FontSize="12" VerticalAlignment="Center"/>
+              <ui:Button x:Name="EcoQosWhitelistEdit" Grid.Column="1"
+                      MinWidth="60" Height="24" Padding="8,0" Content="{x:Static app:Strings.ButtonEdit}" Click="EcoQosWhitelistEdit_Click" Appearance="Secondary"/>
+            </Grid>
+            <Grid Margin="0,8,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{x:Static app:Strings.EcoQosBlacklist}" FontSize="12" VerticalAlignment="Center"/>
+              <ui:Button x:Name="EcoQosBlacklistEdit" Grid.Column="1"
+                      MinWidth="60" Height="24" Padding="8,0" Content="{x:Static app:Strings.ButtonEdit}" Click="EcoQosBlacklistEdit_Click" Appearance="Secondary"/>
+            </Grid>
           </StackPanel>
-        </ui:CardControl>
+        </ui:CardExpander>
 
         <!-- 异构调度 (AMD 双CCD 模拟大小核) -->
         <ui:CardExpander Grid.Row="3" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="HeteroCpuCard"
@@ -534,128 +557,26 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardControl Grid.Row="10" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="CoreKeepCard">
+        <!-- ponytail: CoreKeep 已迁移到独立 CoreKeepPage 二级菜单，此处仅保留跳转入口 -->
+        <ui:CardControl Grid.Row="10" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}">
           <ui:CardControl.Header>
             <Grid>
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-              </Grid.RowDefinitions>
-              <DockPanel Grid.Row="0">
-                <ui:ToggleSwitch x:Name="CoreKeepMasterToggle" DockPanel.Dock="Right"
-                                VerticalAlignment="Top" Margin="12,0,2,0"
-                                Checked="CoreKeepMasterToggle_Changed" Unchecked="CoreKeepMasterToggle_Changed"/>
-                <StackPanel VerticalAlignment="Center">
-                  <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="AppsList24" Margin="0,0,6,0"/>
-                    <TextBlock Text="{x:Static app:Strings.CoreKeepHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                  </StackPanel>
-                  <TextBlock Text="{x:Static app:Strings.PerfCoreKeepDesc}" FontSize="12"
-                             Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="AppsList24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.CoreKeepHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-              </DockPanel>
-              <StackPanel Grid.Row="1" Margin="0,8,0,0" HorizontalAlignment="Stretch">
-                <!-- Topology summary -->
-                <TextBlock x:Name="CoreKeepTopologyText" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-
-                <!-- Rule list with status -->
-                <ListBox x:Name="CoreKeepList" Height="120" MinWidth="420" Margin="0,0,0,6"/>
-
-                <!-- Row 0: process name input + refresh + add + save + delete -->
-                <Grid Margin="0,0,0,2">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                  </Grid.ColumnDefinitions>
-                  <TextBlock Text="{x:Static app:Strings.CoreKeepProcessLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                  <ui:TextBox x:Name="CoreKeepProcInput" Grid.Column="1" Height="34" MinWidth="160" Margin="0,0,4,0"/>
-                  <ui:Button x:Name="CoreKeepRefreshBtn" Grid.Column="2" MinWidth="50"
-                          Content="{x:Static app:Strings.ButtonRefresh}" Margin="0,0,4,0" Appearance="Secondary" Click="CoreKeepRefresh_Click"/>
-                  <ui:Button x:Name="CoreKeepAddBtn" Grid.Column="3" MinWidth="40"
-                          Content="{x:Static app:Strings.ButtonAdd}" Margin="0,0,4,0" Appearance="Secondary" Click="CoreKeepAdd_Click"/>
-                  <ui:Button x:Name="CoreKeepSaveBtn" Grid.Column="4" MinWidth="50"
-                          Content="{x:Static app:Strings.CoreKeepSaveCurrent}" Margin="0,0,4,0" Appearance="Secondary" Click="CoreKeepSave_Click"/>
-                  <ui:Button x:Name="CoreKeepDeleteBtn" Grid.Column="5" MinWidth="40"
-                          Content="{x:Static app:Strings.ButtonDelete}" Margin="0,0,0,0" Appearance="Secondary" Click="CoreKeepDelete_Click"/>
-                </Grid>
-
-                <!-- Row 1: saved values + current state -->
-                <TextBlock FontSize="12" Margin="0,0,0,2">
-                  <Run Text="{x:Static app:Strings.CoreKeepPriorityLabel}"/><Run x:Name="CoreKeepPriorityText" Text=" -"/>
-                  <Run Text="  "/><Run Text="{x:Static app:Strings.CoreKeepAffinityLabel}"/><Run x:Name="CoreKeepAffinityText" Text=" -"/>
-                  <Run Text="  "/><Run x:Name="CoreKeepStatusIcon" Text="" Foreground="{DynamicResource SystemAccentColorBrush}"/>
-                  <Run x:Name="CoreKeepLivePriorityText" Text="" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                </TextBlock>
-
-                <!-- Row 2: core mode buttons -->
-                <Grid Margin="0,0,0,2">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-                  <TextBlock Text="{x:Static app:Strings.CoreKeepModeLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                  <ui:Button x:Name="CoreKeepModeAll" Grid.Column="1" MinWidth="40" Content="{x:Static app:Strings.CoreKeepModeAll}" FontSize="11"
-                          Margin="0,0,4,0" Appearance="Primary" Click="CoreKeepMode_Click" Tag="All"/>
-                  <ui:Button x:Name="CoreKeepModeAuto" Grid.Column="2" MinWidth="40" Content="{x:Static app:Strings.CoreKeepModeAuto}" FontSize="11"
-                          Margin="0,0,4,0" Appearance="Secondary" Click="CoreKeepMode_Click" Tag="Auto"/>
-                  <ui:Button x:Name="CoreKeepModeManual" Grid.Column="3" MinWidth="40" Content="{x:Static app:Strings.CoreKeepModeManual}" FontSize="11"
-                          Margin="0,0,0,0" Appearance="Secondary" Click="CoreKeepMode_Click" Tag="Manual"/>
-                </Grid>
-
-                <!-- Row 3: priority selection -->
-                <Grid Margin="0,0,0,2" Height="36">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="200"/>
-                    <ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-                  <TextBlock Text="{x:Static app:Strings.CoreKeepPriorityLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                  <ComboBox x:Name="CoreKeepPriorityCombo" Grid.Column="1" Height="32" MaxDropDownHeight="200"
-                            SelectionChanged="CoreKeepPriorityCombo_SelectionChanged"/>
-                </Grid>
-
-                <!-- Row 4: core selection checkboxes (manual mode) -->
-                <ItemsControl x:Name="CoreKeepCoreList" Margin="0,0,0,2" Visibility="Collapsed">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <CheckBox Content="{Binding CoreIndex}" IsChecked="{Binding IsChecked}"
-                                Width="36" Height="28" Margin="2,2"
-                                Checked="CoreKeepCoreCheckChanged" Unchecked="CoreKeepCoreCheckChanged"/>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <WrapPanel/>
-                    </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                </ItemsControl>
-
-                <!-- Guard config + benchmark -->
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                  </Grid.ColumnDefinitions>
-                  <ui:ToggleSwitch x:Name="CoreKeepGuardToggle" VerticalAlignment="Center" Margin="0,0,4,0"
-                                  Checked="CoreKeepGuardToggle_Changed" Unchecked="CoreKeepGuardToggle_Changed"/>
-                  <TextBlock Grid.Column="1" Text="{x:Static app:Strings.CoreKeepGuardLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                  <ui:NumberBox x:Name="CoreKeepGuardInterval" Grid.Column="2" MinWidth="60" Height="34" Minimum="1" Maximum="10" 
-                               Value="2" SpinButtonPlacementMode="Inline" Margin="0,0,8,0"
-                               ValueChanged="CoreKeepGuardInterval_Changed"/>
-                  <ui:Button x:Name="CoreKeepBenchBtn" Grid.Column="4" MinWidth="70"
-                          Content="{x:Static app:Strings.CoreKeepBenchmark}" Margin="0,0,0,0" Appearance="Secondary" Click="CoreKeepBenchmark_Click"/>
-                </Grid>
+                <TextBlock Text="{x:Static app:Strings.PerfCoreKeepDesc}" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
+              <ui:Button Grid.Column="1" x:Name="CoreKeepGotoBtn"
+                         Content="{x:Static app:Strings.CoreKeepOpenPage}"
+                         Appearance="Primary" Click="CoreKeepGoto_Click"
+                         VerticalAlignment="Center"/>
             </Grid>
           </ui:CardControl.Header>
         </ui:CardControl>
@@ -697,8 +618,10 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock Text="{x:Static app:Strings.GpuClockHeading}" FontWeight="SemiBold"
-                         VerticalAlignment="Center"/>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Clock24" Margin="0,0,6,0"/>
+                <TextBlock Text="{x:Static app:Strings.GpuClockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
               <ComboBox Grid.Column="1" x:Name="GpuClockCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
                         SelectionChanged="GpuClock_SelectionChanged"/>
             </Grid>
@@ -726,8 +649,11 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.GpuCoreOverclockHeading}" FontWeight="SemiBold"/>
-	                <TextBlock Text="{x:Static app:Strings.GpuCoreOcDesc}" FontSize="12"
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="TopSpeed24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.GpuCoreOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.GpuCoreOcDesc}" FontSize="12"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="GpuCoreOCCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -757,8 +683,11 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.GpuMemoryOverclockHeading}" FontWeight="SemiBold"/>
-	                <TextBlock Text="{x:Static app:Strings.GpuMemOcDesc}" FontSize="12"
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Clock24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.GpuMemoryOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.GpuMemOcDesc}" FontSize="12"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="GpuMemoryOCCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -808,15 +737,21 @@
         <ui:CardControl Grid.Row="2" Grid.Column="0" Margin="0,0,4,8" x:Name="HotSwitchCard" Visibility="Collapsed">
           <ui:CardControl.Header>
             <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="ArrowSync24" Margin="0,0,6,0"/>
-                <TextBlock Text="{x:Static app:Strings.HotSwitchHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              </StackPanel>
-	              <TextBlock Text="{x:Static app:Strings.HotSwitchDesc}" FontSize="12"
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="ArrowSync24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.HotSwitchHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ui:Button x:Name="HotSwitchBtn" Grid.Column="1" Width="32" Height="34" Padding="0" VerticalAlignment="Top" Margin="0,0,12,0" Appearance="Transparent" Click="HotSwitch_Click">
+                  <ui:SymbolIcon Symbol="ArrowSync24" FontSize="14"/>
+                </ui:Button>
+              </Grid>
+              <TextBlock Text="{x:Static app:Strings.HotSwitchDesc}" FontSize="12"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-              <ui:Button x:Name="HotSwitchBtn" Width="32" Height="34" Padding="0" Margin="0,8,0,0" Appearance="Transparent" Click="HotSwitch_Click">
-                <ui:SymbolIcon Symbol="ArrowSync24" FontSize="14"/>
-              </ui:Button>
             </StackPanel>
           </ui:CardControl.Header>
         </ui:CardControl>
@@ -962,7 +897,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.RefreshRateHeading}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="DesktopPulse24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.RefreshRateHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfRefreshRateDesc}" FontSize="12"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
@@ -997,7 +935,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.ResolutionHeading}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="FullScreenMaximize24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.ResolutionHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfResolutionDesc}" FontSize="12"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
@@ -1016,7 +957,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.DpiScaleHeading}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Scales24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.DpiScaleHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfDpiDesc}" FontSize="12"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
@@ -1035,7 +979,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.HdrHeading}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Hdr24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.HdrHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfHdrDesc}" FontSize="12"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
@@ -1054,7 +1001,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.TurnOffDisplayHeading}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.TurnOffDisplayHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfTurnOffDisplayDesc}" FontSize="12"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>

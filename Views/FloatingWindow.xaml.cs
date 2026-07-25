@@ -70,7 +70,7 @@ namespace OmenSuperHub.Views {
 
     // ponytail: previous-string cache — skips TextBlock.Text assignment when value is unchanged,
     // which also avoids WPF's FormattedText layout pass for unchanged text
-    string _lastCpuTemp, _lastCpuPower, _lastGpuTemp, _lastGpuPower, _lastFanSpeed;
+    string _lastCpuTemp, _lastCpuPower, _lastCpuUsage, _lastCpuFreq, _lastGpuTemp, _lastGpuPower, _lastGpuUsage, _lastGpuFreq, _lastFanSpeed0, _lastFanSpeed1;
     string _lastMemPct, _lastMemUsed, _lastNetDown, _lastNetUp, _lastFps, _lastFpsApp;
     int _lastCpuTempIdx = -1, _lastGpuTempIdx = -1;
 
@@ -185,6 +185,22 @@ namespace OmenSuperHub.Views {
       DataPanel.Orientation = isCol
         ? System.Windows.Controls.Orientation.Horizontal
         : System.Windows.Controls.Orientation.Vertical;
+      // ponytail: col mode → 2×2 grid (temp/power 上, usage/freq 下, 列对齐); row mode → 铺平一行, 4px 间距
+      var dataOrient = isCol ? System.Windows.Controls.Orientation.Vertical
+                             : System.Windows.Controls.Orientation.Horizontal;
+      var lineGap = isCol ? new Thickness(0) : new Thickness(4, 0, 0, 0);
+      CpuDataStack.Orientation = dataOrient;
+      GpuDataStack.Orientation = dataOrient;
+      NetDataStack.Orientation = dataOrient;
+      MemDataStack.Orientation = dataOrient;
+      FanDataStack.Orientation = dataOrient;
+      FpsDataStack.Orientation = dataOrient;
+      CpuLine2.Margin = lineGap;
+      GpuLine2.Margin = lineGap;
+      NetUpText.Margin = lineGap;
+      MemUsedText.Margin = lineGap;
+      FanSpeed1Text.Margin = lineGap;
+      FpsAppText.Margin = lineGap;
       // ponytail: separators toggled per-cycle in DoUpdateText so collapsed rows don't leave orphaned `|`
     }
 
@@ -198,6 +214,8 @@ namespace OmenSuperHub.Views {
         if (idx != w._lastCpuTempIdx) { w.CpuTempText.Foreground = TempBrushes[idx]; w._lastCpuTempIdx = idx; }
         SetIfChanged(w.CpuTempText, ref w._lastCpuTemp, $"{cpuTemp:F1}°C");
         SetIfChanged(w.CpuPowerText, ref w._lastCpuPower, $"{HardwareService.CPUPower:F1}W");
+        SetIfChanged(w.CpuUsageText, ref w._lastCpuUsage, $"{HardwareService.CPUUsage:F0}%");
+        SetIfChanged(w.CpuFreqText, ref w._lastCpuFreq, $"{HardwareService.CPUClock:F0}M");
       } else {
         w.CpuRow.Visibility = Visibility.Collapsed;
       }
@@ -209,13 +227,16 @@ namespace OmenSuperHub.Views {
         if (idx != w._lastGpuTempIdx) { w.GpuTempText.Foreground = TempBrushes[idx]; w._lastGpuTempIdx = idx; }
         SetIfChanged(w.GpuTempText, ref w._lastGpuTemp, $"{gpuTemp:F1}°C");
         SetIfChanged(w.GpuPowerText, ref w._lastGpuPower, $"{HardwareService.GPUPower:F1}W");
+        SetIfChanged(w.GpuUsageText, ref w._lastGpuUsage, $"{HardwareService.GPUUsage:F0}%");
+        SetIfChanged(w.GpuFreqText, ref w._lastGpuFreq, $"{HardwareService.GPUClock:F0}M");
       } else {
         w.GpuRow.Visibility = Visibility.Collapsed;
       }
 
       if (HardwareService.MonitorFan) {
         w.FanRow.Visibility = Visibility.Visible;
-        SetIfChanged(w.FanSpeedText, ref w._lastFanSpeed, $"{HardwareService.FanSpeedNow[0] * 100}, {HardwareService.FanSpeedNow[1] * 100}");
+        SetIfChanged(w.FanSpeed0Text, ref w._lastFanSpeed0, $"{HardwareService.FanSpeedNow[0] * 100}");
+        SetIfChanged(w.FanSpeed1Text, ref w._lastFanSpeed1, $"{HardwareService.FanSpeedNow[1] * 100}");
       } else {
         w.FanRow.Visibility = Visibility.Collapsed;
       }
@@ -411,14 +432,25 @@ namespace OmenSuperHub.Views {
       CpuTempText.Width = EmW(fontSize, 7); CpuTempText.TextAlignment = TextAlignment.Right;
       CpuPowerText.FontSize = fontSize - 2;
       CpuPowerText.Width = EmW(fontSize - 2, 5); CpuPowerText.TextAlignment = TextAlignment.Right;
+      // ponytail: usage mirrors temp column, freq mirrors power column so the two lines align as a 2x2 grid
+      CpuUsageText.FontSize = fontSize;
+      CpuUsageText.Width = EmW(fontSize, 7); CpuUsageText.TextAlignment = TextAlignment.Right;
+      CpuFreqText.FontSize = fontSize - 2;
+      CpuFreqText.Width = EmW(fontSize - 2, 5); CpuFreqText.TextAlignment = TextAlignment.Right;
       GpuLabel.FontSize = fontSize;
       GpuTempText.FontSize = fontSize;
       GpuTempText.Width = EmW(fontSize, 7); GpuTempText.TextAlignment = TextAlignment.Right;
       GpuPowerText.FontSize = fontSize - 2;
       GpuPowerText.Width = EmW(fontSize - 2, 5); GpuPowerText.TextAlignment = TextAlignment.Right;
+      GpuUsageText.FontSize = fontSize;
+      GpuUsageText.Width = EmW(fontSize, 7); GpuUsageText.TextAlignment = TextAlignment.Right;
+      GpuFreqText.FontSize = fontSize - 2;
+      GpuFreqText.Width = EmW(fontSize - 2, 5); GpuFreqText.TextAlignment = TextAlignment.Right;
       FanLabel.FontSize = fontSize;
-      FanSpeedText.FontSize = fontSize - 2;
-      FanSpeedText.Width = EmW(fontSize - 2, 11); FanSpeedText.TextAlignment = TextAlignment.Right;
+      FanSpeed0Text.FontSize = fontSize - 2;
+      FanSpeed0Text.Width = EmW(fontSize - 2, 5); FanSpeed0Text.TextAlignment = TextAlignment.Right;
+      FanSpeed1Text.FontSize = fontSize - 2;
+      FanSpeed1Text.Width = EmW(fontSize - 2, 5); FanSpeed1Text.TextAlignment = TextAlignment.Right;
       MemLabel.FontSize = fontSize;
       MemPctText.FontSize = fontSize;
       MemPctText.Width = EmW(fontSize, 4); MemPctText.TextAlignment = TextAlignment.Right;

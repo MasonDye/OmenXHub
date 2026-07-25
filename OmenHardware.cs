@@ -65,8 +65,8 @@ namespace OmenSuperHub {
 
           using (var localSearcher = new ManagementObjectSearcher(scope, new ObjectQuery($"SELECT * FROM {className}")))
           using (var collection = localSearcher.Get()) {
-            ManagementObject biosMethods = null;
-            foreach (ManagementObject mo in collection) { biosMethods = mo; break; }
+            // ponytail: FirstOrDefault 不接管 dispose 责任；由外层 using (biosMethods) 统一释放（对齐 OSH 实现）
+            ManagementObject biosMethods = collection.Cast<ManagementObject>().FirstOrDefault();
             if (biosMethods == null) {
               Logger.Error($"SendOmenBiosWmi: {className} WMI class not found!");
               return null;
@@ -145,6 +145,16 @@ namespace OmenSuperHub {
         }
       }
       return fanSpeedNow;
+    }
+
+    // ponytail: 标准机型风扇 RPM 查询,对照 OmenCtl hp-wmi.c:768-777。
+    // oxh 现有 GetFanLevel() 走 0x2D 是 Victus_S 路径(outsize=128, 返回 3 个 level 0-255);
+    // 0x11 是标准 Omen 机型路径(outsize=4, 返回单风扇 RPM u16, [2]<<8|[3])。
+    // fanIndex 通常 0=CPU, 1=GPU。失败返回 -1。不替代 GetFanLevel,语义不同不能互换。
+    public static int GetFanSpeedRpm(int fanIndex) {
+      byte[] result = SendOmenBiosWmi(0x11, new byte[] { (byte)fanIndex, 0, 0, 0 }, 4);
+      if (result == null || result.Length < 4) return -1;
+      return (result[2] << 8) | result[3];
     }
 
     public static byte[] GetFanTable() {
@@ -368,42 +378,46 @@ namespace OmenSuperHub {
     }
 
     // ─── CPU Power ────────────────────────────────────────────────────
+    // ponytail: 0x29 (PL1/PL2/PL4/TPP) 在狂暴和平衡模式下都生效（参考 OSH 注释
+    // "狂暴平衡都生效"），所以这里不耦合 SetUnleashMode()。OSH 参考实现里这些 setter
+    // 都是纯 WMI 写，模式切换在 RestorePowerConfig 中独立完成且带 1000ms 延迟。
+    //
+    // 之前在每个 setter 里同步调 SetUnleashMode() 会触发竞态：0x1A(模式切换) 发出后
+    // 0x29 立即同步发出，但 EC 异步处理模式切换——当 EC 完成 L7 切换时会按该模式的
+    // BIOS 默认值重置 CPU 功耗限制，覆盖刚写入的 0x29 值。表现为 Omen Transcend 16
+    // (8bb3 / i7-13700HX) 等机型 "power limits do not apply to CPU"。
+    // Unleash 模式仍由 App.xamlcs 启动、PresetManager、TrayService 等独立设置。
     /// <summary>Set both PL1 and PL2 to the same value (backward compat).</summary>
     public static bool SetCpuPowerLimit(byte value) {
       return SetCpuPowerLimit(value, value);
     }
     /// <summary>Set PL1 and PL2 independently.</summary>
     public static bool SetCpuPowerLimit(byte pl1, byte pl2) {
-      SetUnleashMode();
       var result = SendOmenBiosWmi(0x29, new byte[] { pl2, pl1, 0xFF, 0xFF }, 0);
       return result != null;
     }
 
     /// <summary>Set PL1 only, PL2 unchanged.</summary>
     public static bool SetCpuPowerLimitPL1Only(byte pl1) {
-      SetUnleashMode();
       var result = SendOmenBiosWmi(0x29, new byte[] { 0xFF, pl1, 0xFF, 0xFF }, 0);
       return result != null;
     }
     /// <summary>Set PL2 only, PL1 unchanged.</summary>
     public static bool SetCpuPowerLimitPL2Only(byte pl2) {
-      SetUnleashMode();
       var result = SendOmenBiosWmi(0x29, new byte[] { pl2, 0xFF, 0xFF, 0xFF }, 0);
       return result != null;
     }
 
     public static bool SetCpuPowerLimit4(byte value) {
-      SetUnleashMode();
       var result = SendOmenBiosWmi(0x29, new byte[] { 0xFF, 0xFF, value, 0xFF }, 0);
       return result != null;
     }
 
     public static bool SetConcurrentTdp(byte value) {
-      // ponytail: 0xFF 是 EC 的 0x29 "保持原值" 哨兵，所以 TPP 最大值不 能用 255。
+      // ponytail: 0xFF 是 EC 的 0x29 "保持原值" 哨兵，所以 TPP 最大值不能用 255。
       // 255(0xFF) → EC 忽略当前字段，双烤 CPU 功耗将受限于 BIOS 默认 TPP(~155W)。
       // 钳位到 254(0xFE)，确保 EC 能识别并应用该值。
       if (value >= 255) value = 254;
-      SetUnleashMode();
       var result = SendOmenBiosWmi(0x29, new byte[] { 0xFF, 0xFF, 0xFF, value }, 0);
       return result != null;
     }
@@ -471,6 +485,21 @@ namespace OmenSuperHub {
         Convert.ToByte(dState), Convert.ToByte(gps)
       };
       SendOmenBiosWmi(0x22, data, 0, 0x20008);
+    }
+
+    // ponytail: 回读 GPU 功耗策略当前 EC 状态,对照 OmenCtl hp-wmi.c:2126-2141。
+    // 与现有 SetGpuPowerState (0x22) 对称,启动时同步 UI/ConfigService 用。
+    // 返回结构:{ctgp_enable, ppab_enable, dstate, gpu_slowdown_temp}。
+    // 失败返回 null(非 HP 机型或不支持)。
+    public static (bool tgp, bool ppab, int dState, int gpuSlowdownTemp)? GetGpuPowerState() {
+      byte[] result = SendOmenBiosWmi(0x21, new byte[] { 0, 0, 0, 0 }, 4);
+      if (result == null || result.Length < 4) return null;
+      return (
+        (result[0] & 0x01) != 0,
+        (result[1] & 0x01) != 0,
+        result[2],
+        result[3]
+      );
     }
 
     public static void SetMaxGpuPower() { SetGpuPowerState(true, true, 1); }
@@ -580,6 +609,22 @@ namespace OmenSuperHub {
       return result != null;
     }
 
+    // ─── Win Lock (Gaming Key, 0x2000B 通道) ──────────────────────────
+    // ponytail: HP 专属 EC 硬件锁,对照 OmenCtl hp-rgb-lighting.c:285-322。
+    // commandType=0 + command=0x2000B。data[0]=0x01 锁 / 0x00 解锁,读时返回 bit0。
+    // 非 HP 机型或不支持时 SendOmenBiosWmi 返回 null,调用方回退软件钩子。
+    public static bool? GetWinLock() {
+      byte[] result = SendOmenBiosWmi(0, new byte[] { 0 }, 4, 0x2000B);
+      if (result == null || result.Length == 0) return null;
+      return (result[0] & 0x01) != 0;
+    }
+
+    public static bool SetWinLock(bool enabled) {
+      // outputSize=0 成功时返回 Array.Empty<byte>(),失败返回 null
+      byte[] result = SendOmenBiosWmi(0, new byte[] { (byte)(enabled ? 0x01 : 0x00) }, 0, 0x2000B);
+      return result != null;
+    }
+
     // ─── Omen Key ─────────────────────────────────────────────────────
     public static void OmenKeyOff() {
       const string namespaceName = @"root\subscription";
@@ -588,13 +633,13 @@ namespace OmenSuperHub {
         scope.Connect();
         foreach (ManagementObject mo in new ManagementObjectSearcher(scope,
           new ObjectQuery("SELECT * FROM __EventFilter WHERE Name='OmenKeyFilter'")).Get())
-          mo.Delete();
+          using (mo) mo.Delete();
         foreach (ManagementObject mo in new ManagementObjectSearcher(scope,
           new ObjectQuery("SELECT * FROM CommandLineEventConsumer WHERE Name='OmenKeyConsumer'")).Get())
-          mo.Delete();
+          using (mo) mo.Delete();
         foreach (ManagementObject mo in new ManagementObjectSearcher(scope,
           new ObjectQuery("SELECT * FROM __FilterToConsumerBinding WHERE Filter='__EventFilter.Name=\"OmenKeyFilter\"'")).Get())
-          mo.Delete();
+          using (mo) mo.Delete();
       } catch (Exception ex) {
         Logger.Error("OmenKeyOff Error: " + ex.Message);
       }
@@ -746,7 +791,7 @@ namespace OmenSuperHub {
     public static bool HasNvidiaGpu() {
       if (_cachedHasNvidia.HasValue) return _cachedHasNvidia.Value;
       using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_VideoController WHERE Name LIKE '%NVIDIA%'")) {
-        foreach (var obj in searcher.Get()) { _cachedHasNvidia = true; return true; }
+        foreach (ManagementObject obj in searcher.Get()) using (obj) { _cachedHasNvidia = true; return true; }
       }
       _cachedHasNvidia = false;
       return false;
@@ -758,7 +803,7 @@ namespace OmenSuperHub {
       try {
         using (var searcher = new ManagementObjectSearcher("SELECT SMBIOSBIOSVersion FROM Win32_BIOS"))
         using (var collection = searcher.Get())
-          foreach (ManagementObject obj in collection) {
+          foreach (ManagementObject obj in collection) using (obj) {
             _cachedBiosVersion = obj["SMBIOSBIOSVersion"]?.ToString() ?? "未知";
             return _cachedBiosVersion;
           }
@@ -772,7 +817,7 @@ namespace OmenSuperHub {
       try {
         using (var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_Processor"))
         using (var collection = searcher.Get())
-          foreach (ManagementObject obj in collection) {
+          foreach (ManagementObject obj in collection) using (obj) {
             _cachedCpuModel = obj["Name"]?.ToString()?.Trim() ?? "未知";
             return _cachedCpuModel;
           }
@@ -786,7 +831,7 @@ namespace OmenSuperHub {
       try {
         using (var searcher = new ManagementObjectSearcher(
             "root\\CIMV2", "SELECT Manufacturer, Name FROM Win32_Processor")) {
-          foreach (var obj in searcher.Get()) {
+          foreach (ManagementObject obj in searcher.Get()) using (obj) {
             string manufacturer = obj["Manufacturer"]?.ToString() ?? "";
             string name = obj["Name"]?.ToString() ?? "";
             if (manufacturer.IndexOf("GenuineIntel", StringComparison.OrdinalIgnoreCase) >= 0 ||
@@ -806,7 +851,7 @@ namespace OmenSuperHub {
       try {
         using (var searcher = new ManagementObjectSearcher(
             "root\\CIMV2", "SELECT Manufacturer, Name FROM Win32_Processor")) {
-          foreach (var obj in searcher.Get()) {
+          foreach (ManagementObject obj in searcher.Get()) using (obj) {
             string manufacturer = obj["Manufacturer"]?.ToString() ?? "";
             string name = obj["Name"]?.ToString() ?? "";
             // WMI Manufacturer 对于 AMD CPU 返回 "AuthenticAMD"
@@ -828,7 +873,7 @@ namespace OmenSuperHub {
       try {
         using (var searcher = new ManagementObjectSearcher(
             "root\\CIMV2", "SELECT Name FROM Win32_VideoController")) {
-          foreach (var obj in searcher.Get()) {
+          foreach (ManagementObject obj in searcher.Get()) using (obj) {
             string name = obj["Name"]?.ToString() ?? "";
             if (name.IndexOf("AMD", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 name.IndexOf("Radeon", StringComparison.OrdinalIgnoreCase) >= 0) {
@@ -848,7 +893,7 @@ namespace OmenSuperHub {
         using (var searcher = new ManagementObjectSearcher(
             "root\\CIMV2",
             "SELECT Name, AdapterCompatibility, VideoProcessor FROM Win32_VideoController")) {
-          foreach (var obj in searcher.Get()) {
+          foreach (ManagementObject obj in searcher.Get()) using (obj) {
             string name = obj["Name"]?.ToString() ?? "";
             string vendor = obj["AdapterCompatibility"]?.ToString() ?? "";
             string processor = obj["VideoProcessor"]?.ToString() ?? "";
@@ -924,141 +969,6 @@ namespace OmenSuperHub {
             DeviceModel.DeviceType.ToString(), sku);
         return ps != null && ps.UnleashedModeMaxIccMax > 0;
       } catch { return false; }
-    }
-
-    // ─── BIOS Settings ────────────────────────────────────────────────
-    const string BiosNs = @"root\HP\InstrumentedBIOS";
-    static ManagementScope _biosScope;
-
-    static ManagementScope GetBiosScope() {
-      if (_biosScope == null) {
-        _biosScope = new ManagementScope($@"\\.\{BiosNs}");
-        _biosScope.Options.Impersonation = ImpersonationLevel.Impersonate;
-        _biosScope.Connect();
-      }
-      return _biosScope;
-    }
-
-    public static bool SetHpBiosSetting(string name, string value) {
-      return CallSetBiosSetting(name, value);
-    }
-
-    static bool CallSetBiosSetting(string settingName, string settingValue) {
-      // Probe the actual WMI class to discover InParameter property names
-      try {
-        var scope = GetBiosScope();
-        using (var cls = new ManagementClass(scope, new ManagementPath { Server = ".", NamespacePath = BiosNs, ClassName = "HPBIOS_BIOSSettingInterface" }, null)) {
-          var inParams = cls.GetMethodParameters("SetBIOSSetting");
-          var names = new List<string>();
-          foreach (PropertyData pd in inParams.Properties) {
-            names.Add(pd.Name);
-            Logger.Verbose($"SetBIOSSetting param: {pd.Name} ({pd.Type})");
-          }
-          // Build a name-to-value map based on heuristics
-          var args = new Dictionary<string, string>();
-          foreach (string pn in names) {
-            string lower = pn.ToLowerInvariant();
-            if (lower.Contains("name") && !lower.Contains("password"))
-              args[pn] = settingName;
-            else if (lower.Contains("value"))
-              args[pn] = settingValue;
-            else if (lower.Contains("password") || lower.Contains("pass") || lower.Contains("auth"))
-              args[pn] = "";
-            else
-              args[pn] = ""; // unknown param — set empty
-          }
-          if (args.Count >= 2) {
-            foreach (var kv in args)
-              inParams[kv.Key] = kv.Value;
-            Logger.Verbose($"SetBIOSSetting args: [{string.Join(", ", args.Select(kv => $"{kv.Key}={kv.Value}"))}]");
-            var result = cls.InvokeMethod("SetBIOSSetting", inParams, new InvokeMethodOptions());
-            var ret = result?["ReturnValue"];
-            if (ret != null && ret.ToString() == "0") {
-              Logger.Verbose($"SetBIOSSetting('{settingName}') OK");
-              return true;
-            }
-            if (ret != null) {
-              Logger.Warn($"SetBIOSSetting('{settingName}') ReturnValue={ret}");
-              return false;
-            }
-          }
-        }
-      } catch (ManagementException ex) when ((int)ex.ErrorCode == (int)ManagementStatus.InvalidMethodParameters) {
-        Logger.Verbose("SetBIOSSetting: invalid params even after heuristics");
-      } catch (Exception ex) {
-        Logger.Verbose($"SetBIOSSetting probe: {ex.Message}");
-      }
-
-      // Fallback: try with different Password strategies
-      foreach (bool setPassword in new[] { true, false }) {
-        try {
-          var scope = GetBiosScope();
-          using (var cls = new ManagementClass(scope, new ManagementPath { Server = ".", NamespacePath = BiosNs, ClassName = "HPBIOS_BIOSSettingInterface" }, null)) {
-            var inParams = cls.GetMethodParameters("SetBIOSSetting");
-            foreach (PropertyData pd in inParams.Properties) {
-              string lower = pd.Name.ToLowerInvariant();
-              try {
-                if (lower.Contains("name") && !lower.Contains("password")) inParams[pd.Name] = settingName;
-                else if (lower.Contains("value")) inParams[pd.Name] = settingValue;
-                else if (setPassword && lower.Contains("password")) inParams[pd.Name] = "";
-              } catch (Exception ex) { Logger.Verbose($"SetBIOSSetting param assign: {ex.Message}"); }
-            }
-            var result = cls.InvokeMethod("SetBIOSSetting", inParams, new InvokeMethodOptions());
-            var ret = result?["ReturnValue"];
-            if (ret != null && ret.ToString() == "0") { Logger.Verbose($"SetBIOSSetting OK (fallback, pw={setPassword})"); return true; }
-            if (ret != null) { Logger.Warn($"SetBIOSSetting ReturnValue={ret} (pw={setPassword})"); return false; }
-          }
-        } catch { }
-      }
-      return false;
-    }
-
-    public static bool SetBatteryConservation(bool enable) {
-      string val = enable ? "Enabled" : "Disabled";
-      if (CallSetBiosSetting("Adaptive Battery Optimizer", val)) return true;
-      foreach (var name in new[] { "Battery Health Manager", "Battery Charge Limit",
-                                    "Battery Care", "Smart Battery" }) {
-        foreach (var v in new[] { enable ? "Enabled" : "Disabled", enable ? "1" : "0",
-                                   enable ? "Enable" : "Disable" }) {
-          if (CallSetBiosSetting(name, v)) return true;
-        }
-      }
-      Logger.Warn("Battery conservation: all setting names failed");
-      return false;
-    }
-
-    static string QueryBiosSettingValue(string settingName) {
-      if (string.IsNullOrEmpty(settingName)) return null;
-      if (!System.Text.RegularExpressions.Regex.IsMatch(settingName, @"^[a-zA-Z0-9 _\-\.]+$")) {
-        Logger.Error($"QueryBiosSettingValue: invalid setting name blocked");
-        return null;
-      }
-      try {
-        var scope = GetBiosScope();
-        foreach (string table in new[] { "HP_BIOSSetting", "HPBIOS_BIOSSetting" }) {
-          if (table != "HP_BIOSSetting" && table != "HPBIOS_BIOSSetting") continue;
-          try {
-            var query = new ObjectQuery($"SELECT * FROM {table} WHERE Name='{settingName.Replace("'", "''")}'");
-            using (var searcher = new ManagementObjectSearcher(scope, query))
-            using (var results = searcher.Get()) {
-              foreach (ManagementObject mo in results) {
-                var val = mo["Value"];
-                if (val != null) return val.ToString();
-              }
-            }
-          } catch (Exception ex) { Logger.Verbose($"QueryBiosSettingValue table {table}: {ex.Message}"); }
-        }
-      } catch (Exception ex) { Logger.Verbose($"QueryBiosSettingValue: {ex.Message}"); }
-      return null;
-    }
-
-    public static bool? GetBatteryConservation() {
-      foreach (var name in new[] { "Adaptive Battery Optimizer", "Battery Health Manager", "Battery Charge Limit" }) {
-        string val = QueryBiosSettingValue(name);
-        if (val != null)
-          return val.Equals("Enabled", StringComparison.OrdinalIgnoreCase) || val == "1" || val.Equals("true", StringComparison.OrdinalIgnoreCase);
-      }
-      return null;
     }
 
     // ─── Convenience Mode Setters ─────────────────────────────────────

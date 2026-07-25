@@ -5,6 +5,7 @@
     xmlns:local="clr-namespace:OmenSuperHub.Windows"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:app="clr-namespace:OmenSuperHub"
+    xmlns:controls="clr-namespace:OmenSuperHub.Controls"
     xmlns:pages="clr-namespace:OmenSuperHub.Pages"
     Title="{x:Static app:Strings.WindowTitle}"
 	    Width="1150"
@@ -34,7 +35,7 @@
                  Background="{DynamicResource NavigationViewExpandedPaneBackgroundBrush}">
       <ui:TitleBar.Header>
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <ui:SymbolIcon x:Name="NavIcon" Symbol="Home24" Margin="0,0,6,0" FontSize="14"/>
+          <ContentControl x:Name="NavIcon" Margin="0,0,6,0" VerticalAlignment="Center"/>
 	          <TextBlock x:Name="TitleText" VerticalAlignment="Center" FontSize="12"
 		                     IsHitTestVisible="False" Text="{x:Static app:Strings.WindowTitle}" Opacity="0.8"/>
           <ui:Badge x:Name="DeviceInfoBadge" Margin="8,0,0,0" Appearance="Transparent"
@@ -96,7 +97,7 @@
           <ui:NavigationViewItem x:Name="NavFan" TargetPageType="pages:FanPage" TargetPageTag="Fan"
                                  MinWidth="80" MaxWidth="100" MinHeight="60" Margin="0" Padding="0"
                                  Content="{x:Static app:Strings.SidebarFan}">
-            <ui:NavigationViewItem.Icon><ui:SymbolIcon Symbol="ArrowSync24" FontSize="28" HorizontalAlignment="Center"/></ui:NavigationViewItem.Icon>
+            <ui:NavigationViewItem.Icon><controls:FanIcon IconSize="28"/></ui:NavigationViewItem.Icon>
           </ui:NavigationViewItem>
           <ui:NavigationViewItem x:Name="NavPerf" TargetPageType="pages:PerfPage" TargetPageTag="Perf"
                                  MinWidth="80" MaxWidth="100" MinHeight="60" Margin="0" Padding="0"

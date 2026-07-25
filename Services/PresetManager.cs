@@ -16,6 +16,7 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 using Microsoft.Win32;
 using OmenSuperHub;
+using OmenSuperHub.Services.CpuAffinity;
 
 namespace OmenSuperHub.Services {
   [DataContract]

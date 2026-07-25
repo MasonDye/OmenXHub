@@ -21,7 +21,7 @@ namespace OmenSuperHub.Pages {
   public partial class FanPage : System.Windows.Controls.Page {
     const int CurvePointRadius = 8;
     const float MinTemp = 20;
-    const float MaxTemp = 100;
+    const float MaxTemp = 105;
     const float MaxRPM = 6400;
     const double CurvePadL = 32, CurvePadR = 16, CurvePadT = 22, CurvePadB = 28;
 
@@ -130,11 +130,13 @@ namespace OmenSuperHub.Pages {
       if (!_optionsBuilt) { BuildFanRpmOptions(); _optionsBuilt = true; }
       RefreshPresetList();
       LoadCurvePoints();
+      // ponytail: 必须在 LoadConfigState 之前同步 _currentPresetKey，
+      // 否则 smart 参数会用默认值 "GpuPriority" 加载，与当前实际预设脱钩。
+      _currentPresetKey = ConfigService.Preset;
       _loading = true;
       LoadConfigState();
       UpdateFanModeUI();
       if (FanModeCombo.SelectedIndex == 3) {
-        _currentPresetKey = ConfigService.Preset;
         LoadPresetCurvePoints(_currentPresetKey);
       }
       if (_initRpm > 0) { SelectRpmComboItem(_initRpm); FanRpmSlider.Value = _initRpm; }
@@ -196,6 +198,14 @@ namespace OmenSuperHub.Pages {
       }
       AutoFanProtectToggle.IsChecked = ConfigService.AutoFanProtect == "on";
       FanSyncToggle.IsChecked = ConfigService.FanSync;
+      // ponytail: smart 参数按预设从 FanCurves/custom_<preset>_smart.txt 加载。
+      // 文件不存在时保留 ConfigService 字段当前值（继承上一预设，对齐 EnsurePresetCurveFile 的克隆语义）。
+      var sp = FanService.LoadPresetSmartParams(_currentPresetKey);
+      if (sp.HasValue) {
+        ConfigService.SmartFanEmaAlpha = sp.Value.emaAlpha;
+        ConfigService.SmartFanStepDownRate = sp.Value.stepDown;
+        ConfigService.SmartFanHysteresis = sp.Value.hysteresis;
+      }
       float ea = ConfigService.SmartFanEmaAlpha;
       int eaIdx = ea <= 0.15f ? 0 : ea <= 0.4f ? 1 : 2;
       SmartEmaAlphaCombo.SelectedIndex = eaIdx;
@@ -236,8 +246,15 @@ namespace OmenSuperHub.Pages {
         // curve source. The old LoadFanConfig(cool/silent.txt) here only pre-stuffed the
         // maps with the wrong curve for a couple ticks before LoadPresetCurvePoints cleared
         // them — pure noise + startup skitter. InitSmartFanState is still needed to reset EMA.
-        FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
         _currentPresetKey = ConfigService.Preset;
+        // ponytail: 切到 mode 3 时先重新加载该预设的 smart 参数，再用对应 EmaAlpha 初始化 EMA。
+        var sp = FanService.LoadPresetSmartParams(_currentPresetKey);
+        if (sp.HasValue) {
+          ConfigService.SmartFanEmaAlpha = sp.Value.emaAlpha;
+          ConfigService.SmartFanStepDownRate = sp.Value.stepDown;
+          ConfigService.SmartFanHysteresis = sp.Value.hysteresis;
+        }
+        FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
         LoadPresetCurvePoints(_currentPresetKey);
         SetMaxFanSpeedOff();
         TrayService.fanControlTimer.Change(0, 1000);
@@ -345,21 +362,31 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       float[] vals = { 0.1f, 0.3f, 0.5f };
       int idx = SmartEmaAlphaCombo.SelectedIndex;
-      if (idx >= 0) { ConfigService.SmartFanEmaAlpha = vals[idx]; ConfigService.Save("SmartFanEmaAlpha"); FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha); }
+      if (idx >= 0) {
+        ConfigService.SmartFanEmaAlpha = vals[idx];
+        FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
+        FanService.SavePresetSmartParams(_currentPresetKey, ConfigService.SmartFanEmaAlpha, ConfigService.SmartFanStepDownRate, ConfigService.SmartFanHysteresis);
+      }
     }
 
     void SmartStepDown_Changed(object s, SelectionChangedEventArgs e) {
       if (_loading) return;
       int[] vals = { 100, 300, 500, 1000 };
       int idx = SmartStepDownCombo.SelectedIndex;
-      if (idx >= 0) { ConfigService.SmartFanStepDownRate = vals[idx]; ConfigService.Save("SmartFanStepDownRate"); }
+      if (idx >= 0) {
+        ConfigService.SmartFanStepDownRate = vals[idx];
+        FanService.SavePresetSmartParams(_currentPresetKey, ConfigService.SmartFanEmaAlpha, ConfigService.SmartFanStepDownRate, ConfigService.SmartFanHysteresis);
+      }
     }
 
     void SmartHysteresis_Changed(object s, SelectionChangedEventArgs e) {
       if (_loading) return;
       float[] vals = { 0.2f, 0.5f, 1.0f };
       int idx = SmartHysteresisCombo.SelectedIndex;
-      if (idx >= 0) { ConfigService.SmartFanHysteresis = vals[idx]; ConfigService.Save("SmartFanHysteresis"); }
+      if (idx >= 0) {
+        ConfigService.SmartFanHysteresis = vals[idx];
+        FanService.SavePresetSmartParams(_currentPresetKey, ConfigService.SmartFanEmaAlpha, ConfigService.SmartFanStepDownRate, ConfigService.SmartFanHysteresis);
+      }
     }
 
     void BuildFanRpmOptions() {
@@ -461,9 +488,10 @@ namespace OmenSuperHub.Pages {
       double chartW = w - padL - padR;
       double chartH = h - padT - padB;
 
-      // ponytail: 刻度从 MinTemp(20°) 起、每 10° 一档到 MaxTemp(100°)，自此 20 30 40 ... 100。
-      // 旧版从 t=0 起步，第一根虚线和 “0°” label 实际落在 padL 左侧画外（-0.25*chartW）。
-      for (int t = (int)MinTemp; t <= (int)MaxTemp; t += 10) {
+      // ponytail: 刻度尺只画到 100°；105°C 是 cool 预设的兜底保命点，不画刻度线/标签。
+      // 旧版从 t=0 起步，第一根虚线和 "0°" label 实际落在 padL 左侧画外（-0.25*chartW）。
+      const float ScaleMaxTemp = 100;
+      for (int t = (int)MinTemp; t <= (int)ScaleMaxTemp; t += 10) {
         double x = padL + (t - MinTemp) / (MaxTemp - MinTemp) * chartW;
         FanCurveCanvas.Children.Add(new Line { X1 = x, Y1 = padT, X2 = x, Y2 = padT + chartH, Stroke = gridBrush, StrokeThickness = 0.5, StrokeDashArray = new DoubleCollection { 4, 4 } });
         var label = new TextBlock { Text = t + "\u00b0", FontSize = 10, Foreground = mutedBrush };
@@ -537,7 +565,7 @@ namespace OmenSuperHub.Pages {
       float minT = _draggingIndex > 0 ? sorted[_draggingIndex - 1].temp + 1 : MinTemp;
       float maxT = _draggingIndex < sorted.Count - 1 ? sorted[_draggingIndex + 1].temp - 1 : MaxTemp;
       newTemp = Math.Max(minT, Math.Min(maxT, newTemp));
-      newRpm = Math.Max(0, Math.Min(MaxRPM, newRpm));
+      newRpm = Math.Max(500, Math.Min(MaxRPM, newRpm));
       newTemp = (float)Math.Round(newTemp);
       newRpm = (float)(Math.Round(newRpm / 100) * 100);
       sorted[_draggingIndex] = ((float)newTemp, (int)newRpm);
@@ -586,7 +614,7 @@ namespace OmenSuperHub.Pages {
       float newTemp = (float)((pos.X - padL) / chartW * (MaxTemp - MinTemp) + MinTemp);
       float newRpm = (float)((padT + chartH - pos.Y) / chartH * MaxRPM);
       newTemp = (float)Math.Round(Math.Max(MinTemp, Math.Min(MaxTemp, newTemp)));
-      newRpm = (float)(Math.Round(Math.Max(0, Math.Min(MaxRPM, newRpm)) / 100) * 100);
+      newRpm = (float)(Math.Round(Math.Max(500, Math.Min(MaxRPM, newRpm)) / 100) * 100);
       for (int i = 0; i < sorted.Count; i++) { if (Math.Abs(sorted[i].temp - newTemp) < 3) return; }
       int insertIdx = 0;
       while (insertIdx < sorted.Count && sorted[insertIdx].temp < newTemp) insertIdx++;

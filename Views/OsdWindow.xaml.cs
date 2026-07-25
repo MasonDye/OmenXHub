@@ -205,8 +205,34 @@ namespace OmenSuperHub.Views {
       double waH = SystemParameters.WorkArea.Height;
       double w = ActualWidth > 0 ? ActualWidth : 300;
       double h = ActualHeight > 0 ? ActualHeight : 60;
-      Left = (waW - w) / 2;
-      Top = waH - h - 120;
+      const double margin = 24;
+      string pos = ConfigService.OsdPosition;
+      switch (pos) {
+        case "topLeft":
+          Left = margin;
+          Top = margin;
+          break;
+        case "topRight":
+          Left = waW - w - margin;
+          Top = margin;
+          break;
+        case "topCenter":
+          Left = (waW - w) / 2;
+          Top = margin;
+          break;
+        case "bottomLeft":
+          Left = margin;
+          Top = waH - h - margin;
+          break;
+        case "bottomRight":
+          Left = waW - w - margin;
+          Top = waH - h - margin;
+          break;
+        default:  // bottomCenter — 原始默认位置
+          Left = (waW - w) / 2;
+          Top = waH - h - 120;
+          break;
+      }
     }
 
     private void BeginAnimate() {

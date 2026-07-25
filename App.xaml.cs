@@ -157,7 +157,7 @@ namespace OmenSuperHub {
 
         // Show help for new version
         if (ConfigService.AlreadyRead != alreadyReadCode) {
-          Views.HelpWindow.ShowInstance();
+          Views.HelpWindow.ShowInstance(isFirstRun: true);
           ConfigService.AlreadyRead = alreadyReadCode;
           ConfigService.Save("AlreadyRead");
         }

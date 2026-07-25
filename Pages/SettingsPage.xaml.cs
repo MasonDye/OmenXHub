@@ -51,6 +51,16 @@ namespace OmenSuperHub.Pages {
       OmenKeyAppPathText.Text = !string.IsNullOrEmpty(ConfigService.OmenKeyAppPath)
         ? ConfigService.OmenKeyAppPath : Strings.OmenKeyNoAppSelected;
       OsdToggle.IsChecked = ConfigService.ShowOsd;
+      TrayHoverPopupToggle.IsChecked = ConfigService.TrayHoverPopup;
+      OsdPositionPanel.Visibility = ConfigService.ShowOsd ? Visibility.Visible : Visibility.Collapsed;
+      switch (ConfigService.OsdPosition) {
+        case "topLeft": OsdPositionCombo.SelectedIndex = 1; break;
+        case "topRight": OsdPositionCombo.SelectedIndex = 2; break;
+        case "topCenter": OsdPositionCombo.SelectedIndex = 3; break;
+        case "bottomLeft": OsdPositionCombo.SelectedIndex = 4; break;
+        case "bottomRight": OsdPositionCombo.SelectedIndex = 5; break;
+        default: OsdPositionCombo.SelectedIndex = 0; break;
+      }
       DataLocalizeToggle.IsChecked = ConfigService.DataLocalize == "on";
       DebugLogToggle.IsChecked = ConfigService.VerboseLogging;
       DebugShowAllUiToggle.IsChecked = ConfigService.DebugShowAllUi;
@@ -244,11 +254,26 @@ namespace OmenSuperHub.Pages {
     }
 
     void OsdToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
       ConfigService.ShowOsd = OsdToggle.IsChecked == true;
       ConfigService.Save("ShowOsd");
       // ponytail: 对齐 lock-key 轮询到新状态 —— 之前 ShowOsd=false 后 _lockKeyTimer 仍每 200 ms 跑空 tick。
       Views.OsdWindow.RefreshMonitorState();
       if (!ConfigService.ShowOsd) Views.OsdWindow.Dismiss();
+      OsdPositionPanel.Visibility = ConfigService.ShowOsd ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    void TrayHoverPopup_Changed(object sender, RoutedEventArgs e) {
+      ConfigService.TrayHoverPopup = TrayHoverPopupToggle.IsChecked == true;
+      ConfigService.Save("TrayHoverPopup");
+    }
+
+    void OsdPosition_SelectionChanged(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      string[] positions = { "bottomCenter", "topLeft", "topRight", "topCenter", "bottomLeft", "bottomRight" };
+      int idx = OsdPositionCombo.SelectedIndex;
+      ConfigService.OsdPosition = idx >= 0 && idx < positions.Length ? positions[idx] : "bottomCenter";
+      ConfigService.Save("OsdPosition");
     }
 
 

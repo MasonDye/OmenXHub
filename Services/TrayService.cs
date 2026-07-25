@@ -83,12 +83,7 @@ namespace OmenSuperHub.Services {
       // Right-click & double-click handled by TrayHelper (MainWindow)
 
       // GPU monitoring auto-change notifications
-      HardwareService.OnGpuMonitoringChanged += (enabled, message) => {
-        if (enabled) UpdateCheckedState("monitorGPUGroup", "开启GPU监控");
-        else UpdateCheckedState("monitorGPUGroup", "关闭GPU监控");
-
-        _trayHelperRef?.ShowBalloonTip("状态更改提示", message, 3000);
-      };
+      HardwareService.OnGpuMonitoringChanged += OnGpuMonitoringChanged;
 
       // Initialize timers
       tooltipUpdateTimer = new System.Timers.Timer(1000);
@@ -100,6 +95,12 @@ namespace OmenSuperHub.Services {
     // ══════════════════════════════════════════════════════
     // Build WPF ContextMenu (simplified - controls moved to MainWindow)
     // ══════════════════════════════════════════════════════
+    static void OnGpuMonitoringChanged(bool enabled, string message) {
+      if (enabled) UpdateCheckedState("monitorGPUGroup", "开启GPU监控");
+      else UpdateCheckedState("monitorGPUGroup", "关闭GPU监控");
+      _trayHelperRef?.ShowBalloonTip("状态更改提示", message, 3000);
+    }
+
     static void BuildWpfContextMenu() {
       wpfContextMenu = new System.Windows.Controls.ContextMenu();
 
@@ -1357,6 +1358,8 @@ namespace OmenSuperHub.Services {
     public static void Exit() {
       if (wpfContextMenu != null)
         wpfContextMenu.IsOpen = false;
+      // ponytail: 静态事件订阅必须显式解绑，否则 TrayService 永久持有静态事件链引用
+      HardwareService.OnGpuMonitoringChanged -= OnGpuMonitoringChanged;
       AutomationProcessor.Stop();
       try { MacroController.Stop(); } catch { }
       _omenKeyCts?.Cancel();

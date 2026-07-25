@@ -29,12 +29,24 @@
 	          <TextBlock Text="{x:Static app:Strings.FloatLabelCpu}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="CpuLabel"/>
-          <TextBlock x:Name="CpuTempText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#FF6B6B" Margin="4,0,0,0" VerticalAlignment="Center"/>
-          <TextBlock x:Name="CpuPowerText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <StackPanel x:Name="CpuDataStack" Orientation="Vertical" Margin="4,0,0,0">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock x:Name="CpuTempText" FontFamily="Consolas"
+                         FontWeight="Bold" FontSize="13"
+                         Foreground="#FF6B6B" VerticalAlignment="Center"/>
+              <TextBlock x:Name="CpuPowerText" FontFamily="Consolas"
+                         FontWeight="Bold" FontSize="13"
+                         Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel x:Name="CpuLine2" Orientation="Horizontal">
+              <TextBlock x:Name="CpuUsageText" FontFamily="Consolas"
+                         FontWeight="Bold" FontSize="13"
+                         Foreground="#66BB6A" VerticalAlignment="Center"/>
+              <TextBlock x:Name="CpuFreqText" FontFamily="Consolas"
+                         FontWeight="Bold" FontSize="13"
+                         Foreground="#CE93D8" Margin="4,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+          </StackPanel>
           <TextBlock x:Name="Sep1" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
                      Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
         </StackPanel>
@@ -43,12 +55,24 @@
 	          <TextBlock Text="{x:Static app:Strings.FloatLabelGpu}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center" x:Name="GpuLabel"/>
-          <TextBlock x:Name="GpuTempText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#FF6B6B" Margin="4,0,0,0" VerticalAlignment="Center"/>
-          <TextBlock x:Name="GpuPowerText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <StackPanel x:Name="GpuDataStack" Orientation="Vertical" Margin="4,0,0,0">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock x:Name="GpuTempText" FontFamily="Consolas"
+                         FontWeight="Bold" FontSize="13"
+                         Foreground="#FF6B6B" VerticalAlignment="Center"/>
+              <TextBlock x:Name="GpuPowerText" FontFamily="Consolas"
+                         FontWeight="Bold" FontSize="13"
+                         Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel x:Name="GpuLine2" Orientation="Horizontal">
+              <TextBlock x:Name="GpuUsageText" FontFamily="Consolas"
+                         FontWeight="Bold" FontSize="13"
+                         Foreground="#66BB6A" VerticalAlignment="Center"/>
+              <TextBlock x:Name="GpuFreqText" FontFamily="Consolas"
+                         FontWeight="Bold" FontSize="13"
+                         Foreground="#CE93D8" Margin="4,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+          </StackPanel>
           <TextBlock x:Name="Sep2" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
                      Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
         </StackPanel>
@@ -57,12 +81,14 @@
 	          <TextBlock Text="{x:Static app:Strings.FloatLabelMem}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#66BB6A" VerticalAlignment="Center" x:Name="MemLabel"/>
-          <TextBlock x:Name="MemPctText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#66BB6A" Margin="4,0,0,0" VerticalAlignment="Center"/>
-          <TextBlock x:Name="MemUsedText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <StackPanel x:Name="MemDataStack" Orientation="Vertical" Margin="4,0,0,0">
+            <TextBlock x:Name="MemPctText" FontFamily="Consolas"
+                       FontWeight="Bold" FontSize="13"
+                       Foreground="#66BB6A" VerticalAlignment="Center"/>
+            <TextBlock x:Name="MemUsedText" FontFamily="Consolas"
+                       FontWeight="Bold" FontSize="13"
+                       Foreground="#FFB347" VerticalAlignment="Center"/>
+          </StackPanel>
           <TextBlock x:Name="Sep3" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
                      Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
         </StackPanel>
@@ -71,12 +97,14 @@
 	          <TextBlock Text="{x:Static app:Strings.FloatLabelNet}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#4DD0E1" VerticalAlignment="Center" x:Name="NetLabel"/>
-          <TextBlock x:Name="NetDownText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#66BB6A" Margin="4,0,0,0" VerticalAlignment="Center"/>
-          <TextBlock x:Name="NetUpText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <StackPanel x:Name="NetDataStack" Orientation="Vertical" Margin="4,0,0,0">
+            <TextBlock x:Name="NetDownText" FontFamily="Consolas"
+                       FontWeight="Bold" FontSize="13"
+                       Foreground="#66BB6A" VerticalAlignment="Center"/>
+            <TextBlock x:Name="NetUpText" FontFamily="Consolas"
+                       FontWeight="Bold" FontSize="13"
+                       Foreground="#FFB347" VerticalAlignment="Center"/>
+          </StackPanel>
           <TextBlock x:Name="Sep4" Text=" | " FontFamily="Consolas" FontWeight="Bold" FontSize="13"
                      Foreground="#888" VerticalAlignment="Center" Margin="2,0" Visibility="Collapsed"/>
         </StackPanel>
@@ -86,7 +114,7 @@
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#FF9800" VerticalAlignment="Center" x:Name="FpsLabel"/>
           <!-- ponytail: FPS value + app name stacked vertically inside the bar item, app name on its own line below the number -->
-          <StackPanel Orientation="Vertical" Margin="4,0,0,0">
+          <StackPanel x:Name="FpsDataStack" Orientation="Vertical" Margin="4,0,0,0">
             <TextBlock x:Name="FpsValueText" FontFamily="Consolas"
                        FontWeight="Bold" FontSize="13"
                        Foreground="#FF9800" VerticalAlignment="Center"/>
@@ -102,9 +130,14 @@
 	          <TextBlock Text="{x:Static app:Strings.FloatLabelFan}" FontFamily="Consolas"
                      FontWeight="ExtraBold" FontSize="13"
                      Foreground="#4FC3F7" VerticalAlignment="Center" x:Name="FanLabel"/>
-          <TextBlock x:Name="FanSpeedText" FontFamily="Consolas"
-                     FontWeight="Bold" FontSize="13"
-                     Foreground="#FFB347" Margin="4,0,0,0" VerticalAlignment="Center"/>
+          <StackPanel x:Name="FanDataStack" Orientation="Vertical" Margin="4,0,0,0">
+            <TextBlock x:Name="FanSpeed0Text" FontFamily="Consolas"
+                       FontWeight="Bold" FontSize="13"
+                       Foreground="#66BB6A" VerticalAlignment="Center"/>
+            <TextBlock x:Name="FanSpeed1Text" FontFamily="Consolas"
+                       FontWeight="Bold" FontSize="13"
+                       Foreground="#FFB347" VerticalAlignment="Center"/>
+          </StackPanel>
         </StackPanel>
       </StackPanel>
     </Border>

@@ -114,7 +114,6 @@
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Slider x:Name="LightBrightSlider" Minimum="0" Maximum="100" Value="100"
-
                         ValueChanged="LightBright_Changed"/>
                 <TextBlock x:Name="LightBrightVal" Grid.Column="1" Width="40" Text="100%"
                            FontSize="12" VerticalAlignment="Center" TextAlignment="Right"/>

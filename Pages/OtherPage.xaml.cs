@@ -1,5 +1,5 @@
 // OtherPage.cs - 其他功能开关页面
-// 电池充电限制、锁定键、触控板、HWiNFO 集成、HTTP API 等杂项开关
+// 锁定键、触控板、HWiNFO 集成、HTTP API 等杂项开关
 using System;
 using System.Diagnostics;
 using System.Management;
@@ -34,53 +34,17 @@ namespace OmenSuperHub.Pages
 
         void LoadState()
         {
-            BatteryChargeToggle.IsChecked = ConfigService.BatteryChargeLimit;
-            if (ConfigService.BatteryWmiUnsupported)
-            {
-                BatteryChargeToggle.IsEnabled = false;
-                BatteryChargeHint.Visibility = Visibility.Visible;
-            }
             NumLockToggle.IsChecked = false;
             CapsLockToggle.IsChecked = false;
             TouchpadLockToggle.IsChecked = false;
+            // ponytail: 启动时查 EC 锁状态同步 UI(HP 机型走 WMI 0x2000B),
+            // 避免上次锁了重启后 UI 显示关但实际 EC 还锁着。查不到则默认关。
+            WinLockToggle.IsChecked = WinKeyLockService.SyncFromEc() ?? false;
             HWiNFOToggle.IsChecked = ConfigService.HWiNFOEnabled;
             HWiNFOReadToggle.IsChecked = ConfigService.HWiNFOReadEnabled;
             UpdateHWiNFOReadStatus();
             HttpApiToggle.IsChecked = ConfigService.HttpApiEnabled;
             UpdateHttpApiStatus();
-        }
-
-        async void BatteryChargeToggle_Changed(object sender, RoutedEventArgs e)
-        {
-            if (_loading) return;
-            bool enable = BatteryChargeToggle.IsChecked == true;
-            if (ConfigService.BatteryWmiUnsupported)
-            {
-                BatteryChargeToggle.IsChecked = false;
-                ConfigService.BatteryChargeLimit = false;
-                ConfigService.Save("BatteryChargeLimit");
-                if (enable) PromptOpenMyHP();
-                return;
-            }
-            ConfigService.BatteryChargeLimit = enable;
-            ConfigService.Save("BatteryChargeLimit");
-            bool ok = await Task.Run(() => OmenHardware.SetBatteryConservation(enable));
-            if (!ok)
-            {
-                BatteryChargeToggle.IsChecked = !enable;
-                ConfigService.BatteryChargeLimit = !enable;
-                ConfigService.Save("BatteryChargeLimit");
-                ConfigService.BatteryWmiUnsupported = true;
-                ConfigService.Save("BatteryWmiUnsupported");
-                BatteryChargeToggle.IsEnabled = false;
-                BatteryChargeHint.Visibility = Visibility.Visible;
-                if (enable) PromptOpenMyHP();
-            }
-        }
-
-        static void PromptOpenMyHP()
-        {
-            DialogHelper.Info(Strings.BatteryChargeMyHpHint, Strings.BatteryChargeTitle);
         }
 
         void NumLockToggle_Changed(object sender, RoutedEventArgs e)
@@ -98,17 +62,25 @@ namespace OmenSuperHub.Pages
         void TouchpadLockToggle_Changed(object sender, RoutedEventArgs e)
         {
             if (_loading) return;
+            // ponytail: 用 SetupAPI 禁用/启用触摸板设备。
+            // 之前用 PrecisionTouchPad 注册表键 + WM_SETTINGCHANGE 广播，
+            // 但 Windows Shell 不会立即重读该键（需注销重登或重启 explorer.exe）。
+            // SetupAPI 禁用设备即时生效，对所有触摸板类型通用。
             try
             {
-                using (var searcher = new ManagementObjectSearcher("root\\CIMV2",
-                    "SELECT * FROM Win32_PointingDevice WHERE Name LIKE '%Touchpad%' OR Name LIKE '%Synaptics%' OR Name LIKE '%ELAN%'"))
-                foreach (ManagementObject mo in searcher.Get())
-                    mo.InvokeMethod(TouchpadLockToggle.IsChecked == true ? "Disable" : "Enable", null);
+                int changed = TouchpadLockService.SetEnabled(TouchpadLockToggle.IsChecked != true);
+                System.Diagnostics.Debug.WriteLine($"Touchpad lock: {changed} devices affected");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Touchpad lock failed: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("Touchpad lock failed: " + ex.Message);
             }
+        }
+
+        void WinLockToggle_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_loading) return;
+            WinKeyLockService.SetEnabled(WinLockToggle.IsChecked == true);
         }
 
         void HWiNFOToggle_Changed(object sender, RoutedEventArgs e)

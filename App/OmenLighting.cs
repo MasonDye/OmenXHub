@@ -445,7 +445,7 @@ namespace OmenSuperHub {
       public static bool Available {
         get {
           if (!_available.HasValue)
-            try { _available = Omen.OmenFourZoneLighting.FourZoneLighting.IsTurnOn() || true; }
+            try { _available = Omen.OmenFourZoneLighting.FourZoneLighting.IsTurnOn(); }
             catch { _available = false; }
           return _available.Value;
         }

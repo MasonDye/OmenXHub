@@ -116,10 +116,19 @@ namespace OmenSuperHub.Services {
     }
 
     public static void Stop() {
+      // ponytail: 先停 timer 防止与恢复遍历并发；再对所有已节流 PID 调一次
+      // ApplyEcoQos(false) 恢复 NORMAL priority — 否则关闭总开关后这些进程会
+      // 永远停留在 IDLE_PRIORITY + EXECUTION_SPEED throttle 状态（timer 已停，
+      // 不会再触发恢复 tick）。known ceiling: 锁内做 OpenProcess 调用，对
+      // 上千 PID 的极端场景会占锁几毫秒；升级路径是把恢复列表拷出去后释放锁再恢复。
       lock (_lock) {
         _throttleTimer?.Change(Timeout.Infinite, Timeout.Infinite);
         _throttleTimer?.Dispose();
         _throttleTimer = null;
+        foreach (var kv in _pidState) {
+          if (kv.Value) ApplyEcoQos(kv.Key, false);
+        }
+        _pidState.Clear();
       }
     }
 

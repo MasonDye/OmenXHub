@@ -1,8 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <DropShadowEffect x:Key="MenuShadow" BlurRadius="20" ShadowDepth="4"
-                     Direction="270" Color="#80000000" Opacity="0.6"/>
+  <!-- ponytail: MenuShadow 已合并至 _MiscStyles.xaml（避免 ResourceDictionary 合并时重复覆盖） -->
 
   <Style x:Key="OmenComboBoxItem" TargetType="ComboBoxItem">
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>

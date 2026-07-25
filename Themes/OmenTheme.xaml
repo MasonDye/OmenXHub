@@ -1,14 +1,13 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <ResourceDictionary.MergedDictionaries>
-    <ResourceDictionary Source="_FocusStyles.xaml"/>
     <ResourceDictionary Source="_ButtonStyles.xaml"/>
     <ResourceDictionary Source="_SliderStyles.xaml"/>
     <ResourceDictionary Source="_ScrollStyles.xaml"/>
     <ResourceDictionary Source="_ComboBoxStyles.xaml"/>
     <ResourceDictionary Source="_ToggleStyles.xaml"/>
     <ResourceDictionary Source="_TextBoxStyles.xaml"/>
-    <ResourceDictionary Source="_InfoStyles.xaml"/>
+    <!-- ponytail: _FocusStyles/_InfoStyles 0 引用已删 -->
     <ResourceDictionary Source="_NavigationStyles.xaml"/>
     <ResourceDictionary Source="_MiscStyles.xaml"/>
   </ResourceDictionary.MergedDictionaries>

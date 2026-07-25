@@ -185,7 +185,7 @@ namespace OmenSuperHub.Services {
     public static readonly string[] All = {
       "SetPreset", "SetRefreshRate", "SetPowerPlan", "SetPowerMode",
       "SetMaxFrameRate", "SetCpuPower", "SetGpuPower",
-      "SetFanMode", "SetFanCurve",
+      "SetFanMode",
       "SetTempSensitivity", "SetGPUHybridMode", "SetBrightness",
       "SetMicrophone", "SetWiFi", "SetBluetooth", "PlaySound",
       "RunProgram", "Delay", "Notification", "RunMacro"
@@ -201,7 +201,6 @@ namespace OmenSuperHub.Services {
         case "SetCpuPower": return Strings.AutomationStepSetCpuPower;
         case "SetGpuPower": return Strings.AutomationStepSetGpuPower;
         case "SetFanMode": return Strings.AutomationStepSetFanMode;
-        case "SetFanCurve": return Strings.AutomationStepSetFanCurve;
         case "SetTempSensitivity": return Strings.AutomationStepSetTempSensitivity;
         case "SetGPUHybridMode": return Strings.AutomationStepSetGPUHybridMode;
         case "SetBrightness": return Strings.AutomationStepSetBrightness;
@@ -227,7 +226,6 @@ namespace OmenSuperHub.Services {
         case "SetCpuPower": return Strings.AutomationCpuPowerValue;
         case "SetGpuPower": return Strings.AutomationGpuPowerValue;
         case "SetFanMode": return Strings.AutomationFanModeValue;
-        case "SetFanCurve": return Strings.AutomationFanCurveValue;
         case "SetTempSensitivity": return Strings.AutomationTempSensitivityValue;
         case "SetGPUHybridMode": return Strings.AutomationGPUHybridModeValue;
         case "SetBrightness": return Strings.AutomationBrightnessValue;

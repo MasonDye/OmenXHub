@@ -195,9 +195,6 @@ namespace OmenSuperHub.Services {
             }
           }
           break;
-        case "SetFanCurve":
-          ExecuteSetFanCurve(step.Value);
-          break;
         case "SetGPUHybridMode":
           if (!string.IsNullOrEmpty(step.Value))
             AutomationActions.SetGPUHybridMode(step.Value == "enable");
@@ -316,17 +313,6 @@ namespace OmenSuperHub.Services {
       }
     }
 
-    static void ExecuteSetFanCurve(string value) {
-      if (string.IsNullOrEmpty(value)) return;
-      var curve = FanService.LoadPresetCurve(value, false);
-      if (curve != null && curve.Count > 0) {
-        ConfigService.FanControl = "smart";
-        FanService.ApplyCustomCurve(curve);
-        SetMaxFanSpeedOff();
-        TrayService.fanControlTimer.Change(0, 1000);
-      }
-    }
-
     // ponytail: inline — shared by RunProgram and PlaySound
     static void StartShellProcess(string path, string errorTag) {
       if (string.IsNullOrEmpty(path)) return;
@@ -365,13 +351,32 @@ namespace OmenSuperHub.Services {
       if (ConfigService.CpuPower == "max") OmenHardware.SetCpuPowerLimit(254);
       else if (int.TryParse(ConfigService.CpuPower?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
         OmenHardware.SetCpuPowerLimit((byte)cpuVal);
-      // Apply fan curves
-      var cpuCurve = FanService.LoadPresetCurve(preset, false);
-      if (cpuCurve != null && cpuCurve.Count > 0 && (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom"))
-        FanService.ApplyCustomCurve(cpuCurve);
-      var gpuCurve = FanService.LoadPresetCurve(preset, true);
-      if (gpuCurve != null && gpuCurve.Count > 0 && (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom"))
-        FanService.ApplyCustomCurveGPU(gpuCurve);
+      // Apply fan curves — ponytail: 镜像 FanPage.ApplyPresetFanConfig 三分支。
+      // 原代码只处理 smart/custom, 漏掉 silent/cool/balanced 自动档 → SwitchPreset 写了
+      // FanTable 但 CPUTempFanMap 仍是旧曲线, 自动化切预设时风扇不切。手动 RPM 模式同样
+      // 需要应用 SetFanLevel, 否则 SwitchPreset 从注册表恢复的 FanControl 不会作用到 EC。
+      string fc = ConfigService.FanControl;
+      string ft = ConfigService.FanTable;
+      if (fc == "smart" || fc == "custom") {
+        var cpuCurve = FanService.LoadPresetCurve(preset, false);
+        if (cpuCurve != null && cpuCurve.Count > 0) FanService.ApplyCustomCurve(cpuCurve);
+        var gpuCurve = FanService.LoadPresetCurve(preset, true);
+        if (gpuCurve != null && gpuCurve.Count > 0) FanService.ApplyCustomCurveGPU(gpuCurve);
+        SetMaxFanSpeedOff();
+        TrayService.fanControlTimer.Change(0, 1000);
+      } else if (!string.IsNullOrEmpty(fc) && (fc.Contains(" RPM") || fc.EndsWith("%"))) {
+        int rpm = FanService.ParseFanRpm(fc);
+        SetMaxFanSpeedOff();
+        OmenHardware.SetFanLevel(rpm / 100, rpm / 100);
+        TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
+      } else {
+        string table = ft == "cool" ? "cool.txt"
+                     : ft == "balanced" ? "balanced.txt"
+                     : "silent.txt";
+        FanService.LoadFanConfig(table);
+        SetMaxFanSpeedOff();
+        TrayService.fanControlTimer.Change(0, 1000);
+      }
       // Apply refresh rate from preset config
       if (ConfigService.RefreshRate > 0)
         ApplyRefreshRate(ConfigService.RefreshRate);

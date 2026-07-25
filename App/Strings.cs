@@ -27,32 +27,10 @@ namespace OmenSuperHub {
     }
 
     // Product support
-    public static string ProductUnsupported => T(
-        "您的设备不是 HP 产品，本程序可能无法正常工作。是否继续？",
-        "您的設備不是 HP 產品，本程式可能無法正常工作。是否繼續？",
-        "Your device is not an HP product. This program may not function correctly. Continue anyway?");
-    public static string ProductUnsupportedHP => T(
-        "您的 HP 机型非惠普游戏笔记本，可能无法正常使用。是否继续？",
-        "您的 HP 機型非惠普遊戲筆記本，可能無法正常使用。是否繼續？",
-        "Your HP model is not an HP gaming laptop. Some features may not work properly. Continue anyway?");
-    public static string ProductOldOmen => T(
-        "您的设备属于旧款 OMEN 产品，部分功能可能无法使用。是否继续运行程序？",
-        "您的設備屬於舊款 OMEN 產品，部分功能可能無法使用。是否繼續執行程式？",
-        "Your device is an older OMEN product. Some features may not be available. Do you want to continue?");
-    public static string ProductUnsupportedWarning => T(
-        "部分功能本机型可能不适配请注意！",
-        "部分功能本機型可能不適請注意！",
-        "Some features may not be compatible with this model. Please note!");
-
     // Menus
-    public static string FanConfig => T("风扇配置", "風扇配置", "Fan Config");
     public static string FanControl => T("风扇控制", "風扇控制", "Fan Control");
     public static string PerfControl => T("性能控制", "效能控制", "Performance");
     public static string PowerStatus => T("电源状态", "電源狀態", "Power Status");
-    public static string HwMonitor => T("硬件监控", "硬體監控", "HW Monitor");
-    public static string FloatingBar => T("浮窗显示", "浮窗顯示", "Overlay");
-    public static string OmenKeyMenu => T("Omen键", "Omen鍵", "Omen Key");
-    public static string OtherSettings => T("其他设置", "其他設定", "Settings");
     public static string Help => T("帮助", "說明", "Help");
     public static string Exit => T("退出", "結束", "Exit");
     public static string LanguageMenu => T("语言", "語言", "Language");
@@ -61,55 +39,25 @@ namespace OmenSuperHub {
 	    public static string LangEnglish => T("English", "English", "English");
 	    public static string LangRestartHint => T("💡 切换语言后需重启程序生效", "💡 切換語言後需重啟程式生效", "💡 Restart required after changing language");
     public static string Hint => T("提示", "提示", "Info");
-    public static string Warning => T("警告", "警告", "Warning");
     public static string Error => T("错误", "錯誤", "Error");
 
     // Presets
-    public static string PresetsMenu => T("预设", "預設", "Presets");
     public static string PresetExtreme => T("极致性能", "極致性能", "Extreme Performance");
     public static string PresetGpuPriority => T("GPU优先", "GPU優先", "GPU Priority");
     public static string PresetLightUse => T("轻度使用", "輕度使用", "Light Use");
-    public static string PresetCustom1 => T("自定义预设1", "自定義預設1", "Custom 1");
-    public static string PresetCustom2 => T("自定义预设2", "自定義預設2", "Custom 2");
-    public static string PresetCustom3 => T("自定义预设3", "自定義預設3", "Custom 3");
     public static string RenamePreset => T("重命名", "重新命名", "Rename");
     public static string RenamePresetTitle => T("重命名预设", "重新命名預設", "Rename Preset");
     public static string RenamePresetPrompt => T("请输入新的预设名称：", "請輸入新的預設名稱：", "Please enter new preset name:");
     public static string RenamePresetError => T("预设名称不能为空，且不能与其他预设同名。", "預設名稱不能為空，且不能與其他預設同名。", "Preset name cannot be empty and must be unique.");
-    public static string PresetNote => T(
-        "💡预设包括除DB版本之外的风扇配置、风扇控制、性能控制选项。",
-        "💡預設包含DB版本以外的風扇配置、風扇控制、效能控制選項。",
-        "💡 Presets include fan config, fan control, and performance control options—excluding the DB version.");
-    public static string PresetInternalNote => T(
-        "💡只有自定义预设能永久保存设置并额外包括硬件监控配置，内置预设的改动会在下一次切换预设时丢失！",
-        "💡只有自訂預設能永久儲存設定並額外包含硬體監控配置，內建預設的變更會在下次切換預設時遺失！",
-        "💡 Only custom presets permanently save settings and include hardware monitoring configurations; changes made to built-in presets will be lost the next time you switch presets.");
-    public static string PresetExtremeTooltip => T(
-        "完全释放性能，甚至可以尝试继续调高CPU功率。",
-        "完全釋放效能，甚至可以嘗試繼續調高CPU功率。",
-        "Unleash full performance—you can even try further increasing the CPU power.");
-    public static string PresetGpuPriorityTooltip => T(
-        "散热不足的情况下优先保证GPU性能，适当降低CPU功耗。",
-        "散熱不足的情況下優先確保GPU效能，適當降低CPU功耗。",
-        "In scenarios with insufficient cooling, priority is given to maintaining GPU performance while appropriately reducing CPU power consumption.");
-    public static string PresetLightUseTooltip => T(
-        "降低整体功耗，适合需要安静的场景。",
-        "降低整體功耗，適合需要安靜的場景。",
-        "Reduces overall power consumption, making it suitable for environments requiring quiet operation.");
-
     // Fan
     public static string FanSilentMode => T("安静模式", "安靜模式", "Silent Mode");
     public static string FanCoolMode => T("降温模式", "降溫模式", "Cool Mode");
-    public static string FanResponseSpeed => T("风扇响应速度", "風扇響應速度", "Fan Response Speed");
     public static string FanRespRealtime => T("实时", "即時", "Realtime");
     public static string FanRespHigh => T("高", "高", "High");
     public static string FanRespMedium => T("中", "中", "Medium");
     public static string FanRespLow => T("低", "低", "Low");
-    public static string FanAuto => T("自动", "自動", "Auto");
-    public static string FanMax => T("最大风扇", "最大風扇", "Max Fan");
     public static string FanCustomCurve => T("自定义曲线", "自訂曲線", "Custom Curve");
     public static string FanManualMode => T("手动模式", "手動模式", "Manual Mode");
-    public static string FanSmartMode => T("智能风扇", "智能風扇", "Smart Fan");
     public static string FanModePerformance => T("狂暴模式", "狂暴模式", "Performance Mode");
     public static string FanModeDefault => T("平衡模式", "平衡模式", "Default Mode");
     public static string GpuClockReset => T("GPU 频率已重置", "GPU 頻率已重置", "GPU Clock Reset");
@@ -120,58 +68,23 @@ namespace OmenSuperHub {
     public static string GpuMonitorOff => T("GPU监控已关闭", "GPU監控已關閉", "GPU Monitor Off");
     public static string CpuMonitorOff => T("CPU监控已关闭", "CPU監控已關閉", "CPU Monitor Off");
     public static string FanAutoProtect => T("高温自动保护", "高溫自動保護", "High-Temp Auto-Protect");
-    public static string FanAutoProtectNote => T(
-        "💡开启后，若CPU温度过高且风扇处于固定转速且低于80%最大转速，OSH将自动切换为降温模式和自动风扇控制。",
-        "💡開啟後，若CPU溫度過高且風扇處於固定轉速且低於80%最大轉速，OSH將自動切換為降溫模式和自動風扇控制。",
-        "💡 When enabled, OSH automatically switches to Cool mode and Auto fan control if CPU temperature is too high and fans are running at a fixed low speed.");
-    public static string FanAutoProtectOn => T("开启保护", "開啟保護", "Enable Protection");
-    public static string FanAutoProtectOff => T("关闭保护", "關閉保護", "Disable Protection");
-    public static string FanSilentTooltip => T(
-        "安静模式下风扇转速较低，对应 silent.txt 文件，可以通过修改文件改变转速曲线。",
-        "安靜模式下風扇轉速較低，對應 silent.txt 檔案，可以透過修改檔案改變轉速曲線。",
-        "Silent mode uses lower fan speeds. Edit silent.txt to customize the fan curve.");
-    public static string FanCoolTooltip => T(
-        "降温模式下风扇转速较高，对应 cool.txt 文件，可以通过修改文件改变转速曲线。",
-        "降溫模式下風扇轉速較高，對應 cool.txt 檔案，可以透過修改檔案改變轉速曲線。",
-        "Cool mode uses higher fan speeds. Edit cool.txt to customize the fan curve.");
-    public static string SetFanSpeedSlider => T("拖动滑块设置转速 (RPM)", "拖動滑桿設定轉速 (RPM)", "Drag slider to set speed (RPM)");
-    public static string CurrentSliderValueTemp => T("滑块值：{0}", "滑桿值：{0}", "Slider Value: {0}");
-
     // Clean Creek
-    public static string CleanCreekMenuItem => T("反转除尘", "反轉除塵", "Clean Creek");
-    public static string CleanCreekLegacyMenuItem => T("反转除尘（旧版）", "反轉除塵（舊版）", "Clean Creek (Legacy)");
     public static string CleanCreekTitle => T("风扇除尘", "風扇除塵", "Fan Dust Removal");
     public static string CleanCreekConfirmMessage => T(
         "即将开始反转除尘。点击确定开始，要停止除尘请选择「取消」。",
         "即將開始反轉除塵。點擊確定開始，要停止除塵請選擇「取消」。",
         "Reverse dust removal will start soon. Click OK to start, or Cancel to stop.");
-    public static string CleanCreekProgressMessageTemplate => T(
-        "清洁进行中，剩余 {0} 秒...",
-        "清潔進行中，剩餘 {0} 秒...",
-        "Cleaning in progress, {0} seconds remaining...");
-    public static string CleanCreekStopButton => T("停止", "停止", "Stop");
-
     // Performance
-    public static string HotSwitch => T("热切换", "熱切換", "Hot Switch");
     public static string GraphicsMode => T("图形模式", "圖形模式", "Graphics Mode");
     public static string GfxDiscreteMode => T("独显直连", "獨顯直連", "Discrete GPU");
     public static string GfxHybridMode => T("混合模式", "混合模式", "Hybrid Mode");
-    public static string GfxOnlyInternal => T("💡仅部分机型支持在此修改图形模式（需重启），若不支持可在BIOS设置修改。",
-        "💡僅部分機型支援在此修改圖形模式（需重啟），若不支援可在BIOS設定修改。",
-        "💡 Only some models support switching graphics mode here (requires reboot). Use BIOS otherwise.");
     public static string GfxUMAConfirm => T("仅集成显卡启用，屏蔽独显，该模式下 HDMI 输出将无法工作。确定切换吗?",
         "僅整合顯示啟用，遮蔽獨顯，此模式下 HDMI 輸出將無法運作。確定切換嗎？",
         "Only iGPU will be active. HDMI output will not work in UMA mode. Confirm switch?");
     public static string GfxUMATitle => T("切换到UMA模式", "切換至UMA模式", "Switch to UMA Mode");
     public static string GfxSwitchedTo(string mode) => T(
         $"已切换到{mode}模式，重启生效。", $"已切換至{mode}模式，重啟生效。", $"Switched to {mode} mode. Reboot to apply.");
-    public static string GfxUnsupported => T("该机器不支持系统内冷切！",
-        "此機型不支援系統內冷切！", "This model does not support in-OS graphics switching!");
-    public static string CpuPowerMenu => T("CPU功率", "CPU功率", "CPU Power");
-    public static string SetCpuPowerSlider => T("拖动滑块设置功率 (W)", "拖動滑桿設定功率 (W)", "Drag slider to set power (W)");
     public static string SetTppSlider => T("拖动滑块设置功率 (W)", "拖動滑桿設定功率 (W)", "Drag slider to set power (W)");
-    public static string SetGpuClockSlider => T("拖动滑块设置频率 (MHz)", "拖動滑桿設定頻率 (MHz)", "Drag slider to set clock (MHz)");
-    public static string SetMaxFrameRateSlider => T("拖动滑块设置最大帧率", "拖動滑桿設定最大幀率", "Drag slider to set max frame rate");
     public static string NotSet => T("不设置", "不設定", "Not Set");
     public static string Maximum => T("最大", "最大", "Maximum");
     public static string Enable => T("开启", "開啟", "Enable");
@@ -179,111 +92,26 @@ namespace OmenSuperHub {
     public static string Normal => T("正常", "正常", "Normal");
     public static string LowPower => T("低功耗", "低功耗", "Low Power");
     public static string Unlimited => T("无限制", "無限制", "Unlimited");
-    public static string IccMaxMenu => T("IccMax", "IccMax", "IccMax");
-    public static string AcLoadLineMenu => T("AC Load Line", "AC Load Line", "AC Load Line");
-    public static string PpabPowerMenu => T("PPab条件(Tpp)", "PPab條件(Tpp)", "PPab (Tpp)");
-    public static string DStateSubMenu => T("dState", "dState", "dState");
-    public static string DbVersionMenu => T("DB版本", "DB版本", "DB Version");
-    public static string DbNormal => T("普通版本", "普通版本", "Normal");
-    public static string DbUnlocked => T("解锁版本", "解鎖版本", "Unlocked");
-    public static string GpuClockMenu => T("GPU频率限制", "GPU頻率限制", "GPU Clock Limit");
-    public static string GpuCoreOverclock => T("GPU核心超频", "GPU核心超頻", "GPU Core Overclock");
-    public static string GpuMemoryOverclock => T("GPU显存超频", "GPU記憶體超頻", "GPU Memory Overclock");
-    public static string SetGpuCoreOverclockSlider => T("拖动滑块设置GPU核心超频 (MHz)", "拖動滑桿設定GPU核心超頻 (MHz)", "Drag slider to set GPU core overclock (MHz)");
-    public static string SetGpuMemoryOverclockSlider => T("拖动滑块设置GPU显存超频 (MHz)", "拖動滑桿設定GPU記憶體超頻 (MHz)", "Drag slider to set GPU memory overclock (MHz)");
-    public static string MaxFrameRateMenu => T("最大帧率", "最大幀率", "Max Frame Rate");
-    public static string GpuPowerControlMenu => T("GPU功率控制", "GPU功率控制", "GPU Power Control");
     public static string GpuAppsMenu => T("占用GPU的程序", "佔用GPU的程式", "GPU Processes");
-    public static string GpuAppsNone => T("无", "無", "None");
     public static string GpuRestartMenu => T("重启显卡", "重啟顯示卡", "Restart GPU");
-    public static string GpuRestartTooltip => T("通过重启独立 GPU 减少不必要的占用 GPU 情况。",
-        "透過重啟獨立 GPU 減少不必要的 GPU 佔用情況。",
-        "Restart the discrete GPU to reduce unnecessary usage.");
-    public static string GpuRestartConfirm => T(
-        "可能会导致应用崩溃，请尽可能通过手动关闭占用进程来解除独立显卡占用，建议只在混合模式下操作。确定重启显卡吗?",
-        "可能導致應用程式崩潰，建議先手動關閉佔用程式，且只在混合模式下操作。確定重啟顯示卡嗎？",
-        "This may crash running applications. Close GPU processes manually if possible. Proceed?");
-    public static string GpuRestartTitle => T("重启显卡", "重啟顯示卡", "Restart GPU");
-    public static string GpuCloseConfirm(string name) => T(
-        $"是否关闭进程 {name}?", $"是否關閉程序 {name}？", $"Close process {name}?");
-    public static string GpuCloseTitle => T("关闭确认", "關閉確認", "Confirm Close");
-    public static string GpuCloseError(string msg) => T(
-        $"关闭进程失败: {msg}", $"關閉程序失敗: {msg}", $"Failed to close process: {msg}");
     public static string DbUnlockTitle => T("解锁DB", "解鎖DB", "Unlock DB");
     public static string PleaseConnectAC => T("请连接交流电源", "請連接交流電源", "Please connect AC power");
-    public static string DbUnlockCpuHighWarning => T("请在CPU低负载下解锁",
-        "請在CPU低負載下解鎖", "Please unlock under low CPU load.");
-    public static string DbUnlockFailed(float w) => T(
-        $"功耗异常，解锁失败，请重新尝试！\n当前显卡功耗限制为：{w:F2} W ！",
-        $"功耗異常，解鎖失敗，請重新嘗試！\n當前顯示卡功耗限制為：{w:F2} W！",
-        $"Power limit anomaly. Unlock failed. Current GPU power limit: {w:F2} W. Please retry.");
-    public static string DbUnlockSuccessNoAutoStart => T(
-        "解锁成功！但当前未设置开机自启，解锁后若重启电脑会导致功耗异常，需要重新解锁！",
-        "解鎖成功！但目前未設定開機自啟，重啟電腦後功耗將恢復限制，需重新解鎖！",
-        "Unlock successful! However, autostart is not enabled. Rebooting will reset the power limit and require re-unlocking.");
-    public static string DbNo50Series => T("不支持英伟达50系及以后的显卡解锁DB！",
-        "不支援 NVIDIA 50 系列及以後的顯示卡解鎖 DB！",
-        "Unlocking DB is not supported for NVIDIA 50 series and later GPUs!");
     public static string DriverNotAllow => T("当前驱动版本不满足需求，无法执行此操作。当前驱动版本：",
         "當前驅動版本不滿足需求，無法執行此操作。目前驅動版本：",
         "Driver version does not meet requirements. Current version: ");
-    public static string DriverNotFound => T("未检测到NVIDIA驱动版本。",
-        "未檢測到NVIDIA驅動版本。",
-        "NVIDIA driver version not found.");
-    public static string CheckDriverFailed => T("无法检查NVIDIA驱动版本。",
-        "無法檢查NVIDIA驅動版本。",
-        "Failed to check NVIDIA driver version.");
-    public static string DeviceNotFound => T("未找到NVIDIA显卡设备。",
-        "未找到NVIDIA顯示卡設備。",
-        "NVIDIA GPU device not found.");
-
     // High Temp Balloon
-    public static string HighTempBalloonTitle => T("温度过高警告", "溫度過高警告", "High Temperature Warning");
-    public static string HighTempBalloonText(int limit, float temp) => T(
-        $"检测到CPU温度高于{limit - 5}℃ ({temp:F1}℃)，且风扇处于固定转速状态，OSH已自动切换为降温模式并将风扇控制切换为自动模式。",
-        $"偵測到CPU溫度高於{limit - 5}℃ ({temp:F1}℃)，且風扇處於固定轉速狀態，OSH已自動切換至降溫模式並將風扇控制改為自動。",
-        $"CPU temperature exceeded {limit - 5}°C ({temp:F1}°C) with a fixed fan speed. OSH has switched to Cool mode and Auto fan control.");
-
     // Performance tooltips
-    public static string PerfCpuPowerTip => T("💡可分别调节PL1与PL2，点击下拉展开双滑块。直接选预设值则PL1=PL2。",
-        "💡可分別調節PL1與PL2，點擊下拉展開雙滑塊。直接選預設值則PL1=PL2。",
-        "💡PL1 and PL2 can be set independently. Expand the dropdown for dual sliders. Preset values set PL1=PL2.");
-    public static string PerfTgpTip => T("💡关闭可降低GPU最大功耗。",
-        "💡關閉可降低GPU最大功耗。", "💡 Disable to reduce GPU max power.");
-    public static string PerfPpabTip => T("💡关闭可降低GPU最大功耗。",
-        "💡關閉可降低GPU最大功耗。", "💡 Disable to reduce GPU max power.");
     public static string PerfTppTip => T("💡改变Ppab/DB增益点，即 GPU 功率在 CPU 功率低于多少时获得额外的Ppab/DB功耗。",
         "💡改變Ppab/DB增益點，即 GPU 功率在 CPU 功率低於多少時獲得額外的Ppab/DB功耗。",
         "💡 Adjusts the Ppab/DB gain point: the CPU power threshold below which GPU gets additional Ppab/DB power.");
-    public static string PerfDStateTip => T("💡选择低功耗将把GPU功率限制在一个较低水平。",
-        "💡選擇低功耗將把GPU功率限制在一個較低水平。",
-        "💡 Low power mode restricts GPU power to a lower level.");
-    public static string PerfDbTip => T("💡你的设备支持Ppab条件更改，请优先选择增大Ppab条件中的功率而不是更改DB版本，两者效果相同。",
-        "💡你的設備支援Ppab條件更改，請優先選擇增大Ppab條件中的功率而不是更改DB版本，兩者效果相同。",
-        "💡 Your device supports Ppab condition adjustment. Prefer increasing Ppab condition power over changing DB version — same effect.");
     public static string PerfDbUnlockWarning => T("\n警告：一旦解锁DB，只能通过安装一次显卡驱动恢复到原始状态，确认继续吗？",
         "\n警告：一旦解鎖DB，只能透過安裝一次顯示卡驅動恢復到原始狀態，確認繼續嗎？",
         "\nWarning: Once DB is unlocked, you can only restore to original state by reinstalling graphics driver once. Continue?");
-    public static string PerfDbUnlockTooltip => T("解锁DB可以在CPU功率较高时避免GPU功率降低。",
-        "解鎖DB可以在CPU功率較高時避免GPU功率降低。",
-        "Unlocking DB prevents GPU power reduction when CPU power is high.");
-    public static string PerfDbNormalTooltip => T("该选项可以重新恢复系统分配功耗的状态。",
-        "該選項可以重新恢復系統分配功耗的狀態。",
-        "This option restores the system's default power allocation.");
-    public static string RestartGPUFailed => T("重启显卡失败。",
-        "重啟顯示卡失敗。",
-        "Failed to restart GPU.");
-    public static string NoCustomIcon => T("不存在自定义图标custom.ico",
-        "找不到自訂圖示 custom.ico", "Custom icon file custom.ico not found.");
     public static string KeyboardConnectFail => T("键盘连接失败！", "鍵盤連線失敗！", "Keyboard connection failed!");
-    public static string CrashMessage => T("OXH出现意外错误，详细信息请查看日志文件。",
-        "OXH出現意外錯誤，詳細資訊請查看日誌檔案。",
-        "OXH encountered an unexpected error. Check log file for details.");
     public static string DdsInitFail => T(
         "无法初始化 Advanced Optimus 小程序。请确保所有NVIDIA驱动程序均为最新版本，并将BIOS设置菜单中的“图形模式”设置为\"Nvidia Advanced Optimus\"。",
         "無法初始化 Advanced Optimus 小程式。請確認所有 NVIDIA 驅動程式均為最新版本，並在 BIOS 設定中將「圖形模式」設為 \"Nvidia Advanced Optimus\"。",
         "Failed to initialize the Advanced Optimus applet. Make sure all NVIDIA drivers are up to date and set the Graphics Mode to \"Nvidia Advanced Optimus\" in BIOS.");
-    public static string HelpWindowTitle => T("OXH 帮助", "OXH 說明", "OXH Help");
     public static string HelpTabUpdates => T("更新说明", "更新說明", "Changelog");
     public static string HelpTabFanConfig => T("风扇配置", "風扇配置", "Fan Config");
     public static string HelpTabFanControl => T("风扇控制", "風扇控制", "Fan Control");
@@ -292,6 +120,7 @@ namespace OmenSuperHub {
     public static string HelpTabCredits => T("致谢", "致謝", "Credits");
     public static string HelpBtnGitHub => T("GitHub", "GitHub", "GitHub");
     public static string HelpBtnCheckUpdate => T("检查更新", "檢查更新", "Check Updates");
+    public static string HelpBtnIAgree => T("我已阅读", "我已閱讀", "I've Read");
     public static string HelpFanConfigSub => T("风扇配置说明", "風扇配置說明", "Fan Config Guide");
     public static string HelpFanControlSub => T("风扇控制说明", "風扇控制說明", "Fan Control Guide");
     public static string HelpPerformanceSub => T("性能控制说明", "效能控制說明", "Performance Guide");
@@ -314,9 +143,6 @@ namespace OmenSuperHub {
     public static string MonitorRefresh => T("刷新频率", "更新頻率", "Refresh Rate");
     public static string MonitorRefreshHigh => T("高", "高", "High");
     public static string MonitorRefreshLow => T("低", "低", "Low");
-    public static string TempDisplay => T("温度显示", "溫度顯示", "Temp Display");
-    public static string TempSmoothed => T("平滑值", "平滑值", "Smoothed");
-    public static string TempRaw => T("原始值", "原始值", "Raw");
     public static string MonitorClosed => T("监控已关闭", "監控已關閉", "Monitor Disabled");
     public static string MonitorPrepareLabel => T("准备中...", "準備中...", "Preparing...");
     public static string MonitorAutoFanWarning => T("当前为自动转速模式，若要关闭监控需切换为其他转速控制模式。",
@@ -324,8 +150,6 @@ namespace OmenSuperHub {
         "Fan is in auto mode. Switch to another fan control mode before disabling monitoring.");
 
     // Floating
-    public static string FloatingShow => T("显示浮窗", "顯示浮窗", "Show Overlay");
-    public static string FloatingHide => T("关闭浮窗", "關閉浮窗", "Hide Overlay");
     public static string FloatingLocLeft => T("左上角", "左上角", "Top Left");
     public static string FloatingLocRight => T("右上角", "右上角", "Top Right");
     public static string FloatingLocFree => T("自由", "自由", "Free");
@@ -333,55 +157,28 @@ namespace OmenSuperHub {
     public static string FloatLayoutHeading => T("浮窗布局", "浮窗佈局", "Float Layout");
     public static string FloatLayoutRow => T("按行排列", "按行排列", "Horizontal");
     public static string FloatLayoutCol => T("按列排列", "按列排列", "Vertical");
-    public static string FloatingScreen => T("显示器选择", "顯示器選擇", "Display");
-    public static string FloatingScreenPrimary => T("主屏幕", "主螢幕", "Primary");
     public static string FormatScreenLabel(int index, string deviceName) => T(
       $"显示器 {index} ({deviceName})",
       $"顯示器 {index} ({deviceName})",
       $"Display {index} ({deviceName})");
-    public static string FontSize24 => T("24号", "24號", "Size 24 font");
-    public static string FontSize36 => T("36号", "36號", "Size 36 font");
-    public static string FontSize48 => T("48号", "48號", "Size 48 font");
-    public static string SetTextSizeSlider => T("拖动滑块设置字号", "拖動滑塊設置字號", "Drag the slider to set font size");
-
     // Omen Key
-    public static string OmenKeyDefault => T("默认", "預設", "Default");
-    public static string OmenKeyToggle => T("切换浮窗显示", "切換浮窗顯示", "Toggle Overlay");
     public static string OmenKeyNone => T("取消绑定", "取消綁定", "Unbound");
     public static string OmenKeyShowMain => T("显示主界面", "顯示主界面", "Show Main Window");
     public static string OmenKeyCycle => T("循环预设", "循環預設", "Cycle Presets");
     public static string OmenKeyLaunchApp => T("打开应用", "開啟應用程式", "Open App");
-    public static string OmenKeySelectApp => T("选择应用", "選擇應用程式", "Select App");
     public static string OmenKeyNoAppSelected => T("未选择应用", "未選擇應用", "No App Selected");
     public static string OmenKeyPresetCandidates => T("候选预设", "候選預設", "Preset Candidates");
-    public static string OmenKeyAppLaunchFailed(string msg) => T(
-        $"打开应用失败：{msg}", $"開啟應用程式失敗：{msg}", $"Failed to launch app: {msg}");
-
     // Settings
-    public static string IconMenu => T("图标", "圖示", "Icon");
     public static string IconOriginal => T("原版", "原版", "Default");
     public static string IconCustom => T("自定义图标", "自訂圖示", "Custom Icon");
     public static string IconDynamic => T("动态图标", "動態圖示", "Dynamic Icon");
-    public static string DataLocalize => T("数据本地化", "資料本地化", "Data Localize");
-    public static string AutoStart => T("开机自启", "開機自啟", "Autostart");
-
     // Lighting
     public static string LightingControl => T("灯光控制", "燈光控制", "Lighting Control");
-    public static string LightingOn => T("开", "開", "On");
-    public static string LightingOff => T("关", "關", "Off");
     public static string LightingBrightness => T("亮度", "亮度", "Brightness");
-    public static string LightingStaticColor => T("静态颜色", "靜態顏色", "Static Color");
-    public static string LightingAllZones => T("全局颜色", "全局顏色", "All Zones");
-    public static string LightingZone => T("分区", "分割區", "Zone");
     public static string LightingCustom => T("自定义...", "自訂...", "Custom...");
     public static string LightingAnimation => T("动画效果", "動畫效果", "Animation");
-    public static string LightingEffect => T("效果", "效果", "Effect");
-    public static string LightingSpeed => T("速度", "速度", "Speed");
     public static string LightingDirection => T("方向", "方向", "Direction");
     public static string LightingTheme => T("主题", "主題", "Theme");
-    public static string LightingWmiProtocol => T("WMI 协议", "WMI 協議", "WMI Protocol");
-    public static string LightingProtocolBasic => T("四分区", "四分割區", "Basic 4-Zone");
-    public static string LightingProtocolDojo => T("Dojo四分区", "Dojo四分割區", "Dojo 4-Zone");
     public static string LightingAnimNone => T("无", "無", "None");
     public static string LightingAnimColorCycle => T("颜色循环", "顏色循環", "Color Cycle");
     public static string LightingAnimStarlight => T("星光", "星光", "Starlight");
@@ -415,24 +212,18 @@ namespace OmenSuperHub {
     public static string LightingThemeJungle => T("丛林", "叢林", "Jungle");
     public static string LightingThemeOcean => T("海洋", "海洋", "Ocean");
     public static string LightingThemeCustom => T("自定义", "自訂", "Custom");
-    public static string LightingFourZoneKeyboard => T("四分区/单分区键盘", "四分割區/單分割區鍵盤", "4-Zone/1-Zone Keyboard");
     public static string LightingLightBar => T("灯条（测试功能）", "燈條（測試功能）", "Light Bar (Experimental)");
     // ponytail: capability-mismatch warnings surfaced by ApplyLightBtn_Click instead of silent drop
     public static string LightingCapabilityAnimBasic => T("当前协议（四分区 Basic）仅支持「星光」「波浪」两种动画，请改用 Dojo 协议或选择「无」", "當前協議（四分割區 Basic）僅支援「星光」「波浪」兩種動畫，請改用 Dojo 協議或選擇「無」", "The Basic 4-Zone protocol only supports Starlight and Wave animations. Switch to Dojo or pick None.");
     public static string LightingCapabilityAnimHpSdk => T("HP SDK 协议仅支持静态颜色，请改用 Dojo 或四分区协议，或将动画设为「无」", "HP SDK 協議僅支援靜態顏色，請改用 Dojo 或四分割區協議，或將動畫設為「無」", "The HP SDK protocol only supports static color. Switch to Dojo or Basic, or set animation to None.");
     // ponytail: PerKey connection / capability warnings surfaced by LightingPage PerKey handlers
     public static string LightingCapabilityPerKeyConnect => T("未检测到单键 RGB 设备，请确认 OMEN 中心服务可用并尝试重新打开本页", "未偵測到單鍵 RGB 設備，請確認 OMEN 中心服務可用並嘗試重新開啟本頁", "Per-key RGB device not detected. Make sure the OMEN Gaming Hub service is running, then reopen this page.");
-    public static string LightingPerKeyNotSupported => T("当前平台不支持单键 RGB 灯光", "當前平台不支援單鍵 RGB 燈光", "Per-key RGB lighting is not supported on this platform.");
     // ponytail: PerKey Apply 按钮独有动作 = StorePerKeyToFlash,冷启动保留当前 RGB 设置
     public static string LightingPerKeyFlashSaved => T("已保存到闪存（冷启动生效）", "已儲存到閃存（冷開機生效）", "Saved to flash (applies on cold boot)");
     // ponytail: Dojo firmware accepts brightness > 100 — 128 / 228 are the documented extra-bright presets
     // (see existing LightingBrightnessRangeTip "228开"). Buttons shown only under Dojo protocol.
     public static string LightingBrightnessHigh => T("超亮 128%", "超亮 128%", "Extra Bright 128%");
     public static string LightingBrightnessMax => T("最亮 228%", "最亮 228%", "Max Bright 228%");
-    public static string LightingBrightnessRangeTip => T("💡 亮度范围可能为0~100，也可能为100关228开",
-        "💡 亮度範圍可能為0~100，也可能為100關228開",
-        "💡 Brightness range may be 0-100, or 100=off, 228=on");
-
     // Keyboard types
     public static string KbTypeNormal => T("普通", "普通", "Normal");
     public static string KbTypeFourZoneWithNumpad => T("四分区带小键盘", "四分割區帶數字鍵", "4-Zone with Numpad");
@@ -443,23 +234,15 @@ namespace OmenSuperHub {
     public static string KbTypeUnknown => T("未知或不支持", "未知或不支援", "Unknown/Unsupported");
 
     // System Info
-    public static string SysInfoTitle => T("总览", "總覽", "Overview");
     public static string SysManufacturer => T("品牌", "品牌", "Manufacturer");
     public static string SysModel => T("型号", "型號", "Model");
     public static string SysBiosVersion => T("BIOS 版本", "BIOS 版本", "BIOS Version");
     public static string SysCpuModel => T("CPU 型号", "CPU 型號", "CPU Model");
-    public static string SysCpuCores => T("CPU 核心", "CPU 核心", "CPU Cores");
     public static string SysGpuList => T("GPU 列表", "GPU 列表", "GPU List");
     public static string SysAdapterPower => T("适配器功率", "適配器功率", "Adapter Power");
-    public static string SysSensorTemps => T("传感器温度", "感測器溫度", "Sensor Temperatures");
     public static string SysCPUTemp => T("CPU 温度", "CPU 溫度", "CPU Temp");
     public static string SysGPUTemp => T("GPU 温度", "GPU 溫度", "GPU Temp");
     public static string SysUnknown => T("未知", "未知", "Unknown");
-    public static string SysNotAvailable => T("不可用", "不可用", "N/A");
-    public static string SysRefresh => T("刷新", "重新整理", "Refresh");
-    public static string SysPresets => T("预设配置", "預設配置", "Preset Config");
-    public static string SysSaveAsPreset => T("保存当前设置为自定义预设", "儲存目前設定為自訂預設", "Save Current as Custom Preset");
-    public static string SysPresetSaved => T("已保存到预设：", "已儲存到預設：", "Saved to preset: ");
     public static string SysIRSensor => T("IR传感器", "IR感測器", "IR Sensor");
     public static string SysAmbient => T("环境传感器", "環境感測器", "Ambient Sensor");
     public static string SysPCH => T("PCH传感器", "PCH感測器", "PCH Sensor");
@@ -470,24 +253,17 @@ namespace OmenSuperHub {
     public static string SysKbType => T("键盘灯光类型", "鍵盤燈光類型", "KB Light Type");
     public static string SysModelValidation => T("机型支持情况", "機型支持情況", "Product Validation");
     public static string ValidationGamingProduct => T("完全支持", "完全支持", "Fully supported");
-    public static string ValidationOldOmenProduct => T("旧 OMEN 機型", "舊 OMEN 機型", "Old Omen Product");
-    public static string ValidationUnsupportedHPProduct => T("不支持的 HP 机型", "不支援的 HP 機型", "Unsupported HP Product");
     public static string ValidationUnsupported => T("不支持的机型", "不支援的機型", "Unsupported Product");
     public static string SysBoardProduct => T("主板产品号", "主機板型號", "Board Product");
     public static string SysCpuTjMax => T("CPU温度墙", "CPU溫度上限", "CPU Tjmax");
     public static string SysNvidiaTjMax => T("NVIDIA 温度墙", "NVIDIA 溫度上限", "NVIDIA Tjmax");
-    public static string SysNvidiaPower => T("NVIDIA 功率限制", "NVIDIA 功率限制", "NVIDIA Power Limit");
     public static string SysNvidiaPowerLimitText(string limitsText) => T(
         $"NVIDIA 功率限制: {limitsText}",
         $"NVIDIA 功率限制: {limitsText}",
         $"NVIDIA Power Limit: {limitsText}");
 
     // Custom presets
-    public static string CustomPresets => T("自定义预设", "自訂預設", "Custom Presets");
-    public static string CustomSaveCurrent => T("保存当前", "儲存目前", "Save Current");
     public static string CustomRename => T("重命名", "重新命名", "Rename");
-    public static string CustomApply => T("应用", "套用", "Apply");
-
     // Sidebar
     public static string SidebarDashboard => T("总览", "總覽", "Dashboard");
     public static string SidebarFan => T("风扇", "風扇", "Fan");
@@ -506,25 +282,8 @@ namespace OmenSuperHub {
     public static string PageSettings => T("设置", "設定", "Settings");
 
     // GPU auto-stop
-    public static string GpuAutoStopTitle => T("状态更改提示", "狀態更改提示", "Status Change");
-    public static string GpuAutoStopText => T(
-        "检测到显卡进入低功耗状态，OSH已停止监控GPU以节约能源。",
-        "偵測到顯示卡進入低功耗狀態，OSH已停止監控GPU以節約能源。",
-        "GPU entered low-power state. OSH has stopped monitoring GPU to save energy.");
-    public static string GpuAutoStartText => T(
-        "检测到显卡连接到显示器，OSH已开始监控GPU。",
-        "偵測到顯示卡連接到顯示器，OSH已開始監控GPU。",
-        "GPU is now connected to a display. OSH has started monitoring GPU.");
     public static string MonitorCpuLabel => T("CPU", "CPU", "CPU");
     public static string MonitorGpuLabel => T("GPU", "GPU", "GPU");
-    public static string MonitorFanLabel => T("风扇", "風扇", "Fan");
-    public static string AcLoadLineBalloonTitle => T("AC Load Line 提示", "AC Load Line 提示", "AC Load Line Hint");
-    public static string AcLoadLineBalloonText(int maxSupported, int current) => T(
-        $"当前设备支持的最大 AC Load Line 为 {180 - 10 * maxSupported}，将尝试设置 {180 - 10 * current}。",
-        $"目前裝置支援的最大 AC Load Line 為 {180 - 10 * maxSupported}，將嘗試設定 {180 - 10 * current}。",
-        $"The maximum supported AC Load Line for this device is {180 - 10 * maxSupported}. Attempting to set {180 - 10 * current}.");
-    public static string RestartGPUSuccess => T("重启显卡成功！", "重啟顯示卡成功！", "Restart GPU successful!");
-
     // Power status
     public static string PowerStatusAC => T("交流电源", "交流電源", "AC Power");
     public static string PowerStatusDC => T("电池", "電池", "Battery");
@@ -533,7 +292,6 @@ namespace OmenSuperHub {
     public static string FanConfigHeading => T("风扇配置", "風扇配置", "Fan Config");
     public static string FanCurveHeading => T("自定义曲线", "自訂曲線", "Custom Curve");
     public static string TempSensitivityHeading => T("温度灵敏度", "溫度靈敏度", "Temp Sensitivity");
-    public static string FanSpeedControlHeading => T("转速控制", "轉速控制", "Fan Speed Control");
     public static string CleanCreekHeading => T("风扇除尘", "風扇除塵", "Fan Dust Removal");
     public static string FanCurveCPULabel => T("CPU 曲线", "CPU 曲線", "CPU Curve");
     public static string FanCurveGPULabel => T("GPU 曲线", "GPU 曲線", "GPU Curve");
@@ -550,7 +308,6 @@ namespace OmenSuperHub {
     public static string FanCurveExportFailed => T("导出失败", "匯出失敗", "Export failed");
     public static string FanCurveShareCopied => T("分享码已复制到剪贴板！", "分享碼已複製到剪貼簿！", "Share code copied to clipboard!");
     public static string FanCurveShareGuide => T("将分享码发送给朋友，对方可通过「导入」→粘贴分享码来加载曲线", "將分享碼發送給朋友，對方可透過「匯入」→貼上分享碼來載入曲線", "Send the code to a friend. They can load it via Import → paste share code");
-    public static string FanCurveImportFromClipboard => T("从剪贴板导入分享码", "從剪貼簿匯入分享碼", "Import from clipboard share code");
     public static string DustCleanDesc => T("反转风扇清除内部灰尘", "反轉風扇清除內部灰塵", "Reverse fans to clean internal dust");
     public static string CleanCreekStartBtn => T("开始除尘 (30秒)", "開始除塵 (30秒)", "Start Cleaning (30s)");
     public static string AutoFanProtectDesc => T("CPU温度>95°C且固定转速时强制切换为降温曲线", "CPU溫度>95°C且固定轉速時強制切換為降溫曲線", "Forces cool curve when CPU >95°C with fixed fan speed");
@@ -558,26 +315,17 @@ namespace OmenSuperHub {
     public static string FanSyncDesc => T("所有风扇转速与CPU风扇保持一致", "所有風扇轉速與CPU風扇保持一致", "Keep all fan speeds synchronized with CPU fan");
     public static string FanSmartSettings => T("曲线温度设置", "曲線溫度設置", "Curve Temperature Settings");
     public static string FanSmartEmaAlpha => T("温度平滑系数", "溫度平滑係數", "Temp Smoothing (EMA)");
-    public static string FanSmartEmaAlphaDesc => T("新温度读数的权重，越低越平滑但响应越慢", "新溫度讀數的權重，越低越平滑但響應越慢", "Weight of new temp readings. Lower = smoother but slower");
     public static string FanSmartStepDown => T("降速保护 (RPM/s)", "降速保護 (RPM/s)", "Step-Down Rate (RPM/s)");
-    public static string FanSmartStepDownDesc => T("风扇降温时的最大RPM下降速率", "風扇降溫時的最大RPM下降速率", "Max RPM drop per second while cooling down");
     public static string FanSmartHysteresis => T("滞后死区 (°C)", "滯後死區 (°C)", "Hysteresis (°C)");
-    public static string FanSmartHysteresisDesc => T("温度变化阈值，低于此值不触发调速", "溫度變化閾值，低於此值不觸發調速", "Min temp change to trigger recalculation");
-    public static string FanSmartBalanced => T("均衡", "均衡", "Balanced");
-    public static string FanSmartQuiet => T("静音", "靜音", "Silent");
-    public static string FanSmartPerformance => T("高性能", "高性能", "Performance");
     public static string FanSmartEmaHint => T("值越小响应越灵敏", "值越小響應越靈敏", "Smaller = smoother but slower");
     public static string FanSmartStepDownHint => T("每秒最多下降 RPM", "每秒最多下降 RPM", "Max RPM drop per second");
     public static string FanSmartHysteresisHint => T("温度变化阈值(°C)", "溫度變化閾值(°C)", "Temperature threshold (°C)");
 
     // Performance page headings
     public static string DbVersionHeading => T("DB 版本", "DB 版本", "DB Version");
-    public static string DbVersionPpabHint => T("建议使用 PPAB (Dynamic Boost) 实现相同效果（如可用）", "建議使用 PPAB (Dynamic Boost) 實現相同效果（如可用）", "Use PPAB (Dynamic Boost) for the same effect if available");
     public static string CpuPowerHeading => T("CPU 功率", "CPU 功率", "CPU Power");
     public static string CpuPowerPL1 => T("PL1", "PL1", "PL1");
     public static string CpuPowerPL2 => T("PL2", "PL2", "PL2");
-    public static string SetCpuPowerPL1Slider => T("拖动滑块设置PL1功率 (W)", "拖動滑桿設定PL1功率 (W)", "Drag slider to set PL1 power (W)");
-    public static string SetCpuPowerPL2Slider => T("拖动滑块设置PL2功率 (W)", "拖動滑桿設定PL2功率 (W)", "Drag slider to set PL2 power (W)");
     public static string GpuClockHeading => T("GPU 频率限制", "GPU 頻率限制", "GPU Clock Limit");
     public static string GpuCoreOverclockHeading => T("GPU 核心超频", "GPU 核心超頻", "GPU Core Overclock");
     public static string GpuMemoryOverclockHeading => T("GPU 显存超频", "GPU 記憶體超頻", "GPU Memory Overclock");
@@ -594,7 +342,6 @@ namespace OmenSuperHub {
     public static string TurnOffDisplayHeading => T("关闭显示器", "關閉顯示器", "Turn Off Display");
     public static string PerfTurnOffDisplayDesc => T("关闭屏幕显示", "關閉螢幕顯示", "Turn off screen display");
     public static string TurnOffDisplayBtn => T("关闭", "關閉", "Turn Off");
-    public static string ErrRefreshRateRange => T("请输入 30-360 之间的值", "請輸入 30-360 之間的值", "Please enter a value between 30-360");
     public static string PowerPlanHeading => T("电源计划", "電源計劃", "Power Plan");
     public static string PowerModeHeading => T("电源模式", "電源模式", "Power Mode");
     public static string PowerModeEfficiency => T("最佳能效", "最佳能效", "Best Power Efficiency");
@@ -602,8 +349,6 @@ namespace OmenSuperHub {
     public static string PowerModePerformance => T("最佳性能", "最佳性能", "Best Performance");
     public static string HotSwitchHeading => T("热切换", "熱切換", "Hot Switch");
     public static string HotSwitchDesc => T("在集显与独显之间动态切换，无需重启", "在集顯與獨顯之間動態切換，無需重啟", "Dynamically switch between iGPU and dGPU");
-    public static string GfxModeHeading => T("图形模式", "圖形模式", "Graphics Mode");
-    public static string GfxRestartDesc => T("切换需要重启计算机", "切換需要重啟電腦", "Switching requires a reboot");
     public static string GfxUMALabel => T("UMA 仅集成显卡", "UMA 僅整合顯示卡", "UMA iGPU Only");
     public static string PpabCheckLabel => T("启用 PPAB (Dynamic Boost)", "啟用 PPAB (Dynamic Boost)", "Enable PPAB (Dynamic Boost)");
     public static string DStateHeading => T("dState (GPU 功耗状态)", "dState (GPU 功耗狀態)", "dState (GPU Power State)");
@@ -612,8 +357,6 @@ namespace OmenSuperHub {
 
     // Combo items
     public static string GpuClockRestore => T("还原", "還原", "Restore Default");
-    public static string TppDisable => T("关闭", "關閉", "Disable");
-
     // Lighting page
     public static string LightingDeviceHeading => T("设备", "設備", "Device");
     public static string LightingKeyboard => T("键盘", "鍵盤", "Keyboard");
@@ -625,7 +368,6 @@ namespace OmenSuperHub {
     // SysInfo / Monitor page headings
     public static string SysInfoHeading => T("系统信息", "系統資訊", "System Information");
     public static string SensorTempsHeading => T("传感器温度", "感測器溫度", "Sensor Temps");
-    public static string PawnDriveHeading => T("PawnIO 驱动", "PawnIO 驅動", "PawnIO Driver");
     public static string HwMonitorHeading => T("硬件监控", "硬體監控", "Hardware Monitor");
 
     // Settings page
@@ -633,7 +375,6 @@ namespace OmenSuperHub {
     public static string DisplayHeading => T("显示器选择 (多选)", "顯示器選擇 (多選)", "Monitor Selection");
     public static string FontSizeHeading => T("字体大小", "字體大小", "Font Size");
     public static string PositionHeading => T("位置", "位置", "Position");
-    public static string BgOpacityHeading => T("背景透明度", "背景透明度", "Background Opacity");
     public static string TextOpacityHeading => T("文字透明度", "文字透明度", "Text Opacity");
     public static string OmenKeyHeading => T("Omen 键", "Omen 鍵", "Omen Key");
     public static string TrayIconHeading => T("托盘图标", "托盤圖示", "Tray Icon");
@@ -647,34 +388,17 @@ namespace OmenSuperHub {
     public static string ThemeLight => T("亮色", "亮色", "Light");
     public static string DebugLogHeading => T("调试日志", "調試日誌", "Debug Log");
     public static string DebugLogDesc => T("开启后实时记录所有WMI操作到OmenXHub.log", "開啟後即時記錄所有WMI操作到OmenXHub.log", "Log all WMI operations to OmenXHub.log");
-    public static string GpuProcessesHeading => T("占用 GPU 的程序", "佔用 GPU 的程式", "GPU Processes");
-    public static string NoGpuProcesses => T("无 GPU 占用程序", "無 GPU 佔用程式", "No GPU processes");
-    public static string BrowseBtn => T("浏览...", "瀏覽...", "Browse...");
     public static string WindowTitle => T("OMEN X Hub 控制面板", "OMEN X Hub 控制面板", "OMEN X Hub Control Panel");
     public static string OmenKeyCustomLabel => T("切换浮窗显示", "切換浮窗顯示", "Toggle Overlay");
-    public static string OmenKeyUnbound => T("取消绑定", "取消綁定", "Unbound");
-
     // Error messages
-    public static string ErrCpuPowerRange => T("请输入 10-254 之间的数值", "請輸入 10-254 之間的數值", "Enter a value between 10-254");
-    public static string ErrGpuClockRange => T("请输入 0-2500 之间的数值", "請輸入 0-2500 之間的數值", "Enter a value between 0-2500");
-    public static string ErrFpsNonNegative => T("请输入非负整数", "請輸入非負整數", "Enter a non-negative integer");
-    public static string ErrFpsNotSupported => T("仅支持: 不限,30,60,90,120,144,165,240,300,360,480,1000", "僅支援: 不限,30,60,90,120,144,165,240,300,360,480,1000", "Supported: Unlimited,30,60,90,120,144,165,240,300,360,480,1000");
-    public static string ErrTppRange => T("请输入 0-255 之间的数值", "請輸入 0-255 之間的數值", "Enter a value between 0-255");
-    public static string ErrIccMaxRange => T("请输入 0 或 160-255 之间的数值", "請輸入 0 或 160-255 之間的數值", "Enter 0 or a value between 160-255");
-    public static string ErrCpuPowerWmi => T("CPU功率限制设置失败！WMI调用无响应。", "CPU功率限制設定失敗！WMI呼叫無回應。", "CPU power limit failed! WMI call unresponsive.");
     public static string CleanCreekUnsupported => T("当前设备不支持反转除尘功能", "目前裝置不支援反轉除塵功能", "This device does not support reverse dust removal");
 
     // Automation
     public static string SidebarAutomation => T("自动化", "自動化", "Automation");
     public static string AutomationHeading => T("自动化控制", "自動化控制", "Automation");
-    public static string AutomationPipelines => T("自动化管道", "自動化管道", "Pipelines");
     public static string AutomationQuickActions => T("快捷操作", "快捷操作", "Quick Actions");
     public static string AutomationAddPipeline => T("添加管道", "添加管道", "Add Pipeline");
     public static string AutomationEditPipeline => T("编辑管道", "編輯管道", "Edit Pipeline");
-    public static string AutomationDeletePipeline => T("删除", "刪除", "Delete");
-    public static string AutomationRunNow => T("立即运行", "立即運行", "Run Now");
-    public static string AutomationEnabled => T("已启用", "已啟用", "Enabled");
-    public static string AutomationDisabled => T("已禁用", "已禁用", "Disabled");
     public static string AutomationTriggerType => T("触发类型", "觸發類型", "Trigger Type");
     public static string AutomationTriggerValue => T("触发值", "觸發值", "Trigger Value");
     public static string AutomationStepType => T("步骤类型", "步驟類型", "Step Type");
@@ -684,15 +408,10 @@ namespace OmenSuperHub {
     public static string AutomationMaxFrameRate => T("最大帧率 (FPS)", "最大幀率 (FPS)", "Max Frame Rate (FPS)");
     public static string AutomationCpuPowerValue => T("CPU功率 (W / max)", "CPU功率 (W / max)", "CPU Power (W / max)");
     public static string AutomationDelayMs => T("延迟(毫秒)", "延遲(毫秒)", "Delay (ms)");
-    public static string AutomationNoPipelines => T("暂无自动化管道", "暫無自動化管道", "No pipelines yet");
-    public static string AutomationNoQuickActions => T("暂无快捷操作", "暫無快捷操作", "No quick actions yet");
     public static string AutomationPipelineName => T("管道名称", "管道名稱", "Pipeline Name");
     public static string AutomationSave => T("保存", "保存", "Save");
     public static string AutomationCancel => T("取消", "取消", "Cancel");
     public static string AutomationAddStep => T("添加步骤", "添加步驟", "Add Step");
-    public static string AutomationDeleteStep => T("删除步骤", "刪除步驟", "Delete Step");
-    public static string AutomationConfirmDelete => T("确定删除此管道？", "確定刪除此管道？", "Delete this pipeline?");
-    public static string AutomationConfirmDeleteTitle => T("删除确认", "刪除確認", "Confirm Delete");
     public static string AutomationTriggerProcessStart => T("进程启动", "進程啟動", "Process Start");
     public static string AutomationTriggerProcessStop => T("进程停止", "進程停止", "Process Stop");
     public static string AutomationTriggerPowerAC => T("接入电源", "接入電源", "AC Power On");
@@ -715,22 +434,14 @@ namespace OmenSuperHub {
     public static string AutomationStepNotification => T("通知", "通知", "Notification");
     public static string AutomationStepSetGpuPower => T("设置GPU功率", "設定GPU功率", "Set GPU Power");
     public static string AutomationStepSetTempSensitivity => T("设置温度灵敏度", "設定溫度靈敏度", "Set Temp Sensitivity");
-    public static string AutomationStepSetFanCurve => T("设置风扇曲线", "設定風扇曲線", "Set Fan Curve");
-    public static string AutomationProcessName => T("进程名称", "進程名稱", "Process Name");
     public static string AutomationProgramPath => T("程序路径", "程式路徑", "Program Path");
-    public static string AutomationTime => T("时间 (HH:mm)", "時間 (HH:mm)", "Time (HH:mm)");
     public static string AutomationMessage => T("消息文本", "消息文本", "Message Text");
     public static string AutomationPreset => T("预设方案", "預設方案", "Preset");
     public static string AutomationPowerModeValue => T("电源模式值", "電源模式值", "Power Mode (0=节能/1=平衡/2=性能)");
     public static string AutomationFanModeValue => T("风扇模式", "風扇模式", "Fan Mode");
     public static string AutomationGpuPowerValue => T("TGP 功率 (W)", "TGP 功率 (W)", "TGP Power (W)");
     public static string AutomationTempSensitivityValue => T("灵敏度 (实时/高/中/低)", "靈敏度 (實時/高/中/低)", "Sensitivity (realtime/high/medium/low)");
-    public static string AutomationFanCurveValue => T("曲线文件名", "曲線文件名", "Curve file name");
-    public static string AutomationBrowse => T("浏览...", "瀏覽...", "Browse...");
-    public static string PipelineSaved => T("管道已保存", "管道已保存", "Pipeline saved");
-    public static string PipelineDeleted => T("管道已删除", "管道已删除", "Pipeline deleted");
     public static string DashboardHeading => T("实时状态", "實時狀態", "Dashboard");
-    public static string RenameTooltip => T("重命名", "重新命名", "Rename");
     public static string SaveTooltip => T("保存", "儲存", "Save");
     public static string NewPipelineDefaultName => T("新管道", "新管道", "New Pipeline");
     // EcoQoS / Efficiency Mode
@@ -739,14 +450,19 @@ namespace OmenSuperHub {
     public static string EcoQosThrottlePlugged => T("插电时限制所有后台进程", "插電時限制所有後臺進程", "Throttle background processes when plugged in");
     public static string EcoQosWhitelist => T("进程白名单", "進程白名單", "Process Whitelist");
     public static string EcoQosBlacklist => T("进程黑名单", "進程黑名單", "Process Blacklist");
-    public static string EcoQosWhitelistPlaceholder => T("每行一个进程名，白名单中的进程不会被限制", "每行一個進程名，白名單中的進程不會被限制", "One process per line. Whitelisted processes won't be throttled.");
-    public static string EcoQosBlacklistPlaceholder => T("每行一个进程名，黑名单中的进程始终被限制", "每行一個進程名，黑名單中的進程始終被限制", "One process per line. Blacklisted processes will always be throttled.");
     public static string DriverVersionRange => T("537.42 <= 驱动版本 < 610.47", "537.42 <= 驅動版本 < 610.47", "537.42 <= Driver < 610.47");
 
     // OSD
-    public static string OsdToggle => T("切换预设时显示 OSD 提示", "切換預設時顯示 OSD 提示", "Show OSD hint on preset switch");
     public static string OsdToggleDesc => T("切换预设、风扇模式、电源状态时在屏幕底部显示提示", "切換預設、風扇模式、電源狀態時在螢幕底部顯示提示", "Show notification at screen bottom on preset/fan/power change");
-    public static string LockKeysToggle => T("Caps Lock / Num Lock 开关提示", "Caps Lock / Num Lock 開關提示", "Show Caps Lock / Num Lock OSD");
+    public static string OsdPositionHeading => T("OSD 位置", "OSD 位置", "OSD Position");
+    public static string OsdPosBottomCenter => T("底部居中", "底部居中", "Bottom Center");
+    public static string OsdPosTopLeft => T("左上角", "左上角", "Top Left");
+    public static string OsdPosTopRight => T("右上角", "右上角", "Top Right");
+    public static string OsdPosTopCenter => T("顶部居中", "頂部居中", "Top Center");
+    public static string OsdPosBottomLeft => T("左下角", "左下角", "Bottom Left");
+    public static string OsdPosBottomRight => T("右下角", "右下角", "Bottom Right");
+    public static string TrayHoverPopupHeading => T("悬停浮窗", "懸停浮窗", "Hover Popup");
+    public static string TrayHoverPopupDesc => T("鼠标悬停托盘图标时显示硬件信息", "滑鼠懸停托盤圖示時顯示硬體資訊", "Show hardware info when hovering over tray icon");
     public static string CapsLockOn => T("大写锁定：开", "大寫鎖定：開", "Caps Lock: ON");
     public static string CapsLockOff => T("大写锁定：关", "大寫鎖定：關", "Caps Lock: OFF");
     public static string NumLockOn => T("数字锁定：开", "數字鎖定：開", "Num Lock: ON");
@@ -758,17 +474,9 @@ namespace OmenSuperHub {
 
     // Core Keep
     public static string CoreKeepHeading => T("核心保持", "核心保持", "Core Keep");
-    public static string CoreKeepDesc => T("持久化 CPU 优先级和关联性，进程启动时自动恢复", "持久化 CPU 優先級和關聯性，進程啟動時自動恢復", "Persist CPU priority & affinity, auto-restore on process start");
     public static string CoreKeepProcessLabel => T("进程:", "進程:", "Process:");
     public static string CoreKeepPriorityLabel => T("优先级:", "優先級:", "Priority:");
     public static string CoreKeepAffinityLabel => T("关联性:", "關聯性:", "Affinity:");
-    public static string CoreKeepRefresh => T("刷新", "刷新", "Refresh");
-    public static string CoreKeepDelete => T("删除", "刪除", "Delete");
-    public static string CoreKeepAdd => T("添加", "添加", "Add");
-    public static string CoreKeepStatusExists => T("已存在", "已存在", "Already exists");
-    public static string CoreKeepStatusNotFound => T("未找到进程或无法读取", "未找到進程或無法讀取", "Process not found or inaccessible");
-    public static string CoreKeepStatusUncaptured => T("未捕获", "未捕獲", "Uncaptured");
-    public static string CoreKeepStatusCapturedAt => T("捕获于 ", "捕獲於 ", "Captured at ");
     public static string CoreKeepPriorityIdle => T("空闲", "空閒", "Idle");
     public static string CoreKeepPriorityBelowNormal => T("低于标准", "低於標準", "Below Normal");
     public static string CoreKeepPriorityNormal => T("标准", "標準", "Normal");
@@ -777,14 +485,12 @@ namespace OmenSuperHub {
     public static string CoreKeepPriorityRealtime => T("实时", "實時", "Realtime");
     public static string CoreKeepPriorityUnknown => T("未知", "未知", "Unknown");
     public static string CoreKeepGuardLabel => T("运行中守护", "運行中守護", "Runtime Guard");
-    public static string CoreKeepGuardDesc => T("周期检查并重新应用 CPU 亲和性设置", "週期檢查並重新應用 CPU 親和性設置", "Periodically check and re-apply CPU affinity");
-    public static string CoreKeepGuardInterval => T("检查间隔(秒)", "檢查間隔(秒)", "Check Interval (s)");
     public static string CoreKeepModeLabel => T("核心模式:", "核心模式:", "Core Mode:");
     public static string CoreKeepModeAuto => T("自动", "自動", "Auto");
     public static string CoreKeepModeAll => T("全部核心", "全部核心", "All Cores");
-    public static string CoreKeepModePerformance => T("性能核优先", "性能核優先", "P-Cores First");
-    public static string CoreKeepModeEfficiency => T("能效核优先", "能效核優先", "E-Cores First");
     public static string CoreKeepModeManual => T("手动选择", "手動選擇", "Manual");
+    public static string CoreKeepModePerformanceFirst => T("P核优先", "P核優先", "P-core First");
+    public static string CoreKeepModeNoSmt => T("关闭超线程", "關閉超執行緒", "No SMT");
     public static string CoreKeepBenchmark => T("核心竞速", "核心競速", "Core Benchmark");
     public static string CoreKeepBenchmarkRunning => T("竞速进行中...", "競速進行中...", "Benchmark running...");
     public static string CoreKeepBenchmarkDone => T("竞速完成", "競速完成", "Benchmark complete");
@@ -793,14 +499,85 @@ namespace OmenSuperHub {
     public static string CoreKeepStatusMismatch => T("✗ 已被修改", "✗ 已被修改", "✗ Modified");
     public static string CoreKeepStatusNotRunning => T("- 进程未运行", "- 進程未運行", "- Not running");
     public static string CoreKeepSaveCurrent => T("捕获更新", "捕獲更新", "Capture");
-    public static string CoreKeepTopologyLabel => T("核心拓扑:", "核心拓撲:", "Core Topology:");
     public static string CoreKeepTopologyHybrid => T("{0} 核 ({1} P + {2} E)", "{0} 核 ({1} P + {2} E)", "{0} cores ({1} P + {2} E)");
     public static string CoreKeepTopologyDualCcd => T("{0} 核 (CCD0={1} CCD1={2})", "{0} 核 (CCD0={1} CCD1={2})", "{0} cores (CCD0={1} CCD1={2})");
     public static string CoreKeepTopologyNormal => T("{0} 核", "{0} 核", "{0} cores");
+    public static string CoreKeepEnforcementLevelLabel => T("强制级别:", "強制級別:", "Enforcement:");
+    public static string CoreKeepEnforcementHard => T("软强制", "軟強制", "Soft (Affinity)");
+    public static string CoreKeepEnforcementJob => T("硬强制 (Job)", "硬強制 (Job)", "Hard (Job Object)");
+    public static string CoreKeepEnforcementLevelHint => T("硬强制可阻止进程自行修改亲和性；部分受保护进程可能无法应用，将自动回退软强制", "硬強制可阻止進程自行修改親和性；部分受保護進程可能無法應用，將自動回退軟強制", "Hard level prevents process from self-modifying affinity; may fall back to Soft for protected processes");
+    // ponytail: CoreKeepPage 二级菜单专用字符串
+    public static string CoreKeepOpenPage => T("打开核心保持", "打開核心保持", "Open Core Keep");
+    public static string PageCoreKeep => T("核心保持", "核心保持", "Core Keep");
+    public static string CoreKeepMasterLabel => T("核心保持主开关", "核心保持主開關", "Core Keep Master");
+    public static string CoreKeepMasterDesc => T("启用后，进程启动时自动应用规则并定期守护", "啟用後，進程啟動時自動應用規則並定期守護", "When enabled, rules auto-apply on process start and are guarded periodically");
+    public static string CoreKeepAddBtn => T("添加", "添加", "Add");
+    public static string CoreKeepSaveBtn => T("保存", "保存", "Save");
+    public static string CoreKeepDeleteBtn => T("删除", "刪除", "Delete");
+    public static string CoreKeepRefreshBtn => T("刷新", "刷新", "Refresh");
+    public static string CoreKeepBenchBtn => T("核心竞速", "核心競速", "Benchmark");
+    public static string CoreKeepProcInputHint => T("输入进程名 (chrome.exe) 或 PID", "輸入進程名 (chrome.exe) 或 PID", "Enter process name (chrome.exe) or PID");
+    public static string CoreKeepGuardIntervalLabel => T("守护间隔 (秒):", "守護間隔 (秒):", "Guard interval (s):");
+    // ponytail: 后端支持的完整模式/级别/匹配字符串 — 对齐 CpuAffinity 架构
+    public static string CoreKeepModePCores => T("P 核", "P 核", "P-cores");
+    public static string CoreKeepModeECores => T("E 核", "E 核", "E-cores");
+    public static string CoreKeepModePCoresSmt => T("P 核 (含超线程)", "P 核 (含超執行緒)", "P-cores + SMT");
+    public static string CoreKeepModePCoresNoSmt => T("P 核 (无超线程)", "P 核 (無超執行緒)", "P-cores no SMT");
+    public static string CoreKeepModeFirstHalf => T("前半核心", "前半核心", "First Half");
+    public static string CoreKeepModeSecondHalf => T("后半核心", "後半核心", "Second Half");
+    public static string CoreKeepModeCcd0 => T("CCD0", "CCD0", "CCD0");
+    public static string CoreKeepModeCcd1 => T("CCD1", "CCD1", "CCD1");
+    public static string CoreKeepEnforcementSoft => T("提示 (CPU 集)", "提示 (CPU 集)", "Hint (CPU Sets)");
+    public static string CoreKeepEnforcementLocked => T("锁定 (Job 锁定)", "鎖定 (Job 鎖定)", "Locked (Job+Lock)");
+    public static string CoreKeepPathFilterLabel => T("路径过滤:", "路徑過濾:", "Path Filter:");
+    public static string CoreKeepPathFilterHint => T("可选，如 D:\\Games\\**", "可選，如 D:\\Games\\**", "Optional, e.g. D:\\Games\\**");
+    public static string CoreKeepExcludeLabel => T("排除模式:", "排除模式:", "Exclude:");
+    public static string CoreKeepExcludeHint => T("逗号分隔，如 updater*,helper*", "逗號分隔，如 updater*,helper*", "Comma-separated, e.g. updater*,helper*");
+    public static string CoreKeepRuleConfigHeading => T("规则配置", "規則配置", "Rule Config");
+    public static string CoreKeepCoreListLabel => T("选择核心:", "選擇核心:", "Select cores:");
+    public static string CoreKeepEmptyList => T("暂无规则，请在上方输入进程名后点击添加", "暫無規則，請在上方輸入進程名後點擊添加", "No rules yet. Enter a process name above and click Add");
+    public static string CoreKeepBackToPerf => T("返回性能页", "返回效能頁", "Back to Performance");
+    // ponytail: 进程列表 + 拓扑可视化 + 快速操作 — 对齐 CpuAffinityManager
+    public static string CoreKeepProcessListHeading => T("进程列表", "進程列表", "Processes");
+    public static string CoreKeepProcessListDesc => T("右键进程可快速设置亲和性", "右鍵進程可快速設置親和性", "Right-click a process for quick affinity actions");
+    public static string CoreKeepProcessSearch => T("搜索进程...", "搜索進程...", "Search processes...");
+    public static string CoreKeepProcessRefresh => T("刷新", "刷新", "Refresh");
+    public static string CoreKeepTopologyHeading => T("CPU 拓扑", "CPU 拓撲", "CPU Topology");
+    public static string CoreKeepQuickSetPCores => T("设置: P 核", "設置: P 核", "Set: P-Cores");
+    public static string CoreKeepQuickSetECores => T("设置: E 核", "設置: E 核", "Set: E-Cores");
+    public static string CoreKeepQuickSetAll => T("设置: 全部核心", "設置: 全部核心", "Set: All Cores");
+    public static string CoreKeepQuickSetFirstHalf => T("设置: 前半核心", "設置: 前半核心", "Set: First Half");
+    public static string CoreKeepQuickSetSecondHalf => T("设置: 后半核心", "設置: 後半核心", "Set: Second Half");
+    public static string CoreKeepQuickJobEnforced => T("强制: Job 反篡改", "強制: Job 反篡改", "Enforce: Job (anti-tamper)");
+    public static string CoreKeepQuickJobLocked => T("锁定: Job 禁止脱离", "鎖定: Job 禁止脫離", "Lock: Job (no escape)");
+    public static string CoreKeepQuickRelax => T("恢复: 全部核心", "恢復: 全部核心", "Relax: All Cores");
+    public static string CoreKeepQuickApplyRule => T("应用匹配规则", "應用匹配規則", "Apply Matched Rule");
+    public static string CoreKeepBatchHeading => T("批量操作", "批量操作", "Batch Operations");
+    public static string CoreKeepBatchDesc => T("对当前筛选结果批量应用模式/级别", "對當前篩選結果批量應用模式/級別", "Apply mode/level to all filtered processes");
+    public static string CoreKeepBatchApply => T("批量应用", "批量應用", "Batch Apply");
+    public static string CoreKeepBatchRelax => T("批量恢复", "批量恢復", "Batch Relax");
+    public static string CoreKeepBatchAddRules => T("添加为规则", "添加為規則", "Add as Rules");
+    public static string CoreKeepBatchImpact => T("将影响 {0} 个进程", "將影響 {0} 個進程", "Will affect {0} process(es)");
+    public static string CoreKeepBatchDone => T("完成: 成功 {0} / 失败 {1}", "完成: 成功 {0} / 失敗 {1}", "Done: {0} ok / {1} failed");
+    public static string CoreKeepBatchSelectAll => T("全选/清空", "全選/清空", "Toggle All");
+    public static string CoreKeepBatchNoSelection => T("未勾选时对全部筛选结果生效", "未勾選時對全部篩選結果生效", "Affects all filtered when none checked");
+    public static string CoreKeepRuleNameLabel => T("规则名称:", "規則名稱:", "Rule Name:");
+    public static string CoreKeepRuleNameHint => T("如: 游戏绑定大核", "如: 遊戲綁定大核", "e.g. Game on P-Cores");
+    public static string CoreKeepLockBreakaway => T("锁定子进程 (禁止脱离 Job)", "鎖定子進程 (禁止脫離 Job)", "Lock breakaway (prevent child escape)");
+    public static string CoreKeepCustomMaskLabel => T("自定义掩码:", "自定義掩碼:", "Custom Mask:");
+    public static string CoreKeepCustomMaskHint => T("十六进制，如 0xFF", "十六進制，如 0xFF", "Hex, e.g. 0xFF");
+    public static string CoreKeepRuleEnabled => T("启用", "啟用", "Enabled");
+    public static string CoreKeepApplyNow => T("立即应用", "立即應用", "Apply Now");
+    // ponytail: CoreKeep 统计概览卡片
+    public static string CoreKeepStatProcesses => T("运行进程", "運行進程", "Processes");
+    public static string CoreKeepStatRulesActive => T("活跃规则", "活躍規則", "Active Rules");
+    public static string CoreKeepStatPCores => T("P 性能核", "P 效能核", "P-Cores");
+    public static string CoreKeepStatECores => T("E 能效核", "E 能效核", "E-Cores");
+    public static string CoreKeepRuleCardMode => T("模式", "模式", "Mode");
+    public static string CoreKeepRuleCardLevel => T("级别", "級別", "Level");
+    public static string CoreKeepRuleCardEdit => T("编辑", "編輯", "Edit");
 
     // Pin tooltip
-    public static string PinTooltip => T("窗口置顶", "視窗置頂", "Always on Top");
-
     // New automation step types
     public static string AutomationStepSetGPUHybridMode => T("休眠独立显卡", "休眠獨立顯卡", "Disable dGPU");
     public static string AutomationStepSetBrightness => T("设置显示器亮度", "設定顯示器亮度", "Set Display Brightness");
@@ -827,10 +604,7 @@ namespace OmenSuperHub {
     public static string MacroName => T("宏名称:", "巨集名稱:", "Macro Name:");
     public static string MacroTriggerKey => T("触发键:", "觸發鍵:", "Trigger Key:");
     public static string MacroRecord => T("录制", "錄製", "Record");
-    public static string MacroStopRecord => T("停止录制", "停止錄製", "Stop Recording");
     public static string MacroPlayTest => T("试播", "試播", "Play");
-    public static string MacroRecording => T("录制中", "錄製中", "Recording");
-    public static string MacroRecordHint => T("正在录制中，按 ESC 停止录制。", "正在錄製中，按 ESC 停止錄製。", "Recording in progress. Press ESC to stop.");
     public static string MacroRepeatCount => T("重复次数 (1-10):", "重複次數 (1-10):", "Repeat Count (1-10):");
     public static string MacroIgnoreDelays => T("忽略延迟", "忽略延遲", "Ignore Delays");
     public static string MacroInterruptOnOtherKey => T("按键时打断回放", "按鍵時打斷回放", "Interrupt playback on keypress");
@@ -847,32 +621,24 @@ namespace OmenSuperHub {
     public static string MacroRecordingCardHint => T("录制中…按 ESC 停止", "錄製中…按 ESC 停止", "Recording… press ESC to stop");
 
     // EcoQoS edit button
-    public static string EcoQosEdit => T("编辑", "編輯", "Edit");
-
     // Custom logo
     public static string CustomLogoHeading => T("自定义主界面 LOGO", "自訂主介面 LOGO", "Custom Main Logo");
     public static string CustomLogoDesc => T("替换左侧导航栏的应用图标", "替換左側導航欄的應用圖示", "Replace the app logo in the left nav bar");
-    public static string CustomLogoSelectBtn => T("选择图片...", "選擇圖片...", "Select Image...");
-    public static string CustomLogoResetBtn => T("重置为默认", "重設為預設", "Reset to Default");
-
     // Custom background
     public static string CustomBgHeading => T("自定义主界面背景", "自訂主介面背景", "Custom Main Background");
     public static string CustomBgDesc => T("设置主窗口背景图片", "設定主視窗背景圖片", "Set main window background image");
-    public static string CustomBgSelectBtn => T("选择图片...", "選擇圖片...", "Select Image...");
-    public static string CustomBgResetBtn => T("重置为默认", "重設為預設", "Reset to Default");
     public static string CustomBgOpacity => T("背景透明度", "背景透明度", "Background Opacity");
     public static string CustomBgBlur => T("高斯模糊", "高斯模糊", "Gaussian Blur");
 
     // Other page
-    public static string BatteryChargeHeading => T("智能充电", "智慧充電", "Smart Charge");
-    public static string BatteryChargeDesc => T("电池充至 80% 即停止，延长电池寿命", "電池充至 80% 即停止，延長電池壽命", "Stop charging at 80% to extend battery life");
-    public static string BatteryChargeHint => T("当前设备不支持，请打开 myHP 应用设置", "目前裝置不支援，請打開 myHP 應用程式設定", "Not supported on this device. Please open myHP.");
     public static string NumLockHeading => T("数字键锁定", "數字鍵鎖定", "Num Lock");
     public static string NumLockDesc => T("切换数字小键盘开关状态", "切換數字小鍵盤開關狀態", "Toggle numeric keypad lock");
     public static string CapsLockHeading => T("大写键锁定", "大寫鍵鎖定", "Caps Lock");
     public static string CapsLockDesc => T("切换大写锁定开关状态", "切換大寫鎖定開關狀態", "Toggle caps lock");
     public static string TouchpadLockHeading => T("触摸板锁定", "觸控板鎖定", "Touchpad Lock");
     public static string TouchpadLockDesc => T("禁用或启用触摸板", "禁用或啟用觸控板", "Disable or enable touchpad");
+    public static string WinLockHeading => T("Win键锁定", "Win鍵鎖定", "Win Key Lock");
+    public static string WinLockDesc => T("禁用或启用 Windows 徽标键（游戏防误触）", "禁用或啟用 Windows 徽標鍵（遊戲防誤觸）", "Disable or enable Windows key (anti-mistouch in games)");
 
     // New automation trigger types
     public static string AutomationTriggerBatteryAbove => T("电池高于", "電池高於", "Battery Above %");
@@ -897,11 +663,6 @@ namespace OmenSuperHub {
 	    public static string HWiNFOReadDesc => T("从 HWiNFO64 读取传感器数据（温度/功耗/负载/频率），替代 LibreHardwareMonitor 读数", "從 HWiNFO64 讀取感測器資料（溫度/功耗/負載/頻率），替代 LibreHardwareMonitor 讀數", "Read sensor data (temp/power/load/clock) from HWiNFO64, replacing LibreHardwareMonitor readings");
 	
 	    // HTTP API
-    public static string HttpApiHeading => T("HTTP API", "HTTP API", "HTTP API");
-    public static string HttpApiDesc => T("启动本地 HTTP 服务器以通过外部程序控制硬件", "啟動本地 HTTP 伺服器以通過外部程式控制硬體", "Start local HTTP server for external program control");
-    public static string CoreKeepMasterToggle => T("启用 CoreKeep", "啟用 CoreKeep", "Enable CoreKeep");
-    public static string CoreKeepMasterDesc => T("自动恢复已捕捉进程的 CPU 优先级和关联性", "自動恢復已捕捉進程的 CPU 優先級和關聯性", "Auto-restore CPU priority & affinity for captured processes");
-
     // Dashboard page
     public static string SysStatusHeading => T("系统状态", "系統狀態", "System Status");
     public static string SysPresetsHeading => T("性能预设", "效能預設", "Performance Presets");
@@ -944,7 +705,6 @@ namespace OmenSuperHub {
     public static string PerfEcoQosDesc => T("限制未在前台运行的后台进程的CPU性能", "限制未在前臺運行的後臺程序的CPU效能", "Limit CPU performance for background processes");
     public static string PerfCoreKeepDesc => T("持久化 CPU 优先级和关联性，进程启动时自动恢复", "持久化CPU優先級和關聯性，進程啟動時自動恢復", "Persist CPU priority & affinity, auto-restore on process start");
     public static string PerfGfxReboot => T("切换需要重启计算机", "切換需要重啟電腦", "Switching requires reboot");
-    public static string PerfHotSwitchDesc => T("在集显与独显之间动态切换，无需重启", "在集顯與獨顯之間動態切換，無需重啟", "Dynamically switch between iGPU and dGPU");
     public static string PerfMaxFpsDesc => T("限制 GPU 最大帧率", "限制 GPU 最大幀率", "Limit GPU max frame rate");
     public static string PerfRefreshRateDesc => T("切换显示器刷新率", "切換顯示器刷新率", "Switch monitor refresh rate");
     public static string PerfDbUnlockLabel => T("解锁版本", "解鎖版本", "Unlocked Version");
@@ -956,29 +716,15 @@ namespace OmenSuperHub {
     public static string SettingsSysHeading => T("系统设置", "系統設定", "System Settings");
     public static string SettingsFloatingHeading => T("浮窗设置", "浮窗設定", "Overlay Settings");
     public static string SettingsHardwareHeading => T("硬件设置", "硬體設定", "Hardware Settings");
-    public static string AccentColorHeading => T("强调色", "強調色", "Accent Color");
-    public static string AccentColorSystem => T("跟随系统", "跟隨系統", "System");
-    public static string AccentColorCustom => T("自定义", "自訂", "Custom");
-    public static string AccentColorPreview => T("预览", "預覽", "Preview");
-
     // Other page
     public static string OtherHttpApiHeading => T("HTTP API 服务", "HTTP API 服務", "HTTP API Service");
     public static string OtherHttpApiDesc => T("在 localhost:5000 提供硬件状态 API，供外部工具调用", "在 localhost:5000 提供硬體狀態 API，供外部工具調用", "Provides hardware status API at localhost:5000");
-
-    // Battery charge
-    public static string BatteryChargeTitle => T("电池充电", "電池充電", "Battery Charging");
-    public static string BatteryChargeMyHpHint => T("请在 myHP 中关闭电池养护模式后再试", "請在myHP中關閉電池養護模式後再試", "Please disable battery care mode in myHP first");
 
     // HTTP API status
     public static string HttpApiRunning => T("运行中", "運行中", "Running");
     public static string HttpApiStopped => T("已停止", "已停止", "Stopped");
 
     // Power plan names
-    public static string PowerPlanBalanced => T("平衡", "平衡", "Balanced");
-    public static string PowerPlanHighPerf => T("高性能", "高效能", "High Performance");
-    public static string PowerPlanPowerSave => T("节能", "節能", "Power Saver");
-    public static string PowerPlanUltimatePerf => T("卓越性能", "卓越效能", "Ultimate Performance");
-
     // File dialog
     public static string FileDialogSelectApp => T("选择程序", "選擇程式", "Select Application");
     public static string FileDialogExeFilter => T("可执行文件 (*.exe)|*.exe|所有文件 (*.*)|*.*", "可執行檔(*.exe)|*.exe|所有檔案(*.*)|*.*", "Executable (*.exe)|*.exe|All Files (*.*)|*.*");
@@ -993,21 +739,12 @@ namespace OmenSuperHub {
     public static string ButtonRefresh => T("刷新", "刷新", "Refresh");
     public static string ButtonDelete => T("删除", "刪除", "Delete");
     public static string ButtonAdd => T("添加", "添加", "Add");
-    public static string ButtonBrowse => T("浏览...", "瀏覽...", "Browse...");
-    public static string LabelName => T("名称:", "名稱:", "Name:");
-    public static string LabelProcess => T("进程:", "進程:", "Process:");
-    public static string LabelPriority => T("优先级:", "優先級:", "Priority:");
-    public static string LabelAffinity => T("关联性:", "關聯性:", "Affinity:");
-    public static string LabelSteps => T("步骤:", "步驟:", "Steps:");
-    public static string LabelTriggers => T("触发器:", "觸發器:", "Triggers:");
-
     // Automation page
     public static string AutomationStepCount(int count) => T($"{count} 个步骤", $"{count} 個步驟", $"{count} steps");
     public static string AutomationExecuting => T(" [执行中...]", " [執行中...]", " [Executing...]");
 
     // ═══ Hetero CPU (AMD dual-CCD hybrid scheduling) ═══
     public static string HeteroCpuHeading => T("异构调度 (AMD双CCD)", "異構調度 (AMD雙CCD)", "Hetero CPU (AMD Dual-CCD)");
-    public static string HeteroCpuToggleLabel => T("启用异构调度", "啟用異構調度", "Enable Hetero Scheduling");
     public static string HeteroCpuToggleDesc => T("模拟Intel大小核调度，需重启生效", "模擬Intel大小核調度，需重啟生效", "Simulate Intel hybrid scheduling. Reboot required.");
     public static string HeteroCpuMaskLabel => T("SmallProcessorMask", "SmallProcessorMask", "SmallProcessorMask");
     public static string HeteroCpuMaskDesc => T("小核掩码 (十六进制，如 FFFF0000)", "小核遮罩 (十六進制，如 FFFF0000)", "Small core mask (hex, e.g. FFFF0000)");
@@ -1148,10 +885,15 @@ namespace OmenSuperHub {
 	    "0=禁用(關閉睿頻) / 1=已啟用 / 2=高效能 / 3=高效率 / 4=高效能高效率 / 5=積極且有保障 / 6=高效積極且有保障",
 	    "0=Disabled / 1=Enabled / 2=HighPerf / 3=HighEff / 4=HighPerf+Eff / 5=Aggressive / 6=Eff+Agressive");
 	  public static string MaxProcStateLabel => T("最大处理器状态", "最大處理器狀態", "Maximum Processor State");
-	  public static string MaxProcStateHint => T(
-	    "预设：100%、99%、95%、90%、85%、80%。可自定义输入 0-100。",
-	    "預設：100%、99%、95%、90%、85%、80%。可自訂輸入 0-100。",
-	    "Presets: 100%, 99%, 95%, 90%, 85%, 80%. Custom 0-100.");
+  public static string MaxProcStateHint => T(
+    "预设：100%、99%、95%、90%、85%、80%。可自定义输入 0-100。",
+    "預設：100%、99%、95%、90%、85%、80%。可自訂輸入 0-100。",
+    "Presets: 100%, 99%, 95%, 90%, 85%, 80%. Custom 0-100.");
+  public static string MinProcStateLabel => T("最小处理器状态", "最小處理器狀態", "Minimum Processor State");
+  public static string MinProcStateHint => T(
+    "预设：5%、10%、20%、50%、80%、100%。可自定义输入 0-100。",
+    "預設：5%、10%、20%、50%、80%、100%。可自訂輸入 0-100。",
+    "Presets: 5%, 10%, 20%, 50%, 80%, 100%. Custom 0-100.");
 	  public static string MaxFreqLabel => T("处理器最大频率", "處理器最大頻率", "Maximum Processor Frequency");
 	  public static string MaxFreqHint => T(
 	    "0=不限制(自动)。可自定义输入 MHz 数值。",
@@ -1174,9 +916,6 @@ namespace OmenSuperHub {
 	    "調節記憶體頻率，影響高畫質流暢度。⚠️ 過度超頻可能導致花屏或閃退。",
 	    "Adjust memory clock for high-res smoothness. ⚠️ Excessive OC may cause artifacts.");
 		  public static string GfxAdvOptimus => T("NVIDIA Advanced Optimus", "NVIDIA Advanced Optimus", "NVIDIA Advanced Optimus");
-		  public static string PerfHotSwitchCardDesc => T(
-	    "免重启切换混合/独显模式。", "免重啟切換混合/獨顯模式。",
-	    "Switch hybrid/discrete GPU without reboot.");
 	  public static string TgpHardwareLabel => T("TGP / PPAB", "TGP / PPAB", "TGP / PPAB");
 	  public static string TgpDesc => T(
 	    "调节显卡总功耗及动态功耗分配策略。",
@@ -1233,48 +972,18 @@ namespace OmenSuperHub {
 	  public static string FanShareCopyInstruction => T("手动复制以下分享码：", "手動複製以下分享碼：", "Manually copy the code below:");
 	  public static string FanShareClose => T("关闭", "關閉", "Close");
 	  public static string FanShareInvalidCode => T("无效的分享码", "無效的分享碼", "Invalid share code");
-	  public static string FanCurveHint => T("拖拽控制点可进一步微调", "拖拽控制點可進一步微調", "Drag control points to fine-tune");
-
 	  public static string HelpWindowTitleBar => T("OMEN X Hub", "OMEN X Hub", "OMEN X Hub");
 	  public static string HelpCreditsGuiDesign => T("OMEN X Hub GUI设计，功能打磨", "OMEN X Hub GUI設計，功能打磨", "OMEN X Hub GUI design & polishing");
 	  public static string HelpCreditsSuperHub => T("OmenSuperHub 提供本项目主要框架及代码", "OmenSuperHub 提供本項目主要框架及程式碼", "OmenSuperHub — core framework & code");
 	  public static string HelpCreditsOmenMon => T("OmenMon OmenHwCtl - 本项目的主要灵感来源，提供了交互命令与探索OGH交互的方法。", "OmenMon OmenHwCtl - 本項目的主要靈感來源，提供了交互命令與探索OGH交互的方法。", "OmenMon OmenHwCtl — main inspiration, OGH interaction commands & methods.");
 	  public static string HelpCreditsLhm => T("硬件监控核心库支持", "硬體監控核心庫支援", "Hardware monitoring core library support");
+	  public static string HelpCreditsWpfUi => T("WPF UI 界面框架，提供 Fluent / Mica 等现代控件", "WPF UI 介面框架，提供 Fluent / Mica 等現代控件", "WPF UI — Fluent / Mica modern control framework");
+	  public static string HelpCreditsLlt => T("Lenovo Legion Toolkit — UI 设计与功能实现的参考项目", "Lenovo Legion Toolkit — UI 設計與功能實現的參考專案", "Lenovo Legion Toolkit — reference for UI design & feature implementation");
+	  public static string HelpCreditsMemReduct => T("MemReduct — 内存清理思路参考", "MemReduct — 記憶體清理思路參考", "MemReduct — memory cleanup reference");
 
 	  public static string MacroNone => T("(none)", "(none)", "(none)");
 	  public static string MacroNewMacro => T("New Macro", "New Macro", "New Macro");
 	  
-	  public static string PipelineEditorPowerModeEco => T("节能 (0)", "節能 (0)", "Eco (0)");
-	  public static string PipelineEditorPowerModeBalanced => T("平衡 (1)", "平衡 (1)", "Balanced (1)");
-	  public static string PipelineEditorPowerModePerf => T("性能 (2)", "效能 (2)", "Performance (2)");
-	  public static string PipelineEditorFanSilent => T("安静模式", "安靜模式", "Silent Mode");
-	  public static string PipelineEditorFanCool => T("降温模式", "降溫模式", "Cool Mode");
-	  public static string PipelineEditorFanCustom => T("导入自定义曲线", "導入自訂曲線", "Import Custom Curve");
-	  public static string PipelineEditorFanManual => T("手动模式", "手動模式", "Manual Mode");
-	  public static string PipelineEditorGpuOff => T("关闭独显", "關閉獨顯", "Disable dGPU");
-	  public static string PipelineEditorGpuOn => T("开启独显", "開啟獨顯", "Enable dGPU");
-	  public static string PipelineEditorMicMute => T("静音", "靜音", "Mute");
-	  public static string PipelineEditorMicUnmute => T("取消静音", "取消靜音", "Unmute");
-	  public static string PipelineEditorToggleOn => T("开启", "開啟", "On");
-	  public static string PipelineEditorToggleOff => T("关闭", "關閉", "Off");
-	  public static string PipelineEditorDgpuMax => T("CTGP开+DB开 (max)", "CTGP開+DB開 (max)", "CTGP On+DB On (max)");
-	  public static string PipelineEditorDgpuMed => T("CTGP开+DB关 (med)", "CTGP開+DB關 (med)", "CTGP On+DB Off (med)");
-	  public static string PipelineEditorDgpuMin => T("CTGP关+DB关 (min)", "CTGP關+DB關 (min)", "CTGP Off+DB Off (min)");
-	  public static string PipelineEditorRecord => T("录制", "錄製", "Record");
-	  public static string PipelineEditorRecording => T("点击录制...", "點擊錄製...", "Click to record...");
-	  public static string PipelineEditorPressKey => T("按下快捷键...", "按下快捷鍵...", "Press hotkey...");
-	  public static string PipelineEditorBrowse => T("浏览...", "瀏覽...", "Browse...");
-	  public static string PipelineEditorSelectApp => T("选择程序", "選擇程式", "Select Application");
-	  public static string PipelineEditorExeFilter => T("可执行文件|*.exe|所有文件|*.*", "可執行檔|*.exe|所有檔案|*.*", "Executable|*.exe|All Files|*.*");
-	  public static string PipelineEditorFanCurveFilter => T("风扇曲线 JSON|*.json|所有文件|*.*", "風扇曲線 JSON|*.json|所有檔案|*.*", "Fan Curve JSON|*.json|All Files|*.*");
-	  public static string PipelineEditorFanCurveInvalid => T("无效的风扇曲线文件", "無效的風扇曲線檔案", "Invalid fan curve file");
-	  public static string PipelineEditorFanCurveImportFail => T("读取文件失败", "讀取檔案失敗", "Failed to read file");
-	  public static string PipelineEditorImportFailTitle => T("导入失败", "導入失敗", "Import Failed");
-	  public static string PipelineEditorWavFilter => T("WAV 文件|*.wav|所有文件|*.*", "WAV 檔案|*.wav|所有檔案|*.*", "WAV Files|*.wav|All Files|*.*");
-	  public static string PipelineEditorExeBatFilter => T("可执行文件|*.exe;*.bat;*.cmd|所有文件|*.*", "可執行檔|*.exe;*.bat;*.cmd|所有檔案|*.*", "Executable|*.exe;*.bat;*.cmd|All Files|*.*");
-	  public static string PipelineEditorD2Format => T("D2", "D2", "D2");
-
-	  public static string OsdWindowSmartLabel => T("smart", "smart", "smart");
 	  public static string FanDragHint => T("可右键创建或删除控制点", "可右鍵創建或刪除控制點", "Right-click to add or delete control points");
 	  public static string FanModeChangeHint => T("💡 拖拽调整后需切换一次风扇模式（如切到静音再切回自定义）才能实时生效", "💡 拖拽調整後需切換一次風扇模式（如切到靜音再切回自訂）才能即時生效", "⚠ After dragging, switch fan mode (e.g. to Silent then back to Custom) to apply changes immediately");
 	  public static string MacroListHeading => T("宏列表", "巨集列表", "Macro List");
@@ -1288,17 +997,6 @@ namespace OmenSuperHub {
 	  public static string AutoQuickActionsDesc => T("你可以在系统托盘的图标上右键来快速触发这些快捷操作。", "你可以在系統托盤的圖示上按右鍵來快速觸發這些快捷操作。", "Right-click the tray icon to quickly trigger these actions.");
 	  
 	  // ponytail: PerfPage C-State combo items used in code-behind
-	  public static string PerfCStateNone => T("无限制", "無限制", "Unlimited");
-	  public static string PerfCState1 => T("C1", "C1", "C1");
-	  public static string PerfCState2 => T("C2", "C2", "C2");
-	  public static string PerfCState3 => T("C3", "C3", "C3");
-	  public static string PerfCState4 => T("C4", "C4", "C4");
-	  public static string PerfCState5 => T("C5", "C5", "C5");
-	  public static string PerfCState6 => T("C6", "C6", "C6");
-	  public static string PerfCState7 => T("C7", "C7", "C7");
-	  public static string PerfCState8 => T("C8", "C8", "C8");
-	  public static string PerfCState9 => T("C9", "C9", "C9");
-	  public static string PerfCState10 => T("C10", "C10", "C10");
 	  // Boost mode combo items
 	  public static string PerfBoostDisabled => T("已禁用 (关闭睿频)", "已禁用 (關閉睿頻)", "Disabled (No Turbo)");
 	  public static string PerfBoostEnabled => T("已启用 (适中)", "已啟用 (適中)", "Enabled (Moderate)");
