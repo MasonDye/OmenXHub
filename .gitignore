@@ -53,8 +53,6 @@ test_chinese.txt
 test_pm.csx
 pm_help.txt
 check_fan_preset.ps1
-build.bat
-build.ps1
 nul
 null
 Resources/RyzenSMU.bin
