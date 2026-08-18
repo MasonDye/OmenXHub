@@ -92,7 +92,7 @@
           <TextBlock x:Name="Tb" Text="{TemplateBinding Content}"
                      Foreground="{TemplateBinding Foreground}"
                      FontFamily="{DynamicResource DefaultFontFamily}"
-                     FontSize="13" TextDecorations="None"
+                     FontSize="{DynamicResource FontSizeSubtitle}" TextDecorations="None"
                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">

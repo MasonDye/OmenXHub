@@ -12,7 +12,7 @@ namespace OmenSuperHub.Services {
     public T GetPage<T>() where T : class {
       var type = typeof(T);
       if (!_cache.TryGetValue(type, out var page)) {
-        page = (FrameworkElement)CreateInstanceSafe(type);
+        page = (FrameworkElement)Activator.CreateInstance(type);
         _cache[type] = page;
       }
       return (T)(object)page;
@@ -20,28 +20,16 @@ namespace OmenSuperHub.Services {
 
     public FrameworkElement GetPage(Type pageType) {
       if (!_cache.TryGetValue(pageType, out var page)) {
-        page = (FrameworkElement)CreateInstanceSafe(pageType);
+        page = (FrameworkElement)Activator.CreateInstance(pageType);
         _cache[pageType] = page;
       }
       return page;
     }
 
-    // ponytail: Activator.CreateInstance 在 XAML 反序列化失败时会直接抛 XamlParseException,
-    // NavigationView 静默吞掉后会表现为"侧栏点击完全无响应"。一次性诊断：捕获并把异常文本
-    // 弹给用户,告诉他真实绑不动的地方。确认根因后删掉这个 try/catch。
-    static object CreateInstanceSafe(Type type) {
-      try {
-        return Activator.CreateInstance(type);
-      } catch (Exception ex) {
-        var msg = "页面实例化失败: " + type.Name +
-                  "\n\n异常类型: " + (ex is System.Windows.Markup.XamlParseException pe ? "XamlParseException" : ex.GetType().Name) +
-                  "\n消息: " + ex.Message +
-                  "\n\nInnerException: " + (ex.InnerException?.Message ?? "(null)") +
-                  "\n\nStackTrace:\n" + ex.StackTrace;
-        try { System.Windows.MessageBox.Show(msg, "OmenXHub 诊断", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error); }
-        catch { }
-        throw;
-      }
-    }
+    // ponytail: 主面板 Hide 时调 ReleaseFrontend 清当前页 Unloaded + ClearJournal + 本 Clear。
+    // 字典引用一断,各页已通过其 Unloaded 解订阅/停 timer,GC 可回收。下次 Navigate 重新 ctor+Loaded，
+    // 与首次访问体验一致（每页 ctor+Loaded <50ms）。底盘上限：缓存全清,若用户频繁开关主面板会重复
+    // 重建各页,重建成本远小于持续驻留的几十 MB XAML 可视树。
+    public void Clear() => _cache.Clear();
   }
 }

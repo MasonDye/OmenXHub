@@ -181,19 +181,31 @@ namespace OmenSuperHub.Utils {
 
     void BuildContextMenu() {
       _contextMenu.Items.Clear();
-      var qas = AutomationService.GetQuickActions();
-      if (qas.Count > 0) {
-        foreach (var qa in qas)
-          AddMenuItem(qa.Name, () => AutomationProcessor.ExecutePipeline(qa), SymbolRegular.Play24);
-        _contextMenu.Items.Add(new System.Windows.Controls.Separator());
+      // ponytail: Quick Actions 段受双门控 —
+      // 1) 自动化总开关关 (AutomationEnabled=false) → 后端未 Start, 点了也不响应, 不上菜单
+      // 2) 简洁模式把 Automation 页隐藏 → 右键菜单已不显示该页入口, 顶部的快捷操作也应跟着隐藏,
+      //    否则用户从右键点了快捷操作却找不到对应的侧栏页, 体验割裂。两个条件任一不满足都跳过。
+      bool quickActionsVisible = ConfigService.AutomationEnabled
+        && Views.MainWindow.ShouldShowNavItem("Automation");
+      if (quickActionsVisible) {
+        var qas = AutomationService.GetQuickActions();
+        if (qas.Count > 0) {
+          foreach (var qa in qas)
+            AddMenuItem(qa.Name, () => AutomationProcessor.ExecutePipeline(qa), SymbolRegular.Play24);
+          _contextMenu.Items.Add(new System.Windows.Controls.Separator());
+        }
       }
-      AddNavMenuItem(Strings.SidebarDashboard, "Dashboard", new SymbolIcon(SymbolRegular.Home24));
-      AddNavMenuItem(Strings.SidebarFan, "Fan", new OmenSuperHub.Controls.FanIcon() { IconSize = 14 });
-      AddNavMenuItem(Strings.SidebarPerf, "Perf", new SymbolIcon(SymbolRegular.Gauge24));
-      AddNavMenuItem(Strings.SidebarLighting, "Lighting", new SymbolIcon(SymbolRegular.Lightbulb24));
-      AddNavMenuItem(Strings.SidebarAutomation, "Automation", new SymbolIcon(SymbolRegular.Rocket24));
-      AddNavMenuItem(Strings.SidebarOther, "Other", new SymbolIcon(SymbolRegular.MoreHorizontal24));
-      AddNavMenuItem(Strings.SidebarSettings, "Settings", new SymbolIcon(SymbolRegular.Settings24));
+      // ponytail: 侧栏过滤共用规则 — 简洁模式白名单 / 普通键盘隐藏灯光 / Settings 常驻。
+      // 用户开简洁模式把某页隐藏后,右键菜单还显示该页 = 跳过去发现侧栏没项,体验割裂。
+      AddNavMenuItemIfVisible(Strings.SidebarDashboard, "Dashboard", new SymbolIcon(SymbolRegular.Home24));
+      AddNavMenuItemIfVisible(Strings.SidebarFan, "Fan", new OmenSuperHub.Controls.FanIcon() { IconSize = 14 });
+      AddNavMenuItemIfVisible(Strings.SidebarPerf, "Perf", new SymbolIcon(SymbolRegular.Gauge24));
+      AddNavMenuItemIfVisible(Strings.SidebarLighting, "Lighting", new SymbolIcon(SymbolRegular.Lightbulb24));
+      AddNavMenuItemIfVisible(Strings.SidebarAutomation, "Automation", new SymbolIcon(SymbolRegular.Rocket24));
+      AddNavMenuItemIfVisible(Strings.SidebarMacro, "Macro", new SymbolIcon(SymbolRegular.Keyboard24));
+      AddNavMenuItemIfVisible(Strings.SidebarNetworkBoost, "NetworkBoost", new SymbolIcon(SymbolRegular.PlugConnected24));
+      AddNavMenuItemIfVisible(Strings.SidebarOther, "Other", new SymbolIcon(SymbolRegular.MoreHorizontal24));
+      AddNavMenuItemIfVisible(Strings.SidebarSettings, "Settings", new SymbolIcon(SymbolRegular.Settings24));
       _contextMenu.Items.Add(new System.Windows.Controls.Separator());
       AddMenuItem(Strings.OmenKeyShowMain, () => _bringToForeground(), SymbolRegular.Window24);
       var langMenu = new System.Windows.Controls.MenuItem {
@@ -207,6 +219,12 @@ namespace OmenSuperHub.Utils {
       AddMenuItem(Strings.Help, () => Views.HelpWindow.ShowInstance(), SymbolRegular.QuestionCircle24);
       _contextMenu.Items.Add(new System.Windows.Controls.Separator());
       AddMenuItem(Strings.Exit, () => TrayService.Exit(), SymbolRegular.SignOut24);
+    }
+
+    // ponytail: 走 MainWindow.ShouldShowNavItem 的过滤规则;隐藏页不进菜单,跟侧栏一致。
+    void AddNavMenuItemIfVisible(string header, string pageTag, object icon) {
+      if (!Views.MainWindow.ShouldShowNavItem(pageTag)) return;
+      AddNavMenuItem(header, pageTag, icon);
     }
 
     void AddNavMenuItem(string header, string pageTag, object icon) {

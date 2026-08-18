@@ -9,140 +9,112 @@
       <TextBlock x:Name="HeadingSettings" Text="{x:Static app:Strings.PageSettings}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
 
       <!-- ══════ 浮窗设置 ══════ -->
-      <TextBlock Text="{x:Static app:Strings.SettingsFloatingHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+      <TextBlock Text="{x:Static app:Strings.SettingsFloatingHeading}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
 
-      <!-- 浮窗显示 -->
+      <!-- 浮窗设置 — 合并卡(显示开关 / 显示器 / 位置 / 布局 / 文字大小 / 文字透明度) -->
       <ui:CardControl Margin="0,0,0,8">
         <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
+          <StackPanel>
+            <!-- 标题 + 总开关 -->
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Window24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.FloatingHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Window24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.FloatingHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-            </StackPanel>
-            <ui:ToggleSwitch x:Name="FloatingToggle" Grid.Column="1" VerticalAlignment="Center"
-                            Checked="FloatingToggle_Changed" Unchecked="FloatingToggle_Changed"/>
-          </Grid>
-        </ui:CardControl.Header>
-      </ui:CardControl>
+              <ui:ToggleSwitch x:Name="FloatingToggle" Grid.Column="1" VerticalAlignment="Center"
+                              Checked="FloatingToggle_Changed" Unchecked="FloatingToggle_Changed"/>
+            </Grid>
+            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,10,0,8"/>
 
-      <!-- 显示器选择 -->
-      <ui:CardControl Margin="0,0,0,8">
-        <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.DisplayHeading}" FontSize="13" FontWeight="SemiBold"/>
-            </StackPanel>
-            <WrapPanel x:Name="FloatScreenPanel" Grid.Column="1"/>
-          </Grid>
-        </ui:CardControl.Header>
-      </ui:CardControl>
-
-      <!-- 浮窗位置 -->
-      <ui:CardControl Margin="0,0,0,8">
-        <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.PositionHeading}" FontSize="13" FontWeight="SemiBold"/>
-            </StackPanel>
-            <ComboBox x:Name="FloatLocCombo" Grid.Column="1" MinWidth="140"
-                      SelectionChanged="FloatLoc_SelectionChanged">
-              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocLeft}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocRight}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocTopCenter}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.FloatingLocFree}"/>
-            </ComboBox>
-          </Grid>
-        </ui:CardControl.Header>
-      </ui:CardControl>
-
-      <!-- 浮窗布局 -->
-      <ui:CardControl Margin="0,0,0,8">
-        <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.FloatLayoutHeading}" FontSize="13" FontWeight="SemiBold"/>
-            </StackPanel>
-            <ComboBox x:Name="FloatLayoutCombo" Grid.Column="1" MinWidth="120"
-                      SelectionChanged="FloatLayout_SelectionChanged">
-              <ComboBoxItem Content="{x:Static app:Strings.FloatLayoutRow}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.FloatLayoutCol}"/>
-            </ComboBox>
-          </Grid>
-        </ui:CardControl.Header>
-      </ui:CardControl>
-
-      <!-- 文字大小 -->
-      <ui:CardControl Margin="0,0,0,8">
-        <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.FontSizeHeading}" FontSize="13" FontWeight="SemiBold"/>
-            </StackPanel>
-            <Grid Grid.Column="1" VerticalAlignment="Center" Width="160">
+            <!-- 显示器选择 -->
+            <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <Slider x:Name="FloatSizeSlider" Minimum="14" Maximum="72" Value="36"
-                      SmallChange="1" LargeChange="4" TickFrequency="2"
-                      ValueChanged="FloatSize_Changed"/>
-              <TextBlock x:Name="FloatSizeVal" Grid.Column="1" Text="36"
-                         FontSize="12" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.DisplayHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+              <WrapPanel x:Name="FloatScreenPanel" Grid.Column="1"/>
             </Grid>
-          </Grid>
-        </ui:CardControl.Header>
-      </ui:CardControl>
 
-      <!-- 文字透明度 -->
-      <ui:CardControl Margin="0,0,0,8">
-        <ui:CardControl.Header>
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.TextOpacityHeading}" FontSize="13" FontWeight="SemiBold"/>
-            </StackPanel>
-            <Grid Grid.Column="1" VerticalAlignment="Center" Width="160">
+            <!-- 浮窗位置 -->
+            <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <Slider x:Name="FloatTextOpacitySlider" Minimum="0.1" Maximum="1.0" Value="1.0"
-                      SmallChange="0.05" LargeChange="0.1" TickFrequency="0.1"
-                      ValueChanged="FloatTextOpacity_Changed"/>
-              <TextBlock x:Name="FloatTextOpacityVal" Grid.Column="1" Text="100%"
-                         FontSize="12" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.PositionHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+              <ComboBox x:Name="FloatLocCombo" Grid.Column="1" MinWidth="140"
+                        SelectionChanged="FloatLoc_SelectionChanged">
+                <ComboBoxItem Content="{x:Static app:Strings.FloatingLocLeft}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.FloatingLocRight}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.FloatingLocTopCenter}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.FloatingLocFree}"/>
+              </ComboBox>
             </Grid>
-          </Grid>
+
+            <!-- 浮窗布局 -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{x:Static app:Strings.FloatLayoutHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+              <ComboBox x:Name="FloatLayoutCombo" Grid.Column="1" MinWidth="120"
+                        SelectionChanged="FloatLayout_SelectionChanged">
+                <ComboBoxItem Content="{x:Static app:Strings.FloatLayoutRow}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.FloatLayoutCol}"/>
+              </ComboBox>
+            </Grid>
+
+            <!-- 文字大小 -->
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{x:Static app:Strings.FontSizeHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+              <Grid Grid.Column="1" VerticalAlignment="Center" Width="160">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="FloatSizeSlider" Minimum="14" Maximum="72" Value="36"
+                        SmallChange="1" LargeChange="4" TickFrequency="2"
+                        ValueChanged="FloatSize_Changed"/>
+                <TextBlock x:Name="FloatSizeVal" Grid.Column="1" Text="36"
+                           FontSize="{DynamicResource FontSizeBody}" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
+            </Grid>
+
+            <!-- 文字透明度 -->
+            <Grid Margin="0,0,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{x:Static app:Strings.TextOpacityHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+              <Grid Grid.Column="1" VerticalAlignment="Center" Width="160">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="FloatTextOpacitySlider" Minimum="0.1" Maximum="1.0" Value="1.0"
+                        SmallChange="0.05" LargeChange="0.1" TickFrequency="0.1"
+                        ValueChanged="FloatTextOpacity_Changed"/>
+                <TextBlock x:Name="FloatTextOpacityVal" Grid.Column="1" Text="100%"
+                           FontSize="{DynamicResource FontSizeBody}" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
+            </Grid>
+          </StackPanel>
         </ui:CardControl.Header>
       </ui:CardControl>
 
       <!-- ══════ 硬件设置 ══════ -->
-      <TextBlock Text="{x:Static app:Strings.SettingsHardwareHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,8"/>
+      <TextBlock Text="{x:Static app:Strings.SettingsHardwareHeading}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,8"/>
 
       <!-- OMEN 键 — 有子选项的组合卡片 -->
       <ui:CardControl Margin="0,0,0,8">
@@ -154,8 +126,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Keyboard24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.OmenKeyHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Keyboard24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.OmenKeyHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
               <ComboBox x:Name="OmenKeyCombo" Grid.Column="1" MinWidth="160"
                         SelectionChanged="OmenKey_SelectionChanged">
@@ -172,19 +144,19 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock x:Name="OmenKeyAppPathText" FontSize="12"
+              <TextBlock x:Name="OmenKeyAppPathText" FontSize="{DynamicResource FontSizeBody}"
                          VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                          Tag="OmenKeyNoAppSelected"/>
               <ui:Button x:Name="OmenKeySelectAppBtn" Grid.Column="1"
                       Width="32" Height="32" Padding="0" Background="Transparent"
                       Appearance="Transparent"
                       Click="OmenKeySelectApp_Click">
-                <ui:SymbolIcon Symbol="ChevronRight24" FontSize="14"/>
+                <ui:SymbolIcon Symbol="ChevronRight24" FontSize="{DynamicResource FontSizeTitle}"/>
               </ui:Button>
             </Grid>
             <!-- 附属：循环候选 -->
             <StackPanel x:Name="OmenKeyCyclePanel" Visibility="Collapsed" Margin="0,6,0,0">
-              <TextBlock Text="{x:Static app:Strings.OmenKeyPresetCandidates}" FontSize="12"
+              <TextBlock Text="{x:Static app:Strings.OmenKeyPresetCandidates}" FontSize="{DynamicResource FontSizeBody}"
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
               <WrapPanel>
                 <CheckBox x:Name="CycleExtreme" Content="{x:Static app:Strings.PresetExtreme}"
@@ -202,7 +174,82 @@
       </ui:CardControl>
 
       <!-- ══════ 界面设置 ══════ -->
-      <TextBlock Text="{x:Static app:Strings.SettingsUiHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,8"/>
+      <TextBlock Text="{x:Static app:Strings.SettingsUiHeading}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,8"/>
+
+      <!-- 简洁模式 -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <StackPanel>
+            <Grid Margin="0,0,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Window24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                  <TextBlock Text="{x:Static app:Strings.SettingsSimpleModeHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.SettingsSimpleModeDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="SimpleModeToggle" Grid.Column="1" VerticalAlignment="Center"
+                              Checked="SimpleModeToggle_Changed" Unchecked="SimpleModeToggle_Changed"/>
+            </Grid>
+            <StackPanel x:Name="SimpleModeCustomPanel" Margin="0,10,0,0" Visibility="Collapsed">
+              <TextBlock Text="{x:Static app:Strings.SettingsSimpleModeCustom}" FontSize="{DynamicResource FontSizeBody}" FontWeight="Medium" Margin="0,0,0,4"/>
+              <WrapPanel>
+                <CheckBox x:Name="CbDashboard" Content="{x:Static app:Strings.SidebarDashboard}" Margin="0,0,16,8" Checked="CbNavItem_Changed" Unchecked="CbNavItem_Changed"/>
+                <CheckBox x:Name="CbFan" Content="{x:Static app:Strings.SidebarFan}" Margin="0,0,16,8" Checked="CbNavItem_Changed" Unchecked="CbNavItem_Changed"/>
+                <CheckBox x:Name="CbPerf" Content="{x:Static app:Strings.SidebarPerf}" Margin="0,0,16,8" Checked="CbNavItem_Changed" Unchecked="CbNavItem_Changed"/>
+                <CheckBox x:Name="CbLighting" Content="{x:Static app:Strings.SidebarLighting}" Margin="0,0,16,8" Checked="CbNavItem_Changed" Unchecked="CbNavItem_Changed"/>
+                <CheckBox x:Name="CbAutomation" Content="{x:Static app:Strings.SidebarAutomation}" Margin="0,0,16,8" Checked="CbNavItem_Changed" Unchecked="CbNavItem_Changed"/>
+                <CheckBox x:Name="CbMacro" Content="{x:Static app:Strings.SidebarMacro}" Margin="0,0,16,8" Checked="CbNavItem_Changed" Unchecked="CbNavItem_Changed"/>
+                <CheckBox x:Name="CbNetworkBoost" Content="{x:Static app:Strings.SidebarNetworkBoost}" Margin="0,0,16,8" Checked="CbNavItem_Changed" Unchecked="CbNavItem_Changed"/>
+                <CheckBox x:Name="CbOther" Content="{x:Static app:Strings.SidebarOther}" Margin="0,0,16,8" Checked="CbNavItem_Changed" Unchecked="CbNavItem_Changed"/>
+              </WrapPanel>
+            </StackPanel>
+          </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- ponytail: 额外温度传感器 — 勾选启用 Dashboard 传感器温度卡的新增行;LHM 配置(Storage/Motherboard)启动时常开 -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <ui:SymbolIcon Symbol="Temperature24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <TextBlock Text="{x:Static app:Strings.ExtraTempSensorsHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text='勾选要在 Dashboard 传感器温度卡显示的额外项;读不到的会显 "-"'
+                       FontSize="{DynamicResource FontSizeCaption}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+            <WrapPanel x:Name="ExtraTempSensorPanel" Margin="0,8,0,0"/>
+          </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- ponytail: GPU 监控目标 — 选指定 GPU 写 GPUTemp/Usage/Power/Clock(影响 Dashboard/Fan)。空=独显优先 -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="DeviceEq24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.GpuSelectorHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock Text="{x:Static app:Strings.GpuSelectorDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+            <ComboBox x:Name="GpuSelectorCombo" Grid.Column="1" MinWidth="240" VerticalAlignment="Center"
+                      SelectionChanged="GpuSelector_SelectionChanged"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
 
       <!-- 悬停浮窗 -->
       <ui:CardControl Margin="0,0,0,8">
@@ -214,10 +261,10 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="CursorHover24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.TrayHoverPopupHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="CursorHover24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.TrayHoverPopupHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock Text="{x:Static app:Strings.TrayHoverPopupDesc}" FontSize="11"
+              <TextBlock Text="{x:Static app:Strings.TrayHoverPopupDesc}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="TrayHoverPopupToggle" Grid.Column="1" VerticalAlignment="Center"
@@ -238,10 +285,10 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Chat24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                  <TextBlock Text="{x:Static app:Strings.SettingsOsdHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  <ui:SymbolIcon Symbol="Chat24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                  <TextBlock Text="{x:Static app:Strings.SettingsOsdHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.OsdToggleDesc}" FontSize="11"
+                <TextBlock Text="{x:Static app:Strings.OsdToggleDesc}" FontSize="{DynamicResource FontSizeCaption}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ui:ToggleSwitch x:Name="OsdToggle" Grid.Column="1" VerticalAlignment="Center"
@@ -253,7 +300,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock Text="{x:Static app:Strings.OsdPositionHeading}" FontSize="12" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.OsdPositionHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
               <ComboBox x:Name="OsdPositionCombo" Grid.Column="1" MinWidth="140"
                         SelectionChanged="OsdPosition_SelectionChanged">
                 <ComboBoxItem Content="{x:Static app:Strings.OsdPosBottomCenter}"/>
@@ -280,8 +327,8 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Window24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.TrayIconHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Window24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.TrayIconHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
             </StackPanel>
             <ComboBox x:Name="TrayIconCombo" Grid.Column="1" MinWidth="140"
@@ -303,8 +350,8 @@
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.AutoStartHeading}" FontSize="13" FontWeight="SemiBold"/>
-              <TextBlock Text="{x:Static app:Strings.AutoStartDesc}" FontSize="11"
+              <TextBlock Text="{x:Static app:Strings.AutoStartHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"/>
+              <TextBlock Text="{x:Static app:Strings.AutoStartDesc}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="AutoStartToggle" Grid.Column="1" VerticalAlignment="Center"
@@ -323,22 +370,22 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Image24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock x:Name="CustomLogoHeadingText" Text="{x:Static app:Strings.CustomLogoHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Image24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock x:Name="CustomLogoHeadingText" Text="{x:Static app:Strings.CustomLogoHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock x:Name="CustomLogoDescText" Text="{x:Static app:Strings.CustomLogoDesc}" FontSize="11"
+              <TextBlock x:Name="CustomLogoDescText" Text="{x:Static app:Strings.CustomLogoDesc}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
               <ui:Button x:Name="CustomLogoSelectBtn" Width="32" Height="32" Padding="0" Background="Transparent"
                       Appearance="Transparent"
                       Click="CustomLogoSelect_Click">
-                <ui:SymbolIcon Symbol="ChevronRight24" FontSize="14"/>
+                <ui:SymbolIcon Symbol="ChevronRight24" FontSize="{DynamicResource FontSizeTitle}"/>
               </ui:Button>
               <ui:Button x:Name="CustomLogoResetBtn" Width="32" Height="32" Padding="0" Background="Transparent"
                       Margin="4,0,0,0" Appearance="Transparent"
                       Click="CustomLogoReset_Click">
-                <ui:SymbolIcon Symbol="ArrowReset24" FontSize="14"/>
+                <ui:SymbolIcon Symbol="ArrowReset24" FontSize="{DynamicResource FontSizeTitle}"/>
               </ui:Button>
             </StackPanel>
           </Grid>
@@ -346,7 +393,7 @@
       </ui:CardControl>
 
       <!-- ══════ 系统设置 ══════ -->
-      <TextBlock Text="{x:Static app:Strings.SettingsSysHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,8"/>
+      <TextBlock Text="{x:Static app:Strings.SettingsSysHeading}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,8"/>
 
       <!-- 主题 -->
       <ui:CardControl Margin="0,0,0,8">
@@ -358,8 +405,8 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="DarkTheme24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.ThemeHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="DarkTheme24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.ThemeHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
             </StackPanel>
             <ComboBox x:Name="ThemeCombo" Grid.Column="1" MinWidth="140"
@@ -382,10 +429,10 @@
             </Grid.ColumnDefinitions>
 	            <StackPanel>
 	              <StackPanel Orientation="Horizontal">
-	                <ui:SymbolIcon Symbol="Globe24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-	                <TextBlock Text="{x:Static app:Strings.LanguageMenu}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+	                <ui:SymbolIcon Symbol="Globe24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+	                <TextBlock Text="{x:Static app:Strings.LanguageMenu}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
 	              </StackPanel>
-	              <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="24,2,0,0"
+	              <TextBlock FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="24,2,0,0"
 	                         Text="{x:Static app:Strings.LangRestartHint}"/>
 	            </StackPanel>
             <ComboBox x:Name="LangCombo" Grid.Column="1" MinWidth="160"
@@ -408,23 +455,23 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Image24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.CustomBgHeading}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Image24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.CustomBgHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <ui:Button x:Name="CustomBgSelectBtn" Width="32" Height="32" Padding="0" Background="Transparent"
                         Appearance="Transparent"
                         Click="CustomBgSelect_Click">
-                  <ui:SymbolIcon Symbol="ChevronRight24" FontSize="14"/>
+                  <ui:SymbolIcon Symbol="ChevronRight24" FontSize="{DynamicResource FontSizeTitle}"/>
                 </ui:Button>
                 <ui:Button x:Name="CustomBgResetBtn" Width="32" Height="32" Padding="0" Background="Transparent"
                         Margin="4,0,0,0" Appearance="Transparent"
                         Click="CustomBgReset_Click">
-                  <ui:SymbolIcon Symbol="ArrowReset24" FontSize="14"/>
+                  <ui:SymbolIcon Symbol="ArrowReset24" FontSize="{DynamicResource FontSizeTitle}"/>
                 </ui:Button>
               </StackPanel>
             </Grid>
-            <TextBlock x:Name="CustomBgPathText" Text="{x:Static app:Strings.CustomBgDesc}" FontSize="11"
+            <TextBlock x:Name="CustomBgPathText" Text="{x:Static app:Strings.CustomBgDesc}" FontSize="{DynamicResource FontSizeCaption}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
                        Margin="0,0,0,6"/>
             <Grid Margin="0,0,0,4">
@@ -432,7 +479,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock Text="{x:Static app:Strings.CustomBgOpacity}" FontSize="12" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.CustomBgOpacity}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
               <Grid Grid.Column="1" VerticalAlignment="Center" Width="160">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -442,7 +489,7 @@
                         SmallChange="0.05" LargeChange="0.1" TickFrequency="0.1"
                         ValueChanged="CustomBgOpacity_Changed"/>
                 <TextBlock x:Name="CustomBgOpacityVal" Grid.Column="1" Text="50%"
-                           FontSize="12" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
+                           FontSize="{DynamicResource FontSizeBody}" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
               </Grid>
             </Grid>
             <Grid>
@@ -450,7 +497,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock Text="{x:Static app:Strings.CustomBgBlur}" FontSize="12" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.CustomBgBlur}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
               <ui:ToggleSwitch x:Name="CustomBgBlurToggle" Grid.Column="1"
                               Checked="CustomBgBlur_Changed" Unchecked="CustomBgBlur_Changed"/>
             </Grid>
@@ -467,8 +514,8 @@
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.DataLocalizeHeading}" FontSize="13" FontWeight="SemiBold"/>
-              <TextBlock Text="{x:Static app:Strings.DataLocalizeDesc}" FontSize="11"
+              <TextBlock Text="{x:Static app:Strings.DataLocalizeHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"/>
+              <TextBlock Text="{x:Static app:Strings.DataLocalizeDesc}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="DataLocalizeToggle" Grid.Column="1" VerticalAlignment="Center"
@@ -488,8 +535,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.DebugLogHeading}" FontSize="13" FontWeight="SemiBold"/>
-                <TextBlock x:Name="DebugLogDesc" Text="{x:Static app:Strings.DebugLogDesc}" FontSize="11"
+                <TextBlock Text="{x:Static app:Strings.DebugLogHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"/>
+                <TextBlock x:Name="DebugLogDesc" Text="{x:Static app:Strings.DebugLogDesc}" FontSize="{DynamicResource FontSizeCaption}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ui:ToggleSwitch x:Name="DebugLogToggle" Grid.Column="1" VerticalAlignment="Center"
@@ -502,14 +549,110 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-	                <TextBlock Text="{x:Static app:Strings.SettingsDebugShowAllUi}" FontSize="13" FontWeight="SemiBold"/>
-		                <TextBlock Text="{x:Static app:Strings.SettingsDebugShowAllUiDesc}" FontSize="11"
+	                <TextBlock Text="{x:Static app:Strings.SettingsDebugShowAllUi}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"/>
+	                <TextBlock Text="{x:Static app:Strings.SettingsDebugShowAllUiDesc}" FontSize="{DynamicResource FontSizeCaption}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ui:ToggleSwitch x:Name="DebugShowAllUiToggle" Grid.Column="1" VerticalAlignment="Center"
                               Checked="DebugShowAllUiToggle_Changed" Unchecked="DebugShowAllUiToggle_Changed"/>
             </Grid>
+            <!-- ponytail: DEBUG 模拟键盘类型 — 改后清能力缓存+刷新侧栏+提示重进灯光页 -->
+            <Grid Margin="0,10,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.SettingsDebugKbKind}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.SettingsDebugKbKindDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+              </StackPanel>
+              <ComboBox x:Name="DebugKbKindCombo" Grid.Column="1" MinWidth="140" VerticalAlignment="Center"
+                        SelectionChanged="DebugKbKindCombo_SelectionChanged">
+                <ComboBoxItem Tag="" Content="{x:Static app:Strings.DebugKbKindReal}"/>
+                <ComboBoxItem Tag="Normal" Content="{x:Static app:Strings.DebugKbKindNormal}"/>
+                <ComboBoxItem Tag="OneZone" Content="{x:Static app:Strings.DebugKbKindOneZone}"/>
+                <ComboBoxItem Tag="FourZone" Content="{x:Static app:Strings.DebugKbKindFourZone}"/>
+                <ComboBoxItem Tag="PerKey" Content="{x:Static app:Strings.DebugKbKindPerKey}"/>
+              </ComboBox>
+            </Grid>
           </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- ponytail: 高级硬件访问(EC/SMU 直写) — 默认关闭,需用户主动开启。
+           PawnIO 未安装时禁用 ToggleSwitch 并在描述中提示状态。 -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.SettingsEnableEcAccess}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="EcAccessDescText" Text="{x:Static app:Strings.SettingsEnableEcAccessDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="EcAccessToggle" Grid.Column="1" VerticalAlignment="Center"
+                            Checked="EcAccessToggle_Changed" Unchecked="EcAccessToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- ponytail: OMEN Light Studio / OGH 存根 — OGH 卸载后用同名空壳包骗过其安装检测 -->
+      <ui:CardControl x:Name="OccStubCard" Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <ui:SymbolIcon Symbol="Lightbulb24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <TextBlock Text="{x:Static app:Strings.SettingsLightStudioTitle}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="{x:Static app:Strings.SettingsLightStudioDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+            <TextBlock x:Name="LightStudioStatusText" FontSize="{DynamicResource FontSizeCaption}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,6,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <Button x:Name="OccStubRegBtn" Content="{x:Static app:Strings.OccStubRegBtn}"
+                      Click="OccStubReg_Click" Padding="12,4" Margin="0,0,8,0"/>
+              <Button x:Name="OccStubRmBtn" Content="{x:Static app:Strings.OccStubRmBtn}"
+                      Click="OccStubRm_Click" Padding="12,4" Margin="0,0,8,0"/>
+              <Button x:Name="OccStubLaunchBtn" Content="{x:Static app:Strings.OccStubLaunchBtn}"
+                      Click="OccStubLaunch_Click" Padding="12,4" Margin="0,0,8,0"/>
+              <Button x:Name="OccStubInstallBtn" Content="{x:Static app:Strings.OccStubInstallBtn}"
+                      Click="OccStubInstall_Click" Padding="12,4" Visibility="Collapsed"/>
+              <!-- ponytail: 用户在灯光页选"使用官方灯效软件"后, 此按钮可见 — 撤回隐藏,恢复侧栏灯光项。
+                   默认折叠,LoadState 按 ConfigService.LightingUseOfficial 设可见,避免首渲闪烁。 -->
+              <Button x:Name="EnableOxhLightingBtn" Content="{x:Static app:Strings.SettingsDisableOfficialBtn}"
+                      Click="EnableOxhLightingBtn_Click" Padding="12,4" Margin="8,0,0,0" Visibility="Collapsed"/>
+            </StackPanel>
+          </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- 重启进 BIOS/UEFI -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Power24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.UefiRestartHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="UefiRestartDescText" Text="{x:Static app:Strings.UefiRestartDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:Button x:Name="UefiRestartBtn" Grid.Column="1" VerticalAlignment="Center"
+                       Content="{x:Static app:Strings.UefiRestartBtn}"
+                       Click="UefiRestart_Click" Appearance="Caution"/>
+          </Grid>
         </ui:CardControl.Header>
       </ui:CardControl>
 

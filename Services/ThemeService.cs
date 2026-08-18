@@ -92,7 +92,7 @@ namespace OmenSuperHub.Services {
               byte g = (byte)((dwmColor >> 8) & 0xFF);
               byte b = (byte)((dwmColor >> 16) & 0xFF);
               var accentColor = Color.FromRgb(r, g, b);
-              var accentBrush = new SolidColorBrush(accentColor);
+              var accentBrush = new SolidColorBrush(accentColor); accentBrush.Freeze(); // ponytail: Freeze 去线程亲和 — 后台线程创建的刷子进可视树会炸布局(InvalidOperationException in ArrangeOverride)
               // Override WPF-UI's accent brushes so the indicator follows system accent
               Application.Current.Resources["SystemAccentColorSecondaryBrush"] = accentBrush;
               Application.Current.Resources["SystemAccentColorSecondary"] = accentColor;
@@ -133,7 +133,7 @@ namespace OmenSuperHub.Services {
         }
         if (colorDict != null) {
           colorDict["AccentOmen"] = color;
-          colorDict["AccentOmenBrush"] = new SolidColorBrush(color);
+          colorDict["AccentOmenBrush"] = FrozenBrush(color); // ponytail: Freeze 见下方助手
         }
       } catch { }
     }
@@ -166,7 +166,7 @@ namespace OmenSuperHub.Services {
         if (colorDict != null) {
           var c = (Color)ColorConverter.ConvertFromString(defaultColor);
           colorDict["AccentOmen"] = c;
-          colorDict["AccentOmenBrush"] = new SolidColorBrush(c);
+          colorDict["AccentOmenBrush"] = FrozenBrush(c);
           colorDict["AccentOmenLight"] = (Color)ColorConverter.ConvertFromString(defaultLight);
           colorDict["AccentOmenDim"] = (Color)ColorConverter.ConvertFromString(defaultDim);
         }
@@ -175,6 +175,14 @@ namespace OmenSuperHub.Services {
 
     public static void Cleanup() {
       try { SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged; } catch { }
+    }
+
+    // ponytail: 运行时替换的资源刷统一走冻结版 — Freeze 去掉 Freezable 线程亲和,
+    // 任何线程创建都不再让引用它的 Border/TextBlock 在布局时抛跨线程异常。
+    static SolidColorBrush FrozenBrush(Color c) {
+      var b = new SolidColorBrush(c);
+      b.Freeze();
+      return b;
     }
   }
 }

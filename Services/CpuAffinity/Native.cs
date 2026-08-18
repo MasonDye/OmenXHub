@@ -35,6 +35,11 @@ namespace OmenSuperHub.Services.CpuAffinity {
     ProcessDefaultCpuSets = 0x42
   }
 
+  // kernel32 SetProcessInformation 的进程信息类（与 ntdll PROCESS_INFORMATION_CLASS 不同枚举空间）
+  public enum Kernel32ProcessInfoClass : uint {
+    ProcessMemoryPriority = 2
+  }
+
   public enum SYSTEM_INFORMATION_CLASS : uint {
     SystemCpuSetInformation = 0x49
   }
@@ -83,32 +88,11 @@ namespace OmenSuperHub.Services.CpuAffinity {
   }
 
   // ══════════════════════════════════════
-  //  Logical Processor Information 结构体
+  //  Logical Processor Information（EX API）
+  //  ponytail: 用 GetLogicalProcessorInformationEx（条目自带 Size，遍历安全）。
+  //  旧的非 EX API 结构体在 x64 上布局有 ULONG_PTR 对齐，曾导致字段错位；
+  //  现统一用 EX API + 固定偏移解包（见 CpuTopologyService.EnumerateEx）。
   // ══════════════════════════════════════
-
-  [StructLayout(LayoutKind.Sequential)]
-  public struct SYSTEM_LOGICAL_PROCESSOR_INFORMATION {
-    public UIntPtr ProcessorMask;
-    public LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
-    public ProcessorUnion Union;
-
-    [StructLayout(LayoutKind.Explicit)]
-    public struct ProcessorUnion {
-      [FieldOffset(0)] public ProcessorCore Core;
-      [FieldOffset(0)] public ProcessorNumaNode NumaNode;
-      [FieldOffset(0)] public ulong Reserved0;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct ProcessorCore {
-      public byte Flags;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct ProcessorNumaNode {
-      public uint NodeNumber;
-    }
-  }
 
   public enum LOGICAL_PROCESSOR_RELATIONSHIP : uint {
     RelationProcessorCore = 0,
@@ -120,6 +104,8 @@ namespace OmenSuperHub.Services.CpuAffinity {
     RelationProcessorModule = 7,
     RelationAll = 0xFFFF
   }
+
+  // PROCESSOR_RELATIONSHIP / GROUP_AFFINITY 使用固定偏移解包（见 CpuTopologyService），不定义结构体。
 
   // ══════════════════════════════════════
   //  Job Object 结构体
@@ -160,6 +146,21 @@ namespace OmenSuperHub.Services.CpuAffinity {
     public UIntPtr JobMemoryLimit;
     public UIntPtr PeakProcessMemoryUsed;
     public UIntPtr PeakJobMemoryUsed;
+  }
+
+  // 100ns 单位时间戳（GetProcessTimes 输出）
+  [StructLayout(LayoutKind.Sequential)]
+  public struct FILETIME {
+    public uint Low;
+    public uint High;
+    /// <summary>无符号 100ns 计数，可直接相减得到时间差。</summary>
+    public long Ticks100 => ((long)High << 32) | Low;
+  }
+
+  // SetProcessInformation(ProcessMemoryPriority) 输入结构
+  [StructLayout(LayoutKind.Sequential)]
+  public struct PROCESS_MEMORY_PRIORITY {
+    public uint MemoryPriority;
   }
 
   public static class JobLimitFlags {
@@ -228,6 +229,14 @@ namespace OmenSuperHub.Services.CpuAffinity {
     [DllImport(K, SetLastError = true)]
     public static extern bool GetProcessAffinityMask(IntPtr hProcess, out IntPtr lpProcessAffinityMask, out IntPtr lpSystemAffinityMask);
 
+    // 进程 CPU 时间（kernel+user，100ns 单位）— CPU 占用率采样的两拍差分来源
+    [DllImport(K, SetLastError = true)]
+    public static extern bool GetProcessTimes(IntPtr hProcess, out FILETIME lpCreationTime, out FILETIME lpExitTime, out FILETIME lpKernelTime, out FILETIME lpUserTime);
+
+    // 内存优先级（1=VeryLow 2=Low 3=Medium 4=BelowNormal 5=Normal）
+    [DllImport(K, SetLastError = true)]
+    public static extern bool SetProcessInformation(IntPtr hProcess, Kernel32ProcessInfoClass ProcessInformationClass, ref PROCESS_MEMORY_PRIORITY ProcessInformation, uint ProcessInformationSize);
+
     // ponytail: QueryFullProcessImageName 比 Process.MainModule.FileName 快得多且可访问受保护进程（仅需 QUERY_LIMITED_INFORMATION）
     [DllImport(K, SetLastError = true, CharSet = CharSet.Unicode)]
     public static extern bool QueryFullProcessImageName(IntPtr hProcess, uint dwFlags, System.Text.StringBuilder lpExeName, ref uint lpdwSize);
@@ -241,8 +250,13 @@ namespace OmenSuperHub.Services.CpuAffinity {
     [DllImport(K, SetLastError = true)]
     public static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
 
+    // ponytail: EX 版本条目自带 Size 字段，遍历安全；RelationshipType 见 LOGICAL_PROCESSOR_RELATIONSHIP
     [DllImport(K, SetLastError = true)]
-    public static extern bool GetLogicalProcessorInformation(IntPtr Buffer, ref uint ReturnLength);
+    public static extern bool GetLogicalProcessorInformationEx(uint RelationshipType, IntPtr Buffer, ref int ReturnedLength);
+
+    // ponytail: GetFirmwareType 返回 1=Bios 2=Uefi，用于 UEFI 重启能力检测
+    [DllImport(K, SetLastError = true)]
+    public static extern bool GetFirmwareType(out uint firmwareType);
 
     [DllImport(K, SetLastError = true)]
     public static extern bool GetSystemCpuSetInformation(IntPtr Information, uint BufferLength, out uint ReturnedLength, IntPtr Process, uint Flags);

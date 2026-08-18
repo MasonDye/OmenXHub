@@ -19,6 +19,8 @@
         <!-- Omen Custom Control Styles -->
         <ResourceDictionary Source="Themes/OmenTheme.xaml"/>
       </ResourceDictionary.MergedDictionaries>
+      <!-- ponytail: BoolToVisibility converter — LightingPage 绑定 LightEnableToggle.IsChecked 控制区域可见性 -->
+      <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

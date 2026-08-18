@@ -8,7 +8,54 @@
 
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
-      <TextBlock x:Name="HeadingLighting" Text="{x:Static app:Strings.LightingControl}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+        <TextBlock x:Name="HeadingLighting" Text="{x:Static app:Strings.LightingControl}" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
+        <ui:ToggleSwitch x:Name="LightEnableToggle" IsChecked="False" Margin="16,0,0,0" VerticalAlignment="Center"
+                         Checked="LightEnable_Changed" Unchecked="LightEnable_Changed"/>
+      </StackPanel>
+
+      <!-- ponytail: 普通键盘占位卡 — 防御性兜底(侧栏已隐藏,直接导航进来时提示)。 -->
+      <ui:CardControl x:Name="UnsupportedCard" Visibility="Collapsed" Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <StackPanel>
+            <ui:SymbolIcon Symbol="Prohibited24" FontSize="20" Margin="0,0,0,8"/>
+            <TextBlock Text="{x:Static app:Strings.LightingUnsupportedHint}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+          </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- ponytail: 场景选择器 — 参考 OmenCore 场景系统。ComboBox 切换场景 + 新建/保存/删除 -->
+      <Border x:Name="SceneCard" Padding="10,8" Margin="0,0,0,14" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="6"
+              Visibility="{Binding ElementName=LightEnableToggle, Path=IsChecked, Converter={StaticResource BoolToVisibility}}">
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock Text="{x:Static app:Strings.LightingSceneLabel}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="SceneCombo" MinWidth="140" SelectionChanged="SceneCombo_SelectionChanged"/>
+            <Button x:Name="BtnSceneSave" Content="{x:Static app:Strings.LightingSceneSave}" Click="BtnSceneSave_Click"
+                    Padding="6,2" Margin="8,0,0,0" ToolTip="{x:Static app:Strings.LightingSceneSaveTip}"/>
+            <Button x:Name="BtnSceneSaveAs" Content="{x:Static app:Strings.LightingSceneSaveAs}" Click="BtnSceneSaveAs_Click"
+                    Padding="6,2" Margin="4,0,0,0" ToolTip="{x:Static app:Strings.LightingSceneSaveAsTip}"/>
+            <Button x:Name="BtnSceneDelete" Content="{x:Static app:Strings.LightingSceneDelete}" Click="BtnSceneDelete_Click"
+                    Padding="6,2" Margin="4,0,0,0" ToolTip="{x:Static app:Strings.LightingSceneDeleteTip}"/>
+          </StackPanel>
+          <!-- 触发模式选择 — 绑定场景到性能预设 -->
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <TextBlock Text="{x:Static app:Strings.LightingSceneTrigger}" FontSize="{DynamicResource FontSizeBody}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="SceneTriggerCombo" MinWidth="120"
+                      SelectionChanged="SceneTrigger_SelectionChanged">
+              <ComboBoxItem Tag="" Content="{x:Static app:Strings.LightingTriggerNone}"/>
+              <ComboBoxItem Tag="Extreme" Content="{x:Static app:Strings.PresetExtreme}"/>
+              <ComboBoxItem Tag="GpuPriority" Content="{x:Static app:Strings.PresetGpuPriority}"/>
+              <ComboBoxItem Tag="LightUse" Content="{x:Static app:Strings.PresetLightUse}"/>
+            </ComboBox>
+          </StackPanel>
+          <!-- 场景描述/触发信息 -->
+          <TextBlock x:Name="SceneInfo" FontSize="{DynamicResource FontSizeCaption}" Margin="0,4,0,0"
+                     Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed"/>
+        </StackPanel>
+      </Border>
 
       <Grid x:Name="LightGrid">
         <Grid.ColumnDefinitions>
@@ -69,8 +116,8 @@
           <ui:CardControl.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <ui:SymbolIcon Symbol="DeviceEq24" FontSize="18" Margin="0,0,10,0"/>
-                <TextBlock x:Name="LightDeviceText" Text="{x:Static app:Strings.LightingDeviceHeading}" Tag="Device" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="DeviceEq24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
+                <TextBlock x:Name="LightDeviceText" Text="{x:Static app:Strings.LightingDeviceHeading}" Tag="Device" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
               <ComboBox x:Name="LightDevCombo" MinWidth="120"
                         SelectionChanged="LightDev_SelectionChanged">
@@ -85,8 +132,8 @@
           <ui:CardControl.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <ui:SymbolIcon Symbol="Settings24" FontSize="18" Margin="0,0,10,0"/>
-                <TextBlock x:Name="LightProtocolText" Text="{x:Static app:Strings.LightingProtocolHeading}" Tag="Protocol" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Settings24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
+                <TextBlock x:Name="LightProtocolText" Text="{x:Static app:Strings.LightingProtocolHeading}" Tag="Protocol" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
               <ComboBox x:Name="LightProtoCombo" MinWidth="120"
                         SelectionChanged="LightProto_SelectionChanged">
@@ -96,6 +143,12 @@
                 <!-- ponytail: Added in this pass. Selecting PerKey shows the PerKey RGB card below -->
                 <ComboBoxItem x:Name="PerKeyProtoItem" Content="{x:Static app:Strings.LightingPerKeyTitle}" Tag="PerKey"/>
               </ComboBox>
+              <!-- ponytail: Auto-detect button — probes kbType + cycle number + HP SDK availability,
+                   picks the best protocol so the user doesn't have to trial-and-error. -->
+              <Button x:Name="BtnAutoDetect" Content="{x:Static app:Strings.LightingAutoDetect}"
+                      Click="BtnAutoDetect_Click" Padding="8,2" Margin="0,8,0,0" HorizontalAlignment="Left"/>
+              <TextBlock x:Name="AutoDetectResult" FontSize="{DynamicResource FontSizeCaption}" Margin="0,4,0,0" Visibility="Collapsed"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
             </StackPanel>
           </ui:CardControl.Header>
         </ui:CardControl>
@@ -104,10 +157,10 @@
           <ui:CardControl.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <ui:SymbolIcon Symbol="Lightbulb24" FontSize="18" Margin="0,0,10,0"/>
+                <ui:SymbolIcon Symbol="Lightbulb24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
                 <TextBlock Text="{x:Static app:Strings.LightingBrightSpeed}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock Text="{x:Static app:Strings.LightingBrightness}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
+              <TextBlock Text="{x:Static app:Strings.LightingBrightness}" FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -116,7 +169,7 @@
                 <Slider x:Name="LightBrightSlider" Minimum="0" Maximum="100" Value="100"
                         ValueChanged="LightBright_Changed"/>
                 <TextBlock x:Name="LightBrightVal" Grid.Column="1" Width="40" Text="100%"
-                           FontSize="12" VerticalAlignment="Center" TextAlignment="Right"/>
+                           FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center" TextAlignment="Right"/>
               </Grid>
               <!-- ponytail: Dojo firmware accepts brightness > 100 (228=on per Light Studio reverse).
                    These buttons teleport the slider-equivalent value into the LightingBrightness
@@ -128,11 +181,12 @@
                 <Button x:Name="BtnBright228" Content="{x:Static app:Strings.LightingBrightnessMax}"
                         Click="BtnBrightHigh_Click" Tag="228" Padding="8,2"/>
               </StackPanel>
-              <TextBlock Text="{x:Static app:Strings.LightingSpeedHeading}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,8,0,4"/>
+              <TextBlock Text="{x:Static app:Strings.LightingSpeedHeading}" FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,8,0,4"/>
               <ComboBox x:Name="AnimSpeedCombo" MinWidth="140">
                 <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedSlow}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedMedium}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedFast}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedVeryFast}"/>
               </ComboBox>
             </StackPanel>
           </ui:CardControl.Header>
@@ -173,9 +227,27 @@
           <ui:CardControl.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <ui:SymbolIcon Symbol="Color24" FontSize="18" Margin="0,0,10,0"/>
+                <ui:SymbolIcon Symbol="Color24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
                 <TextBlock Text="{x:Static app:Strings.LightingZoneColorHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
+              <!-- ponytail: 4-zone color preview bar — visual feedback for which zone has which color.
+                   Replaces the text-only Zone 1-4 labels that gave no positional context.
+                   Dimmed to 40% opacity when master toggle is off (60% black overlay equivalent). -->
+              <Grid x:Name="ZonePreviewBar" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="4"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="4"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="4"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border x:Name="Zone1Preview" Grid.Column="0" Height="28" CornerRadius="4" Background="#FF0000"/>
+                <Border x:Name="Zone2Preview" Grid.Column="2" Height="28" CornerRadius="4" Background="#FF0000"/>
+                <Border x:Name="Zone3Preview" Grid.Column="4" Height="28" CornerRadius="4" Background="#FF0000"/>
+                <Border x:Name="Zone4Preview" Grid.Column="6" Height="28" CornerRadius="4" Background="#FF0000"/>
+              </Grid>
               <Grid x:Name="ZoneGrid">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -189,7 +261,7 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Grid.Column="0" x:Name="Zone1Cell">
-                  <TextBlock x:Name="Zone1Text" Text="{x:Static app:Strings.LightingZone1}" Tag="Zone1" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                  <TextBlock x:Name="Zone1Text" Text="{x:Static app:Strings.LightingZone1}" Tag="Zone1" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                   <ComboBox x:Name="Zone1Combo" MinWidth="120"
                             SelectionChanged="ZoneColor_SelectionChanged">
                     <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
@@ -199,12 +271,17 @@
                     <ComboBoxItem Tag="Cyan" Content="{x:Static app:Strings.LightingColorCyan}"/>
                     <ComboBoxItem Tag="Pink" Content="{x:Static app:Strings.LightingColorMagenta}"/>
                     <ComboBoxItem Tag="Yellow" Content="{x:Static app:Strings.LightingColorYellow}"/>
+                    <ComboBoxItem Tag="IceBlue" Content="{x:Static app:Strings.LightingColorIceBlue}"/>
+                    <ComboBoxItem Tag="CoolGreen" Content="{x:Static app:Strings.LightingColorCoolGreen}"/>
+                    <ComboBoxItem Tag="WarmYellow" Content="{x:Static app:Strings.LightingColorWarmYellow}"/>
+                    <ComboBoxItem Tag="FieryOrange" Content="{x:Static app:Strings.LightingColorFieryOrange}"/>
+                    <ComboBoxItem Tag="HotRed" Content="{x:Static app:Strings.LightingColorHotRed}"/>
                     <ComboBoxItem Tag="Custom" Content="{x:Static app:Strings.LightingCustom}"/>
                   </ComboBox>
                 </StackPanel>
 
                 <StackPanel Grid.Row="0" Grid.Column="2" x:Name="Zone2Cell">
-                  <TextBlock x:Name="Zone2Text" Text="{x:Static app:Strings.LightingZone2}" Tag="Zone2" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                  <TextBlock x:Name="Zone2Text" Text="{x:Static app:Strings.LightingZone2}" Tag="Zone2" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                   <ComboBox x:Name="Zone2Combo" MinWidth="120"
                             SelectionChanged="ZoneColor_SelectionChanged">
                     <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
@@ -214,12 +291,17 @@
                     <ComboBoxItem Tag="Cyan" Content="{x:Static app:Strings.LightingColorCyan}"/>
                     <ComboBoxItem Tag="Pink" Content="{x:Static app:Strings.LightingColorMagenta}"/>
                     <ComboBoxItem Tag="Yellow" Content="{x:Static app:Strings.LightingColorYellow}"/>
+                    <ComboBoxItem Tag="IceBlue" Content="{x:Static app:Strings.LightingColorIceBlue}"/>
+                    <ComboBoxItem Tag="CoolGreen" Content="{x:Static app:Strings.LightingColorCoolGreen}"/>
+                    <ComboBoxItem Tag="WarmYellow" Content="{x:Static app:Strings.LightingColorWarmYellow}"/>
+                    <ComboBoxItem Tag="FieryOrange" Content="{x:Static app:Strings.LightingColorFieryOrange}"/>
+                    <ComboBoxItem Tag="HotRed" Content="{x:Static app:Strings.LightingColorHotRed}"/>
                     <ComboBoxItem Tag="Custom" Content="{x:Static app:Strings.LightingCustom}"/>
                   </ComboBox>
                 </StackPanel>
 
                 <StackPanel Grid.Row="2" Grid.Column="0" x:Name="Zone3Cell">
-                  <TextBlock x:Name="Zone3Text" Text="{x:Static app:Strings.LightingZone3}" Tag="Zone3" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                  <TextBlock x:Name="Zone3Text" Text="{x:Static app:Strings.LightingZone3}" Tag="Zone3" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                   <ComboBox x:Name="Zone3Combo" MinWidth="120"
                             SelectionChanged="ZoneColor_SelectionChanged">
                     <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
@@ -229,12 +311,17 @@
                     <ComboBoxItem Tag="Cyan" Content="{x:Static app:Strings.LightingColorCyan}"/>
                     <ComboBoxItem Tag="Pink" Content="{x:Static app:Strings.LightingColorMagenta}"/>
                     <ComboBoxItem Tag="Yellow" Content="{x:Static app:Strings.LightingColorYellow}"/>
+                    <ComboBoxItem Tag="IceBlue" Content="{x:Static app:Strings.LightingColorIceBlue}"/>
+                    <ComboBoxItem Tag="CoolGreen" Content="{x:Static app:Strings.LightingColorCoolGreen}"/>
+                    <ComboBoxItem Tag="WarmYellow" Content="{x:Static app:Strings.LightingColorWarmYellow}"/>
+                    <ComboBoxItem Tag="FieryOrange" Content="{x:Static app:Strings.LightingColorFieryOrange}"/>
+                    <ComboBoxItem Tag="HotRed" Content="{x:Static app:Strings.LightingColorHotRed}"/>
                     <ComboBoxItem Tag="Custom" Content="{x:Static app:Strings.LightingCustom}"/>
                   </ComboBox>
                 </StackPanel>
 
                 <StackPanel Grid.Row="2" Grid.Column="2" x:Name="Zone4Cell">
-                  <TextBlock x:Name="Zone4Text" Text="{x:Static app:Strings.LightingZone4}" Tag="Zone4" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                  <TextBlock x:Name="Zone4Text" Text="{x:Static app:Strings.LightingZone4}" Tag="Zone4" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                   <ComboBox x:Name="Zone4Combo" MinWidth="120"
                             SelectionChanged="ZoneColor_SelectionChanged">
                     <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
@@ -244,6 +331,11 @@
                     <ComboBoxItem Tag="Cyan" Content="{x:Static app:Strings.LightingColorCyan}"/>
                     <ComboBoxItem Tag="Pink" Content="{x:Static app:Strings.LightingColorMagenta}"/>
                     <ComboBoxItem Tag="Yellow" Content="{x:Static app:Strings.LightingColorYellow}"/>
+                    <ComboBoxItem Tag="IceBlue" Content="{x:Static app:Strings.LightingColorIceBlue}"/>
+                    <ComboBoxItem Tag="CoolGreen" Content="{x:Static app:Strings.LightingColorCoolGreen}"/>
+                    <ComboBoxItem Tag="WarmYellow" Content="{x:Static app:Strings.LightingColorWarmYellow}"/>
+                    <ComboBoxItem Tag="FieryOrange" Content="{x:Static app:Strings.LightingColorFieryOrange}"/>
+                    <ComboBoxItem Tag="HotRed" Content="{x:Static app:Strings.LightingColorHotRed}"/>
                     <ComboBoxItem Tag="Custom" Content="{x:Static app:Strings.LightingCustom}"/>
                   </ComboBox>
                 </StackPanel>
@@ -257,21 +349,21 @@
         <ui:CardControl.Header>
           <StackPanel>
             <StackPanel Orientation="Horizontal">
-              <ui:SymbolIcon Symbol="Replay24" FontSize="18" Margin="0,0,10,0"/>
-              <TextBlock x:Name="LightAnimText" Text="{x:Static app:Strings.LightingAnimation}" Tag="LightingAnimation" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              <ui:SymbolIcon Symbol="Replay24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
+              <TextBlock x:Name="LightAnimText" Text="{x:Static app:Strings.LightingAnimation}" Tag="LightingAnimation" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
             </StackPanel>
             <ComboBox x:Name="AnimCombo" MinWidth="180" Margin="0,8,0,0"
                       SelectionChanged="Anim_SelectionChanged">
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimNone}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimColorCycle}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimStarlight}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimBreathing}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimWave}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimRaindrop}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimAudioPulse}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimConfetti}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimSun}"/>
-              <ComboBoxItem Content="{x:Static app:Strings.LightingAnimSwipe}"/>
+              <ComboBoxItem Tag="None" Content="{x:Static app:Strings.LightingAnimNone}"/>
+              <ComboBoxItem Tag="ColorCycle" Content="{x:Static app:Strings.LightingAnimColorCycle}"/>
+              <ComboBoxItem Tag="Starlight" Content="{x:Static app:Strings.LightingAnimStarlight}"/>
+              <ComboBoxItem Tag="Breathing" Content="{x:Static app:Strings.LightingAnimBreathing}"/>
+              <ComboBoxItem Tag="Wave" Content="{x:Static app:Strings.LightingAnimWave}"/>
+              <ComboBoxItem Tag="Raindrop" Content="{x:Static app:Strings.LightingAnimRaindrop}"/>
+              <ComboBoxItem Tag="AudioPulse" Content="{x:Static app:Strings.LightingAnimAudioPulse}"/>
+              <ComboBoxItem Tag="Confetti" Content="{x:Static app:Strings.LightingAnimConfetti}"/>
+              <ComboBoxItem Tag="Sun" Content="{x:Static app:Strings.LightingAnimSun}"/>
+              <ComboBoxItem Tag="Swipe" Content="{x:Static app:Strings.LightingAnimSwipe}"/>
             </ComboBox>
 
             <!-- ponytail: Direction/Theme only forwarded to firmware under Dojo anim; UI
@@ -284,7 +376,7 @@
                 <ColumnDefinition Width="*"/>
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                <TextBlock Text="{x:Static app:Strings.LightingDirection}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.LightingDirection}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
                 <ComboBox x:Name="AnimDirCombo" MinWidth="140" IsEnabled="False"
                           SelectionChanged="AnimDir_SelectionChanged">
@@ -293,7 +385,7 @@
                 </ComboBox>
               </StackPanel>
               <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                <TextBlock Text="{x:Static app:Strings.LightingTheme}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.LightingTheme}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
                 <ComboBox x:Name="AnimThemeCombo" MinWidth="140" IsEnabled="False"
                           SelectionChanged="AnimTheme_SelectionChanged">
@@ -304,6 +396,25 @@
                   <ComboBoxItem Tag="Custom" Content="{x:Static app:Strings.LightingThemeCustom}"/>
                 </ComboBox>
               </StackPanel>
+            </Grid>
+
+            <!-- 温度联动模式 — 替代 BIOS 动画,由 LightingTemperatureService 定时轮询写入 -->
+            <Grid Margin="0,14,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <ui:SymbolIcon Grid.Column="0" Symbol="Temperature24" FontSize="{DynamicResource FontSizeHeader}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="{x:Static app:Strings.LightingTempMode}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.LightingTempModeDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           TextWrapping="Wrap" Margin="0,2,0,0"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="TempModeToggle" Grid.Column="2" IsChecked="False"
+                               Checked="TempMode_Changed" Unchecked="TempMode_Changed"
+                               VerticalAlignment="Center"/>
             </Grid>
           </StackPanel>
         </ui:CardControl.Header>
@@ -319,14 +430,14 @@
         <ui:CardControl.Header>
           <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-              <ui:SymbolIcon Symbol="Color24" FontSize="18" Margin="0,0,10,0"/>
-              <TextBlock Text="{x:Static app:Strings.LightingPerKeyTitle}" Tag="PerKeyRgb"
-                         FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}"
+              <ui:SymbolIcon Symbol="Color24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
+              <TextBlock x:Name="PerKeyTitleText" Text="{x:Static app:Strings.LightingPerKeyTitle}" Tag="PerKeyRgb"
+                         FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}"
                          VerticalAlignment="Center"/>
             </StackPanel>
-            <TextBlock Text="{x:Static app:Strings.LightingPerKeyStaticColor}" FontSize="12"
+            <TextBlock Text="{x:Static app:Strings.LightingPerKeyStaticColor}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-            <ComboBox x:Name="PerKeyStaticCombo" MinWidth="160" Margin="0,0,0,12"
+            <ComboBox x:Name="PerKeyStaticCombo" MinWidth="180" Margin="0,0,0,12"
                       SelectionChanged="PerKeyStatic_SelectionChanged">
               <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
               <ComboBoxItem Tag="Green" Content="{x:Static app:Strings.LightingColorGreen}"/>
@@ -335,9 +446,35 @@
               <ComboBoxItem Tag="Cyan" Content="{x:Static app:Strings.LightingColorCyan}"/>
               <ComboBoxItem Tag="Pink" Content="{x:Static app:Strings.LightingColorMagenta}"/>
               <ComboBoxItem Tag="Yellow" Content="{x:Static app:Strings.LightingColorYellow}"/>
+              <ComboBoxItem Tag="IceBlue" Content="{x:Static app:Strings.LightingColorIceBlue}"/>
+              <ComboBoxItem Tag="CoolGreen" Content="{x:Static app:Strings.LightingColorCoolGreen}"/>
+              <ComboBoxItem Tag="WarmYellow" Content="{x:Static app:Strings.LightingColorWarmYellow}"/>
+              <ComboBoxItem Tag="FieryOrange" Content="{x:Static app:Strings.LightingColorFieryOrange}"/>
+              <ComboBoxItem Tag="HotRed" Content="{x:Static app:Strings.LightingColorHotRed}"/>
             </ComboBox>
 
-            <TextBlock Text="{x:Static app:Strings.LightingPerKeyAnimation}" FontSize="12"
+            <!-- ponytail: 逐键着色 — 可视化键盘布局(代码生成按键按钮)+ 色块板(即点即用)。
+                 动画模式非 None 时整区置灰(固件动效作用于全键盘,逐键色无意义)。 -->
+            <StackPanel x:Name="PerKeyPickerPanel" Margin="0,4,0,12">
+              <TextBlock Text="{x:Static app:Strings.LightingPerKeyPickerTitle}" FontSize="{DynamicResource FontSizeBody}"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
+              <TextBlock x:Name="PerKeyPickerHint" Text="{x:Static app:Strings.LightingPerKeyApplyHint}" FontSize="{DynamicResource FontSizeCaption}"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+              <!-- 键盘布局:每行一个水平 StackPanel(代码生成),整体外框给暗底村托 -->
+              <Border Background="{DynamicResource CardBackgroundBrush}" CornerRadius="6"
+                      Padding="10,8" Margin="0,0,0,10">
+                <ItemsControl x:Name="PerKeyLayout"/>
+              </Border>
+              <!-- 色块板:即点即用色块 + 末位自定义色按钮 — 与键盘行同轴居中,整体对称 -->
+              <WrapPanel x:Name="PerKeyPalette" Orientation="Horizontal" Margin="0,0,0,6"
+                         HorizontalAlignment="Center"/>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button x:Name="PerKeyClearBtn" Content="{x:Static app:Strings.LightingPerKeyClear}"
+                        Click="PerKeyClear_Click" Padding="8,2"/>
+              </StackPanel>
+            </StackPanel>
+
+            <TextBlock Text="{x:Static app:Strings.LightingPerKeyAnimation}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
             <ComboBox x:Name="PerKeyAnimCombo" MinWidth="180" Margin="0,0,0,12"
                       SelectionChanged="PerKeyAnim_SelectionChanged">
@@ -351,9 +488,20 @@
               <ComboBoxItem Tag="Confetti" Content="{x:Static app:Strings.LightingAnimConfetti}"/>
               <ComboBoxItem Tag="Sun" Content="{x:Static app:Strings.LightingAnimSun}"/>
               <ComboBoxItem Tag="Swipe" Content="{x:Static app:Strings.LightingAnimSwipe}"/>
+              <ComboBoxItem Tag="AudioBeat" Content="{x:Static app:Strings.LightingAnimAudioBeat}"/>
             </ComboBox>
 
-            <TextBlock Text="{x:Static app:Strings.LightingPerKeyBrightness}" FontSize="12"
+            <TextBlock Text="{x:Static app:Strings.LightingSpeedHeading}" FontSize="{DynamicResource FontSizeBody}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
+            <ComboBox x:Name="PerKeySpeedCombo" MinWidth="180" Margin="0,0,0,12"
+                      SelectionChanged="PerKeySpeed_SelectionChanged">
+              <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedSlow}"/>
+              <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedMedium}"/>
+              <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedFast}"/>
+              <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedVeryFast}"/>
+            </ComboBox>
+
+            <TextBlock Text="{x:Static app:Strings.LightingPerKeyBrightness}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -364,20 +512,106 @@
               <Slider x:Name="PerKeyBrightSlider" Minimum="0" Maximum="100" Value="100"
                       ValueChanged="PerKeyBright_Changed"/>
               <TextBlock x:Name="PerKeyBrightVal" Grid.Column="1" Width="40" Text="100%"
-                         FontSize="12" VerticalAlignment="Center" TextAlignment="Right" Margin="6,0,0,0"/>
+                         FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center" TextAlignment="Right" Margin="6,0,0,0"/>
               <Button x:Name="PerKeyApplyBtn" Grid.Column="2" Content="{x:Static app:Strings.ApplyLightingBtn}"
                       Click="PerKeyApply_Click" Padding="12,4" Margin="8,0,0,0"/>
             </Grid>
+            <!-- ponytail: 单键高亮度直写(128/228) — 与灯带/四区同款;HID 原样下发,
+                 固件不接受超档值则静默钳制;真值入 ConfigService.PerKeyBrightness(byte),
+                 滑条(0-100)不回写。 -->
+            <StackPanel x:Name="PerKeyHighBrightPanel" Orientation="Horizontal" Margin="0,6,0,0">
+              <Button x:Name="PkBright128" Content="{x:Static app:Strings.LightingBrightnessHigh}"
+                      Click="PerKeyBrightHigh_Click" Tag="128" Padding="8,2" Margin="0,0,6,0"/>
+              <Button x:Name="PkBright228" Content="{x:Static app:Strings.LightingBrightnessMax}"
+                      Click="PerKeyBrightHigh_Click" Tag="228" Padding="8,2"/>
+            </StackPanel>
             <!-- ponytail: status row backing live updates — shows "Brightness: 50%",
                  "Static Color: Red", "Animation: Wave ✓" or a connect-fail hint so the
                  user sees what's actually applied instead of guessing from inert buttons. -->
-            <TextBlock x:Name="PerKeyStatusText" FontSize="11" Margin="0,8,0,0"
+            <TextBlock x:Name="PerKeyStatusText" FontSize="{DynamicResource FontSizeCaption}" Margin="0,8,0,0"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+            <!-- ponytail: 单键+灯带一体机型 — 灯带面板运行时整块搬入本卡(ApplyCapabilityLayout/
+                 PlaceLightBarPanel),一张卡 = 一个设备。参考 OmenLinux/omen-rgb-keyboard:
+                 这类机型键盘 RGB 与灯带是一个照明系统,UI 不分家。分隔线给出键盘区→灯带区的
+                 视觉边界(灯带小标题已按需求删除,不加文字)。 -->
+            <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,14,0,2"/>
+            <StackPanel x:Name="PerKeyLightBarHost" Margin="0,10,0,0"/>
           </StackPanel>
         </ui:CardControl.Header>
       </ui:CardControl>
 
-      <ui:CardControl>
+      <!-- ponytail: 灯条面板 — 条形预览 + 4 段色 + 亮度/动画,走 SetZoneStaticColor/SetZoneAnimation
+           (LightingDevice.LightBar) 通道。内容包在 LightBarPanel 里:单键+灯带一体机型整块
+           搬入 PerKeyCard,其余机型留在本卡。 -->
+      <ui:CardControl x:Name="LightBarCard" Visibility="Collapsed" Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <StackPanel x:Name="LightBarCardHost">
+            <!-- 标题留在卡壳上:面板搬入 PerKeyCard 时不带走,由主标题"单键 RGB + 灯带"统一覆盖 -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+              <ui:SymbolIcon Symbol="Lightbulb24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
+              <TextBlock Text="{x:Static app:Strings.LightingLightBarTitle}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel x:Name="LightBarPanel">
+            <!-- 条形预览 — 4 段横向排布,模拟灯条空间位置 -->
+            <Grid x:Name="LightBarPreviewBar" Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="3"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="3"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="3"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Border x:Name="LightBarSeg1" Grid.Column="0" Height="14" CornerRadius="3" Background="#FF0000"/>
+              <Border x:Name="LightBarSeg2" Grid.Column="2" Height="14" CornerRadius="3" Background="#FF0000"/>
+              <Border x:Name="LightBarSeg3" Grid.Column="4" Height="14" CornerRadius="3" Background="#FF0000"/>
+              <Border x:Name="LightBarSeg4" Grid.Column="6" Height="14" CornerRadius="3" Background="#FF0000"/>
+            </Grid>
+            <TextBlock Text="{x:Static app:Strings.LightingZoneColorHeading}" FontSize="{DynamicResource FontSizeBody}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
+            <ComboBox x:Name="LightBarSeg1Combo" MinWidth="180" Margin="0,0,0,6" SelectionChanged="LightBarColor_SelectionChanged"/>
+            <ComboBox x:Name="LightBarSeg2Combo" MinWidth="180" Margin="0,0,0,6" SelectionChanged="LightBarColor_SelectionChanged"/>
+            <ComboBox x:Name="LightBarSeg3Combo" MinWidth="180" Margin="0,0,0,6" SelectionChanged="LightBarColor_SelectionChanged"/>
+            <ComboBox x:Name="LightBarSeg4Combo" MinWidth="180" Margin="0,0,0,10" SelectionChanged="LightBarColor_SelectionChanged"/>
+
+            <TextBlock Text="{x:Static app:Strings.LightingBrightness}" FontSize="{DynamicResource FontSizeBody}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
+            <Grid Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Slider x:Name="LightBarBrightSlider" Minimum="0" Maximum="100" Value="100"
+                      ValueChanged="LightBarBright_Changed"/>
+              <TextBlock x:Name="LightBarBrightVal" Grid.Column="1" Width="40" Text="100%"
+                         FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center" TextAlignment="Right"/>
+            </Grid>
+            <!-- ponytail: 灯带 Dojo 高亮度直写(128/228) — 对齐键盘四区卡 DojoHighBrightPanel;
+                 超档值不回写滑条(0-100 量程),真值存 _lbBrightness,仅 Dojo 接口显示 -->
+            <StackPanel x:Name="LightBarHighBrightPanel" Orientation="Horizontal" Margin="0,6,0,10">
+              <Button x:Name="LbBright128" Content="{x:Static app:Strings.LightingBrightnessHigh}"
+                      Click="LightBarBrightHigh_Click" Tag="128" Padding="8,2" Margin="0,0,6,0"/>
+              <Button x:Name="LbBright228" Content="{x:Static app:Strings.LightingBrightnessMax}"
+                      Click="LightBarBrightHigh_Click" Tag="228" Padding="8,2"/>
+            </StackPanel>
+
+            <TextBlock Text="{x:Static app:Strings.LightingAnimation}" FontSize="{DynamicResource FontSizeBody}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
+            <ComboBox x:Name="LightBarAnimCombo" MinWidth="180" Margin="0,0,0,10"
+                      SelectionChanged="LightBarAnim_SelectionChanged"/>
+            <!-- 灯条未响应提示 — 探测/写入失败时显示 -->
+            <TextBlock x:Name="LightBarStatusText" FontSize="{DynamicResource FontSizeCaption}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+            <Button x:Name="LightBarApplyBtn" Content="{x:Static app:Strings.ApplyLightingBtn}"
+                    Click="LightBarApply_Click" Padding="12,4" HorizontalAlignment="Left"/>
+            </StackPanel>
+          </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <ui:CardControl x:Name="ApplyCard">
         <ui:CardControl.Header>
           <Grid>
             <Grid.ColumnDefinitions>

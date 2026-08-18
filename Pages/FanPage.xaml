@@ -11,7 +11,7 @@
       <!-- ponytail: same DockPanel source as PerfPage — shares the global PresetManager / ConfigService.Preset. -->
       <DockPanel Margin="0,0,0,12">
         <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" HorizontalAlignment="Left">
-	          <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center" Text="{x:Static app:Strings.FanPresetLabel}"/>
+	          <TextBlock FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center" Text="{x:Static app:Strings.FanPresetLabel}"/>
           <ComboBox x:Name="cbxFanPreset" Width="200" Height="36" SelectionChanged="cbxFanPreset_SelectionChanged"/>
         </StackPanel>
       </DockPanel>
@@ -26,7 +26,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel Orientation="Horizontal">
                 <ui:SymbolIcon Symbol="ArrowSync24" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.FanConfigHeading}" Tag="FanConfig" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.FanConfigHeading}" Tag="FanConfig" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
               <ComboBox x:Name="FanModeCombo" Grid.Column="1" MinWidth="140"
                         SelectionChanged="FanMode_SelectionChanged">
@@ -79,7 +79,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel Orientation="Horizontal">
                 <ui:SymbolIcon Symbol="Edit24" Margin="0,0,8,0"/>
-                <TextBlock Text="{x:Static app:Strings.FanCurveHeading}" Tag="SelfDefineCurve" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.FanCurveHeading}" Tag="SelfDefineCurve" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
               <ComboBox x:Name="FanCurveSel" Grid.Column="1" MinWidth="120"
                         SelectedIndex="0" SelectionChanged="FanCurveSel_Changed">
@@ -88,9 +88,9 @@
               </ComboBox>
             </Grid>
             <StackPanel Margin="0,12,0,12">
-              <TextBlock x:Name="FanCurveTipText" Text="{x:Static app:Strings.FanCurveTip}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-	              <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Text="{x:Static app:Strings.FanDragHint}"/>
-		              <TextBlock FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"
+              <TextBlock x:Name="FanCurveTipText" Text="{x:Static app:Strings.FanCurveTip}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+	              <TextBlock FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Text="{x:Static app:Strings.FanDragHint}"/>
+		              <TextBlock FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"
 		                         Text="{x:Static app:Strings.FanModeChangeHint}"/>
             </StackPanel>
                <Grid>
@@ -104,7 +104,7 @@
                    <RowDefinition Height="Auto"/>
                  </Grid.RowDefinitions>
                  <StackPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" Margin="0,0,0,24">
-                   <TextBlock Text="RPM" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                   <TextBlock Text="RPM" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                  </StackPanel>
                  <Border Grid.Row="0" Grid.Column="1" Margin="0,0,10,24" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="4">
                    <Canvas x:Name="FanCurveCanvas" Height="260" Background="Transparent"
@@ -113,16 +113,16 @@
                            MouseLeftButtonUp="FanCurveCanvas_MouseLeftButtonUp"
                            MouseRightButtonDown="FanCurveCanvas_MouseRightButtonDown"/>
                  </Border>
-                 <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CurveAxisLabel" Text="{x:Static app:Strings.TempCelsius}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,10,0"/>
+                 <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CurveAxisLabel" Text="{x:Static app:Strings.TempCelsius}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,10,0"/>
                  <!-- Import / Export / Share buttons -->
                  <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,12,0,0" HorizontalAlignment="Center">
-                   <ui:Button x:Name="FanImportBtn" Content="{x:Static app:Strings.FanCurveImport}" Width="84" Height="32" FontSize="12"
+                   <ui:Button x:Name="FanImportBtn" Content="{x:Static app:Strings.FanCurveImport}" Width="84" Height="32" FontSize="{DynamicResource FontSizeBody}"
                               Click="FanImportBtn_Click" Appearance="Secondary"
 		                              ToolTip="{x:Static app:Strings.FanImportTooltip}"/>
-		                   <ui:Button x:Name="FanExportBtn" Content="{x:Static app:Strings.FanCurveExport}" Width="84" Height="32" FontSize="12" Margin="8,0,0,0"
+		                   <ui:Button x:Name="FanExportBtn" Content="{x:Static app:Strings.FanCurveExport}" Width="84" Height="32" FontSize="{DynamicResource FontSizeBody}" Margin="8,0,0,0"
 		                              Click="FanExportBtn_Click" Appearance="Primary"
 		                              ToolTip="{x:Static app:Strings.FanExportTooltip}"/>
-		                   <ui:Button x:Name="FanShareBtn" Content="{x:Static app:Strings.FanCurveShare}" Width="84" Height="32" FontSize="12" Margin="8,0,0,0"
+		                   <ui:Button x:Name="FanShareBtn" Content="{x:Static app:Strings.FanCurveShare}" Width="84" Height="32" FontSize="{DynamicResource FontSizeBody}" Margin="8,0,0,0"
 		                              Click="FanShareBtn_Click" Appearance="Secondary"
 		                              ToolTip="{x:Static app:Strings.FanShareTooltip}"/>
                  </StackPanel>
@@ -141,7 +141,7 @@
                </Grid.ColumnDefinitions>
                <StackPanel Orientation="Horizontal">
                  <ui:SymbolIcon Symbol="Bot24" Margin="0,0,8,0"/>
-                 <TextBlock Text="{x:Static app:Strings.FanSmartSettings}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                 <TextBlock Text="{x:Static app:Strings.FanSmartSettings}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
                </StackPanel>
               </Grid>
               <Grid Margin="0,8,0,0">
@@ -155,8 +155,8 @@
                  <RowDefinition Height="Auto"/>
                </Grid.RowDefinitions>
                <StackPanel Grid.Row="0" Grid.Column="0">
-                 <TextBlock Text="{x:Static app:Strings.FanSmartEmaAlpha}" FontSize="12" VerticalAlignment="Center"/>
-                 <TextBlock Text="{x:Static app:Strings.FanSmartEmaHint}" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                 <TextBlock Text="{x:Static app:Strings.FanSmartEmaAlpha}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                 <TextBlock Text="{x:Static app:Strings.FanSmartEmaHint}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                </StackPanel>
                <ComboBox x:Name="SmartEmaAlphaCombo" Grid.Row="0" Grid.Column="1" MinWidth="100" SelectionChanged="SmartEmaAlpha_Changed">
 	                 <ComboBoxItem Content="{x:Static app:Strings.FanResponseFast}"/>
@@ -164,8 +164,8 @@
 	                 <ComboBoxItem Content="{x:Static app:Strings.FanResponseSlow}"/>
                </ComboBox>
                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,6,0,0">
-                 <TextBlock Text="{x:Static app:Strings.FanSmartStepDown}" FontSize="12" VerticalAlignment="Center"/>
-                 <TextBlock Text="{x:Static app:Strings.FanSmartStepDownHint}" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                 <TextBlock Text="{x:Static app:Strings.FanSmartStepDown}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                 <TextBlock Text="{x:Static app:Strings.FanSmartStepDownHint}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                </StackPanel>
                <ComboBox x:Name="SmartStepDownCombo" Grid.Row="1" Grid.Column="1" MinWidth="100" Margin="0,6,0,0" SelectionChanged="SmartStepDown_Changed">
                  <ComboBoxItem Content="100"/>
@@ -174,8 +174,8 @@
                  <ComboBoxItem Content="1000"/>
                </ComboBox>
                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,6,0,0">
-                 <TextBlock Text="{x:Static app:Strings.FanSmartHysteresis}" FontSize="12" VerticalAlignment="Center"/>
-                 <TextBlock Text="{x:Static app:Strings.FanSmartHysteresisHint}" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                 <TextBlock Text="{x:Static app:Strings.FanSmartHysteresis}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                 <TextBlock Text="{x:Static app:Strings.FanSmartHysteresisHint}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                </StackPanel>
                <ComboBox x:Name="SmartHysteresisCombo" Grid.Row="2" Grid.Column="1" MinWidth="100" Margin="0,6,0,0" SelectionChanged="SmartHysteresis_Changed">
                  <ComboBoxItem Content="0.2"/>
@@ -191,7 +191,7 @@
          <ui:CardControl.Header>
            <StackPanel>
              <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-               <ui:SymbolIcon Symbol="Settings24" FontSize="18" Margin="0,0,8,0"/>
+               <ui:SymbolIcon Symbol="Settings24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
                <TextBlock Text="{x:Static app:Strings.FanSettings}" FontWeight="SemiBold" VerticalAlignment="Center"/>
              </StackPanel>
              <StackPanel x:Name="TempSensCard" Margin="0,8,0,8">
@@ -200,7 +200,7 @@
                    <ColumnDefinition Width="*"/>
                    <ColumnDefinition Width="Auto"/>
                  </Grid.ColumnDefinitions>
-                 <TextBlock Text="{x:Static app:Strings.TempSensitivityHeading}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                 <TextBlock Text="{x:Static app:Strings.TempSensitivityHeading}" FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                  <ComboBox x:Name="SensitivityCombo" Grid.Column="1" MinWidth="140"
                            SelectionChanged="Sensitivity_SelectionChanged">
                    <ComboBoxItem Content="{x:Static app:Strings.FanRespRealtime}"/>
@@ -216,8 +216,8 @@
                  <ColumnDefinition Width="Auto"/>
                </Grid.ColumnDefinitions>
                <StackPanel>
-                 <TextBlock Text="{x:Static app:Strings.FanAutoProtect}" FontSize="12" VerticalAlignment="Center"/>
-                 <TextBlock Text="{x:Static app:Strings.AutoFanProtectDesc}" FontSize="11"
+                 <TextBlock Text="{x:Static app:Strings.FanAutoProtect}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                 <TextBlock Text="{x:Static app:Strings.AutoFanProtectDesc}" FontSize="{DynamicResource FontSizeCaption}"
                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                </StackPanel>
                <ui:ToggleSwitch x:Name="AutoFanProtectToggle" Grid.Column="1"
@@ -229,8 +229,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.FanSync}" FontSize="12" VerticalAlignment="Center"/>
-                <TextBlock Text="{x:Static app:Strings.FanSyncDesc}" FontSize="11"
+                <TextBlock Text="{x:Static app:Strings.FanSync}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.FanSyncDesc}" FontSize="{DynamicResource FontSizeCaption}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
               </StackPanel>
               <ui:ToggleSwitch x:Name="FanSyncToggle" Grid.Column="1"
@@ -242,8 +242,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.CleanCreekHeading}" FontSize="12" VerticalAlignment="Center"/>
-                <TextBlock x:Name="CleanCreekDesc" Text="{x:Static app:Strings.DustCleanDesc}" FontSize="11"
+                <TextBlock Text="{x:Static app:Strings.CleanCreekHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="CleanCreekDesc" Text="{x:Static app:Strings.DustCleanDesc}" FontSize="{DynamicResource FontSizeCaption}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
               </StackPanel>
               <ui:Button x:Name="CleanCreekBtn" Grid.Column="1"

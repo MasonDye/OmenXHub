@@ -27,11 +27,11 @@
 
       <!-- ── Header ── -->
 	      <TextBlock Text="{x:Static app:Strings.TrayHeader}"
-                 FontSize="11" FontWeight="SemiBold"
+                 FontSize="{DynamicResource FontSizeCaption}" FontWeight="SemiBold"
                  Margin="16,14,16,0"
                  Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
       <TextBlock x:Name="PresetText"
-                 FontSize="15" FontWeight="SemiBold"
+                 FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold"
                  Margin="16,2,16,0"
                  Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                  FontFamily="Microsoft YaHei UI, Segoe UI"/>
@@ -61,13 +61,13 @@
                        Foreground="{StaticResource IconAccentBrush}"/>
         <TextBlock Grid.Row="0" Grid.Column="1"
                    x:Name="PerfModeLabel"
-                   FontSize="13" FontWeight="Medium"
+                   FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="Medium"
                    VerticalAlignment="Center"
                    Margin="10,0,0,0"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
         <TextBlock x:Name="PresetValueText"
                    Grid.Row="0" Grid.Column="2"
-                   FontSize="13"
+                   FontSize="{DynamicResource FontSizeSubtitle}"
                    VerticalAlignment="Center"
                    Margin="12,0,0,0"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
@@ -81,13 +81,13 @@
 	        <TextBlock x:Name="CpuLabel"
 		                   Grid.Row="1" Grid.Column="1"
 		                   Text="{x:Static app:Strings.MonitorCpuLabel}"
-                   FontSize="13" FontWeight="Medium"
+                   FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="Medium"
                    VerticalAlignment="Center"
                    Margin="10,8,0,0"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
         <TextBlock x:Name="CpuValueText"
                    Grid.Row="1" Grid.Column="2"
-                   FontSize="13"
+                   FontSize="{DynamicResource FontSizeSubtitle}"
                    VerticalAlignment="Center"
                    Margin="12,8,0,0"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
@@ -101,13 +101,13 @@
 	        <TextBlock x:Name="GpuLabel"
 		                   Grid.Row="2" Grid.Column="1"
 		                   Text="{x:Static app:Strings.MonitorGpuLabel}"
-                   FontSize="13" FontWeight="Medium"
+                   FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="Medium"
                    VerticalAlignment="Center"
                    Margin="10,8,0,0"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
         <TextBlock x:Name="GpuValueText"
                    Grid.Row="2" Grid.Column="2"
-                   FontSize="13"
+                   FontSize="{DynamicResource FontSizeSubtitle}"
                    VerticalAlignment="Center"
                    Margin="12,8,0,0"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
@@ -120,13 +120,13 @@
                        Foreground="{StaticResource IconAccentBrush}"/>
         <TextBlock x:Name="FanLabelText"
                    Grid.Row="3" Grid.Column="1"
-                   FontSize="13" FontWeight="Medium"
+                   FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="Medium"
                    VerticalAlignment="Center"
                    Margin="10,8,0,0"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
         <TextBlock x:Name="FanValueText"
                    Grid.Row="3" Grid.Column="2"
-                   FontSize="13"
+                   FontSize="{DynamicResource FontSizeSubtitle}"
                    VerticalAlignment="Center"
                    Margin="12,8,0,0"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>

@@ -91,7 +91,7 @@
               <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
                 <TextBlock x:Name="NavIcon" Text="{TemplateBinding Tag}"
                            FontFamily="{DynamicResource FluentSystemIcons}"
-                           FontSize="16" VerticalAlignment="Center"
+                           FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center"
                            Width="20" TextAlignment="Center"
                            Margin="0,0,10,0"
                            Foreground="{TemplateBinding Foreground}"/>

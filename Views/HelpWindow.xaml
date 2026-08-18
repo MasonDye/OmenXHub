@@ -29,7 +29,7 @@
             <Run Text="OMEN" Foreground="{DynamicResource AccentOmenBrush}"/>
             <Run Text="X Hub"/>
           </TextBlock>
-          <TextBlock x:Name="VersionText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" Text="Version"/>
+          <TextBlock x:Name="VersionText" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" Text="Version"/>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
           <Button  Content="{x:Static app:Strings.HelpBtnGitHub}" x:Name="BtnGitHub" Click="BtnGitHub_Click" Margin="0,0,8,0" Padding="12,6"/>
@@ -41,53 +41,53 @@
     <TabControl Grid.Row="1">
       <TabItem  Header="{x:Static app:Strings.HelpTabUpdates}">
         <ScrollViewer >
-          <TextBlock x:Name="UpdateNotesText" FontSize="13" TextWrapping="Wrap" LineHeight="24" Margin="24,16"/>
+          <TextBlock x:Name="UpdateNotesText" FontSize="{DynamicResource FontSizeSubtitle}" TextWrapping="Wrap" LineHeight="24" Margin="24,16"/>
         </ScrollViewer>
       </TabItem>
       <TabItem  Header="{x:Static app:Strings.HelpTabFanConfig}">
         <ScrollViewer >
           <StackPanel Margin="24,16">
-            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpFanConfigSub}" Margin="0,0,0,12"/>
-            <TextBlock FontSize="13" x:Name="FanConfigHelp"/>
+            <TextBlock FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpFanConfigSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" x:Name="FanConfigHelp"/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
       <TabItem  Header="{x:Static app:Strings.HelpTabFanControl}">
         <ScrollViewer >
           <StackPanel Margin="24,16">
-            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpFanControlSub}" Margin="0,0,0,12"/>
-            <TextBlock FontSize="13" x:Name="FanControlHelp"/>
+            <TextBlock FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpFanControlSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" x:Name="FanControlHelp"/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
       <TabItem  Header="{x:Static app:Strings.HelpTabPerformance}">
         <ScrollViewer >
           <StackPanel Margin="24,16">
-            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpPerformanceSub}" Margin="0,0,0,12"/>
-            <TextBlock FontSize="13" x:Name="PerformanceHelp"/>
+            <TextBlock FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpPerformanceSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" x:Name="PerformanceHelp"/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
       <TabItem  Header="{x:Static app:Strings.HelpTabOther}">
         <ScrollViewer >
           <StackPanel Margin="24,16">
-            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpOtherSub}" Margin="0,0,0,12"/>
-            <TextBlock FontSize="13" x:Name="OtherHelp"/>
+            <TextBlock FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpOtherSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" x:Name="OtherHelp"/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
       <TabItem  Header="{x:Static app:Strings.HelpTabCredits}">
         <ScrollViewer >
           <StackPanel Margin="24,16">
-            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpCreditsSub}" Margin="0,0,0,12"/>
-            <TextBlock FontSize="13" Margin="0,0,0,16">
+            <TextBlock FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpCreditsSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,16">
               <Run Text="MasonDye" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
 	              <Run Text="{x:Static app:Strings.HelpCreditsGuiDesign}"/>
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/MasonDye" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/MasonDye</Hyperlink>
             </TextBlock>
-            <TextBlock FontSize="13" Margin="0,0,0,16">
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,16">
               <Run Text="breadeding" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
 	              <Run Text="{x:Static app:Strings.HelpCreditsSuperHub}"/>
@@ -96,14 +96,14 @@
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/breadeding/OmenSuperHub" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/breadeding/OmenSuperHub</Hyperlink>
             </TextBlock>
-            <TextBlock FontSize="13" Margin="0,0,0,16">
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,16">
               <Run Text="GeographicCone" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
 	              <Run Text="{x:Static app:Strings.HelpCreditsOmenMon}"/>
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/GeographicCone" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/GeographicCone</Hyperlink>
             </TextBlock>
-            <TextBlock FontSize="13" Margin="0,0,0,16">
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,16">
               <Run Text="OpenHardwareMonitor / hexagon-oss / LibreHardwareMonitor" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
 	              <Run Text="{x:Static app:Strings.HelpCreditsLhm}"/>
@@ -114,36 +114,60 @@
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/LibreHardwareMonitor/LibreHardwareMonitor</Hyperlink>
             </TextBlock>
-            <TextBlock FontSize="13" Margin="0,0,0,16">
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,16">
               <Run Text="lepoco/wpfui" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
 	              <Run Text="{x:Static app:Strings.HelpCreditsWpfUi}"/>
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/lepoco/wpfui" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/lepoco/wpfui</Hyperlink>
             </TextBlock>
-            <TextBlock FontSize="13" Margin="0,0,0,16">
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,16">
               <Run Text="BartoszCichecki/LenovoLegionToolkit" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
 	              <Run Text="{x:Static app:Strings.HelpCreditsLlt}"/>
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/BartoszCichecki/LenovoLegionToolkit" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/BartoszCichecki/LenovoLegionToolkit</Hyperlink>
             </TextBlock>
-            <TextBlock FontSize="13" Margin="0,0,0,16">
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,16">
               <Run Text="henrypp/memreduct" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
               <LineBreak/>
 	              <Run Text="{x:Static app:Strings.HelpCreditsMemReduct}"/>
               <LineBreak/>
               <Hyperlink NavigateUri="https://github.com/henrypp/memreduct/releases" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/henrypp/memreduct/releases</Hyperlink>
             </TextBlock>
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,16">
+              <Run Text="Hypostasis-Cat/HypoMux" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+              <LineBreak/>
+	              <Run Text="{x:Static app:Strings.HelpCreditsHypoMux}"/>
+            </TextBlock>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem  Header="{x:Static app:Strings.HelpTabDonate}">
+        <ScrollViewer >
+          <StackPanel Margin="24,16">
+            <TextBlock FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpDonateSub}" Margin="0,0,0,12"/>
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Text="{x:Static app:Strings.HelpDonateIntro}" TextWrapping="Wrap" Margin="0,0,0,20"/>
+
+            <TextBlock FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,24">
+              <Hyperlink NavigateUri="https://github.com/sponsors/MasonDye" RequestNavigate="Hyperlink_RequestNavigate" FontSize="{DynamicResource FontSizeSubtitle}">
+                <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="{x:Static app:Strings.HelpDonateGitHubSponsors}"/>
+              </Hyperlink>
+              <LineBreak/>
+              <Hyperlink NavigateUri="https://github.com/One1turn" RequestNavigate="Hyperlink_RequestNavigate" FontSize="{DynamicResource FontSizeSubtitle}">
+                <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" Text="One1turn"/>
+              </Hyperlink>
+            </TextBlock>
+
+            <TextBlock FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Text="{x:Static app:Strings.HelpDonateStarHint}"/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
     </TabControl>
 
     <Border Grid.Row="2" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="24,12">
-      <Button x:Name="BtnIAgree" Content="{x:Static app:Strings.HelpBtnIAgree}"
-              Click="BtnIAgree_Click" Padding="20,8" HorizontalAlignment="Left"
-              Visibility="Collapsed"/>
+      <Button x:Name="BtnClose" Content="{x:Static app:Strings.SysOptClose}"
+              Click="BtnClose_Click" Padding="20,8" HorizontalAlignment="Left"/>
     </Border>
   </Grid>
 </ui:FluentWindow>

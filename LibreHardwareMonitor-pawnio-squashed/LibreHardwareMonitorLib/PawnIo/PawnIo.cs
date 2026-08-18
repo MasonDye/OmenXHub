@@ -143,6 +143,28 @@ public unsafe class PawnIo
         }
     }
 
+    // ponytail: Open device handle without loading a binary module.
+    // For driver-native functions (ioctl_pci_write_config_dword etc.) that don't
+    // need a loaded SMU bin. Avoids double-loading RyzenSMU.bin when LibreHardwareMonitor's
+    // internal RyzenSmu already loaded it. Ceiling: returns IsLoaded=false if driver absent.
+    public static PawnIo Open()
+    {
+        var pawnIO = new PawnIo();
+        IntPtr handle = CreateFile(@"\\?\GLOBALROOT\Device\PawnIO",
+                                   GENERIC_READ_WRITE,
+                                   FILE_SHARE_READ_WRITE,
+                                   IntPtr.Zero,
+                                   OPEN_EXISTING,
+                                   FILE_ATTRIBUTE_NORMAL,
+                                   IntPtr.Zero);
+
+        if (handle == INVALID_HANDLE || handle == IntPtr.Zero)
+            return pawnIO;
+
+        pawnIO._handle = handle;
+        return pawnIO;
+    }
+
     public static PawnIo LoadModuleFromResource(Assembly assembly, string resourceName)
     {
         var pawnIO = new PawnIo();

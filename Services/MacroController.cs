@@ -43,6 +43,11 @@ namespace OmenSuperHub.Services {
     public static bool IsPlaying => Volatile.Read(ref _playing) != 0;
 
     public static void Start() {
+      // ponytail: 幂等守卫 — App 启动已 Start 过钩子时,页切总开关到 On 也调 Start,
+      // 不加这个守卫会 SetWindowsHookEx 一份新钩子并覆盖 _kbHookId 字段,旧 handle 永远
+      // 收不回 (UnhookWindowsHookEx 失去引用),钩子泄漏 + 旧 callback delegate 仍 live。
+      // Stop() 内部清零 _kbHookId,这里守它即可 Stop→Start→...→Start 任意循环都安全。
+      if (_kbHookId != IntPtr.Zero) return;
       _kbProc = LowLevelKeyboardProc;
       _mouseProc = LowLevelMouseProc;
       _kbHookId = SetWindowsHookEx(WH_KEYBOARD_LL, _kbProc, GetModuleHandle(null), 0);

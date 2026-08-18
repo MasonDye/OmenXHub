@@ -36,6 +36,11 @@ namespace OmenSuperHub.Pages {
       ConfigService.Save("AutomationEnabled");
       AutoAddPipelineBtn.IsEnabled = true;
       AutoAddQuickActionBtn.IsEnabled = true;
+      // ponytail: 总开关走中央入口 ReevaluateBackendNeeded —— 它按 IsBackendWanted
+      // (总开关 AND 简洁模式可见性) 决定 AutomationProcessor.Start/Stop。本回调只触发总开关,
+      // 简洁模式回行为 SettingsPage.CbNavItem_Changed 负责另一边。
+      AutomationProcessor.ReevaluateBackendNeeded();
+      TrayService.RebuildMenu();
     }
 
     void AutoEnableToggle_Unchecked(object sender, RoutedEventArgs e) {
@@ -43,6 +48,10 @@ namespace OmenSuperHub.Pages {
       ConfigService.Save("AutomationEnabled");
       AutoAddPipelineBtn.IsEnabled = false;
       AutoAddQuickActionBtn.IsEnabled = false;
+      // ponytail: 同上 — 关总开关后中央入口判 IsBackendWanted=false → Stop, 释放 WMI watcher/
+      // 定时器/热键源 HwndSource。Stop 内无 _running 守卫,每次都清理成干净状态。
+      AutomationProcessor.ReevaluateBackendNeeded();
+      TrayService.RebuildMenu();
     }
 
     void RefreshList() {

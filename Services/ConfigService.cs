@@ -50,6 +50,10 @@ namespace OmenSuperHub.Services {
     public static string FloatingBarLayout = "row";
     public static string FloatingBarScreen = "";
     public static string FloatingBar = "off";
+    // ponytail: 额外温度传感器勾选 — 逗号分隔稳定 ID;空=首启全勾(与 BuildScreenOptions 同口径)
+    public static string ExtraTempSensors = "";
+    // ponytail: GPU 监控目标 — LHM IHardware.Name;空=独显优先(GpuNvidia/GpuAmd),否则指定 GPU 名
+    public static string SelectedGpu = "";
     // ponytail: volatile — FloatingPos* 在 UI 拖拽线程写、FloatingWindow 渲染线程读，
     // 没有内存屏障会读到陈旧坐标导致窗口跳回旧位置。仅单元素原子，复合更新仍可能混合。
     public static double FloatingPosLeft = 100;
@@ -62,6 +66,13 @@ namespace OmenSuperHub.Services {
     public static string LightingDevice = "keyboard";
     public static string LightingInterface = "BasicFourZone";
     public static byte LightingBrightness = 100;
+    public static bool LightingTempMode = false;  // 温度联动模式
+    // ponytail: 用户在灯光页选"使用官方灯效软件"时持久化本标志 — 隐藏侧栏灯光项 + 启动 Replay 早退。
+    // 与 LightingTempMode 同款 int↔bool 持久化范式, 不引入新机制。
+    public static bool LightingUseOfficial = false;
+    // ponytail: 高级硬件访问(EC/SMU 直写) — 默认关闭,需用户主动开启。
+    // 写错 EC/SMU 寄存器可能系统不稳定,故不自动启用,仅用户在设置页知情后开启。
+    public static bool EnableEcAccess = false;
     public static string LightingColor = "Red";
     public static string LightingAnimation = "None";
     // ponytail: Direction/Theme only meaningful under Dojo anim — see docs/lighting-reverse-findings.md
@@ -73,6 +84,7 @@ namespace OmenSuperHub.Services {
     public static string PerKeyStaticColor = "Red";
     public static string PerKeyAnimation = "None";
     public static byte PerKeyBrightness = 100;
+    public static byte PerKeySpeed = 1;
     public static string DisplayMode = "smoothed";
     public static int MonRefreshInterval = 1000;
 
@@ -129,13 +141,29 @@ namespace OmenSuperHub.Services {
     public static bool HWiNFOEnabled = false;
     public static bool HWiNFOReadEnabled = false;    // 从 HWiNFO64 读取传感器数据
     public static bool HttpApiEnabled = false;
-    public static bool AutomationEnabled = true;
-    public static bool MacroEnabled = true;
+    // ponytail: 新装/从未碰过这两项开关的用户,默认关闭总开关、App 不 Start 后端
+    // (自动化 = WMI Win32_ProcessStartTrace watcher + 系统事件订阅 + 全局热键注册;
+    //  宏 = 全局低级键盘钩子 SetWindowsHookEx WH_KEYBOARD_LL — 装上即兜得住所有
+    //  按键事件)。Load() 里 RegBool 的回退值也设 false:注册表里已写过的值照旧读,
+    //  只有"注册表里没有这两个键"的用户(新装 / 老装从未切过开关)拿到 false。
+    //  这两行字段初值虽与 Load 里回退值同向,但保留 false 以防 Load 失败 try-catch
+    //  早退时字段不至于退回 true。
+    public static bool AutomationEnabled = false;
+    public static bool MacroEnabled = false;
     public static bool DebugShowAllUi = false;   // DEBUG: 强制显示所有 UI 卡片
+    // DEBUG: 模拟键盘类型(灯光页布局/侧栏显隐)。空=真实探测;"Normal"/"OneZone"/"FourZone"/"PerKey"/"LightBarOnly"
+    public static string DebugKbKind = "";
     // ponytail: 高级调教字段已全数移除（机型上不可用）。IccMax/AcLoadLine/AmdCpuPpt 等基础卡字段保留。
     // AMD CPU-level basic tuning (independent of APU STAPM/Fast/Slow)
     public static int AmdCpuPpt = 0;           // mW, 0=unset  (AM5 CPU TDP)
     public static bool AmdCpuPowerMasterEnabled = true;  // ponytail: PPT 卡总开关；保留写路径
+    // ponytail: AMD Curve Optimizer 全核偏移 (-30..0, 0=unset)。负值=降压。
+    // 依赖 PawnIO 驱动,不依赖 EnableEcAccess 开关。全局设置,不随预设切换重置。
+    // SMU 写易失,预设切换时由 PresetManager.ApplyAdvanced 重应用当前值。
+    public static int AmdCpuUndervolt = 0;
+    // ponytail: AMD 分核 Curve Optimizer 偏移。格式 "core:offset,core:offset"(如 "0:-10,2:-15")。
+    // 空串=未设置。全局设置,不随预设切换重置。SMU 写易失,预设切换时重应用。
+    public static string AmdCpuPerCoreOffsets = "";
     // ponytail: 仅 PPT 一组保留走 WMI；TDC/EDC/Tctl 三组已随高级调教删除（依赖 SMU 服务，本机不可用）。
     // ponytail: 首次启动默认开启风扇一致性 (CPU/GPU 同转速); 用户在 FanPage 关掉后
     // RegBool 会读到 false 并保留 — 默认 true 仅在注册表无 FanSync 键时生效 (新安装/首次运行)。
@@ -147,6 +175,17 @@ namespace OmenSuperHub.Services {
     public static volatile float SmartFanEmaAlpha = 0.3f;
     public static int SmartFanStepDownRate = 500;
     public static volatile float SmartFanHysteresis = 0.5f;
+
+    // Network Boost (HypoMux port)
+    public static string BoostMode = "proxy";             // proxy | tun
+    public static string BoostSelectedNics = "";          // comma-separated NIC names
+    public static string BoostRulesJson = "";             // JSON array of RoutingRule
+    public static int BoostGlobalLimitKBps = 0;           // 0 = unlimited
+    public static int BoostNicLimitKBps = 0;              // 0 = unlimited, per-NIC
+
+    // Simple Mode (UI declutter) — 开启后侧栏仅显示用户勾选的导航项
+    public static bool EnableSimpleMode = false;
+    public static string SimpleModeNavItems = "Dashboard,Fan,Perf";
 
     // Cached machine info (no WMI re-query on each SysInfo refresh)
     public static string SysManufacturer = "";
@@ -235,6 +274,8 @@ namespace OmenSuperHub.Services {
             case "FloatingBarSize": key.SetValue("FloatingBarSize", TextSize); break;
             case "FloatingBarLoc": key.SetValue("FloatingBarLoc", FloatingBarLoc); break;
             case "FloatingBarScreen": key.SetValue("FloatingBarScreen", FloatingBarScreen); break;
+            case "ExtraTempSensors": key.SetValue("ExtraTempSensors", ExtraTempSensors ?? ""); break;
+            case "SelectedGpu": key.SetValue("SelectedGpu", SelectedGpu ?? ""); break;
             case "FloatingBarLayout": key.SetValue("FloatingBarLayout", FloatingBarLayout); break;
             case "FloatingBar": key.SetValue("FloatingBar", FloatingBar); break;
             case "FloatingPosLeft": key.SetValue("FloatingPosLeft", FloatingPosLeft); break;
@@ -246,6 +287,9 @@ namespace OmenSuperHub.Services {
             case "LightingDevice": key.SetValue("LightingDevice", LightingDevice); break;
             case "LightingInterface": key.SetValue("LightingInterface", LightingInterface); break;
             case "LightingBrightness": key.SetValue("LightingBrightness", LightingBrightness); break;
+            case "LightingTempMode": key.SetValue("LightingTempMode", LightingTempMode ? 1 : 0); break;
+            case "LightingUseOfficial": key.SetValue("LightingUseOfficial", LightingUseOfficial ? 1 : 0); break;
+            case "EnableEcAccess": key.SetValue("EnableEcAccess", EnableEcAccess ? 1 : 0); break;
             case "LightingColor": key.SetValue("LightingColor", LightingColor); break;
             case "LightingAnimation": key.SetValue("LightingAnimation", LightingAnimation); break;
             case "LightingDirection": key.SetValue("LightingDirection", LightingDirection); break;
@@ -253,6 +297,7 @@ namespace OmenSuperHub.Services {
             case "PerKeyStaticColor": key.SetValue("PerKeyStaticColor", PerKeyStaticColor); break;
             case "PerKeyAnimation": key.SetValue("PerKeyAnimation", PerKeyAnimation); break;
             case "PerKeyBrightness": key.SetValue("PerKeyBrightness", PerKeyBrightness); break;
+            case "PerKeySpeed": key.SetValue("PerKeySpeed", PerKeySpeed); break;
             case "DisplayMode": key.SetValue("DisplayMode", DisplayMode); break;
             case "MonRefreshInterval": key.SetValue("MonRefreshInterval", MonRefreshInterval); break;
             case "IccMax": key.SetValue("IccMax", IccMax); break;
@@ -293,7 +338,10 @@ namespace OmenSuperHub.Services {
             case "AutomationEnabled": key.SetValue("AutomationEnabled", AutomationEnabled); break;
             case "MacroEnabled": key.SetValue("MacroEnabled", MacroEnabled); break;
             case "DebugShowAllUi": key.SetValue("DebugShowAllUi", DebugShowAllUi ? 1 : 0); break;
+            case "DebugKbKind": key.SetValue("DebugKbKind", DebugKbKind ?? ""); break;
             case "AmdCpuPpt": key.SetValue("AmdCpuPpt", AmdCpuPpt); break;
+            case "AmdCpuUndervolt": key.SetValue("AmdCpuUndervolt", AmdCpuUndervolt); break;
+            case "AmdCpuPerCoreOffsets": key.SetValue("AmdCpuPerCoreOffsets", AmdCpuPerCoreOffsets ?? ""); break;
             case "AmdCpuPowerMasterEnabled": key.SetValue("AmdCpuPowerMasterEnabled", AmdCpuPowerMasterEnabled); break;
             case "FanSync": key.SetValue("FanSync", FanSync); break;
             // ponytail: SmartFanEmaAlpha/StepDown/Hysteresis 不再走注册表，
@@ -312,6 +360,13 @@ namespace OmenSuperHub.Services {
             case "Resolution": key.SetValue("Resolution", Resolution); break;
             case "DpiScale": key.SetValue("DpiScale", DpiScale); break;
             case "HdrEnabled": key.SetValue("HdrEnabled", HdrEnabled ? 1 : 0); break;
+            case "BoostMode": key.SetValue("BoostMode", BoostMode); break;
+            case "BoostSelectedNics": key.SetValue("BoostSelectedNics", BoostSelectedNics); break;
+            case "BoostRules": key.SetValue("BoostRulesJson", BoostRulesJson); break;
+            case "BoostGlobalLimit": key.SetValue("BoostGlobalLimitKBps", BoostGlobalLimitKBps); break;
+            case "BoostNicLimit": key.SetValue("BoostNicLimitKBps", BoostNicLimitKBps); break;
+            case "EnableSimpleMode": key.SetValue("EnableSimpleMode", EnableSimpleMode ? 1 : 0); break;
+            case "SimpleModeNavItems": key.SetValue("SimpleModeNavItems", SimpleModeNavItems ?? ""); break;
           }
         }
       } catch (Exception ex) {
@@ -363,6 +418,7 @@ namespace OmenSuperHub.Services {
           GpuClock = (int)key.GetValue("GpuClock", GpuClock);
           Tpp = (int)key.GetValue("Tpp", Tpp);
           AmdCpuPpt = (int)key.GetValue("AmdCpuPpt", AmdCpuPpt);
+          // ponytail: AmdCpuUndervolt 是全局设置(同 EnableEcAccess),不从预设子键加载
           DisplayMode = (string)key.GetValue("DisplayMode", DisplayMode);
           MaxFrameRate = (int)key.GetValue("MaxFrameRate", MaxFrameRate);
           RefreshRate = (int)key.GetValue("RefreshRate", RefreshRate);
@@ -378,6 +434,8 @@ namespace OmenSuperHub.Services {
           LightingDevice = (string)key.GetValue("LightingDevice", LightingDevice);
           LightingInterface = (string)key.GetValue("LightingInterface", LightingInterface);
           LightingBrightness = (byte)(int)key.GetValue("LightingBrightness", LightingBrightness);
+          LightingTempMode = (int)key.GetValue("LightingTempMode", 0) == 1;
+          // ponytail: EnableEcAccess 是全局设置,不从预设子键加载 — 否则切换到无此键的预设会重置为 false。
           LightingColor = (string)key.GetValue("LightingColor", LightingColor);
           LightingAnimation = (string)key.GetValue("LightingAnimation", LightingAnimation);
           LightingDirection = (string)key.GetValue("LightingDirection", LightingDirection);
@@ -385,6 +443,7 @@ namespace OmenSuperHub.Services {
           PerKeyStaticColor = (string)key.GetValue("PerKeyStaticColor", PerKeyStaticColor);
           PerKeyAnimation = (string)key.GetValue("PerKeyAnimation", PerKeyAnimation);
           PerKeyBrightness = (byte)(int)key.GetValue("PerKeyBrightness", PerKeyBrightness);
+          PerKeySpeed = (byte)(int)key.GetValue("PerKeySpeed", PerKeySpeed);
           string savedName = (string)key.GetValue("CustomPresetName", null);
           if (savedName != null) {
             if (presetKey == "Custom1") CustomPreset1Name = savedName;
@@ -438,6 +497,7 @@ namespace OmenSuperHub.Services {
           key.SetValue("CpuPowerPl1", CpuPowerPl1);
           key.SetValue("CpuPowerPl2", CpuPowerPl2);
           key.SetValue("AmdCpuPpt", AmdCpuPpt);
+          // ponytail: AmdCpuUndervolt 仅全局保存,不写入预设子键
           key.SetValue("MaxFrameRate", MaxFrameRate);
           key.SetValue("RefreshRate", RefreshRate);
           key.SetValue("PowerPlanGuid", PowerPlanGuid);
@@ -510,6 +570,8 @@ namespace OmenSuperHub.Services {
           TextSize = RegInt(key, "FloatingBarSize", 48);
           FloatingBarLoc = RegStr(key, "FloatingBarLoc", "left");
           FloatingBarScreen = RegStr(key, "FloatingBarScreen", "");
+          ExtraTempSensors = RegStr(key, "ExtraTempSensors", "");
+          SelectedGpu = RegStr(key, "SelectedGpu", "");
           FloatingBarLayout = RegStr(key, "FloatingBarLayout", "row");
           FloatingBar = RegStr(key, "FloatingBar", "off");
           FloatingPosLeft = RegDouble(key, "FloatingPosLeft", 100);
@@ -524,6 +586,7 @@ namespace OmenSuperHub.Services {
           LightingAnimation = RegStr(key, "LightingAnimation", "None");
           LightingDirection = RegStr(key, "LightingDirection", "Left");
           LightingTheme = RegStr(key, "LightingTheme", "Custom");
+          LightingUseOfficial = RegInt(key, "LightingUseOfficial", 0) != 0;
           PerKeyStaticColor = RegStr(key, "PerKeyStaticColor", "Red");
           PerKeyAnimation = RegStr(key, "PerKeyAnimation", "None");
           PerKeyBrightness = RegByte(key, "PerKeyBrightness", 100);
@@ -569,10 +632,13 @@ namespace OmenSuperHub.Services {
           HWiNFOEnabled = RegBool(key, "HWiNFOEnabled", false);
           HWiNFOReadEnabled = RegBool(key, "HWiNFOReadEnabled", false);
           HttpApiEnabled = RegBool(key, "HttpApiEnabled", false);
-          AutomationEnabled = RegBool(key, "AutomationEnabled", true);
-          MacroEnabled = RegBool(key, "MacroEnabled", true);
+          AutomationEnabled = RegBool(key, "AutomationEnabled", false);
+          MacroEnabled = RegBool(key, "MacroEnabled", false);
           DebugShowAllUi = RegInt(key, "DebugShowAllUi", 0) != 0;
+          DebugKbKind = RegStr(key, "DebugKbKind", "");
             AmdCpuPpt = RegInt(key, "AmdCpuPpt", 0);
+            AmdCpuUndervolt = RegInt(key, "AmdCpuUndervolt", 0);
+            AmdCpuPerCoreOffsets = RegStr(key, "AmdCpuPerCoreOffsets", "");
             AmdCpuPowerMasterEnabled = RegBool(key, "AmdCpuPowerMasterEnabled", true);
             FanSync = RegBool(key, "FanSync", true);
             // ponytail: smart 参数不再从注册表读，由 FanPage 从 FanCurves/custom_<preset>_smart.txt 加载后写回
@@ -600,6 +666,13 @@ namespace OmenSuperHub.Services {
           Resolution = RegStr(key, "Resolution", "");
           DpiScale = RegInt(key, "DpiScale", 0);
           HdrEnabled = RegInt(key, "HdrEnabled", 0) == 1;
+          BoostMode = RegStr(key, "BoostMode", "proxy");
+          BoostSelectedNics = RegStr(key, "BoostSelectedNics", "");
+          BoostRulesJson = RegStr(key, "BoostRulesJson", "");
+          BoostGlobalLimitKBps = RegInt(key, "BoostGlobalLimitKBps", 0);
+          BoostNicLimitKBps = RegInt(key, "BoostNicLimitKBps", 0);
+          EnableSimpleMode = RegInt(key, "EnableSimpleMode", 0) != 0;
+          SimpleModeNavItems = RegStr(key, "SimpleModeNavItems", "Dashboard,Fan,Perf");
         }
       } catch (Exception ex) {
         Logger.Error($"Error loading configuration: {ex.Message}");

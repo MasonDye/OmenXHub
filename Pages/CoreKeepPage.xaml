@@ -81,7 +81,7 @@
         <!-- 运行进程 -->
         <Border Grid.Column="0" CornerRadius="8" Padding="14,10" Background="{DynamicResource ControlFillColorDefaultBrush}">
           <StackPanel>
-            <TextBlock Text="{x:Static app:Strings.CoreKeepStatProcesses}" FontSize="10"
+            <TextBlock Text="{x:Static app:Strings.CoreKeepStatProcesses}" FontSize="{DynamicResource FontSizeCaption}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
             <TextBlock x:Name="StatProcessCount" Text="--" FontSize="24" FontWeight="Bold"
                        Foreground="{DynamicResource AccentOmenBrush}"/>
@@ -90,7 +90,7 @@
         <!-- 活跃规则 -->
         <Border Grid.Column="2" CornerRadius="8" Padding="14,10" Background="{DynamicResource ControlFillColorDefaultBrush}">
           <StackPanel>
-            <TextBlock Text="{x:Static app:Strings.CoreKeepStatRulesActive}" FontSize="10"
+            <TextBlock Text="{x:Static app:Strings.CoreKeepStatRulesActive}" FontSize="{DynamicResource FontSizeCaption}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
             <TextBlock x:Name="StatRulesCount" Text="--" FontSize="24" FontWeight="Bold"
                        Foreground="#FF107C10"/>
@@ -99,7 +99,7 @@
         <!-- P 核 -->
         <Border Grid.Column="4" CornerRadius="8" Padding="14,10" Background="{DynamicResource ControlFillColorDefaultBrush}">
           <StackPanel>
-            <TextBlock Text="{x:Static app:Strings.CoreKeepStatPCores}" FontSize="10"
+            <TextBlock Text="{x:Static app:Strings.CoreKeepStatPCores}" FontSize="{DynamicResource FontSizeCaption}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
             <TextBlock x:Name="StatPcoreCount" Text="--" FontSize="24" FontWeight="Bold"
                        Foreground="#FFE74856"/>
@@ -108,7 +108,7 @@
         <!-- E 核 -->
         <Border Grid.Column="6" CornerRadius="8" Padding="14,10" Background="{DynamicResource ControlFillColorDefaultBrush}">
           <StackPanel>
-            <TextBlock Text="{x:Static app:Strings.CoreKeepStatECores}" FontSize="10"
+            <TextBlock Text="{x:Static app:Strings.CoreKeepStatECores}" FontSize="{DynamicResource FontSizeCaption}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
             <TextBlock x:Name="StatEcoreCount" Text="--" FontSize="24" FontWeight="Bold"
                        Foreground="#FF0078D4"/>
@@ -126,13 +126,13 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="AppsList24" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                <TextBlock Text="{x:Static app:Strings.CoreKeepMasterLabel}" FontSize="14" FontWeight="SemiBold"
+                <ui:SymbolIcon Symbol="AppsList24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.CoreKeepMasterLabel}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold"
                            Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock Text="{x:Static app:Strings.CoreKeepMasterDesc}" FontSize="11"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepMasterDesc}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
-              <TextBlock x:Name="CoreKeepTopologyText" FontSize="11" Margin="0,2,0,0"
+              <TextBlock x:Name="CoreKeepTopologyText" FontSize="{DynamicResource FontSizeCaption}" Margin="0,2,0,0"
                          Foreground="{DynamicResource TextSecondaryBrush}"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="CoreKeepMasterToggle" Grid.Column="1" VerticalAlignment="Center"
@@ -141,7 +141,7 @@
         </ui:CardExpander.Header>
         <!-- CPU 拓扑核心网格可视化 -->
         <StackPanel Margin="0,8,0,0">
-          <TextBlock Text="{x:Static app:Strings.CoreKeepTopologyHeading}" FontSize="12" FontWeight="SemiBold"
+          <TextBlock Text="{x:Static app:Strings.CoreKeepTopologyHeading}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"
                      Margin="0,0,0,8" Foreground="{DynamicResource TextSecondaryBrush}"/>
           <ItemsControl x:Name="CoreVisualGrid">
             <ItemsControl.ItemsPanel>
@@ -153,7 +153,7 @@
               <DataTemplate>
                 <Border Width="48" Height="48" CornerRadius="8" Margin="3"
                         Background="{Binding ColorBrush}" ToolTip="{Binding Tooltip}">
-                  <TextBlock Text="{Binding Index}" Foreground="White" FontSize="13" FontWeight="SemiBold"
+                  <TextBlock Text="{Binding Index}" Foreground="White" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"
                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
               </DataTemplate>
@@ -163,19 +163,19 @@
           <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
             <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
               <Border Width="14" Height="14" CornerRadius="3" Background="#FFE74856" Margin="0,0,4,0"/>
-              <TextBlock Text="P-Core" FontSize="10" VerticalAlignment="Center"/>
+              <TextBlock Text="P-Core" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
               <Border Width="14" Height="14" CornerRadius="3" Background="#FF0078D4" Margin="0,0,4,0"/>
-              <TextBlock Text="E-Core" FontSize="10" VerticalAlignment="Center"/>
+              <TextBlock Text="E-Core" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
               <Border Width="14" Height="14" CornerRadius="3" Background="#FF5B6B73" Margin="0,0,4,0"/>
-              <TextBlock Text="SMT0" FontSize="10" VerticalAlignment="Center"/>
+              <TextBlock Text="SMT0" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
               <Border Width="14" Height="14" CornerRadius="3" Background="#FF8B95A1" Margin="0,0,4,0"/>
-              <TextBlock Text="SMT1" FontSize="10" VerticalAlignment="Center"/>
+              <TextBlock Text="SMT1" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"/>
             </StackPanel>
           </StackPanel>
         </StackPanel>
@@ -186,7 +186,7 @@
         <ui:CardExpander.Header>
           <StackPanel>
             <TextBlock Text="{x:Static app:Strings.CoreKeepProcessListHeading}" FontWeight="SemiBold"/>
-            <TextBlock Text="{x:Static app:Strings.CoreKeepProcessListDesc}" FontSize="12"
+            <TextBlock Text="{x:Static app:Strings.CoreKeepProcessListDesc}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
           </StackPanel>
         </ui:CardExpander.Header>
@@ -199,23 +199,28 @@
             </Grid.ColumnDefinitions>
             <ui:TextBox x:Name="ProcessSearchBox" PlaceholderText="{x:Static app:Strings.CoreKeepProcessSearch}"
                         TextChanged="ProcessSearch_TextChanged"/>
-            <ui:Button x:Name="ProcessRefreshBtn" Grid.Column="1" Content="{x:Static app:Strings.CoreKeepProcessRefresh}"
-                       Click="ProcessRefresh_Click" Appearance="Secondary" Margin="8,0,0,0"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
+              <CheckBox x:Name="ProcessSortByCpuToggle" Content="{x:Static app:Strings.CoreKeepSortByCpu}" IsChecked="True"
+                        Checked="ProcessSortByCpuToggle_Changed" Unchecked="ProcessSortByCpuToggle_Changed"
+                        VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <ui:Button x:Name="ProcessRefreshBtn" Content="{x:Static app:Strings.CoreKeepProcessRefresh}"
+                         Click="ProcessRefresh_Click" Appearance="Secondary"/>
+            </StackPanel>
           </Grid>
           <!-- 批量操作折叠面板 (对筛选后全部进程生效) -->
           <Expander x:Name="BatchPanel" Margin="0,0,0,8" IsExpanded="False" Expanded="BatchPanel_Expanded">
             <Expander.Header>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="ArrowSort24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="ArrowSort24" FontSize="{DynamicResource FontSizeTitle}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                 <TextBlock Text="{x:Static app:Strings.CoreKeepBatchHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <TextBlock x:Name="BatchImpactText" FontSize="11" Margin="12,0,0,0"
+                <TextBlock x:Name="BatchImpactText" FontSize="{DynamicResource FontSizeCaption}" Margin="12,0,0,0"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
               </StackPanel>
             </Expander.Header>
             <StackPanel Margin="0,8,0,0">
-              <TextBlock Text="{x:Static app:Strings.CoreKeepBatchDesc}" FontSize="11" Margin="0,0,0,4"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepBatchDesc}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-              <TextBlock Text="{x:Static app:Strings.CoreKeepBatchNoSelection}" FontSize="10" Margin="0,0,0,8"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepBatchNoSelection}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,8"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               <!-- 模式 + 级别 双列 -->
               <Grid Margin="0,0,0,8">
@@ -225,12 +230,12 @@
                   <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                  <TextBlock Text="{x:Static app:Strings.CoreKeepModeLabel}" FontSize="11" Margin="0,0,0,4"
+                  <TextBlock Text="{x:Static app:Strings.CoreKeepModeLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                              Foreground="{DynamicResource TextSecondaryBrush}"/>
                   <ComboBox x:Name="BatchModeCombo" MinWidth="120"/>
                 </StackPanel>
                 <StackPanel Grid.Column="2">
-                  <TextBlock Text="{x:Static app:Strings.CoreKeepEnforcementLevelLabel}" FontSize="11" Margin="0,0,0,4"
+                  <TextBlock Text="{x:Static app:Strings.CoreKeepEnforcementLevelLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                              Foreground="{DynamicResource TextSecondaryBrush}"/>
                   <ComboBox x:Name="BatchLevelCombo" MinWidth="120"/>
                 </StackPanel>
@@ -277,6 +282,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
                   <!-- 批量勾选框 -->
                   <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"
@@ -285,26 +291,33 @@
                   <!-- 图标占位 -->
                   <Border Grid.Column="1" Width="32" Height="32" CornerRadius="6" Margin="0,0,10,0"
                           Background="{DynamicResource ControlFillColorDefaultBrush}">
-                    <ui:SymbolIcon Symbol="Apps24" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <ui:SymbolIcon Symbol="Apps24" FontSize="{DynamicResource FontSizeTitle}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                   </Border>
                   <!-- 名称 + 路径 -->
                   <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="{Binding PathText}" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Name}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding PathText}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
                   </StackPanel>
                   <!-- 规则级别标签 -->
                   <Border Grid.Column="3" CornerRadius="8" Padding="6,2" Margin="8,0"
                           Background="{Binding RuleBadgeBrush}"
                           Visibility="{Binding HasRule}">
-                    <TextBlock Text="{Binding RuleLevelText}" FontSize="9" FontWeight="SemiBold"
+                    <TextBlock Text="{Binding RuleLevelText}" FontSize="{DynamicResource FontSizeCaption}" FontWeight="SemiBold"
                                Foreground="{Binding RuleBadgeForeground}"/>
                   </Border>
+                  <!-- CPU 占用（两拍差分采样） -->
+                  <StackPanel Grid.Column="4" Width="52" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <TextBlock Text="{Binding CpuText}" FontSize="{DynamicResource FontSizeCaption}" HorizontalAlignment="Right"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="{Binding ManageLockText}" FontSize="{DynamicResource FontSizeCaption}" HorizontalAlignment="Right"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                  </StackPanel>
                   <!-- PID + 亲和性 -->
-                  <StackPanel Grid.Column="4" VerticalAlignment="Center" Margin="8,0,0,0">
-                    <TextBlock FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right">
+                  <StackPanel Grid.Column="5" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <TextBlock FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right">
                       <Run Text="PID "/><Run Text="{Binding PidText}"/>
                     </TextBlock>
-                    <TextBlock Text="{Binding AffinityText}" FontSize="9" Foreground="{DynamicResource TextFillColorTertiaryBrush}" HorizontalAlignment="Right"/>
+                    <TextBlock Text="{Binding AffinityText}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" HorizontalAlignment="Right"/>
                   </StackPanel>
                 </Grid>
               </DataTemplate>
@@ -334,7 +347,7 @@
         <ui:CardExpander.Header>
           <StackPanel>
             <TextBlock Text="{x:Static app:Strings.CoreKeepHeading}" FontWeight="SemiBold"/>
-            <TextBlock Text="{x:Static app:Strings.PerfCoreKeepDesc}" FontSize="12"
+            <TextBlock Text="{x:Static app:Strings.PerfCoreKeepDesc}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
           </StackPanel>
         </ui:CardExpander.Header>
@@ -360,15 +373,15 @@
           <!-- 实时状态行 -->
           <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
             <TextBlock Text="{x:Static app:Strings.CoreKeepPriorityLabel}" VerticalAlignment="Center"
-                       Margin="0,0,8,0" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                       Margin="0,0,8,0" FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextSecondaryBrush}"/>
             <TextBlock x:Name="CoreKeepPriorityText" Text=" -" VerticalAlignment="Center"
-                       Margin="0,0,16,0" FontSize="12"/>
+                       Margin="0,0,16,0" FontSize="{DynamicResource FontSizeBody}"/>
             <TextBlock Text="{x:Static app:Strings.CoreKeepAffinityLabel}" VerticalAlignment="Center"
-                       Margin="0,0,8,0" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                       Margin="0,0,8,0" FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextSecondaryBrush}"/>
             <TextBlock x:Name="CoreKeepAffinityText" Text=" -" VerticalAlignment="Center"
-                       Margin="0,0,16,0" FontSize="12"/>
-            <TextBlock x:Name="CoreKeepStatusIcon" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
-            <TextBlock x:Name="CoreKeepLivePriorityText" VerticalAlignment="Center" FontSize="11"
+                       Margin="0,0,16,0" FontSize="{DynamicResource FontSizeBody}"/>
+            <TextBlock x:Name="CoreKeepStatusIcon" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="{DynamicResource FontSizeBody}"/>
+            <TextBlock x:Name="CoreKeepLivePriorityText" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeCaption}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
           </StackPanel>
           <!-- 规则列表（卡片式） -->
@@ -407,13 +420,13 @@
                     </Border>
                     <!-- 名称 + 标签 -->
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                      <TextBlock Text="{Binding ProcessName}" FontSize="12" FontWeight="SemiBold"
+                      <TextBlock Text="{Binding ProcessName}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"
                                  TextTrimming="CharacterEllipsis"/>
                       <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                         <!-- 模式标签 -->
                         <Border CornerRadius="6" Padding="6,1" Margin="0,0,6,0"
                                 Background="{DynamicResource ControlFillColorSecondaryBrush}">
-                          <TextBlock Text="{Binding CoreMode}" FontSize="9"
+                          <TextBlock Text="{Binding CoreMode}" FontSize="{DynamicResource FontSizeCaption}"
                                      Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                         </Border>
                         <!-- 级别标签 (DataTrigger 变色) -->
@@ -424,7 +437,7 @@
                     </StackPanel>
                     <!-- 亲和性掩码 -->
                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                      <TextBlock FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right">
+                      <TextBlock FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right">
                         <Run Text="0x"/><Run Text="{Binding AffinityMask, StringFormat=X}"/>
                       </TextBlock>
                     </StackPanel>
@@ -434,7 +447,7 @@
             </ListBox.ItemTemplate>
           </ListBox>
           <TextBlock x:Name="CoreKeepEmptyHint" Text="{x:Static app:Strings.CoreKeepEmptyList}"
-                     FontSize="11" Margin="0,8,0,0"
+                     FontSize="{DynamicResource FontSizeCaption}" Margin="0,8,0,0"
                      Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                      Visibility="Collapsed"/>
         </StackPanel>
@@ -445,7 +458,7 @@
         <ui:CardExpander.Header>
           <StackPanel>
             <TextBlock Text="{x:Static app:Strings.CoreKeepRuleConfigHeading}" FontWeight="SemiBold"/>
-            <TextBlock Text="{x:Static app:Strings.CoreKeepEnforcementLevelHint}" FontSize="11"
+            <TextBlock Text="{x:Static app:Strings.CoreKeepEnforcementLevelHint}" FontSize="{DynamicResource FontSizeCaption}"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
           </StackPanel>
         </ui:CardExpander.Header>
@@ -457,7 +470,7 @@
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.CoreKeepRuleNameLabel}" FontSize="11" Margin="0,0,0,4"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepRuleNameLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                          Foreground="{DynamicResource TextSecondaryBrush}"/>
               <ui:TextBox x:Name="CoreKeepRuleNameInput" MinWidth="200"
                           PlaceholderText="{x:Static app:Strings.CoreKeepRuleNameHint}"
@@ -472,7 +485,7 @@
 
           <!-- 进程名 -->
           <StackPanel Margin="0,0,0,8">
-            <TextBlock Text="{x:Static app:Strings.CoreKeepProcInputHint}" FontSize="11" Margin="0,0,0,4"
+            <TextBlock Text="{x:Static app:Strings.CoreKeepProcInputHint}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                        Foreground="{DynamicResource TextSecondaryBrush}"/>
             <ui:TextBox x:Name="CoreKeepProcessPatternInput"
                         LostFocus="CoreKeepProcessPatternInput_LostFocus"/>
@@ -488,19 +501,19 @@
               <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.CoreKeepModeLabel}" FontSize="11" Margin="0,0,0,4"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepModeLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                          Foreground="{DynamicResource TextSecondaryBrush}"/>
               <ComboBox x:Name="CoreKeepModeCombo" MinWidth="120"
                         SelectionChanged="CoreKeepModeCombo_SelectionChanged"/>
             </StackPanel>
             <StackPanel Grid.Column="2">
-              <TextBlock Text="{x:Static app:Strings.CoreKeepPriorityLabel}" FontSize="11" Margin="0,0,0,4"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepPriorityLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                          Foreground="{DynamicResource TextSecondaryBrush}"/>
               <ComboBox x:Name="CoreKeepPriorityCombo" MinWidth="120"
                         SelectionChanged="CoreKeepPriorityCombo_SelectionChanged"/>
             </StackPanel>
             <StackPanel Grid.Column="4">
-              <TextBlock Text="{x:Static app:Strings.CoreKeepEnforcementLevelLabel}" FontSize="11" Margin="0,0,0,4"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepEnforcementLevelLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                          Foreground="{DynamicResource TextSecondaryBrush}"/>
               <ComboBox x:Name="CoreKeepEnforcementCombo" MinWidth="120"
                         SelectionChanged="CoreKeepEnforcementCombo_SelectionChanged"/>
@@ -509,7 +522,7 @@
 
           <!-- 自定义掩码（仅 mode=custom 时可见） -->
           <StackPanel x:Name="CoreKeepCustomMaskPanel" Visibility="Collapsed" Margin="0,0,0,8">
-            <TextBlock Text="{x:Static app:Strings.CoreKeepCustomMaskLabel}" FontSize="11" Margin="0,0,0,4"
+            <TextBlock Text="{x:Static app:Strings.CoreKeepCustomMaskLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                        Foreground="{DynamicResource TextSecondaryBrush}"/>
             <ui:TextBox x:Name="CoreKeepCustomMaskInput"
                         PlaceholderText="{x:Static app:Strings.CoreKeepCustomMaskHint}"
@@ -524,14 +537,14 @@
               <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.CoreKeepPathFilterLabel}" FontSize="11" Margin="0,0,0,4"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepPathFilterLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                          Foreground="{DynamicResource TextSecondaryBrush}"/>
               <ui:TextBox x:Name="CoreKeepPathInput" MinWidth="160"
                           PlaceholderText="{x:Static app:Strings.CoreKeepPathFilterHint}"
                           LostFocus="CoreKeepPathInput_LostFocus"/>
             </StackPanel>
             <StackPanel Grid.Column="2">
-              <TextBlock Text="{x:Static app:Strings.CoreKeepExcludeLabel}" FontSize="11" Margin="0,0,0,4"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepExcludeLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                          Foreground="{DynamicResource TextSecondaryBrush}"/>
               <ui:TextBox x:Name="CoreKeepExcludeInput" MinWidth="160"
                           PlaceholderText="{x:Static app:Strings.CoreKeepExcludeHint}"
@@ -539,15 +552,48 @@
             </StackPanel>
           </Grid>
 
-          <!-- 锁定子进程 + 立即应用 -->
+          <!-- IFEO IO 优先级（持久化注册表，启动时读一次，非热路径） -->
+          <StackPanel Margin="0,0,0,8">
+            <TextBlock Text="{x:Static app:Strings.CoreKeepIoPriorityLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+            <ComboBox x:Name="CoreKeepIoPriorityCombo" MinWidth="160"
+                      SelectionChanged="CoreKeepIoPriorityCombo_SelectionChanged">
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepIoPriorityNone}" Tag="-1"/>
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepIoPriorityVeryLow}" Tag="0"/>
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepIoPriorityLow}" Tag="1"/>
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepIoPriorityHigh}" Tag="3"/>
+            </ComboBox>
+          </StackPanel>
+
+          <!-- 内存优先级（运行时 SetProcessInformation 生效） -->
+          <StackPanel Margin="0,0,0,8">
+            <TextBlock Text="{x:Static app:Strings.CoreKeepMemoryPriorityLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+            <ComboBox x:Name="CoreKeepMemoryPriorityCombo" MinWidth="160"
+                      SelectionChanged="CoreKeepMemoryPriorityCombo_SelectionChanged">
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepMemoryPriorityNone}" Tag="-1"/>
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepMemoryPriorityVeryLow}" Tag="1"/>
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepMemoryPriorityLow}" Tag="2"/>
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepMemoryPriorityMedium}" Tag="3"/>
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepMemoryPriorityBelowNormal}" Tag="4"/>
+              <ComboBoxItem Content="{x:Static app:Strings.CoreKeepMemoryPriorityNormal}" Tag="5"/>
+            </ComboBox>
+          </StackPanel>
+
+          <!-- 锁定子进程 + 主线程绑定 + 立即应用 -->
           <Grid Margin="0,0,0,0">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <CheckBox x:Name="CoreKeepLockToggle" Content="{x:Static app:Strings.CoreKeepLockBreakaway}"
-                      Checked="CoreKeepLockToggle_Changed" Unchecked="CoreKeepLockToggle_Changed"
-                      VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <CheckBox x:Name="CoreKeepLockToggle" Content="{x:Static app:Strings.CoreKeepLockBreakaway}"
+                        Checked="CoreKeepLockToggle_Changed" Unchecked="CoreKeepLockToggle_Changed"
+                        VerticalAlignment="Center" Margin="0,0,16,0"/>
+              <CheckBox x:Name="CoreKeepMainThreadToggle" Content="{x:Static app:Strings.CoreKeepMainThreadLabel}"
+                        Checked="CoreKeepMainThreadToggle_Changed" Unchecked="CoreKeepMainThreadToggle_Changed"
+                        VerticalAlignment="Center" ToolTip="{x:Static app:Strings.CoreKeepMainThreadHint}"/>
+            </StackPanel>
             <ui:Button x:Name="CoreKeepApplyNowBtn" Grid.Column="1"
                        Content="{x:Static app:Strings.CoreKeepApplyNow}"
                        Click="CoreKeepApplyNow_Click" Appearance="Primary"/>
@@ -555,7 +601,7 @@
 
           <!-- 手动模式：核心选择 -->
           <StackPanel x:Name="CoreKeepCoreListPanel" Visibility="Collapsed" Margin="0,8,0,0">
-            <TextBlock Text="{x:Static app:Strings.CoreKeepCoreListLabel}" FontSize="11" Margin="0,0,0,4"
+            <TextBlock Text="{x:Static app:Strings.CoreKeepCoreListLabel}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
                        Foreground="{DynamicResource TextSecondaryBrush}"/>
             <ItemsControl x:Name="CoreKeepCoreList">
               <ItemsControl.ItemsPanel>
@@ -574,7 +620,67 @@
         </StackPanel>
       </ui:CardExpander>
 
-      <!-- ══════ 5. 守护定时器 + 核心竞速 ══════ -->
+      <!-- ══════ 5. 系统保留 CPU 核心集（ReservedCpuSets 注册表，重启生效） ══════ -->
+      <ui:CardExpander Margin="0,0,0,8" Icon="Shield24" IsExpanded="False">
+        <ui:CardExpander.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Shield24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.CoreKeepReservedHeading}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock Text="{x:Static app:Strings.CoreKeepReservedDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                         Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+            <ui:ToggleSwitch x:Name="ReservedMasterToggle" Grid.Column="1" VerticalAlignment="Center"
+                            Checked="ReservedMasterToggle_Changed" Unchecked="ReservedMasterToggle_Changed"/>
+          </Grid>
+        </ui:CardExpander.Header>
+        <StackPanel Margin="0,8,0,0">
+          <TextBlock x:Name="ReservedUnsupportedHint" Text="{x:Static app:Strings.CoreKeepReservedUnsupported}"
+                     FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,8" Foreground="#FFE74856" TextWrapping="Wrap" Visibility="Collapsed"/>
+          <TextBlock Text="{x:Static app:Strings.CoreKeepReservedSelectCores}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,4"
+                     Foreground="{DynamicResource TextSecondaryBrush}"/>
+          <ItemsControl x:Name="ReservedCoreList">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <CheckBox Content="{Binding CoreIndex}" IsChecked="{Binding IsChecked}"
+                          Margin="0,0,12,4" Click="ReservedCoreCheck_Click"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock x:Name="ReservedCurrentText" FontSize="{DynamicResource FontSizeCaption}"
+                         Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+              <TextBlock x:Name="ReservedStatusText" FontSize="{DynamicResource FontSizeCaption}" Margin="0,2,0,0"
+                         Foreground="{DynamicResource AccentOmenBrush}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+              <ui:Button x:Name="ReservedRefreshBtn" Content="{x:Static app:Strings.CoreKeepRefreshBtn}"
+                         Click="ReservedRefresh_Click" Appearance="Secondary" Margin="0,0,8,0"/>
+              <ui:Button x:Name="ReservedApplyNowBtn" Content="{x:Static app:Strings.CoreKeepReservedApplyNow}"
+                         Click="ReservedApplyNow_Click" Appearance="Primary"/>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </ui:CardExpander>
+
+      <!-- ══════ 6. 守护定时器 + 核心竞速 ══════ -->
       <ui:CardControl Margin="0,0,0,8">
         <ui:CardControl.Header>
           <Grid>
@@ -584,11 +690,11 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Timer24" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                <TextBlock Text="{x:Static app:Strings.CoreKeepGuardLabel}" FontSize="14" FontWeight="SemiBold"
+                <ui:SymbolIcon Symbol="Timer24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.CoreKeepGuardLabel}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold"
                            Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock Text="{x:Static app:Strings.CoreKeepGuardIntervalLabel}" FontSize="11"
+              <TextBlock Text="{x:Static app:Strings.CoreKeepGuardIntervalLabel}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="CoreKeepGuardToggle" Grid.Column="1" VerticalAlignment="Center"
@@ -606,7 +712,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
               <TextBlock Text="{x:Static app:Strings.CoreKeepGuardIntervalLabel}" VerticalAlignment="Center"
-                         FontSize="13" Margin="0,0,8,0"/>
+                         FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,8,0"/>
               <ui:NumberBox x:Name="CoreKeepGuardInterval" Minimum="1" Maximum="10" SmallChange="1"
                             MaxDecimalPlaces="0" Value="2" ValueChanged="CoreKeepGuardInterval_Changed"
                             MinWidth="100"/>

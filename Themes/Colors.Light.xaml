@@ -84,6 +84,8 @@
 
   <!-- Accent Brushes -->
   <SolidColorBrush x:Key="AccentOmenBrush" Color="{StaticResource AccentOmen}" />
+  <!-- ponytail: 卡片分层描边 — 亮色 6% 黑发丝线(暗色版为全透明)。
+       注:CardBorderBrush/CardBackground/CardForeground 实际生效定义在 OmenBrand.xaml,此处被遮蔽,不再重复定义。 -->
   <SolidColorBrush x:Key="AccentOmenLightBrush" Color="{StaticResource AccentOmenLight}" />
   <SolidColorBrush x:Key="AccentOmenDimBrush" Color="{StaticResource AccentOmenDim}" />
   <SolidColorBrush x:Key="AccentGreenBrush" Color="{StaticResource AccentGreen}" />
@@ -120,9 +122,7 @@
   <SolidColorBrush x:Key="ButtonBorderPointerOver" Color="{StaticResource AccentOmen}" />
 
   <!-- Card -->
-  <SolidColorBrush x:Key="CardBackground" Color="{StaticResource BgCard}" />
   <SolidColorBrush x:Key="CardBorder" Color="{StaticResource BorderDefault}" />
-  <SolidColorBrush x:Key="CardForeground" Color="{StaticResource TextPrimary}" />
 
   <!-- TextBox / Input -->
   <SolidColorBrush x:Key="TextControlBackground" Color="{StaticResource BgInput}" />

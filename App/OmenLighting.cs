@@ -13,6 +13,7 @@ using Hp.Bridge.Client.SDKs.McuSDK2.General.Enums.Lighting;
 using Hp.Bridge.Client.SDKs.McuSDK2.Keyboard;
 using HP.Omen.Core.Model.Device.Enums;
 using HP.Omen.Core.Model.Device.Models;
+using HidSharp;
 using OmenSuperHub.Services;
 using static OmenSuperHub.OmenHardware;
 
@@ -33,6 +34,93 @@ namespace OmenSuperHub {
     public enum LightingDevice {
       Keyboard,
       LightBar
+    }
+
+    // ponytail: 键盘能力分类 — MainWindow(隐藏灯光页) 与 LightingPage(自适应布局) 共用。
+    // LightBarOnly = 键盘无 RGB 但灯条存在；Conservative(探测失败) 按 FourZone 处理不隐藏。
+    public enum KeyboardKind { Normal, OneZone, FourZone, PerKey, LightBarOnly }
+
+    public sealed class KeyboardCapability {
+      public KeyboardKind Kind;
+      public bool AnimationSupported;
+      public bool LightBarSupported;
+      /// <summary>false = 探测失败走了保守降级(Kind=FourZone)，UI 不应据此隐藏灯光页</summary>
+      public bool Detected;
+    }
+
+    static KeyboardCapability _kbCapability;
+    static readonly object _kbCapLock = new();
+
+    /// <summary>统一键盘能力探测 — 合并 WMI + HP SDK + 灯条探测，惰性求值缓存一次。
+    /// 隐藏灯光页的判定必须用 Detected==true 且 Kind==Normal 才成立；探测异常一律保守 FourZone。
+    /// DEBUG: ConfigService.DebugKbKind 非空时强制覆盖 Kind(模拟键盘类型,UI 预览用)。</summary>
+    public static KeyboardCapability DetectKeyboardCapability() {
+      lock (_kbCapLock) {
+        if (_kbCapability != null) return _kbCapability;
+        var cap = new KeyboardCapability { Kind = KeyboardKind.FourZone, Detected = false };
+        try {
+          // WMI 通道 (BIOS 权威值)
+          NbKeyboardLightingType wmiType = GetKeyboardType();
+          // HP SDK 通道 (Rgb 判定比 WMI 更可靠 — AutoDetectProtocol 优先级同理)
+          Omen.OmenFourZoneLighting.KeyboardType sdkType = FourZoneHelper.GetKeyboardType();
+          bool lightBar = false;
+          try { lightBar = FourZoneHelper.IsLightBarSupported(); } catch { }
+          bool anim = false;
+          try { anim = IsAnimationSupported(); } catch { }
+
+          // ponytail: WMI 返回 None 表示命令失败而非"确认无灯" — 保守 FourZone。
+          // 只有 WMI 明确 Normal 且 HP SDK 也非 Rgb 才能定性 Normal。
+          bool wmiFailed = wmiType == NbKeyboardLightingType.None;
+          bool keyboardNormal = wmiType == NbKeyboardLightingType.Normal
+            && sdkType != Omen.OmenFourZoneLighting.KeyboardType.Rgb;
+
+          if (sdkType == Omen.OmenFourZoneLighting.KeyboardType.Rgb || wmiType == NbKeyboardLightingType.RgbPerKey)
+            cap.Kind = KeyboardKind.PerKey;
+          else if (keyboardNormal && lightBar)
+            cap.Kind = KeyboardKind.LightBarOnly;
+          else if (keyboardNormal && !wmiFailed)
+            cap.Kind = KeyboardKind.Normal;
+          else if (wmiType == NbKeyboardLightingType.OneZoneWithNumpad || wmiType == NbKeyboardLightingType.OneZoneWithoutNumpad
+            || sdkType == Omen.OmenFourZoneLighting.KeyboardType.OneZoneWithNumpad || sdkType == Omen.OmenFourZoneLighting.KeyboardType.OneZoneWithoutNumpad)
+            cap.Kind = KeyboardKind.OneZone;
+          else
+            cap.Kind = KeyboardKind.FourZone;
+
+          cap.LightBarSupported = lightBar;
+          cap.AnimationSupported = anim;
+          cap.Detected = !wmiFailed;
+        } catch {
+          // 全不可用 — 保守 FourZone, Detected=false 阻止隐藏灯光页
+        }
+        ApplyDebugKbKindOverride(cap);
+        _kbCapability = cap;
+        Logger.Info($"DetectKeyboardCapability: Kind={cap.Kind} Detected={cap.Detected} " +
+                    $"Anim={cap.AnimationSupported} LightBar={cap.LightBarSupported}");
+        return cap;
+      }
+    }
+
+    // ponytail: DEBUG 模拟 — 设置页选择模拟键盘类型后覆盖 Kind 及派生能力,
+    // 让灯光页布局/侧栏显隐按模拟值走(UI 预览无需真机)。派生值按类型合理合成:
+    // Normal=全无 / OneZone=动画有 / FourZone=动画有 / PerKey=动画有+灯带(一体机型,选项已合并)。
+    static void ApplyDebugKbKindOverride(KeyboardCapability cap) {
+      string sim = ConfigService.DebugKbKind;
+      if (string.IsNullOrEmpty(sim) || !Enum.TryParse<KeyboardKind>(sim, out var kind)) return;
+      cap.Kind = kind;
+      cap.Detected = true; // 模拟值视为"已确认",NavLighting 隐藏逻辑才能如实演练
+      cap.AnimationSupported = kind != KeyboardKind.Normal;
+      cap.LightBarSupported = kind == KeyboardKind.PerKey;
+    }
+
+    /// <summary>清能力缓存 — Debug 模拟类型变更后由设置页调用,下次探测重新求值</summary>
+    public static void InvalidateKeyboardCapabilityCache() {
+      lock (_kbCapLock) _kbCapability = null;
+    }
+
+    /// <summary>灯光页是否应显示在侧栏 — 仅"确认探测成功且为普通键盘无灯条"才隐藏</summary>
+    public static bool IsLightingPageSupported() {
+      var cap = DetectKeyboardCapability();
+      return !(cap.Detected && cap.Kind == KeyboardKind.Normal && !cap.LightBarSupported);
     }
 
     public enum LightingControlInterface {
@@ -73,6 +161,12 @@ namespace OmenSuperHub {
     public static async Task<bool> CloseDeviceAsync(int handle) => await McuGeneralHelper.CloseDevice(handle);
 
     public static int OpenPerKeyKeyboard() {
+      // ponytail: 整函数包 try/catch — DeviceModel.DeviceType 在非匹配机型上走
+      // Utf8Json 反序列化 OmenPlatformInfo,可能抛 FileNotFoundException(依赖 DLL 缺失)
+      // 或其他平台访问异常。此函数被 EnsurePerKeyHandle→LightEnable_Changed 同步调用,
+      // 未捕获会冒泡到 UI 事件处理并崩应用。所有失败路径统一返回 -1(与候选全 miss 一致),
+      // 调用方按 -1 走诊断提示,不让平台访问异常穿透到 UI。
+      try {
       DeviceEnums.DeviceType deviceType = DeviceModel.DeviceType;
       List<(int pid, int vid, string interfaceString)> candidates = new List<(int, int, string)>();
 
@@ -106,15 +200,92 @@ namespace OmenSuperHub {
           candidates.Add((0x30BF, 0x0D62, "mi_03"));
           break;
         default:
-          return -1;
+          // ponytail: 未知机型 — 不直接 return -1,先尝试用 McuSDK 打开已知 HP per-key PID。
+          // OMEN MAX 16 (2025) 等新机型的 DeviceType 可能不在枚举中,但 USB HID 接口已就绪。
+          // 参考 OmenCore.HidPerKeyBackend 的 KnownPerKeyPids 表。
+          candidates.Add((0x054E, 0x03F0, "")); // OMEN MAX 16 ah0xxx
+          candidates.Add((0x054F, 0x03F0, "")); // OMEN MAX 16 ak0xxx
+          candidates.Add((0x0547, 0x03F0, "")); // OMEN 16 (2024)
+          candidates.Add((0x0549, 0x03F0, "")); // OMEN 17 (2024)
+          candidates.Add((0x0538, 0x03F0, "")); // OMEN 16 (2023)
+          break;
       }
 
       foreach (var (pid, vid, interfaceStr) in candidates) {
         int handle = OpenHidDevice(pid, vid, interfaceStr);
-        if (handle > 0)
+        if (handle > 0) {
+          Logger.Info($"OpenPerKeyKeyboard: McuSDK opened PID=0x{pid:X4} VID=0x{vid:X4} iface='{interfaceStr}' handle={handle}");
           return handle;
+        }
+      }
+
+      // ponytail: McuSDK 全部失败 — 记录诊断信息帮助定位问题。
+      // 常见原因:OMEN 服务未运行、机型不在候选列表、HID 设备被其他进程(OMEN Light Studio)独占。
+      Logger.Warn($"OpenPerKeyKeyboard: McuSDK failed for DeviceType={deviceType} SystemID={DeviceModel.ThisSystemID}");
+      var hpHidDevices = ScanHpHidDevices();
+      if (hpHidDevices.Count > 0) {
+        Logger.Info($"OpenPerKeyKeyboard: detected {hpHidDevices.Count} HP HID device(s): " +
+                    string.Join(", ", hpHidDevices.Select(d => $"PID=0x{d.Pid:X4}('{d.Name}')")));
+      } else {
+        Logger.Info("OpenPerKeyKeyboard: no HP HID devices (VID 0x03F0) found");
       }
       return -1;
+      } catch (Exception ex) {
+        // ponytail: DeviceModel 平台访问异常(FileNotFoundException/Json 反序列化失败等)。
+        // 记录后返回 -1,与候选全 miss 路径一致 — EnsurePerKeyHandle 据此走诊断提示而非崩溃。
+        Logger.Error($"OpenPerKeyKeyboard platform access exception: {ex.Message}");
+        return -1;
+      }
+    }
+
+    // ponytail: 扫描 HP USB HID 设备 — 参考 OmenCore.HidPerKeyBackend.InitializeAsync。
+    // 用于 PerKey 失败时的诊断:列出所有 VID=0x03F0 的 HP HID 设备及其 PID,
+    // 方便用户报告未知 PID 以扩展 KnownPerKeyPids 表。
+    // 返回值:已识别的 per-key 键盘设备列表(可能为空)。
+    public static List<(int Pid, string Name)> ScanHpHidDevices() {
+      var result = new List<(int, string)>();
+      try {
+        const int HP_VID = 0x03F0;
+        var knownPerKeyPids = new Dictionary<int, string> {
+          { 0x0538, "OMEN 16 (2023) Intel/AMD keyboard" },
+          { 0x053A, "OMEN Sequoia / external gaming keyboard" },
+          { 0x0547, "OMEN 16 (2024) keyboard" },
+          { 0x0549, "OMEN 17 (2024) keyboard" },
+          { 0x054E, "OMEN MAX 16 (2025) ah0xxx keyboard" },
+          { 0x054F, "OMEN MAX 16 (2025) ak0xxx keyboard" },
+        };
+
+        var hpDevices = DeviceList.Local.GetHidDevices().Where(d => d.VendorID == HP_VID).ToList();
+        foreach (var d in hpDevices) {
+          int pid = d.ProductID;
+          string name = "";
+          try { name = d.GetProductName(); } catch { }
+          if (knownPerKeyPids.TryGetValue(pid, out var knownName)) {
+            result.Add((pid, knownName));
+            Logger.Info($"[HidScan] OK PID=0x{pid:X4} - {knownName} ('{name}')");
+          } else {
+            // 未知 PID — 记录日志,方便用户报告
+            Logger.Info($"[HidScan] ? PID=0x{pid:X4} - '{name}' (not in per-key PID list; " +
+                        "if this is an OMEN keyboard, report this PID for inclusion)");
+          }
+        }
+      } catch (Exception ex) {
+        Logger.Error($"ScanHpHidDevices: {ex.Message}");
+      }
+      return result;
+    }
+
+    // ponytail: PerKey 诊断信息字符串 — 供 UI 显示给用户,告知检测到的 HP HID 设备。
+    // 当 McuSDK 打开失败时,LightingPage 调用此方法生成诊断提示。
+    public static string GetPerKeyDiagnosticInfo() {
+      var hpHidDevices = ScanHpHidDevices();
+      if (hpHidDevices.Count == 0)
+        return "";
+
+      var sb = new System.Text.StringBuilder();
+      sb.Append("检测到 HP HID 设备: ");
+      sb.Append(string.Join(", ", hpHidDevices.Select(d => $"PID=0x{d.Pid:X4}({d.Name})")));
+      return sb.ToString();
     }
 
     public static async Task<bool> SetPerKeyStaticColor(int handle, byte[] r, byte[] g, byte[] b) =>
@@ -181,6 +352,70 @@ namespace OmenSuperHub {
       } catch { return false; }
     }
 
+    // ponytail: SystemID→protocol 映射表 — 提取自 OmenCore KeyboardModelDatabase。
+    // PreferredMethod 映射: NewWmi2023→"Dojo", ColorTable2020→"BasicFourZone",
+    // HidPerKey→"PerKey", BacklightOnly→空(表示无 RGB,只支持背光开关)。
+    // 比 cycle>260 启发式更精确: 部分 2024+ 机型(8BCD/8D24/8E35)仍是 ColorTable2020 首选。
+    // 未列出的已知 4-zone 机型走 ColorTable2020 → 此表仅记录"非默认"的机型。
+    static readonly Dictionary<string, string> _protocolBySystemId = new(StringComparer.OrdinalIgnoreCase) {
+      // === Dojo preferred (NewWmi2023) ===
+      { "8E67", "Dojo" }, // OMEN 16 (2023) Intel
+      { "8E68", "Dojo" }, // OMEN 16 (2023) AMD
+      { "8E69", "Dojo" }, // OMEN 17-ck2xxx (2024)
+      { "8E6A", "Dojo" }, // OMEN 45L Desktop (2023)
+
+      // === PerKey (also caught by kbType check, explicit for robustness) ===
+      { "8E41", "PerKey" }, // OMEN Transcend 14 (2024)
+      { "8D41", "PerKey" }, // OMEN MAX 16-ah0xxx (2025)
+      { "8D87", "PerKey" }, // OMEN MAX 16-ak0xxx (2025)
+
+      // === BacklightOnly (single-color or on/off, no RGB zones) ===
+      { "8574", "" }, // OMEN 15-dc1xxx (2019)
+      { "8575", "" }, // OMEN 15 (2018)
+      { "8600", "" }, // OMEN 15-dh0xxx (2019)
+      { "860C", "" }, // OMEN 17 (2019)
+      { "88EC", "" }, // Victus 16-e0xxx
+      { "88EE", "" }, // Victus 16-e0194nw
+      { "8A23", "" }, // HP Victus 15 (2021)
+      { "8A3E", "" }, // HP Victus 15-fb0xxx (2022)
+      { "8C30", "" }, // HP Victus 15-fb1xxx (2023)
+      { "8BB4", "" }, // HP Victus 16 (2022)
+    };
+
+    // ponytail: 自动推荐灯光协议 — 优先查 SystemID 映射表(OmenCore 数据库),
+    // 命中不到再用 kbType + cycle 数 + HP SDK 可用性降级。
+    // 优先级链: PerKey(RGB键盘) > Dojo(查表/cycle>260) > HpSdk > BasicFourZone。
+    // 返回值可能是空字符串 → 表示 BacklightOnly,UI 应做简化处理(当前项目无此模式,降级为 BasicFourZone)。
+    public static string AutoDetectProtocol() {
+      // 1. Per-key RGB keyboard → PerKey protocol (kbType check catches more models than the table)
+      try {
+        if (FourZoneHelper.GetKeyboardType() == Omen.OmenFourZoneLighting.KeyboardType.Rgb)
+          return "PerKey";
+      } catch { }
+
+      // 2. SystemID lookup → exact match from OmenCore database
+      try {
+        string sysId = DeviceModel.ThisSystemID;
+        if (!string.IsNullOrEmpty(sysId) && _protocolBySystemId.TryGetValue(sysId, out string proto)) {
+          if (!string.IsNullOrEmpty(proto)) return proto;
+          // proto == "" → BacklightOnly, fall through to heuristic
+        }
+      } catch { }
+
+      // 3. Animation-capable (cycle > 260) → Dojo (covers unknown 2023+ models not in table)
+      try {
+        if (IsAnimationSupported())
+          return "Dojo";
+      } catch { }
+
+      // 4. HP SDK available → safest official path for 4-zone
+      if (FourZoneHelper.Available)
+        return "HpSdk";
+
+      // 5. Fallback
+      return "BasicFourZone";
+    }
+
     public static bool IsLightBarPlatform() {
       byte[] result = SendOmenBiosWmi(1, null, 4);
       if (result != null && result.Length > 0) {
@@ -208,16 +443,15 @@ namespace OmenSuperHub {
       }
 
       public static bool IsAnimationSupported(NbKeyboardLightingType kbType, DeviceEnums.DeviceType device) {
+        // ponytail: 原实现在第二次调用时 _isAnimationSupported.HasValue 短路直接 return false,
+        // 即使首次调用返回 true。修复: 缓存 cycle>260 的判定结果,每次调用都走 IsSupported 取最终值。
         if (!_isAnimationSupported.HasValue) {
-          _isAnimationSupported = false;
-          if (DeviceModel.GetCycleNumber(DeviceModel.OmenPlatform.ProductNum.FirstOrDefault((SSIDInfo x) => x.SSID.Equals(DeviceModel.ThisSystemID)).Cycle) > 260) {
-            _isAnimationSupported = true;
-          }
-          if (_isAnimationSupported.Value) {
-            return IsSupported(kbType, device);
-          }
+          try {
+            _isAnimationSupported = DeviceModel.GetCycleNumber(
+              DeviceModel.OmenPlatform.ProductNum.FirstOrDefault((SSIDInfo x) => x.SSID.Equals(DeviceModel.ThisSystemID)).Cycle) > 260;
+          } catch { _isAnimationSupported = false; }
         }
-        return false;
+        return _isAnimationSupported.Value && IsSupported(kbType, device);
       }
 
       public static int GetLightingSupported() {
@@ -365,6 +599,12 @@ namespace OmenSuperHub {
       { "Cyan",   ((byte)0,   (byte)255, (byte)255) },
       { "Pink",   ((byte)0xFF, (byte)0x69, (byte)0xB4) },
       { "Yellow", ((byte)255, (byte)255, (byte)0)   },
+      // 温度色系预设 — 从冷到热的渐变，覆盖 30°C→90°C 视觉映射
+      { "IceBlue",    ((byte)0,   (byte)200, (byte)255) },  // ~30°C 冰蓝
+      { "CoolGreen",  ((byte)0,   (byte)255, (byte)100) },  // ~45°C 冷绿
+      { "WarmYellow", ((byte)255, (byte)200, (byte)0)   },  // ~60°C 暖黄
+      { "FieryOrange",((byte)255, (byte)100, (byte)0)   },  // ~75°C 炽橙
+      { "HotRed",     ((byte)255, (byte)20,  (byte)20)  },  // ~90°C 炽红
     };
     public static (byte r, byte g, byte b) LookupColor(string name) =>
       PresetColorRgb.TryGetValue(name, out var v) ? v : ((byte)255, (byte)255, (byte)255);
@@ -374,21 +614,38 @@ namespace OmenSuperHub {
     // BIOS/HP SDK 斐道；PerKeyEffectId 走 McuSDK 单键 RGB 灯效字节。
     public static readonly string[] AnimNames = {
       "None", "ColorCycle", "Starlight", "Breathing", "Wave",
-      "Raindrop", "AudioPulse", "Confetti", "Sun", "Swipe"
+      "Raindrop", "AudioPulse", "Confetti", "Sun", "Swipe",
+      "AudioBeat",  // PerKey 音频律动 — SetPerKeyAudioAnimation 通道
     };
+    // ponytail: Dojo effectId 1..9 (SupportsEffect gates 1..9). Starlight=2/Wave=4 also
+    // match BasicFourZone firmware's only-valid {2,4}. Old values {2..11} had 10/11 out
+    // of range → ReplaySavedLighting silently fell back to static for Sun/Swipe.
     public static readonly Dictionary<string, byte> AnimNameToZoneId = new() {
-      { "ColorCycle", 2 }, { "Starlight", 3 }, { "Breathing", 4 }, { "Wave", 6 },
-      { "Raindrop", 7 }, { "AudioPulse", 8 }, { "Confetti", 9 }, { "Sun", 10 }, { "Swipe", 11 },
+      { "ColorCycle", 1 }, { "Starlight", 2 }, { "Breathing", 3 }, { "Wave", 4 },
+      { "Raindrop", 5 }, { "AudioPulse", 6 }, { "Confetti", 7 }, { "Sun", 8 }, { "Swipe", 9 },
     };
     public static readonly Dictionary<string, byte> AnimNameToPerKeyId = new() {
       { "ColorCycle", 7 }, { "Starlight", 2 }, { "Breathing", 8 }, { "Wave", 10 },
-      { "Raindrop", 13 }, { "Confetti", 14 }, { "Sun", 15 }, { "Swipe", 16 }, { "None", 4 },
+      { "Raindrop", 13 }, { "AudioPulse", 9 }, { "Confetti", 14 }, { "Sun", 15 }, { "Swipe", 16 }, { "None", 4 },
+      { "AudioBeat", 9 },  // 音频律动 — SetPerKeyAudioAnimation 通道,复用 AudioPulse effect ID
     };
     public static byte ZoneEffectId(string name) =>
       AnimNameToZoneId.TryGetValue(name, out var v) ? v : (byte)0;
     public static byte PerKeyEffectId(string name) =>
       AnimNameToPerKeyId.TryGetValue(name, out var v) ? v : (byte)4;
     public static int AnimIndex(string name) => Array.IndexOf(AnimNames, name);
+
+    // ponytail: BIOS brightness byte range — reverse-verified against OmenCore WmiBiosBackend.
+    // WMI CmdType=5 expects a raw byte: 0x64 (100) = OFF/minimum, 0xE4 (228) = ON/maximum.
+    // HP SDK 的 SetBrightness(brightness) 把 0-100 直接当字节传给同一条 WMI 命令,
+    // 于是 brightness=100 → 0x64 → OFF, brightness=50 → 0x32 → 仍低于 OFF 阈值 → 灯条变黑。
+    // 此处统一把 UI 的 0-100% 百分比映射回 BIOS 期望的 100..228 区间; brightness=0 显式传 0x64 关闭。
+    // Ceiling: 假设线性映射; 部分 BIOS 在 0x64..0xE4 之间是非线性感知,但与 OmenCore 对齐即可。
+    static byte MapBrightnessToWmiLevel(byte brightness) {
+      if (brightness == 0) return 0x64;        // OFF
+      if (brightness >= 100) return 0xE4;      // ON/maximum
+      return (byte)(100 + (brightness * 128 / 100)); // 100..228 线性映射
+    }
 
     public static void SetZoneBrightness(LightingDevice device, byte brightness,
         LightingControlInterface controlInterface = LightingControlInterface.BasicFourZone) {
@@ -397,12 +654,15 @@ namespace OmenSuperHub {
             byte target = device == LightingDevice.LightBar ? (byte)TargetDevice.LightBar : (byte)TargetDevice.FourZoneAni;
             byte[] data = new byte[128];
             data[0] = target;
+            // ponytail: Dojo CmdType=11 的 data[3] 是 0-255 范围(Aurora 反编译写死 0xFF),
+            // 不走 WMI CmdType=5 的 0x64-0xE4 映射,直接传 0-100 即可(虽然最大只有 40% 亮度,
+            // 但 Dojo 高亮度有专门的 BtnBrightHigh_Click 走 128/228 字节)。
             data[3] = brightness;
             SendOmenBiosWmi(11, data, 0, WMI_COMMAND_ID);
             break;
           }
         case LightingControlInterface.BasicFourZone: {
-            byte[] data = new byte[4] { brightness, 0, 0, 0 };
+            byte[] data = new byte[4] { MapBrightnessToWmiLevel(brightness), 0, 0, 0 };
             SendOmenBiosWmi(5, data, 0, WMI_COMMAND_ID);
             break;
           }
@@ -477,12 +737,17 @@ namespace OmenSuperHub {
 
       public static void SetStaticColor(LightingDevice device, List<System.Windows.Media.Color> colors, byte brightness) {
         try {
+          // ponytail: 顺序根因 — 参考 OmenCore KeyboardLightingServiceV2.ApplyProfileAsync:
+          // "Some BIOS revisions (notably on 8BCD/F.31) can reset visible keyboard state
+          //  when brightness is written after color-table updates."
+          // 旧顺序(先颜色后亮度)会让 SetZoneBrightness 清掉刚写的颜色 → 灯条变黑。
+          // 改为先写亮度(BasicFourZone 路径,正确映射 0x64..0xE4),再写颜色作为最终命令。
+          OmenLighting.SetZoneBrightness(device, brightness, LightingControlInterface.BasicFourZone);
           var clrArray = colors.ConvertAll(c => System.Drawing.Color.FromArgb(c.R, c.G, c.B)).ToArray();
           if (device == LightingDevice.LightBar)
             Omen.OmenFourZoneLighting.FourZoneLighting.SetLightBarColors(clrArray);
           else
             Omen.OmenFourZoneLighting.FourZoneLighting.SetZoneColors(clrArray);
-          Omen.OmenFourZoneLighting.FourZoneLighting.SetBrightness(brightness);
         } catch (Exception ex) { Logger.Error($"FourZoneHelper.SetStaticColor: {ex.Message}"); }
       }
     }
@@ -583,9 +848,9 @@ namespace OmenSuperHub {
       // 断言共享表里 Pink 是 OMEN 官方真粉 (0xFF,0x69,0xB4)+7 色键全集存在，防止落入回 White。
       System.Diagnostics.Debug.Assert(PresetColorRgb["Pink"] == (0xFF, 0x69, 0xB4),
         "PresetColorRgb['Pink'] drifted from OMEN-pink (0xFF,0x69,0xB4)");
-      System.Diagnostics.Debug.Assert(PresetColorRgb.Count == 7 &&
-        AnimNameToZoneId.Count == 9 && AnimNameToPerKeyId.Count == 9 &&
-        AnimNames.Length == 10, "Lighting table size drift");
+      System.Diagnostics.Debug.Assert(PresetColorRgb.Count == 12 &&
+        AnimNameToZoneId.Count == 9 && AnimNameToPerKeyId.Count == 11 &&
+        AnimNames.Length == 11, "Lighting table size drift");
     }
 #endif
   }

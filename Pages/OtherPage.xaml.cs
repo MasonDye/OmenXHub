@@ -29,7 +29,13 @@ namespace OmenSuperHub.Pages
                 // 而 OtherPage 已脱离可视树，调用对分离元素无效且占 UI 线程。
                 Unloaded += (s, e) => { _hwinfoTimer?.Stop(); };
             _hwinfoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-            _hwinfoTimer.Tick += (s, e) => UpdateHWiNFOReadStatus();
+            _hwinfoTimer.Tick += (s, e) => {
+                // ponytail: 主窗口关闭到托盘后,OtherPage 即使被缓存仍在每 2s 跑一次
+                // UpdateHWiNFOReadStatus (注册表读 + WMI 探测);可见性恢复前是纯开销。
+                // 更稳健的根治见 DashboardPage 同款 guard;此处就近停 timer (Unloaded 也停)。
+                if (Window.GetWindow(this)?.IsVisible != true) { _hwinfoTimer?.Stop(); return; }
+                UpdateHWiNFOReadStatus();
+            };
         }
 
         void LoadState()
@@ -148,6 +154,16 @@ namespace OmenSuperHub.Pages
                 HttpApiStatusText.Text = Strings.HttpApiStopped;
                 HttpApiStatusText.Foreground = System.Windows.Media.Brushes.Gray;
             }
+        }
+
+        // 系统优化二级弹窗：Windows 服务 + 启动项
+        void SysOptOpen_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new OmenSuperHub.Views.SystemOptimizeWindow
+            {
+                Owner = Window.GetWindow(this)
+            };
+            win.ShowDialog();
         }
 
         [DllImport("user32.dll")]

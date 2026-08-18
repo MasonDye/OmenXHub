@@ -14,17 +14,8 @@ namespace OmenSuperHub.Pages {
   public partial class CoreKeepPage : System.Windows.Controls.Page {
     CoreKeepEntry _currentSelectedEntry;
     List<ProcessItemView> _allProcesses = new List<ProcessItemView>();
-    bool _loading; // ponytail: 页面初始化时屏蔽 IsChecked/Value 赋值触发的 Changed 事件，避免冗余 StartAutoApply/Save
-    // 临时诊断：定位首次进入卡顿的精确瓶颈
-    static int _ckInstance;
-    static System.Diagnostics.Stopwatch _ckSw;
-    static void CKLog(string msg) {
-      try {
-        System.IO.File.AppendAllText(
-          System.IO.Path.Combine(System.IO.Path.GetTempPath(), "OmenXHub_ck.log"),
-          $"[{DateTime.Now:HH:mm:ss.fff}] #{_ckInstance} {msg}\n");
-      } catch { }
-    }
+    bool _sortByCpu = true;
+    bool _loading; // ponytail: 页面初始化时屏蔽 IsChecked/Value 赋值触发的 Changed 事件,避免冗余 StartAutoApply/Save
 
     // ponytail: 强制级别常量 — 对齐 EnforcementService 4 级
     const string SoftCpuSets = "soft-cpu-sets";
@@ -33,31 +24,20 @@ namespace OmenSuperHub.Pages {
     const string JobLocked = "job-locked";
 
     public CoreKeepPage() {
-      _ckInstance++;
-      _ckSw = System.Diagnostics.Stopwatch.StartNew();
-      CKLog("ctor start");
       InitializeComponent();
-      CKLog($"ctor: InitializeComponent={_ckSw.ElapsedMilliseconds}ms");
       Loaded += CoreKeepPage_Loaded;
     }
 
     void CoreKeepPage_Loaded(object sender, RoutedEventArgs e) {
-      CKLog($"Loaded start (ctor->Loaded={_ckSw?.ElapsedMilliseconds ?? -1}ms)");
-      var sw = System.Diagnostics.Stopwatch.StartNew();
       _loading = true;
       try {
         InitCoreKeepUI();
-        CKLog($"  InitCoreKeepUI={sw.ElapsedMilliseconds}ms");
         PopulateCoreVisualGrid();
-        CKLog($"  PopulateCoreVisualGrid={sw.ElapsedMilliseconds}ms");
       } finally { _loading = false; }
       UpdateLayout();
-      CKLog($"  UpdateLayout={sw.ElapsedMilliseconds}ms");
       Dispatcher.BeginInvoke(new Action(() => {
-        CKLog("  RefreshProcessList start");
         RefreshProcessList();
       }), System.Windows.Threading.DispatcherPriority.Background);
-      CKLog($"Loaded done={sw.ElapsedMilliseconds}ms");
     }
 
     void InitCoreKeepUI() {
@@ -98,7 +78,92 @@ namespace OmenSuperHub.Pages {
         if (CoreKeepService.IsRunning) CoreKeepService.SyncRules(data);
         else CoreKeepService.StartAutoApply(data);
       }
+      InitReservedCpuSets(data);
       UpdateStats();
+    }
+
+    // ── 系统保留 CPU 核心集（ReservedCpuSets 注册表） ──
+
+    void InitReservedCpuSets(CoreKeepData data) {
+      bool supported = CoreKeepService.IsReservedCpuSetsSupported();
+      ReservedUnsupportedHint.Visibility = supported ? Visibility.Collapsed : Visibility.Visible;
+      ReservedMasterToggle.IsChecked = data.SystemReservedEnabled;
+      ReservedApplyNowBtn.IsEnabled = supported;
+      ReservedRefreshBtn.IsEnabled = supported;
+      ReservedCoreList.IsEnabled = supported;
+      PopulateReservedCoreCheckboxes(data.SystemReservedCores);
+      RefreshReservedRegistryValue();
+    }
+
+    void PopulateReservedCoreCheckboxes(int[] selected) {
+      var topo = CoreKeepService.GetTopologyInfo();
+      var selSet = selected != null ? new HashSet<int>(selected) : new HashSet<int>();
+      var items = new List<CoreCheckItem>();
+      for (int i = 0; i < topo.TotalLogical; i++) {
+        items.Add(new CoreCheckItem { CoreIndex = i, IsChecked = selSet.Contains(i) });
+      }
+      ReservedCoreList.ItemsSource = items;
+    }
+
+    int[] CollectReservedCores() {
+      var selected = new List<int>();
+      foreach (var item in ReservedCoreList.Items) {
+        if (item is CoreCheckItem ci && ci.IsChecked) selected.Add(ci.CoreIndex);
+      }
+      return selected.ToArray();
+    }
+
+    void RefreshReservedRegistryValue() {
+      ulong configured = CoreKeepService.ReadReservedCpuSetsRegistry();
+      ulong effective = CoreKeepService.ReadEffectiveReservedMask();
+      ReservedCurrentText.Text = Strings.CoreKeepReservedCurrent + (configured == 0 ? "0x0" : "0x" + configured.ToString("X"))
+        + "   " + Strings.CoreKeepReservedEffective + (effective == 0 ? "0x0" : "0x" + effective.ToString("X"));
+      // ponytail: 配置掩码 vs 生效掩码状态机
+      if (configured == 0) {
+        ReservedStatusText.Text = Strings.CoreKeepReservedStateNone;
+      } else if (effective == configured) {
+        ReservedStatusText.Text = Strings.CoreKeepReservedStateActive;
+      } else {
+        ReservedStatusText.Text = Strings.CoreKeepReservedStatePending;
+      }
+    }
+
+    void ReservedMasterToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      var data = CoreKeepService.Load();
+      data.SystemReservedEnabled = ReservedMasterToggle.IsChecked == true;
+      CoreKeepService.Save(data);
+      ReservedApplyNowBtn.IsEnabled = data.SystemReservedEnabled && CoreKeepService.IsReservedCpuSetsSupported();
+      ReservedCoreList.IsEnabled = data.SystemReservedEnabled && CoreKeepService.IsReservedCpuSetsSupported();
+    }
+
+    void ReservedCoreCheck_Click(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      var data = CoreKeepService.Load();
+      data.SystemReservedCores = CollectReservedCores();
+      CoreKeepService.Save(data);
+    }
+
+    void ReservedApplyNow_Click(object sender, RoutedEventArgs e) {
+      if (!CoreKeepService.IsReservedCpuSetsSupported()) {
+        ReservedStatusText.Text = Strings.CoreKeepReservedUnsupported;
+        return;
+      }
+      var data = CoreKeepService.Load();
+      data.SystemReservedCores = CollectReservedCores();
+      CoreKeepService.Save(data);
+      ulong mask = CoreKeepService.GetReservedMask();
+      bool ok = CoreKeepService.WriteReservedCpuSetsRegistry(mask);
+      if (ok) {
+        // 写入成功：刷新三态（未设置/待重启生效/已生效）
+        RefreshReservedRegistryValue();
+      } else {
+        ReservedStatusText.Text = Strings.CoreKeepReservedWriteFailed;
+      }
+    }
+
+    void ReservedRefresh_Click(object sender, RoutedEventArgs e) {
+      RefreshReservedRegistryValue();
     }
 
     // ── 拓扑可视化 ──
@@ -154,9 +219,9 @@ namespace OmenSuperHub.Pages {
     // ── 进程列表 ──
 
     void RefreshProcessList() {
-      // ponytail: 后台线程枚举进程，避免阻塞 UI
+      // ponytail: 后台线程枚举进程 + CPU 采样，避免阻塞 UI
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        var procs = CoreKeepService.EnumerateProcesses();
+        var procs = CoreKeepService.EnumerateProcessesWithCpu();
         Dispatcher.BeginInvoke(new Action(() => {
           _allProcesses = procs.Select(p => {
             var v = new ProcessItemView {
@@ -167,15 +232,31 @@ namespace OmenSuperHub.Pages {
               PidText = p.Pid.ToString(),
               AffinityText = p.AffinityHex,
               MatchedRule = p.MatchedRule,
-              RuleLevel = p.RuleLevel
+              RuleLevel = p.RuleLevel,
+              CpuPct = p.CpuUsagePercent,
+              CpuText = p.CpuUsagePercent >= 0 ? p.CpuUsagePercent.ToString("F1") + "%" : "–",
+              CanBatchManage = p.CanBatchManage
             };
             ApplyLevelColors(v);
             return v;
           }).ToList();
+          if (_sortByCpu)
+            _allProcesses = _allProcesses.OrderByDescending(p => p.CpuPct).ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
           ApplyProcessFilter();
           UpdateStats();
         }), System.Windows.Threading.DispatcherPriority.Background);
       });
+    }
+
+    void ProcessSortByCpuToggle_Changed(object sender, RoutedEventArgs e) {
+      _sortByCpu = ProcessSortByCpuToggle.IsChecked == true;
+      if (_allProcesses.Count > 0) {
+        if (_sortByCpu)
+          _allProcesses = _allProcesses.OrderByDescending(p => p.CpuPct).ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        else
+          _allProcesses = _allProcesses.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ThenBy(p => p.Pid).ToList();
+        ApplyProcessFilter();
+      }
     }
 
     void ApplyProcessFilter() {
@@ -372,6 +453,28 @@ namespace OmenSuperHub.Pages {
       CoreKeepEnforcementCombo.SelectedIndex = 1;
     }
 
+    // ── IFEO IO 优先级 ComboBox：XAML 静态项，Tag=int ──
+
+    void SelectIoPriorityInCombo(int prio) {
+      foreach (ComboBoxItem item in CoreKeepIoPriorityCombo.Items) {
+        if (int.TryParse(item.Tag?.ToString(), out int tag) && tag == prio) {
+          CoreKeepIoPriorityCombo.SelectedItem = item; return;
+        }
+      }
+      CoreKeepIoPriorityCombo.SelectedIndex = 0; // 默认"不设置"
+    }
+
+    // ── 内存优先级 ComboBox：XAML 静态项，Tag=int（-1=不设置 1..5）──
+
+    void SelectMemoryPriorityInCombo(int prio) {
+      foreach (ComboBoxItem item in CoreKeepMemoryPriorityCombo.Items) {
+        if (int.TryParse(item.Tag?.ToString(), out int tag) && tag == prio) {
+          CoreKeepMemoryPriorityCombo.SelectedItem = item; return;
+        }
+      }
+      CoreKeepMemoryPriorityCombo.SelectedIndex = 0; // 默认"不设置"
+    }
+
     // ── 列表选中 ──
 
     void CoreKeepList_SelectionChanged(object sender, SelectionChangedEventArgs e) {
@@ -406,6 +509,9 @@ namespace OmenSuperHub.Pages {
       SelectModeInCombo(_currentSelectedEntry.CoreMode);
       SelectPriorityInCombo(_currentSelectedEntry.PriorityClass);
       SelectEnforcementInCombo(_currentSelectedEntry.EnforcementLevel);
+      SelectIoPriorityInCombo(_currentSelectedEntry.IoPriority);
+      SelectMemoryPriorityInCombo(_currentSelectedEntry.MemoryPriority);
+      CoreKeepMainThreadToggle.IsChecked = _currentSelectedEntry.MainThreadBind;
       CoreKeepRuleNameInput.Text = _currentSelectedEntry.ProcessName ?? "";
       CoreKeepRuleEnabledToggle.IsChecked = _currentSelectedEntry.Enabled;
       CoreKeepProcessPatternInput.Text = _currentSelectedEntry.ProcessName ?? "";
@@ -428,6 +534,9 @@ namespace OmenSuperHub.Pages {
       CoreKeepModeCombo.IsEnabled = on;
       CoreKeepPriorityCombo.IsEnabled = on;
       CoreKeepEnforcementCombo.IsEnabled = on;
+      CoreKeepIoPriorityCombo.IsEnabled = on;
+      CoreKeepMemoryPriorityCombo.IsEnabled = on;
+      CoreKeepMainThreadToggle.IsEnabled = on;
       CoreKeepPathInput.IsEnabled = on;
       CoreKeepExcludeInput.IsEnabled = on;
       CoreKeepRuleEnabledToggle.IsEnabled = on;
@@ -615,6 +724,41 @@ namespace OmenSuperHub.Pages {
       }
     }
 
+    void CoreKeepIoPriorityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+      if (_currentSelectedEntry == null || CoreKeepIoPriorityCombo.SelectedItem == null) return;
+      // ponytail: IFEO IO 优先级 — Tag 是 int（-1=不设置 0=VeryLow 1=Low 3=High）
+      if (CoreKeepIoPriorityCombo.SelectedItem is ComboBoxItem item && int.TryParse(item.Tag?.ToString(), out int prio)) {
+        if (_currentSelectedEntry.IoPriority == prio) return;
+        _currentSelectedEntry.IoPriority = prio;
+        PersistEntryChange();
+        // IFEO 写注册表在 SyncRuleEngine 时统一完成，这里直接触发同步
+        if (CoreKeepMasterToggle.IsChecked == true)
+          CoreKeepService.SyncRules(CoreKeepService.Load());
+      }
+    }
+
+    void CoreKeepMemoryPriorityCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+      if (_currentSelectedEntry == null || CoreKeepMemoryPriorityCombo.SelectedItem == null) return;
+      // ponytail: 内存优先级 — Tag 是 int（-1=不设置 1=VeryLow 2=Low 3=Medium 4=BelowNormal 5=Normal）
+      if (CoreKeepMemoryPriorityCombo.SelectedItem is ComboBoxItem item && int.TryParse(item.Tag?.ToString(), out int prio)) {
+        if (_currentSelectedEntry.MemoryPriority == prio) return;
+        _currentSelectedEntry.MemoryPriority = prio;
+        PersistEntryChange();
+        if (CoreKeepMasterToggle.IsChecked == true)
+          CoreKeepService.ApplyToProcess(_currentSelectedEntry.ProcessName, _currentSelectedEntry);
+      }
+    }
+
+    void CoreKeepMainThreadToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_currentSelectedEntry == null) return;
+      bool on = CoreKeepMainThreadToggle.IsChecked == true;
+      if (_currentSelectedEntry.MainThreadBind == on) return;
+      _currentSelectedEntry.MainThreadBind = on;
+      PersistEntryChange();
+      if (CoreKeepMasterToggle.IsChecked == true)
+        CoreKeepService.ApplyToProcess(_currentSelectedEntry.ProcessName, _currentSelectedEntry);
+    }
+
     // ── 规则配置面板：名称 / 启用 / 进程名 / 路径 / 排除 / 自定义掩码 / 锁定 / 立即应用 ──
 
     void CoreKeepRuleNameInput_LostFocus(object sender, RoutedEventArgs e) {
@@ -725,6 +869,9 @@ namespace OmenSuperHub.Pages {
         existing.PreferredCores = _currentSelectedEntry.PreferredCores;
         existing.Enabled = _currentSelectedEntry.Enabled;
         existing.ProcessName = _currentSelectedEntry.ProcessName;
+        existing.IoPriority = _currentSelectedEntry.IoPriority;
+        existing.MemoryPriority = _currentSelectedEntry.MemoryPriority;
+        existing.MainThreadBind = _currentSelectedEntry.MainThreadBind;
         CoreKeepService.Save(data);
       }
     }
@@ -994,6 +1141,12 @@ namespace OmenSuperHub.Pages {
     public string AffinityText { get; set; }
     public string MatchedRule { get; set; }
     public string RuleLevel { get; set; }
+    /// <summary>CPU 占用率百分比（两拍差分采样），-1 = 未采样。</summary>
+    public double CpuPct { get; set; }
+    public string CpuText { get; set; }
+    /// <summary>是否可批量路由（排除系统进程/自身）。</summary>
+    public bool CanBatchManage { get; set; }
+    public string ManageLockText => CanBatchManage ? "" : "🔒";
     public SolidColorBrush RuleBadgeBrush { get; set; }
     public SolidColorBrush RuleBadgeForeground { get; set; }
     public Visibility HasRule => string.IsNullOrEmpty(MatchedRule) ? Visibility.Collapsed : Visibility.Visible;
