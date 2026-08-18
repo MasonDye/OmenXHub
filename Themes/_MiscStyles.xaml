@@ -1,8 +1,18 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
   <DropShadowEffect x:Key="MenuShadow" BlurRadius="20" ShadowDepth="4"
                      Direction="270" Color="#80000000" Opacity="0.6"/>
+
+  <!-- ponytail: 卡片样式 — 分层靠主题感知描边:暗色全透明(底色对比分层),
+    亮色 6% 黑发丝线衬托浮起(小控件同款"底层阴影感")。圆角 4 与小控件同档。
+    禁用 DropShadowEffect:栅格化会让卡内文字发灰、且自绘 Border 卡片不受益。 -->
+  <Style BasedOn="{StaticResource {x:Type ui:CardControl}}" TargetType="{x:Type ui:CardControl}">
+    <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+  </Style>
 
   <Style x:Key="OmenContextMenu" TargetType="ContextMenu">
     <Setter Property="Background" Value="{DynamicResource BgCardBrush}"/>

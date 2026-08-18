@@ -36,7 +36,7 @@
       <ui:TitleBar.Header>
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
           <ContentControl x:Name="NavIcon" Margin="0,0,6,0" VerticalAlignment="Center"/>
-	          <TextBlock x:Name="TitleText" VerticalAlignment="Center" FontSize="12"
+	          <TextBlock x:Name="TitleText" VerticalAlignment="Center" FontSize="{DynamicResource FontSizeBody}"
 		                     IsHitTestVisible="False" Text="{x:Static app:Strings.WindowTitle}" Opacity="0.8"/>
           <ui:Badge x:Name="DeviceInfoBadge" Margin="8,0,0,0" Appearance="Transparent"
                      Cursor="Hand" MouseLeftButtonDown="DeviceInfoBadge_Click"
@@ -48,9 +48,9 @@
       </ui:TitleBar.Header>
       <ui:TitleBar.TrailingContent>
 		<ui:Button x:Name="PinButton" Appearance="Transparent" Width="34" Height="34"
-		                   ToolTip="{x:Static app:Strings.MainWindowPinTooltipOn}" Margin="0,0,4,0" Padding="0"
+	                   ToolTip="{x:Static app:Strings.MainWindowPinTooltipOn}" Margin="0,0,4,0" Padding="0"
                    Click="PinToggle_Click">
-          <ui:SymbolIcon x:Name="PinIcon" Symbol="Pin24" FontSize="14" Margin="2"/>
+          <ui:SymbolIcon x:Name="PinIcon" Symbol="Pin24" FontSize="{DynamicResource FontSizeTitle}" Margin="2"/>
         </ui:Button>
       </ui:TitleBar.TrailingContent>
     </ui:TitleBar>
@@ -119,6 +119,11 @@
                                  Content="{x:Static app:Strings.SidebarMacro}">
             <ui:NavigationViewItem.Icon><ui:SymbolIcon Symbol="Keyboard24" FontSize="28" HorizontalAlignment="Center"/></ui:NavigationViewItem.Icon>
           </ui:NavigationViewItem>
+          <ui:NavigationViewItem x:Name="NavNetworkBoost" TargetPageType="pages:NetworkBoostPage" TargetPageTag="NetworkBoost"
+                                 MinWidth="80" MaxWidth="100" MinHeight="60" Margin="0" Padding="0"
+                                 Content="{x:Static app:Strings.SidebarNetworkBoost}">
+            <ui:NavigationViewItem.Icon><ui:SymbolIcon Symbol="PlugConnected24" FontSize="28" HorizontalAlignment="Center"/></ui:NavigationViewItem.Icon>
+          </ui:NavigationViewItem>
           <ui:NavigationViewItem x:Name="NavOther" TargetPageType="pages:OtherPage" TargetPageTag="Other"
                                  MinWidth="80" MaxWidth="100" MinHeight="60" Margin="0" Padding="0"
                                  Content="{x:Static app:Strings.SidebarOther}">
@@ -133,10 +138,10 @@
 
 	        <ui:NavigationView.PaneFooter>
 	          <StackPanel Margin="4,0,4,14">
-	            <TextBlock x:Name="StatusBarIcon" FontSize="14"
+	            <TextBlock x:Name="StatusBarIcon" FontSize="{DynamicResource FontSizeTitle}"
 	                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
 	                       TextAlignment="Center"/>
-	            <TextBlock x:Name="StatusBarText" FontSize="11"
+	            <TextBlock x:Name="StatusBarText" FontSize="{DynamicResource FontSizeCaption}"
 	                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
 	                       TextWrapping="Wrap" TextAlignment="Center"/>
 	          </StackPanel>
@@ -144,5 +149,6 @@
       </ui:NavigationView>
 
     </Grid>
+
   </Grid>
 </local:BaseWindow>

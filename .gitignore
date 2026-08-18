@@ -23,6 +23,15 @@ packages/
 # Build intermediates
 extracted/
 FodyWeavers.xsd
+*_wpftmp.csproj
+objVerifyBuild*/
+# ponytail: verify-only alternate OutputPath (dotnet build -p:OutputPath=...),避开被锁的
+# bin\Release;bin/ 不匹配它(只接 exact bin 目录)。无前导斜杠 → 任意层级匹配,主工程与
+# LibreHardwareMonitorLib 子工程的同名 verify 输出目录一并忽略。
+binReleasenet481-verify/
+
+# Vim swap files
+.git/*.swp
 
 # Temp / generated
 stdout.txt

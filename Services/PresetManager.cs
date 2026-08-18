@@ -14,6 +14,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Threading;
 using Microsoft.Win32;
 using OmenSuperHub;
 using OmenSuperHub.Services.CpuAffinity;
@@ -165,9 +166,11 @@ namespace OmenSuperHub.Services {
       if (d.AmdCpuPpt > 0) ConfigService.AmdCpuPpt = d.AmdCpuPpt;
 
       // ── 1.2 自定义预设专属绑定参数 (仅自定义预设) ──
-      // 内置预设不触碰这些参数，保持独立 (dState 默认正常=1，其他保持原值)
+      // 内置预设不触碰这些参数，保持独立 (其他保持原值)。
+      // DState 例外:内置预设 GetBuiltInDefaults 默认 1=正常,须随预设切换写回,
+      // 否则用户在 PerfPage 手动设 2=低功耗后切回 Extreme/GpuPriority 仍残留 2 无法恢复。
+      ConfigService.DState = d.DState;
       if (d.IsFromCustomSubkey) {
-        ConfigService.DState = d.DState;
         ConfigService.MaxFrameRate = d.MaxFrameRate;
         ConfigService.RefreshRate = d.RefreshRate;
         ConfigService.GpuCoreOverclock = d.GpuCoreOverclock;
@@ -189,8 +192,9 @@ namespace OmenSuperHub.Services {
         ConfigService.Save("GpuClock"); ConfigService.Save("TgpEnabled"); ConfigService.Save("PpabEnabled");
         ConfigService.Save("Tpp");
         ConfigService.Save("AmdCpuPpt");
+        ConfigService.Save("DState"); // 须与 line 172 赋值同步,否则重启 Load() 回读旧 2 复发 bug
         if (d.IsFromCustomSubkey) {
-          ConfigService.Save("DState"); ConfigService.Save("MaxFrameRate"); ConfigService.Save("RefreshRate");
+          ConfigService.Save("MaxFrameRate"); ConfigService.Save("RefreshRate");
           ConfigService.Save("GpuCoreOverclock"); ConfigService.Save("GpuMemoryOverclock");
           ConfigService.Save("PowerPlanGuid"); ConfigService.Save("EcoQosEnabled"); ConfigService.Save("EcoQosThrottlePlugged");
         }
@@ -492,13 +496,30 @@ namespace OmenSuperHub.Services {
         if (OmenHardware.HasAmdCpu() && ConfigService.AmdCpuPpt > 0 && ConfigService.AmdCpuPpt <= 255)
           OmenHardware.SetCpuPowerLimit((byte)ConfigService.AmdCpuPpt);
       } catch { }
+      // ponytail: AMD Curve Optimizer 全核+分核降压 — SMU 写易失,每次预设切换重应用。
+      // 仅需 PawnIO 驱动就绪,不依赖 EnableEcAccess 开关。
+      try {
+        var svc = Services.AmdUndervoltService.Instance;
+        if (svc.IsAvailable) {
+          if (ConfigService.AmdCpuUndervolt != 0) svc.SetAllCoreCO(ConfigService.AmdCpuUndervolt);
+          var perCore = Services.AmdUndervoltService.ParsePerCoreOffsets(ConfigService.AmdCpuPerCoreOffsets);
+          if (perCore.Count > 0) svc.ApplyPerCoreCO(perCore);
+        }
+      } catch { }
     }
 
     // ═══════════════════════════════════════════════════════
     // 硬件应用 — 由 MainWindow.ApplyPresetHardware 调用
     // 1.1 始终应用；1.2 仅当当前预设为自定义时应用
     // ═══════════════════════════════════════════════════════
-    public static void ApplyPresetHardware() {
+    public static void ApplyPresetHardware() => AwaitableApplyPresetHardware();
+
+    // ponytail: 新增可等待版本 —— 旧版把工作甩到 ThreadPool 后立即返回,
+    // AutomationProcessor 里多个步骤连发时无法保证"SetPreset 先把 GPU/CPU 功率写完,
+    // 再跑下一个 SetGpuPower/SetCpuPower 步骤",后写者可能反向覆盖前面写入。
+    // 这里只在原 QueueUserWorkItem 外套 TaskCompletionSource, 工作体逻辑不变。
+    public static System.Threading.Tasks.Task AwaitableApplyPresetHardware() {
+      var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
       int gpuClock = ConfigService.GpuClock;
       bool tgp = ConfigService.TgpEnabled;
       bool ppab = ConfigService.PpabEnabled;
@@ -549,11 +570,16 @@ namespace OmenSuperHub.Services {
             // already gives per-preset fallback when no custom_{preset}.txt exists.
             FanService.InitSmartFanState(ConfigService.SmartFanEmaAlpha);
             FanService.ApplyPresetCurve(ConfigService.Preset);
+            OmenHardware.SetMaxFanSpeedOff();
+            TrayService.fanControlTimer?.Change(0, 1000);
           } else if (fc != null && fc.Contains(" RPM")) {
             int rpm = FanService.ParseFanRpm(fc);
             byte speed = (byte)(rpm / 100);
             if (speed < 0) speed = 0; if (speed > 100) speed = 100;
+            OmenHardware.SetMaxFanSpeedOff();
+            OmenHardware.SetFanLevel(0, 0);
             OmenHardware.SetFanLevel(speed, speed);
+            TrayService.fanControlTimer?.Change(Timeout.Infinite, Timeout.Infinite);
           } else {
             // ponytail: 按 FanTable 选用全局曲线文件 —— cool/silent/balanced 三档平级。
             // balanced.txt = G-Helper Balanced (主要给 GpuPriority 预设用)。
@@ -561,6 +587,8 @@ namespace OmenSuperHub.Services {
                          : ft == "balanced" ? "balanced.txt"
                          : "silent.txt";
             FanService.LoadFanConfig(table);
+            OmenHardware.SetMaxFanSpeedOff();
+            TrayService.fanControlTimer?.Change(0, 1000);
           }
         } catch { }
 
@@ -597,7 +625,11 @@ namespace OmenSuperHub.Services {
             FanService.ApplyPresetCurve(ConfigService.Preset);
           } catch { }
         }
+        // ponytail: 工作体所有写入都包在各自 try/catch 里, 这里 SetResult 永远触发,
+        // 调用方 await 才能确定硬件写入已完成(就语义而言)再跑下一步骤。
+        tcs.TrySetResult(true);
       });
+      return tcs.Task;
     }
   }
 }

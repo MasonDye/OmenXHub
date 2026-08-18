@@ -116,6 +116,16 @@ namespace OmenSuperHub.Services {
         Views.MainWindow.NavigateToPage("Macro");
       }, false, Wpf.Ui.Controls.SymbolRegular.Keyboard24));
 
+      // ── 网络加速 ──
+      wpfContextMenu.Items.Add(CreateMenuItem(Strings.SidebarNetworkBoost, null, () => {
+        Views.MainWindow.NavigateToPage("NetworkBoost");
+      }, false, Wpf.Ui.Controls.SymbolRegular.PlugConnected24));
+
+      // ── 其他 ──
+      wpfContextMenu.Items.Add(CreateMenuItem(Strings.SidebarOther, null, () => {
+        Views.MainWindow.NavigateToPage("Other");
+      }, false, Wpf.Ui.Controls.SymbolRegular.MoreHorizontal24));
+
       // ── Language ──
       AddLanguageMenu();
 
@@ -305,7 +315,9 @@ namespace OmenSuperHub.Services {
       UpdateTooltipText();
       WriteDataLocalize();
       CheckAutoFanProtect();
-      Views.FloatingWindow.UpdateAllText();
+      // ponytail: tick path — unforced + skips the UI-thread hop when no floating window is open,
+      // so hiding the main window (with the floating bar off) actually lets the UI thread sleep.
+      Views.FloatingWindow.UpdateAllTextTicked();
       if (ConfigService.CustomIcon == "dynamic")
         GenerateDynamicIcon((int)HardwareService.CPUTemp);
       HandleDbUnlockCountdown();
@@ -347,7 +359,7 @@ namespace OmenSuperHub.Services {
             && HardwareService.CPUTemp > 95 && HardwareService.FanSpeedNow != null) {
           int maxSpeed = 0;
           foreach (int s in HardwareService.FanSpeedNow) { if (s > maxSpeed) maxSpeed = s; }
-          if (maxSpeed > 0 && maxSpeed < 75) {
+          if (maxSpeed >= 0 && maxSpeed < 75) {
             _savedFanControl = ConfigService.FanControl;
             _savedFanTable = ConfigService.FanTable;
             _autoProtectActive = true;

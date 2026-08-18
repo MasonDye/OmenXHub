@@ -370,6 +370,10 @@ namespace OmenSuperHub.Pages {
       ConfigService.Save("MacroEnabled");
       MacroController.SetEnabled(true);
       AddMacroBtn.IsEnabled = true;
+      // ponytail: 真装全局键盘钩子 (SetWindowsHookEx WH_KEYBOARD_LL)。Start 已加幂等守卫,
+      // App 启动已 Start 过时这里是 no-op,关后再开是真正的新装。SetEnabled(_enabled=true)
+      // 仍保留 —— 它只是钩子回调里"按键是否触发 PlayMacro"的开关,跟"装没装钩子"独立。
+      MacroController.Start();
     }
 
     void MacroMasterToggle_Unchecked(object sender, RoutedEventArgs e) {
@@ -377,6 +381,10 @@ namespace OmenSuperHub.Pages {
       ConfigService.Save("MacroEnabled");
       MacroController.SetEnabled(false);
       AddMacroBtn.IsEnabled = false;
+      // ponytail: 真卸全局键盘钩子 (UnhookWindowsHookEx + 释放播放 CTS)。卸钩后再次 Start
+      // 是真正重装。SetEnabled(false) 同时也关了"按键触发宏"的门,保证 Stop 之间最后一拍
+      // 不会触发正在录制的宏。
+      MacroController.Stop();
     }
 
   }

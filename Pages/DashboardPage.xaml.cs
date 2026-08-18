@@ -13,6 +13,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using OmenSuperHub.Services;
 using OmenSuperHub.Utils;
@@ -32,6 +33,9 @@ namespace OmenSuperHub.Pages {
     Brush _brushTextPrimary, _brushAccentGreen, _brushAccentYellow, _brushAccentRed, _brushAccentOmen;
     Brush _brushWhite, _brushBlack;
     Action<string> _presetCycledHandler;
+    // ponytail: GpuAppList 从 XAML 移到弹窗内动态创建,精简卡只显示计数+按钮。
+    ListBox GpuAppList;
+    Window _gpuAppWindow;
 
     static readonly string IntelSvgPath = "m4.7 5.2h28.1v28.1h-28.1z m27.4 146.4v-101.2h-26.6v101.2zm176.8 1v-24.8c-3.9 0-7.2-.2-9.6-.6-2.8-.4-4.9-1.4-6.3-2.8s-2.3-3.4-2.8-6c-.4-2.5-.6-5.8-.6-9.8v-35.4h19.3v-22.8h-19.3v-39.5h-26.7v97.9c0 8.3.7 15.3 2.1 20.9 1.4 5.5 3.8 10 7.1 13.4s7.7 5.8 13 7.3c5.4 1.5 12.2 2.2 20.3 2.2zm152.8-1v-148.5h-26.7v148.5zm-224.5-91.3c-7.4-8-17.8-12-31-12-6.4 0-12.2 1.3-17.5 3.9-5.2 2.6-9.7 6.2-13.2 10.8l-1.5 1.9v-14.5h-26.3v101.2h26.5v-53.9 1.9c.3-9.5 2.6-16.5 7-21 4.7-4.8 10.4-7.2 16.9-7.2 7.7 0 13.6 2.4 17.5 7 3.8 4.6 5.8 11.1 5.8 19.4v53.7h26.9v-57.4c.1-14.4-3.7-25.8-11.1-33.8zm184 40.5c0-7.3-1.3-14.1-3.8-20.5-2.6-6.3-6.2-11.9-10.7-16.7-4.6-4.8-10.1-8.5-16.5-11.2s-13.5-4-21.2-4c-7.3 0-14.2 1.4-20.6 4.1-6.4 2.8-12 6.5-16.7 11.2s-8.5 10.3-11.2 16.7c-2.8 6.4-4.1 13.3-4.1 20.6s1.3 14.2 3.9 20.6 6.3 12 10.9 16.7 10.3 8.5 16.9 11.2c6.6 2.8 13.9 4.2 21.7 4.2 22.6 0 36.6-10.3 45-19.9l-19.2-14.6c-4 4.8-13.6 11.3-25.6 11.3-7.5 0-13.7-1.7-18.4-5.2-4.7-3.4-7.9-8.2-9.6-14.1l-.3-.9h79.5zm-79.3-9.3c0-7.4 8.5-20.3 26.8-20.4 18.3 0 26.9 12.9 26.9 20.3zm150.2 46.9c-.5-1.2-1.2-2.2-2.1-3.1s-1.9-1.6-3.1-2.1-2.5-.8-3.8-.8c-1.4 0-2.6.3-3.8.8s-2.2 1.2-3.1 2.1-1.6 1.9-2.1 3.1-.8 2.5-.8 3.8c0 1.4.3 2.6.8 3.8s1.2 2.2 2.1 3.1 1.9 1.6 3.1 2.1 2.5.8 3.8.8c1.4 0 2.6-.3 3.8-.8s2.2-1.2 3.1-2.1 1.6-1.9 2.1-3.1.8-2.5.8-3.8-.3-2.6-.8-3.8zm-1.6 7c-.4 1-1 1.9-1.7 2.6s-1.6 1.3-2.6 1.7-2 .6-3.2.6c-1.1 0-2.2-.2-3.2-.6s-1.9-1-2.6-1.7-1.3-1.6-1.7-2.6-.6-2-.6-3.2c0-1.1.2-2.2.6-3.2s1-1.9 1.7-2.6 1.6-1.3 2.6-1.7 2-.6 3.2-.6c1.1 0 2.2.2 3.2.6s1.9 1 2.6 1.7 1.3 1.6 1.7 2.6.6 2 .6 3.2c.1 1.2-.2 2.2-.6 3.2zm-5.6-2.4c.8-.1 1.4-.4 1.9-.9s.8-1.2.8-2.2c0-1.1-.3-1.9-1-2.5-.6-.6-1.7-.9-3-.9h-4.4v11.3h2.1v-4.6h1.5l2.8 4.6h2.2zm-1.1-1.6h-2.5v-3.2h2.5c.3 0 .6.1.9.2s.5.3.6.5.2.5.2.9-.1.7-.2.9c-.2.2-.4.4-.6.5-.3.1-.6.2-.9.2z";
     static readonly string AmdSvgPath = "M187.888 178.122H143.52l-13.573-32.738H56.003l-12.366 32.738H0L66.667 12.776h47.761zM91.155 52.286L66.912 116.53h50.913zM349.056 12.776h35.88v165.346h-41.219V74.842l-44.608 51.877h-6.301l-44.605-51.877V178.12h-41.219V12.776h35.88l53.092 61.336zM489.375 12.776c60.364 0 91.391 37.573 91.391 82.909 0 47.517-30.058 82.437-96 82.437h-68.369V12.776zm-31.762 135.041h26.906c41.457 0 53.823-28.129 53.823-52.377 0-28.368-15.276-52.363-54.308-52.363h-26.422v104.74zM662.769 51.981L610.797 0H800v189.21l-51.972-51.975V51.981zM662.708 62.397L609.2 115.903v74.899h74.889l53.505-53.506h-74.886z";
@@ -91,7 +95,8 @@ namespace OmenSuperHub.Pages {
         ProgressBarAnimation.EnableAnimation(GpuFanBar);
         ProgressBarAnimation.EnableAnimation(GpuPowerBar);
         ProgressBarAnimation.EnableAnimation(GpuClockBar);
-        ProgressBarAnimation.EnableAnimation(RamUsageBar);
+        // ponytail: 雷达/圆环自检 — 启动时跑一次,逻辑断则 Debug 写破,Release 零开销。
+        RadarProfileSelfCheck();
 
         _loading = true;
         LoadPresetState();
@@ -122,12 +127,24 @@ namespace OmenSuperHub.Pages {
           _refreshTimer.Stop();
           _refreshTimer = null;
         }
+        // ponytail: 断静态事件强引用 — 与 Loaded 116-119 对称。ReleaseFrontend 设
+        // presenter.Content=null 触发本 Unloaded;不取消订阅则 ConfigService.OnPresetCycled
+        // 永久钉住本页实例,即使 CachedPageService._cache 已清也无法 GC。
+        ConfigService.OnPresetCycled -= OnPresetCycled;
+        ConfigService.OnPresetCycled -= _presetCycledHandler;
       };
     }
 
     // ponytail: tick 主体 —— 拆自 Loaded 里的 lambda。所有硬件查询仍在 Task.Run 后台,
     // 仅 ConfigService 读在 UI 线程。行为不变,只是让 Unloaded 能解绑订阅避免 Page 泄漏。
     void _refreshTimer_Tick(object sender, EventArgs e) {
+      // ponytail: 主窗口已关闭到托盘时,本 tick 对 11 个进度条 + 20 文本块的刷新都是
+      // 看不见的写。CachedPageService 缓存让本 Page 被导航离开后 timer 仍跑,主窗口再 Hide()
+      // 一次后还叠加 Hidden 状态 → 每秒硬件读 + UI marshal 纯开销。看不出可见窗口就跳过整帧。
+      // 后台 HardwareService 轮询由 TrayService 1s 定时器 (带 800ms 缓存) 持续刷新,FloatingWindow
+      // 也有独立 timer,数据不丢。窗口恢复显示时下一 tick 补回。
+      var host = Window.GetWindow(this);
+      if (host == null || !host.IsVisible) return;
       bool cpuOn = ConfigService.MonitorCPU;
       bool gpuOn = ConfigService.MonitorGPU;
       bool memOn = ConfigService.MonitorMemory;
@@ -210,7 +227,7 @@ namespace OmenSuperHub.Pages {
         AnimateBar(GpuFanBar, HardwareService.FanSpeedNow[1] * 100);
         
         GpuPowerText.Text = HardwareService.GPUPower.ToString("F1") + " W";
-        GpuPowerBar.Foreground = GetGradientBrush(HardwareService.GPUPower, 300);
+        GpuPowerBar.Foreground = GetGradientBrush(HardwareService.GPUPower, 170);
         AnimateBar(GpuPowerBar, HardwareService.GPUPower);
 
         // ponytail: GPUClock is the core clock (MHz); 3000 covers typical boost bins.
@@ -232,14 +249,12 @@ namespace OmenSuperHub.Pages {
           double totalGB = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
           double pageUsedGB = (mem.ullTotalPageFile - mem.ullAvailPageFile) / (1024.0 * 1024 * 1024);
           double pageTotalGB = mem.ullTotalPageFile / (1024.0 * 1024 * 1024);
-          RamUsageText.Text = memPct.ToString("F0") + "%";
-          RamUsageBar.Foreground = GetGradientBrush(memPct, 100);
-          AnimateBar(RamUsageBar, memPct);
+          DrawMemoryRing(memPct);
           RamDetailText.Text = $"{usedGB:F1} GB / {totalGB:F1} GB";
           RamVirtualText.Text = $"{pageUsedGB:F1} GB / {pageTotalGB:F1} GB";
           CleanMemBtn.IsEnabled = true;
         } else {
-          RamUsageText.Text = "-";
+          DrawMemoryRing(-1);
           RamDetailText.Text = "-";
           RamVirtualText.Text = "-";
           CleanMemBtn.IsEnabled = false;
@@ -252,6 +267,8 @@ namespace OmenSuperHub.Pages {
       } catch { }
 
       CurrentModeText.Text = PresetDisplayName(ConfigService.Preset);
+      DrawRadar(ConfigService.Preset);
+      DrawRing(ConfigService.Preset);
       // ponytail: keep PresetCombo in sync with ConfigService the same way CurrentModeText does.
       // Without this, the combo's item content (set once in LoadPresetState) goes stale when a
       // custom preset name changes mid-session (rename in PerfPage, automation, etc.) and only
@@ -312,7 +329,7 @@ namespace OmenSuperHub.Pages {
         GpuFanBar.Foreground = GetGradientBrush(gpuFan, 6400);
         AnimateBar(GpuFanBar, gpuFan);
         GpuPowerText.Text = gpuPower.ToString("F1") + " W";
-        GpuPowerBar.Foreground = GetGradientBrush(gpuPower, 300);
+        GpuPowerBar.Foreground = GetGradientBrush(gpuPower, 170);
         AnimateBar(GpuPowerBar, gpuPower);
         GpuClockText.Text = gpuClock.ToString("F0") + " MHz";
         GpuClockBar.Foreground = GetGradientBrush(gpuClock, 3000);
@@ -328,20 +345,20 @@ namespace OmenSuperHub.Pages {
           double totalGB = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
           double pageUsedGB = (mem.ullTotalPageFile - mem.ullAvailPageFile) / (1024.0 * 1024 * 1024);
           double pageTotalGB = mem.ullTotalPageFile / (1024.0 * 1024 * 1024);
-          RamUsageText.Text = memPct.ToString("F0") + "%";
-          RamUsageBar.Foreground = GetGradientBrush(memPct, 100);
-          AnimateBar(RamUsageBar, memPct);
+          DrawMemoryRing(memPct);
           RamDetailText.Text = $"{usedGB:F1} GB / {totalGB:F1} GB";
           RamVirtualText.Text = $"{pageUsedGB:F1} GB / {pageTotalGB:F1} GB";
           CleanMemBtn.IsEnabled = true;
         } else {
-          RamUsageText.Text = "-";
+          DrawMemoryRing(-1);
           RamDetailText.Text = "-";
           RamVirtualText.Text = "-";
           CleanMemBtn.IsEnabled = false;
         }
       } catch { }
       CurrentModeText.Text = PresetDisplayName(presetKey);
+      DrawRadar(presetKey);
+      DrawRing(presetKey);
       if (fc == "smart" || fc == "custom")
         CurrentFanText.Text = Strings.FanCustomCurve;
       else if (fc == "" || fc == "auto")
@@ -366,6 +383,45 @@ namespace OmenSuperHub.Pages {
       SysAmbientText.Text = Strings.SysAmbient + ": " + amb + " °C";
       SysPchText.Text = Strings.SysPCH + ": " + pch + " °C";
       SysVrText.Text = Strings.SysVR + ": " + vr + " °C";
+      UpdateExtraTempRows();
+    }
+
+    // ═══ 额外温度传感器(GPU Hot Spot / CPU CCD1 / M.2 SSD / 主板)— 勾选态 + 读值收敛在单 helper ═══
+    // ponytail: 读不到值显 "-",不隐藏整行(Visibility 只由 IsExtraEnabled 决定)避免遥测丢失时 UI 抖动。
+    static bool IsExtraEnabled(string id) {
+      string saved = ConfigService.ExtraTempSensors ?? "";
+      // 空键 = 首启全勾(与设置页 BuildExtraTempSensorOptions / BuildScreenOptions 同口径)
+      if (string.IsNullOrWhiteSpace(saved)) return true;
+      var set = new System.Collections.Generic.HashSet<string>(
+        saved.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+      return set.Contains(id);
+    }
+
+    static string ExtraTempLabel(string id) => id switch {
+      "GPUNV_HOTSPOT" => Strings.SysGpuHotSpot,
+      "CPU_COREMAX" => Strings.SysCpuCoreMax,
+      "CPU_COREAVG" => Strings.SysCpuCoreAvg,
+      "CPU_TJMAX_DISTANCE" => Strings.SysCpuTjmaxDistance,
+      "STORAGE_NVME_0" => Strings.SysNvme,
+      "MOTHERBOARD_SUPERIO" => Strings.SysMotherboard,
+      _ => id,
+    };
+
+    void UpdateExtraTempRows() {
+      UpdateExtraTempRow(SysGpuHotSpotText, "GPUNV_HOTSPOT");
+      UpdateExtraTempRow(SysCpuCoreMaxText, "CPU_COREMAX");
+      UpdateExtraTempRow(SysCpuCoreAvgText, "CPU_COREAVG");
+      UpdateExtraTempRow(SysCpuTjmaxDistanceText, "CPU_TJMAX_DISTANCE");
+      UpdateExtraTempRow(SysNvmeText, "STORAGE_NVME_0");
+      UpdateExtraTempRow(SysMotherboardText, "MOTHERBOARD_SUPERIO");
+    }
+
+    void UpdateExtraTempRow(System.Windows.Controls.TextBlock tb, string id) {
+      if (tb == null) return;
+      bool on = IsExtraEnabled(id);
+      tb.Visibility = on ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+      int v = (int)Services.HardwareService.GetDisplayExtraTemp(id);
+      tb.Text = (on && v > 0) ? ExtraTempLabel(id) + ": " + v + " °C" : ExtraTempLabel(id) + ": -";
     }
 
     void AnimateBar(ProgressBar bar, double newVal) {
@@ -374,55 +430,68 @@ namespace OmenSuperHub.Pages {
     }
 
     void RefreshStorage() {
-      StoragePanel.Children.Clear();
-      int count = 0;
+      StorageBarCanvas.Children.Clear();
+      // ponytail: 柱状图 — 每盘一根竖条。Canvas 220x132:柱宽 24,间隔 6,柱高上限 96(line 12+12+96=120)。
+      // 盘符贴在柱底 96px 处,sizeStr 贴在柱顶上方。上限:>8 盘降级为文字提示(220/(24+6)≈7 盘能整字容纳)。
+      var drives = new List<(string label, double pct, string sizeStr)>();
       foreach (var drive in DriveInfo.GetDrives()) {
         if (drive.DriveType != DriveType.Fixed || !drive.IsReady) continue;
         double totalGB = drive.TotalSize / (1024.0 * 1024 * 1024);
         double freeGB = drive.TotalFreeSpace / (1024.0 * 1024 * 1024);
-        double usedGB = totalGB - freeGB;
         if (totalGB <= 0) continue;
-        count++;
+        double usedGB = totalGB - freeGB;
         double pct = usedGB / totalGB * 100;
-
         string label = drive.Name.TrimEnd('\\');
-        string sizeStr = totalGB >= 1000 ? $"{usedGB / 1024:F1}TB/{totalGB / 1024:F1}TB" : $"{usedGB:F0}GB/{totalGB:F0}GB";
-
-        var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(84) });
-
-        grid.Children.Add(new TextBlock {
-          Text = label, FontSize = 11,
-          Foreground = TryFindResource("TextFillColorTertiaryBrush") as Brush,
-          VerticalAlignment = VerticalAlignment.Center,
-          TextTrimming = TextTrimming.CharacterEllipsis
-        });
-
-        var bar = new ProgressBar {
-          Height = 8, VerticalAlignment = VerticalAlignment.Center,
-          Margin = new Thickness(8, 0, 8, 0), Minimum = 0, Maximum = 100,
-          Value = pct, Foreground = GetGradientBrush(pct, 100)
-        };
-        Grid.SetColumn(bar, 1);
-        grid.Children.Add(bar);
-
-        grid.Children.Add(new TextBlock {
-          Text = sizeStr, FontSize = 11,
-          Foreground = TryFindResource("TextFillColorSecondaryBrush") as Brush,
-          VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right
-        });
-        Grid.SetColumn(grid.Children[grid.Children.Count - 1], 2);
-
-        StoragePanel.Children.Add(grid);
+        string sizeStr = totalGB >= 1000 ? $"{usedGB / 1024:F1}/{totalGB / 1024:F1}T" : $"{usedGB:F0}/{totalGB:F0}G";
+        drives.Add((label, pct, sizeStr));
       }
-      if (count == 0) {
-        StoragePanel.Children.Add(new TextBlock {
+
+      if (drives.Count == 0) {
+        var none = new TextBlock {
           Text = "-", FontSize = 11,
           Foreground = TryFindResource("TextFillColorDisabledBrush") as Brush,
           VerticalAlignment = VerticalAlignment.Center
-        });
+        };
+        Canvas.SetLeft(none, 4); Canvas.SetTop(none, 60);
+        StorageBarCanvas.Children.Add(none);
+        return;
+      }
+      // ponytail: 超过 7 盘时改为横向铺满、柱宽自适应,避免溢出 Canvas 右边界。
+      double barW = drives.Count > 7
+        ? Math.Max(10, (220 - 6 * (drives.Count - 1)) / (double)drives.Count)
+        : 24.0;
+      double gap = 6.0;
+      const double barMaxH = 96.0;
+      const double baseY = 120.0; // 柱底(留 12px 给盘符标签)
+      var tertiary = TryFindResource("TextFillColorTertiaryBrush") as Brush;
+      var secondary = TryFindResource("TextFillColorSecondaryBrush") as Brush;
+
+      // ponytail: 整块柱网按 startX 居中,适配 1–7 盘 (≤7 固定柱宽 24),
+      // >7 时 barW 收窄铺满再向心偏移。剩 0 slack 时 startX=0 退化为左对齐,无副作用。
+      double startX = Math.Max(0, (220.0 - (drives.Count * barW + (drives.Count - 1) * gap)) / 2.0);
+
+      for (int i = 0; i < drives.Count; i++) {
+        double x = startX + i * (barW + gap);
+        double pct = Math.Max(0, Math.Min(100, drives[i].pct));
+        double h = barMaxH * pct / 100.0;
+        var bar = new Border {
+          Width = barW, Height = Math.Max(h, 1),
+          Background = GetGradientBrush(pct, 100),
+          CornerRadius = new CornerRadius(2, 2, 0, 0),
+          VerticalAlignment = VerticalAlignment.Bottom
+        };
+        Canvas.SetLeft(bar, x); Canvas.SetTop(bar, baseY - bar.Height);
+        StorageBarCanvas.Children.Add(bar);
+
+        var lbl = new TextBlock { Text = drives[i].label, FontSize = 10,
+          Foreground = tertiary, HorizontalAlignment = HorizontalAlignment.Center };
+        Canvas.SetLeft(lbl, x + barW / 2 - 5); Canvas.SetTop(lbl, baseY + 2);
+        StorageBarCanvas.Children.Add(lbl);
+
+        var sz = new TextBlock { Text = drives[i].sizeStr, FontSize = 9,
+          Foreground = secondary, HorizontalAlignment = HorizontalAlignment.Center };
+        Canvas.SetLeft(sz, x + barW / 2 - 12); Canvas.SetTop(sz, baseY - bar.Height - 14);
+        StorageBarCanvas.Children.Add(sz);
       }
     }
 
@@ -512,7 +581,12 @@ namespace OmenSuperHub.Pages {
 
     Brush GetGradientBrush(double val, double max) {
       double pct = max > 0 ? Math.Min(100, Math.Max(0, val / max * 100)) : 0;
-      return GradientBrushes[(int)Math.Ceiling(pct)];
+      // ponytail: GradientBrushes[0] 是纯白,叠在浅色主题灰轨/白底上不可见。
+      // 圆环、储存柱低值时刷白导致"没颜色"误报;抬高到 [20] 给一个可读的浅绿,
+      // 同时不影响 CPU/GPU 条在低负载时的渐变观感。
+      int idx = (int)Math.Ceiling(pct);
+      if (idx < 20) idx = 20;
+      return GradientBrushes[idx];
     }
 
 
@@ -574,6 +648,189 @@ namespace OmenSuperHub.Pages {
       if (key == "GpuPriority") return Strings.PresetGpuPriority;
       if (key == "LightUse") return Strings.PresetLightUse;
       return ConfigService.GetCustomPresetDisplayName(key);
+    }
+
+    // ponytail: 雷达四轴 — 画预设的"调校倾向画像",非传感器实测值。
+    // 证据:PresetData 没有真实续航小时数/噪音 dB;FanTable 只是目标曲线、PowerMode 只是电源倾向。
+    // 这是设计而非缺陷 —— 总览页要展示"预设会做什么"。权重为启发式,集中在此处便于校准,
+    // 与 G-Helper/OMEN Command Center 同类权衡表达一致。返回 [CPU,GPU,续航,安静],均 0..1。
+    // 自定义兼容:从同一套 PresetData 字段推导,SaveCustomPreset 保存的设置如实反映。
+    static double[] ComputeRadarProfile(string preset) {
+      var d = PresetManager.IsCustom(preset) && preset != null
+        ? (PresetManager.LoadCustomPreset(preset) ?? PresetManager.GetBuiltInDefaults("GpuPriority"))
+        : PresetManager.GetBuiltInDefaults(string.IsNullOrEmpty(preset) ? "GpuPriority" : preset);
+
+      // CPU 性能: PL1 归一 10..254W, "max"=254 权重全开
+      double cpu;
+      if (d.CpuPower == "max" || d.CpuPower == "254 W") cpu = 1.0;
+      else {
+        int pl1 = d.CpuPowerPl1 > 0 ? d.CpuPowerPl1 : 0;
+        // ponytail: PowerMode AC flag mapped at the power node; keep this axon pure to PL1.
+        cpu = Math.Max(0, Math.Min(1, (pl1 - 10) / (254.0 - 10)));
+      }
+
+      // GPU 性能: TGP+PPAB 开关叠加, TPP 归一 0..254
+      double gpu = 0;
+      if (d.TgpEnabled) gpu += 0.4;
+      if (d.PpabEnabled) gpu += 0.4;
+      gpu += Math.Max(0, Math.Min(1, d.Tpp / 254.0)) * 0.2;
+
+      // 续航: 1 − CPU功耗占比, 按 PowerMode 0/能效+、2/perf− 修正
+      double pl1ForBat = d.CpuPowerPl1 > 0 ? d.CpuPowerPl1 : 254;
+      double battery = 1.0 - Math.Max(0, Math.Min(1, pl1ForBat / 254.0));
+      if (d.PowerMode == 0) battery = Math.Min(1, battery + 0.15);
+      else if (d.PowerMode == 2) battery = Math.Max(0, battery - 0.15);
+
+      // 安静: FanTable 直接映射, silent 最静 → 最外
+      double quiet = d.FanTable == "silent" ? 0.85
+                   : d.FanTable == "balanced" ? 0.5
+                   : d.FanTable == "cool" ? 0.15
+                   : 0.5; // ponytail: 未知 FanTable 默认中位
+
+      return new[] { cpu, gpu, battery, quiet };
+    }
+
+    // ponytail: runnable self-check — 内置三预设轴锚定断言。逻辑断即 Debug 写破。
+    // 不引测试框架:仅 Debug 构建跑一次,Release 全 if(false) 被 JIT 裁掉,零运行期开销。
+    [System.Diagnostics.Conditional("DEBUG")]
+    static void RadarProfileSelfCheck() {
+      var ext = ComputeRadarProfile("Extreme");
+      var light = ComputeRadarProfile("LightUse");
+      var gpu = ComputeRadarProfile("GpuPriority");
+      System.Diagnostics.Debug.Assert(ext[0].Equals(1.0) && ext[1].Equals(1.0), "Extreme CPU/GPU应顶满");
+      System.Diagnostics.Debug.Assert(light[2] >= 0.85 && light[3] >= 0.85, "LightUse 续航/安静应高");
+      System.Diagnostics.Debug.Assert(gpu[1].Equals(1.0), "GpuPriority GPU应顶满");
+    }
+
+    // ponytail: 菱形雷达 — Canvas 手画,不引图表库。
+    // 4 轴从正上起顺时针:CPU/GPU/续航/安静。半径 0..R 上限,网格画 25/50/75/100% 同心环。
+    // 形状不对称是卖点(各预设一眼可辨),不是缺陷。上限:轴标签用 TextBlock,固定字小;自定义预设如缺字段轴坍缩到 0。
+    void DrawRadar(string preset) {
+      if (RadarCanvas == null) return;
+      RadarCanvas.Children.Clear();
+
+      const double R = 46.0;
+      double cx = RadarCanvas.Width / 2.0, cy = RadarCanvas.Height / 2.0;
+      // 轴角度(度,0=正上,顺时针):上右下左 → CPU/GPU/续航/安静
+      double[] anglesDeg = { 0, 90, 180, 270 };
+      string[] labels = {
+        Strings.DashboardRadarCpuAxis, Strings.DashboardRadarGpuAxis,
+        Strings.DashboardRadarBatteryAxis, Strings.DashboardRadarQuietAxis
+      };
+      Point AxisPoint(int i, double r) {
+        double a = anglesDeg[i] * Math.PI / 180.0;
+        return new Point(cx + r * Math.Sin(a), cy - r * Math.Cos(a));
+      }
+
+      var stroke = TryFindResource("ControlStrokeColorDefaultBrush") as Brush ?? Brushes.Gray;
+      var fillBrush = _brushAccentOmen ?? Brushes.CornflowerBlue;
+
+      // 4 层网格菱形(25/50/75/100%)
+      for (int layer = 1; layer <= 4; layer++) {
+        double r = R * layer / 4.0;
+        var pts = new PointCollection { AxisPoint(0, r), AxisPoint(1, r), AxisPoint(2, r), AxisPoint(3, r) };
+        var poly = new Polygon {
+          Points = pts,
+          Stroke = stroke, StrokeThickness = layer == 4 ? 1.2 : 0.6,
+          Opacity = layer == 4 ? 0.55 : 0.28
+        };
+        RadarCanvas.Children.Add(poly);
+      }
+      // 4 条轴线 + 轴标签
+      for (int i = 0; i < 4; i++) {
+        var axis = new Line { X1 = cx, Y1 = cy, X2 = AxisPoint(i, R).X, Y2 = AxisPoint(i, R).Y,
+                              Stroke = stroke, StrokeThickness = 0.6, Opacity = 0.4 };
+        RadarCanvas.Children.Add(axis);
+        var lp = AxisPoint(i, R + 10);
+        var tb = new TextBlock {
+          Text = labels[i], FontSize = 9,
+          Foreground = TryFindResource("TextFillColorTertiaryBrush") as Brush ?? stroke,
+          Opacity = 0.85
+        };
+        // ponytail: 标签锚点靠端点偏移,右轴外推、左轴右拉以贴轴线对齐
+        switch (i) {
+          case 0: tb.HorizontalAlignment = HorizontalAlignment.Center; Canvas.SetLeft(tb, lp.X - 6); Canvas.SetTop(tb, lp.Y); break;
+          case 1: Canvas.SetLeft(tb, lp.X - 2); Canvas.SetTop(tb, lp.Y - 6); break;
+          case 2: tb.HorizontalAlignment = HorizontalAlignment.Center; Canvas.SetLeft(tb, lp.X - 6); Canvas.SetTop(tb, lp.Y - 12); break;
+          default: Canvas.SetLeft(tb, lp.X - 16); Canvas.SetTop(tb, lp.Y - 6); break;
+        }
+        RadarCanvas.Children.Add(tb);
+      }
+
+      // 数值多边形(半透明填充)
+      var prof = ComputeRadarProfile(preset);
+      var dataPts = new PointCollection(4);
+      for (int i = 0; i < 4; i++) dataPts.Add(AxisPoint(i, R * Math.Max(0, Math.Min(1, prof[i]))));
+      var data = new Polygon {
+        Points = dataPts,
+        Fill = fillBrush, Stroke = fillBrush,
+        StrokeThickness = 1.4, Opacity = 0.38,
+        StrokeLineJoin = PenLineJoin.Round
+      };
+      RadarCanvas.Children.Add(data);
+      // 顶点小圆点,强调各轴离中心多远
+      for (int i = 0; i < 4; i++) {
+        var p = AxisPoint(i, R * Math.Max(0, Math.Min(1, prof[i])));
+        var dot = new Ellipse { Width = 4, Height = 4, Fill = fillBrush, Opacity = 0.9 };
+        Canvas.SetLeft(dot, p.X - 2); Canvas.SetTop(dot, p.Y - 2);
+        RadarCanvas.Children.Add(dot);
+      }
+    }
+
+    // ponytail: 圆环 — ArcSegment 手画。track=整环,arc=倾向百分比弧。
+    // arc 颜色按四轴均值渐变(满=高负荷红橙),与运存环一致地用颜色传达数值。
+    // 上限:ArcSegment sweep 扇形>340°后端帽重叠轻微破相,无碍读数。
+    void DrawRing(string preset) {
+      if (RingTrack == null || RingArc == null) return;
+      double avg = ComputeRadarProfile(preset).Average();
+      RingArc.Stroke = GetGradientBrush(avg, 1.0);
+      RingPaths(RingTrack, RingArc, avg);
+      RingPctText.Text = (avg * 100).ToString("F0") + "%";
+      RingLabelText.Text = Strings.DashboardTendencyFormat("");
+    }
+
+    // ponytail: 运存圆环 — 复用 RingPaths 几何,中心显示利用率百分比。
+    // arc 颜色按真实利用率渐变(GetGradientBrush),低占用绿→高占用橙红,语义等同旧进度条。
+    // pct<0 表示关闭监控,arc 清空、中心 "-"。
+    void DrawMemoryRing(double pct) {
+      if (MemRingTrack == null || MemRingArc == null) return;
+      if (pct < 0) {
+        MemRingArc.Data = null;
+        MemRingPctText.Text = "-";
+        RingPaths(MemRingTrack, MemRingArc, 0);
+        return;
+      }
+      MemRingArc.Stroke = GetGradientBrush(pct, 100);
+      RingPaths(MemRingTrack, MemRingArc, pct / 100.0);
+      MemRingPctText.Text = pct.ToString("F0") + "%";
+    }
+
+    // ponytail: 共享圆环几何 — track 始终画整环,arc 画 pct(0..1)的进度弧。
+    // 半径 38、中心 56 对齐 112x112 Grid(系统状态圆环 + 运存圆环同款)。
+    // 参数全限定 System.Windows.Shapes.Path 以避开 System.IO.Path 命名冲突。
+    // track 用两个半弧拼接:ArcSegment 在近 360° 时会被光栅器塌缩为空(经典 WPF bug,
+    // WPF ArcSegment 的渲染器对大圆弧退化),导致底环不显示。两段半弧(<180° 各自稳定渲染)规避。
+    static void RingPaths(System.Windows.Shapes.Path track, System.Windows.Shapes.Path arc, double pct) {
+      const double r = 38.0;
+      double cx = 56.0, cy = 56.0;
+      // track: 两个半弧(顶→底、底→顶)画整环,规避近 360° 退化
+      var trackGeo = new StreamGeometry();
+      using (var ctx = trackGeo.Open()) {
+        ctx.BeginFigure(new Point(cx, cy - r), false, true);
+        ctx.ArcTo(new Point(cx, cy + r), new Size(r, r), 0, false, SweepDirection.Clockwise, true, true);
+        ctx.ArcTo(new Point(cx, cy - r), new Size(r, r), 0, false, SweepDirection.Clockwise, true, true);
+      }
+      track.Data = trackGeo;
+      if (pct <= 0) { arc.Data = null; return; }
+      pct = Math.Min(1, pct);
+      double endAng = (360.0 * pct - 90) * Math.PI / 180.0;
+      var end = new Point(cx + r * Math.Cos(endAng), cy + r * Math.Sin(endAng));
+      var arcGeo = new StreamGeometry();
+      using (var ctx = arcGeo.Open()) {
+        ctx.BeginFigure(new Point(cx, cy - r), false, false);
+        ctx.ArcTo(end, new Size(r, r), 0, pct > 0.5, SweepDirection.Clockwise, true, true);
+      }
+      arc.Data = arcGeo;
     }
 
     // ponytail: lightweight in-place sync of the combo's item text + selection.
@@ -1063,6 +1320,7 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
           SysAmbientText.Text = ambTemp;
           SysPchText.Text = pchTemp;
           SysVrText.Text = vrTemp;
+          UpdateExtraTempRows();
         }, DispatcherPriority.Background);
       });
     }
@@ -1080,6 +1338,7 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
       SysPchText.Text = Strings.SysPCH + ": " + pch + " °C";
       int vr = GetSensorTemperature(3);
       SysVrText.Text = Strings.SysVR + ": " + vr + " °C";
+      UpdateExtraTempRows();
       _ = RefreshNvidiaPowerLimitAsync();
     }
 
@@ -1188,14 +1447,108 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
     }
 
     void RefreshGpuAppList() {
-      GpuAppList.Items.Clear();
-      try {
-        var apps = GpuAppManager.GetGpuApps();
+      var apps = new List<GpuAppManager.GpuAppInfo>();
+      try { apps = GpuAppManager.GetGpuApps(); } catch { }
+      // 精简卡计数
+      GpuAppCountText.Text = Strings.GpuAppCount(apps.Count);
+      // 弹窗 ListBox (如果已打开)
+      if (GpuAppList != null) {
+        GpuAppList.Items.Clear();
         foreach (var app in apps) {
           var item = new ListBoxItem { Content = app.ProcessName + " (" + app.FilePath + ")", Tag = app };
           GpuAppList.Items.Add(item);
         }
-      } catch { }
+      }
+    }
+
+    void ViewGpuApps_Click(object sender, RoutedEventArgs e) {
+      if (_gpuAppWindow != null) { _gpuAppWindow.Activate(); return; }
+      // ponytail: FluentWindow + Mica 风格,对齐项目 DialogHelper/HelpWindow 约定。
+      // 弹窗内 ListBox + 右键菜单,保留定位/结束/首选项全部交互。
+      var bgDeep = (Brush)FindResource("BgDeepBrush");
+      var borderSubtle = (Brush)FindResource("BorderSubtleBrush");
+      var accentOmen = (Brush)FindResource("AccentOmenBrush");
+
+      var cardBrush = (Brush)FindResource("CardBackgroundFillColorDefaultBrush");
+
+      GpuAppList = new ListBox();
+      GpuAppList.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Disabled);
+      GpuAppList.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
+      GpuAppList.PreviewMouseWheel += GpuAppList_PreviewMouseWheel;
+      GpuAppList.PreviewMouseRightButtonDown += GpuAppList_PreviewMouseRightButtonDown;
+      var menu = new ContextMenu();
+      var miLocate = new MenuItem { Header = Strings.GpuAppLocate }; miLocate.Click += GpuAppLocate_Click;
+      var miEndTask = new MenuItem { Header = Strings.GpuAppEndTask }; miEndTask.Click += GpuAppEndTask_Click;
+      var miPref = new MenuItem { Header = Strings.GpuPrefHeading };
+      var miAuto = new MenuItem { Header = Strings.GpuPrefAuto }; miAuto.Click += GpuAppPrefAuto_Click;
+      var miSave = new MenuItem { Header = Strings.GpuPrefPowerSave }; miSave.Click += GpuAppPrefPowerSave_Click;
+      var miHigh = new MenuItem { Header = Strings.GpuPrefHighPerf }; miHigh.Click += GpuAppPrefHighPerf_Click;
+      miPref.Items.Add(miAuto); miPref.Items.Add(miSave); miPref.Items.Add(miHigh);
+      menu.Items.Add(miLocate); menu.Items.Add(miEndTask); menu.Items.Add(miPref);
+      GpuAppList.ContextMenu = menu;
+
+      var btnRefresh = new Wpf.Ui.Controls.Button { Content = Strings.ButtonRefresh, Height = 30, MinWidth = 80, Padding = new Thickness(16, 4, 16, 4), Margin = new Thickness(0,0,8,0) };
+      btnRefresh.Click += (s, _) => RefreshGpuAppList();
+      var btnClose = new Wpf.Ui.Controls.Button { Content = Strings.FanShareClose, Height = 30, MinWidth = 80, Padding = new Thickness(16, 4, 16, 4) };
+      btnClose.Click += (s, _) => _gpuAppWindow?.Close();
+      var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+      btnPanel.Children.Add(btnRefresh); btnPanel.Children.Add(btnClose);
+
+      var outer = new Grid();
+      outer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // 标题栏
+      outer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // 内容卡片
+      outer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // 按钮栏
+      var titleBar = new Border {
+        Background = bgDeep, BorderBrush = borderSubtle,
+        BorderThickness = new Thickness(0, 0, 0, 1),
+        Padding = new Thickness(16, 12, 16, 12)
+      };
+      var titlePanel = new StackPanel { Orientation = Orientation.Horizontal };
+      titlePanel.Children.Add(new Wpf.Ui.Controls.SymbolIcon {
+        Symbol = Wpf.Ui.Controls.SymbolRegular.DeviceEq24, FontSize = 18,
+        Foreground = accentOmen, Margin = new Thickness(0, 0, 8, 0),
+        VerticalAlignment = VerticalAlignment.Center
+      });
+      titlePanel.Children.Add(new TextBlock {
+        Text = Strings.GpuAppsMenu, FontSize = 14, FontWeight = FontWeights.SemiBold,
+        VerticalAlignment = VerticalAlignment.Center
+      });
+      titleBar.Child = titlePanel;
+      Grid.SetRow(titleBar, 0); outer.Children.Add(titleBar);
+
+      // ── 内容卡片 (对齐 DashboardPage 错误弹窗: CardBg + CornerRadius) ──
+      var contentCard = new Border {
+        Background = cardBrush,
+        CornerRadius = new CornerRadius(6),
+        Padding = new Thickness(4, 6, 4, 6),
+        Margin = new Thickness(12, 8, 12, 8),
+        Child = GpuAppList
+      };
+      Grid.SetRow(contentCard, 1); outer.Children.Add(contentCard);
+
+      // ── 按钮栏 (对齐 DashboardPage 错误弹窗: 上边框分隔) ──
+      var btnBorder = new Border {
+        BorderBrush = borderSubtle,
+        BorderThickness = new Thickness(0, 1, 0, 0),
+        Padding = new Thickness(16, 8, 16, 8),
+        Child = btnPanel
+      };
+      Grid.SetRow(btnBorder, 2); outer.Children.Add(btnBorder);
+
+      _gpuAppWindow = new Wpf.Ui.Controls.FluentWindow {
+        Title = Strings.GpuAppsMenu,
+        Content = outer,
+        Width = 580, Height = 460,
+        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        Owner = Window.GetWindow(this),
+        ExtendsContentIntoTitleBar = true,
+        WindowBackdropType = Wpf.Ui.Controls.WindowBackdropType.Mica,
+        Background = Brushes.Transparent,
+        ResizeMode = ResizeMode.CanResize, MinWidth = 420, MinHeight = 340
+      };
+      _gpuAppWindow.Closed += (s, _) => { _gpuAppWindow = null; GpuAppList = null; };
+      RefreshGpuAppList();
+      _gpuAppWindow.Show();
     }
 
     void GpuAppLocate_Click(object sender, RoutedEventArgs e) {

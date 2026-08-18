@@ -1,6 +1,7 @@
 // OsdWindow.xaml.cs - 屏幕提示窗口
 // 预设切换、功耗变化、锁定键、刷新率等的 Toast 通知显示
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -11,8 +12,13 @@ using Wpf.Ui.Controls;
 
 namespace OmenSuperHub.Views {
   public partial class OsdWindow : Window {
-    private static OsdWindow _instance;
-    private static DispatcherTimer _fadeTimer;
+    // ponytail: OSD 改为多实例堆叠 —— 旧版只有单例 _instance,自动化 pipeline 里多个步骤
+    // 在毫秒级连发各自 ShowXxxOsd 时每条都覆盖前一条文字并重置 1.5s 淡出计时,结果用户
+    // 只看得到最后一条 ("OSD 看来只跑到最后一个步骤")。现在每个 ShowOsd 建独立窗口,
+    // 按 OsdPosition 锚点向 stack 方向排开,每条独立淡出,关窗后从列表摘除并重排其余窗口。
+    private static readonly List<OsdWindow> _instances = new List<OsdWindow>();
+    private static readonly object _stackLock = new object();
+    private DispatcherTimer _fadeTimer;  // per-instance now
     private static DispatcherTimer _lockKeyTimer;
     private static bool _lastCapsLock;
     private static bool _lastNumLock;
@@ -82,9 +88,13 @@ namespace OmenSuperHub.Views {
       _lastCapsLock = Console.CapsLock;
       _lastNumLock = Console.NumberLock;
       Application.Current?.Dispatcher.Invoke(() => {
-        if (_fadeTimer != null) { _fadeTimer.Stop(); _fadeTimer = null; }
-        if (_instance != null && _instance.IsLoaded) {
-          _instance.Close();
+        // ponytail: 关掉所有堆叠中的 OSD —— 旧版只关单例,关 OSD 后残留的窗口现在能一起清掉
+        lock (_stackLock) {
+          foreach (var w in _instances) {
+            if (w._fadeTimer != null) { w._fadeTimer.Stop(); w._fadeTimer = null; }
+            if (w.IsLoaded) w.Close();
+          }
+          _instances.Clear();
         }
       });
     }
@@ -168,27 +178,25 @@ namespace OmenSuperHub.Views {
 
     private static void ShowOsd(string text, SymbolRegular icon) {
       Application.Current.Dispatcher.Invoke(() => {
-        if (_fadeTimer != null) { _fadeTimer.Stop(); _fadeTimer = null; }
-        if (_instance == null) {
-          _instance = new OsdWindow();
-          _instance.Closed += (s, e) => _instance = null;
-          _instance.OsdText.Text = text;
-          _instance.OsdIcon.Symbol = icon;
-          _instance.OsdIcon.Visibility = Visibility.Visible;
-          _instance.Show();
-          _instance.Dispatcher.BeginInvoke(new Action(() => {
-            _instance.UpdatePosition();
-            _instance.BeginAnimate();
-          }), DispatcherPriority.Loaded);
-        } else {
-          _instance.OsdText.Text = text;
-          _instance.OsdIcon.Symbol = icon;
-          _instance.OsdIcon.Visibility = Visibility.Visible;
-          _instance.UpdatePosition();
-          _instance.Show();
-          _instance.BeginAnimate();
-        }
+        // ponytail: 每个 ShowOsd 建独立窗口并加入堆叠。旧版覆盖单例 → 多步骤只看到最后一条。
+        var win = new OsdWindow();
+        win.OsdText.Text = text;
+        win.OsdIcon.Symbol = icon;
+        win.OsdIcon.Visibility = Visibility.Visible;
+        win.Closed += (s, e) => RemoveAndRepack(win);
+        lock (_stackLock) _instances.Add(win);
+        win.Show();
+        win.Dispatcher.BeginInvoke(new Action(() => {
+          RepositionAll();
+          win.BeginAnimate();
+        }), DispatcherPriority.Loaded);
       });
+    }
+
+    // ponytail: 关窗后从 _instances 摘除并把其余窗口重排,避免留间隙或重叠。
+    static void RemoveAndRepack(OsdWindow win) {
+      lock (_stackLock) _instances.Remove(win);
+      RepositionAll();
     }
 
     private OsdWindow() {
@@ -200,40 +208,57 @@ namespace OmenSuperHub.Views {
       };
     }
 
-    private void UpdatePosition() {
-      double waW = SystemParameters.WorkArea.Width;
-      double waH = SystemParameters.WorkArea.Height;
-      double w = ActualWidth > 0 ? ActualWidth : 300;
-      double h = ActualHeight > 0 ? ActualHeight : 60;
-      const double margin = 24;
-      string pos = ConfigService.OsdPosition;
-      switch (pos) {
-        case "topLeft":
-          Left = margin;
-          Top = margin;
-          break;
-        case "topRight":
-          Left = waW - w - margin;
-          Top = margin;
-          break;
-        case "topCenter":
-          Left = (waW - w) / 2;
-          Top = margin;
-          break;
-        case "bottomLeft":
-          Left = margin;
-          Top = waH - h - margin;
-          break;
-        case "bottomRight":
-          Left = waW - w - margin;
-          Top = waH - h - margin;
-          break;
-        default:  // bottomCenter — 原始默认位置
-          Left = (waW - w) / 2;
-          Top = waH - h - 120;
-          break;
+    // ponytail: 静态重排 —— 按 OsdPosition 锚点把所有堆叠中的 OSD 顺序排开。
+    // 顶部锚点(top*)首条贴边向下堆; 底部锚点(bottom*)首条贴边向上堆,下一条让出上一条高度+gap。
+    // 用户要"向上堆叠",对应底部锚点;顶部则对称向下。每条尺寸用 ActualWidth/Height 测量,
+    // 因为 OsdWindow 是 SizeToContent,首帧可能为 0,用 fallback 估算再 Reposition 兜底。
+    static void RepositionAll() {
+      lock (_stackLock) {
+        double waW = SystemParameters.WorkArea.Width;
+        double waH = SystemParameters.WorkArea.Height;
+        const double margin = 24;
+        const double gap = 8;
+        double acc = 0;  // 累计已占用的高度偏移
+        string pos = ConfigService.OsdPosition ?? "bottomCenter";
+        bool top = pos.StartsWith("top");
+        foreach (var w in _instances) {
+          double width = w.ActualWidth > 0 ? w.ActualWidth : 300;
+          double height = w.ActualHeight > 0 ? w.ActualHeight : 60;
+
+          // 锚点决定 Left/Top 基线
+          switch (pos) {
+            case "topLeft":
+              w.Left = margin;
+              w.Top = margin + acc;
+              break;
+            case "topRight":
+              w.Left = waW - width - margin;
+              w.Top = margin + acc;
+              break;
+            case "topCenter":
+              w.Left = (waW - width) / 2;
+              w.Top = margin + acc;
+              break;
+            case "bottomLeft":
+              w.Left = margin;
+              w.Top = waH - height - margin - acc;
+              break;
+            case "bottomRight":
+              w.Left = waW - width - margin;
+              w.Top = waH - height - margin - acc;
+              break;
+            default:  // bottomCenter — 原始默认位置
+              w.Left = (waW - width) / 2;
+              w.Top = waH - height - 120 - acc;
+              break;
+          }
+          // ponytail: 顶部向下累加; 底部向上累加(后来者排得更靠上),方向与"向上堆叠"一致。
+          acc += (top ? height : height) + gap;
+        }
       }
     }
+
+    private void UpdatePosition() => RepositionAll();
 
     private void BeginAnimate() {
       BeginAnimation(OpacityProperty, null);

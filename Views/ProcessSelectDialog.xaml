@@ -1,0 +1,62 @@
+<ui:FluentWindow x:Class="OmenSuperHub.Views.ProcessSelectDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:app="clr-namespace:OmenSuperHub"
+        Title="{x:Static app:Strings.BoostRulesSelectProcess}"
+        Width="480" Height="520"
+        MinWidth="400" MinHeight="360"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanMinimize"
+        ShowInTaskbar="False"
+        WindowBackdropType="Mica"
+        ExtendsContentIntoTitleBar="True"
+        Background="Transparent">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- 搜索栏 -->
+    <Border Grid.Row="0" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="16,12">
+      <StackPanel>
+        <TextBlock x:Name="DialogTitle" Text="{x:Static app:Strings.BoostRulesSelectProcess}"
+                   FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+        <ui:TextBox x:Name="SearchBox" PlaceholderText="{x:Static app:Strings.BoostRulesSearchProcess}"
+                    TextChanged="SearchBox_TextChanged" Icon="Search24"/>
+      </StackPanel>
+    </Border>
+
+    <!-- 进程列表 -->
+    <Grid Grid.Row="1" Margin="12,8,12,0">
+      <ListBox x:Name="ProcList" MouseDoubleClick="ProcList_MouseDoubleClick">
+        <ListBox.ItemContainerStyle>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="13"/>
+          </Style>
+        </ListBox.ItemContainerStyle>
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+      </ListBox>
+      <TextBlock x:Name="EmptyHint" Text="{x:Static app:Strings.BoostRulesNoMatch}"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 FontSize="{DynamicResource FontSizeSubtitle}" Foreground="{DynamicResource TextSecondaryBrush}"
+                 Visibility="Collapsed"/>
+    </Grid>
+
+    <!-- 按钮栏 -->
+    <Border Grid.Row="2" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="16,12">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <ui:Button x:Name="OkBtn" Content="{x:Static app:Strings.BoostRulesSelectProcess}"
+                   Click="OkBtn_Click" Appearance="Primary" Margin="0,0,8,0"/>
+        <ui:Button x:Name="CancelBtn" Content="Cancel"
+                   Click="CancelBtn_Click"/>
+      </StackPanel>
+    </Border>
+  </Grid>
+</ui:FluentWindow>

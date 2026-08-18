@@ -37,7 +37,11 @@ namespace OmenSuperHub.Utils {
 
     static SolidColorBrush _Brush(string key, string fallback) {
       var b = Application.Current?.TryFindResource(key) as SolidColorBrush;
-      return b ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback));
+      // ponytail: 冻结兜底刷 — Freeze 去线程亲和,防跨线程布局异常
+      if (b != null) return b;
+      var fb = new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback));
+      fb.Freeze();
+      return fb;
     }
 
     public static void Info(string message, string title = "提示") =>
@@ -50,11 +54,18 @@ namespace OmenSuperHub.Utils {
       _Show(message, title, UiSymbolRegular.QuestionCircle24, "#60CDFF", true, false) == 1;
     public static bool OkCancel(string message, string title = "确认") =>
       _Show(message, title, UiSymbolRegular.QuestionCircle24, "#60CDFF", true, false) == 1;
+    /// <summary>两选一对话框。返回 true=点了 primaryLabel,false=点了 secondaryLabel(任意键关闭等同 secondary)。</summary>
+    public static bool Choice(string message, string title, string primaryLabel, string secondaryLabel) =>
+      _Show(message, title, UiSymbolRegular.QuestionCircle24, "#60CDFF", false, false, primaryLabel, secondaryLabel) == 1;
     /// <summary>返回 0=取消, 1=是, 2=否</summary>
     public static int YesNoCancel(string message, string title = "确认") =>
       (int)_Show(message, title, UiSymbolRegular.QuestionCircle24, "#60CDFF", true, true);
 
-    static int _Show(string message, string title, UiSymbolRegular icon, string iconColor, bool hasCancel, bool yesNoCancel) {
+    // ponytail: primaryLabel/secondaryLabel 可空(null=回退原硬编码 label),以兼容现有 Info/Warn/Confirm 调用者。
+    // Choice 用它传自定义两按钮文案;其它路径不动 label 行为。
+    static int _Show(string message, string title, UiSymbolRegular icon, string iconColor,
+                     bool hasCancel, bool yesNoCancel,
+                     string primaryLabel = null, string secondaryLabel = null) {
       var owner = _Owner();
       if (owner == null) {
         if (yesNoCancel) {
@@ -110,8 +121,10 @@ namespace OmenSuperHub.Utils {
         btnRow.Children.Add(b);
       }
 
-      AddBtn("确定", 1, true);
-      if (yesNoCancel) {
+      AddBtn(primaryLabel ?? "确定", 1, true);
+      if (secondaryLabel != null) {
+        AddBtn(secondaryLabel, 0, false);
+      } else if (yesNoCancel) {
         btnRow.Children.Clear();
         AddBtn("是", 1, true);
         AddBtn("否", 2, false);

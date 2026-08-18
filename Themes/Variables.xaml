@@ -8,11 +8,22 @@
 
   <!-- Corner Radius -->
   <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
-  <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
+  <CornerRadius x:Key="CardCornerRadius">4</CornerRadius>
   <CornerRadius x:Key="PopupCornerRadius">8</CornerRadius>
   <CornerRadius x:Key="OverlayCornerRadius">6</CornerRadius>
   <CornerRadius x:Key="ToggleCornerRadius">12</CornerRadius>
   <CornerRadius x:Key="BadgeCornerRadius">4</CornerRadius>
+
+  <!-- Typography Scale — 6 档收敛(原 13 种散落字号);20+ 为 Dashboard 大数字一次性展示尺寸,不入体系 -->
+  <sys:Double x:Key="FontSizeCaption">11</sys:Double>     <!-- 辅助/状态小字 -->
+  <sys:Double x:Key="FontSizeBody">12</sys:Double>        <!-- 正文/标签(默认) -->
+  <sys:Double x:Key="FontSizeSubtitle">13</sys:Double>    <!-- 次级强调 -->
+  <sys:Double x:Key="FontSizeTitle">14</sys:Double>       <!-- 卡片标题 -->
+  <sys:Double x:Key="FontSizeSubheader">16</sys:Double>   <!-- 区块标题 -->
+  <sys:Double x:Key="FontSizeHeader">18</sys:Double>      <!-- 页面标题/图标 -->
+
+  <!-- 中性分隔线 — 明暗主题通吃的半透明灰(原 #33888888 硬编码入 token) -->
+  <SolidColorBrush x:Key="DividerBrush" Color="#33888888"/>
 
   <!-- Spacing / Sizing -->
   <Thickness x:Key="CardPadding">16,14</Thickness>
@@ -42,14 +53,8 @@
   <!-- Easing Functions -->
   <QuadraticEase x:Key="DefaultEase" EasingMode="EaseInOut"/>
 
-  <!-- Font Sizes -->
-  <sys:Double x:Key="DefaultFontSize">13</sys:Double>
-  <sys:Double x:Key="ControlContentThemeFontSize">14</sys:Double>
-  <sys:Double x:Key="HeadingFontSize">18</sys:Double>
-  <sys:Double x:Key="SubHeadingFontSize">14</sys:Double>
-  <sys:Double x:Key="CaptionFontSize">11</sys:Double>
+  <!-- Font Sizes — 旧散落字号已收敛到上方 FontSize* 6 档,仅保留独立的大数字尺寸 -->
   <sys:Double x:Key="StatValueFontSize">28</sys:Double>
-  <sys:Double x:Key="NavIconFontSize">16</sys:Double>
 
   <!-- Font Families -->
   <FontFamily x:Key="DefaultFontFamily">Microsoft YaHei UI, Segoe UI</FontFamily>

@@ -12,18 +12,18 @@
 
       <DockPanel Margin="0,0,0,12">
         <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" HorizontalAlignment="Left">
-	          <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center" Text="{x:Static app:Strings.PerfPresetLabel}"/>
+	          <TextBlock FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center" Text="{x:Static app:Strings.PerfPresetLabel}"/>
           <ComboBox x:Name="cbxPerfPreset" Width="200" Height="36" SelectionChanged="cbxPerfPreset_SelectionChanged"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-	          <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center" Text="{x:Static app:Strings.PerfPresetCopyRename}"/>
+	          <TextBlock FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Margin="0,0,8,0" VerticalAlignment="Center" Text="{x:Static app:Strings.PerfPresetCopyRename}"/>
           <ui:TextBox x:Name="tbxPerfPresetName" Width="200" Height="36"/>
         </StackPanel>
       </DockPanel>
 
       <StackPanel Orientation="Horizontal" Margin="0,8,0,12">
-        <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
-        <TextBlock Text="{x:Static app:Strings.PerfGroupCpu}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <TextBlock Text="{x:Static app:Strings.PerfGroupCpu}" FontSize="{DynamicResource FontSizeSubheader}" FontWeight="SemiBold" VerticalAlignment="Center"/>
       </StackPanel>
 
       <Grid x:Name="CpuPerfGrid">
@@ -55,7 +55,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <TextBlock Text="{x:Static app:Strings.AmdCpuPowerHeading}" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.AmdCpuPowerDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.AmdCpuPowerDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
@@ -67,7 +67,7 @@
           <StackPanel>
             <!-- ponytail: 仅保留 PPT 一组走 WMI；TDC/EDC/Tctl 三组已随高级调教删除（依赖 SMU 服务，本机不可用）。 -->
             <StackPanel Margin="0,0,0,8">
-	              <TextBlock Text="{x:Static app:Strings.AmdPptLabel}" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+	              <TextBlock Text="{x:Static app:Strings.AmdPptLabel}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <ui:NumberBox x:Name="AmdCpuPptNum" Minimum="8" Maximum="300" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuPptNum_ValueChanged"
@@ -75,7 +75,7 @@
                 <Slider x:Name="AmdCpuPptSlider" Grid.Column="1" Minimum="8" Maximum="300" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
               </Grid>
             </StackPanel>
-            <TextBlock x:Name="AmdCpuPowerStatus" FontSize="11" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+            <TextBlock x:Name="AmdCpuPowerStatus" FontSize="{DynamicResource FontSizeCaption}" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
           </StackPanel>
         </ui:CardExpander>
 
@@ -92,7 +92,7 @@
                   <ui:SymbolIcon Symbol="DeveloperBoard24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.CpuPowerHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.PerfAdjustCpuPower}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.PerfAdjustCpuPower}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
@@ -103,7 +103,7 @@
           </ui:CardExpander.Header>
           <StackPanel>
             <StackPanel Margin="0,0,0,8">
-              <TextBlock FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4">
+              <TextBlock FontWeight="DemiBold" FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,4">
                 <Run Text="{x:Static app:Strings.CpuPowerPL1}"/><Run Text=":"/>
               </TextBlock>
               <Grid>
@@ -120,7 +120,7 @@
               </Grid>
             </StackPanel>
             <StackPanel>
-              <TextBlock FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4">
+              <TextBlock FontWeight="DemiBold" FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,4">
                 <Run Text="{x:Static app:Strings.CpuPowerPL2}"/><Run Text=":"/>
               </TextBlock>
               <Grid>
@@ -149,7 +149,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <TextBlock Text="{x:Static app:Strings.IccMaxHeading}" FontWeight="SemiBold"/>
-	                <TextBlock Text="{x:Static app:Strings.IccMaxDesc}" FontSize="12"
+	                <TextBlock Text="{x:Static app:Strings.IccMaxDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="IccMaxCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -186,7 +186,7 @@
                 <ComboBox x:Name="AcLoadLineCombo" Grid.Column="1" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
                         SelectionChanged="AcLoadLine_Changed"/>
               </Grid>
-              <TextBlock Text="{x:Static app:Strings.AcLoadLineDesc}" FontSize="12"
+              <TextBlock Text="{x:Static app:Strings.AcLoadLineDesc}" FontSize="{DynamicResource FontSizeBody}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
           </ui:CardControl.Header>
@@ -199,7 +199,7 @@
                 <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
                 <TextBlock Text="{x:Static app:Strings.PowerModeHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-	              <TextBlock Text="{x:Static app:Strings.PowerModeDesc}" FontSize="12"
+	              <TextBlock Text="{x:Static app:Strings.PowerModeDesc}" FontSize="{DynamicResource FontSizeBody}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
           </ui:CardControl.Header>
@@ -219,7 +219,7 @@
                   <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.PowerPlanHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-	                <TextBlock Text="{x:Static app:Strings.PowerPlanDesc}" FontSize="12"
+	                <TextBlock Text="{x:Static app:Strings.PowerPlanDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="PowerPlanCombo" MinWidth="140" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -236,14 +236,14 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
               </Grid.ColumnDefinitions>
-	              <TextBlock Grid.Column="0" Text="{x:Static app:Strings.PwrSourceLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"
+	              <TextBlock Grid.Column="0" Text="{x:Static app:Strings.PwrSourceLabel}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center" Margin="0,0,8,0"
 		                         Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
 		              <ComboBox Grid.Column="1" x:Name="PwrSourceCombo" MinWidth="120" Margin="0,0,16,0"
 		                        SelectionChanged="PwrSourceCombo_SelectionChanged">
 		                <ComboBoxItem Content="{x:Static app:Strings.PwrSourceAc}" Tag="AC" IsSelected="True"/>
 		                <ComboBoxItem Content="{x:Static app:Strings.PwrSourceDc}" Tag="DC"/>
 		              </ComboBox>
-		              <TextBlock Grid.Column="2" Text="{x:Static app:Strings.PwrClassLabel}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"
+		              <TextBlock Grid.Column="2" Text="{x:Static app:Strings.PwrClassLabel}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center" Margin="0,0,8,0"
 		                         Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
 		              <ComboBox Grid.Column="3" x:Name="PwrClassCombo" MinWidth="140"
 		                        SelectionChanged="PwrClassCombo_SelectionChanged">
@@ -254,7 +254,7 @@
 
             <!-- 1. EPP (Energy Performance Preference) -->
             <StackPanel Margin="0,0,0,10">
-	              <TextBlock Text="{x:Static app:Strings.EppLabel}" FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4"/>
+	              <TextBlock Text="{x:Static app:Strings.EppLabel}" FontWeight="DemiBold" FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,4"/>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -262,16 +262,16 @@
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="EppCombo" MinWidth="180" IsEditable="True" Margin="0,0,8,0"
                           SelectionChanged="EppCombo_SelectionChanged"/>
-                <TextBlock x:Name="EppCurrentText" Grid.Column="1" Text="-" FontSize="11" VerticalAlignment="Center"
+                <TextBlock x:Name="EppCurrentText" Grid.Column="1" Text="-" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </Grid>
-	              <TextBlock Text="{x:Static app:Strings.EppHint}" FontSize="11"
+	              <TextBlock Text="{x:Static app:Strings.EppHint}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
             <!-- 2. Processor Performance Boost Mode -->
             <StackPanel Margin="0,0,0,10">
-	              <TextBlock Text="{x:Static app:Strings.BoostModeLabel}" FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4"/>
+	              <TextBlock Text="{x:Static app:Strings.BoostModeLabel}" FontWeight="DemiBold" FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,4"/>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -279,16 +279,16 @@
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="BoostModeCombo" MinWidth="180" Margin="0,0,8,0"
                           SelectionChanged="BoostModeCombo_SelectionChanged"/>
-                <TextBlock x:Name="BoostModeCurrentText" Grid.Column="1" Text="-" FontSize="11" VerticalAlignment="Center"
+                <TextBlock x:Name="BoostModeCurrentText" Grid.Column="1" Text="-" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </Grid>
-	              <TextBlock Text="{x:Static app:Strings.BoostModeHint}" FontSize="11"
+	              <TextBlock Text="{x:Static app:Strings.BoostModeHint}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
             <!-- 3. Maximum Processor State -->
             <StackPanel Margin="0,0,0,10">
-	              <TextBlock Text="{x:Static app:Strings.MaxProcStateLabel}" FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4"/>
+	              <TextBlock Text="{x:Static app:Strings.MaxProcStateLabel}" FontWeight="DemiBold" FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,4"/>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -296,16 +296,16 @@
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="MaxProcStateCombo" MinWidth="180" IsEditable="True" Margin="0,0,8,0"
                           SelectionChanged="MaxProcStateCombo_SelectionChanged"/>
-                <TextBlock x:Name="MaxProcStateCurrentText" Grid.Column="1" Text="-" FontSize="11" VerticalAlignment="Center"
+                <TextBlock x:Name="MaxProcStateCurrentText" Grid.Column="1" Text="-" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </Grid>
-	              <TextBlock Text="{x:Static app:Strings.MaxProcStateHint}" FontSize="11"
+	              <TextBlock Text="{x:Static app:Strings.MaxProcStateHint}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
             <!-- 4. Minimum Processor State -->
             <StackPanel Margin="0,0,0,10">
-              <TextBlock Text="{x:Static app:Strings.MinProcStateLabel}" FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4"/>
+              <TextBlock Text="{x:Static app:Strings.MinProcStateLabel}" FontWeight="DemiBold" FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,4"/>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -313,16 +313,16 @@
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="MinProcStateCombo" MinWidth="180" IsEditable="True" Margin="0,0,8,0"
                           SelectionChanged="MinProcStateCombo_SelectionChanged"/>
-                <TextBlock x:Name="MinProcStateCurrentText" Grid.Column="1" Text="-" FontSize="11" VerticalAlignment="Center"
+                <TextBlock x:Name="MinProcStateCurrentText" Grid.Column="1" Text="-" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </Grid>
-              <TextBlock Text="{x:Static app:Strings.MinProcStateHint}" FontSize="11"
+              <TextBlock Text="{x:Static app:Strings.MinProcStateHint}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
             <!-- 5. Maximum Processor Frequency -->
             <StackPanel Margin="0,0,0,10">
-	              <TextBlock Text="{x:Static app:Strings.MaxFreqLabel}" FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4"/>
+	              <TextBlock Text="{x:Static app:Strings.MaxFreqLabel}" FontWeight="DemiBold" FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,4"/>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -330,16 +330,16 @@
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="MaxFreqCombo" MinWidth="180" IsEditable="True" Margin="0,0,8,0"
                           SelectionChanged="MaxFreqCombo_SelectionChanged"/>
-                <TextBlock x:Name="MaxFreqCurrentText" Grid.Column="1" Text="-" FontSize="11" VerticalAlignment="Center"
+                <TextBlock x:Name="MaxFreqCurrentText" Grid.Column="1" Text="-" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </Grid>
-	              <TextBlock Text="{x:Static app:Strings.MaxFreqHint}" FontSize="11"
+	              <TextBlock Text="{x:Static app:Strings.MaxFreqHint}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
             <!-- 6. SMT Thread Unpark Policy -->
             <StackPanel Margin="0,0,0,10">
-	              <TextBlock Text="{x:Static app:Strings.SmtPolicyLabel}" FontWeight="DemiBold" FontSize="13" Margin="0,0,0,4"/>
+	              <TextBlock Text="{x:Static app:Strings.SmtPolicyLabel}" FontWeight="DemiBold" FontSize="{DynamicResource FontSizeSubtitle}" Margin="0,0,0,4"/>
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -347,10 +347,10 @@
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="SmtPolicyCombo" MinWidth="180" Margin="0,0,8,0"
                           SelectionChanged="SmtPolicyCombo_SelectionChanged"/>
-                <TextBlock x:Name="SmtPolicyCurrentText" Grid.Column="1" Text="-" FontSize="11" VerticalAlignment="Center"
+                <TextBlock x:Name="SmtPolicyCurrentText" Grid.Column="1" Text="-" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </Grid>
-	              <TextBlock Text="{x:Static app:Strings.SmtPolicyHint}" FontSize="11"
+	              <TextBlock Text="{x:Static app:Strings.SmtPolicyHint}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
@@ -361,7 +361,7 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock x:Name="PwrPlanStatus" Grid.Column="0" Text="" FontSize="11" VerticalAlignment="Center"
+              <TextBlock x:Name="PwrPlanStatus" Grid.Column="0" Text="" FontSize="{DynamicResource FontSizeCaption}" VerticalAlignment="Center"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
 	              <ui:Button Grid.Column="1" Content="{x:Static app:Strings.ButtonView}" MinWidth="80" Margin="0,0,8,0"
 		                         Appearance="Secondary" Click="PwrPlanView_Click"/>
@@ -385,10 +385,10 @@
                   <ui:SymbolIcon Symbol="LeafOne24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.EcoQosHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.PerfEcoQosDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.PerfEcoQosDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
-              <ui:ToggleSwitch x:Name="EcoQosToggle" Grid.Column="1" VerticalAlignment="Top"
+              <ui:ToggleSwitch x:Name="EcoQosToggle" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0"
                               Checked="EcoQosToggle_Checked" Unchecked="EcoQosToggle_Unchecked"/>
             </Grid>
           </ui:CardExpander.Header>
@@ -398,7 +398,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock Text="{x:Static app:Strings.EcoQosThrottlePlugged}" FontSize="12" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.EcoQosThrottlePlugged}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
               <ui:ToggleSwitch x:Name="EcoQosThrottlePluggedToggle" Grid.Column="1"
                               Checked="EcoQosThrottlePlugged_Changed" Unchecked="EcoQosThrottlePlugged_Changed"/>
             </Grid>
@@ -407,7 +407,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock Text="{x:Static app:Strings.EcoQosWhitelist}" FontSize="12" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.EcoQosWhitelist}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
               <ui:Button x:Name="EcoQosWhitelistEdit" Grid.Column="1"
                       MinWidth="60" Height="24" Padding="8,0" Content="{x:Static app:Strings.ButtonEdit}" Click="EcoQosWhitelistEdit_Click" Appearance="Secondary"/>
             </Grid>
@@ -416,7 +416,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock Text="{x:Static app:Strings.EcoQosBlacklist}" FontSize="12" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.EcoQosBlacklist}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
               <ui:Button x:Name="EcoQosBlacklistEdit" Grid.Column="1"
                       MinWidth="60" Height="24" Padding="8,0" Content="{x:Static app:Strings.ButtonEdit}" Click="EcoQosBlacklistEdit_Click" Appearance="Secondary"/>
             </Grid>
@@ -437,10 +437,10 @@
                   <ui:SymbolIcon Symbol="DeviceEq24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.HeteroCpuHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuToggleDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuToggleDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
-              <ui:ToggleSwitch x:Name="HeteroCpuToggle" Grid.Column="1" VerticalAlignment="Top"
+              <ui:ToggleSwitch x:Name="HeteroCpuToggle" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0"
                               Checked="HeteroCpuToggle_Changed" Unchecked="HeteroCpuToggle_Changed"/>
             </Grid>
           </ui:CardExpander.Header>
@@ -452,8 +452,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuMaskLabel}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuMaskDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuMaskLabel}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuMaskDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </StackPanel>
               <TextBox x:Name="HeteroCpuMaskBox" Grid.Column="1" Width="140" Text="FFFF0000"
                        TextChanged="HeteroCpuMask_TextChanged" HorizontalAlignment="Right"/>
@@ -464,7 +464,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <TextBlock x:Name="HeteroCpuInfoText" Text="" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+              <TextBlock x:Name="HeteroCpuInfoText" Text="" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                          VerticalAlignment="Center" TextWrapping="Wrap"/>
               <Button x:Name="HeteroCpuDetectBtn" Grid.Column="1"
                       Content="{x:Static app:Strings.HeteroCpuDetectAuto}"
@@ -477,8 +477,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuDefaultPolicyLabel}" FontSize="12" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuDefaultPolicyDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuDefaultPolicyLabel}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuDefaultPolicyDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </StackPanel>
               <ComboBox x:Name="HeteroCpuDefaultPolicyCombo" Grid.Column="1" MinWidth="120"
                         SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
@@ -490,8 +490,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuRuntimeLabel}" FontSize="12" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuRuntimeDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuRuntimeLabel}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuRuntimeDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </StackPanel>
               <TextBox x:Name="HeteroCpuRuntimeBox" Grid.Column="1" Width="120" Text="1450"
                        TextChanged="HeteroCpuRuntime_Changed" HorizontalAlignment="Right"/>
@@ -503,8 +503,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantPolicyLabel}" FontSize="12" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantPolicyDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantPolicyLabel}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantPolicyDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </StackPanel>
               <ComboBox x:Name="HeteroCpuImportantPolicyCombo" Grid.Column="1" MinWidth="120"
                         SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
@@ -516,8 +516,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantShortLabel}" FontSize="12" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantShortDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantShortLabel}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuImportantShortDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </StackPanel>
               <ComboBox x:Name="HeteroCpuImportantShortCombo" Grid.Column="1" MinWidth="120"
                         SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
@@ -529,8 +529,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuPolicyMaskLabel}" FontSize="12" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuPolicyMaskDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPolicyMaskLabel}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPolicyMaskDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </StackPanel>
               <ComboBox x:Name="HeteroCpuPolicyMaskCombo" Grid.Column="1" MinWidth="120"
                         SelectionChanged="HeteroCpuPolicy_Changed" HorizontalAlignment="Right"/>
@@ -542,8 +542,8 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuPriorityLabel}" FontSize="12" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.HeteroCpuPriorityDesc}" FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPriorityLabel}" FontSize="{DynamicResource FontSizeBody}" FontWeight="SemiBold"/>
+                <TextBlock Text="{x:Static app:Strings.HeteroCpuPriorityDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
               </StackPanel>
               <TextBox x:Name="HeteroCpuPriorityBox" Grid.Column="1" Width="120" Text="8"
                        TextChanged="HeteroCpuPriority_Changed" HorizontalAlignment="Right"/>
@@ -554,6 +554,42 @@
                       Margin="0,0,8,0" Appearance="Secondary"/>
               <ui:Button Content="{x:Static app:Strings.HeteroCpuRestoreBtn}" x:Name="HeteroCpuRestoreBtn" Click="HeteroCpuRestore_Click" Appearance="Secondary"/>
             </StackPanel>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- ponytail: AMD Curve Optimizer 全核降压。仅 EnableEcAccess + PawnIO + 受支持家族时可见。
+             复用 AmdUndervoltService 走 SMU 邮箱写 PCI 配置空间,不经过 WMI。 -->
+        <ui:CardExpander Grid.Row="4" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdUndervoltCard" Visibility="Collapsed">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="TopSpeed24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.AmdUndervoltHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.AmdUndervoltDesc}" FontSize="{DynamicResource FontSizeBody}"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+            </Grid>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <StackPanel Margin="0,0,0,8">
+              <TextBlock Text="{x:Static app:Strings.AmdUndervoltLabel}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="AmdUndervoltNum" Minimum="-50" Maximum="0" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdUndervoltNum_ValueChanged"
+                              Value="{Binding ElementName=AmdUndervoltSlider, Path=Value, Mode=TwoWay}"/>
+                <Slider x:Name="AmdUndervoltSlider" Grid.Column="1" Minimum="-50" Maximum="0" TickFrequency="5" IsSnapToTickEnabled="False" Margin="12,0,0,0" VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+            <TextBlock x:Name="AmdUndervoltStatus" FontSize="{DynamicResource FontSizeCaption}" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+            <ui:Button x:Name="AmdUndervoltMoreBtn" Content="{x:Static app:Strings.AmdUndervoltMore}"
+                       HorizontalAlignment="Right" Margin="0,8,0,0" Appearance="Secondary"
+                       Click="AmdUndervoltMore_Click"/>
           </StackPanel>
         </ui:CardExpander>
 
@@ -570,7 +606,7 @@
                   <ui:SymbolIcon Symbol="AppsList24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.CoreKeepHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.PerfCoreKeepDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.PerfCoreKeepDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ui:Button Grid.Column="1" x:Name="CoreKeepGotoBtn"
@@ -584,8 +620,8 @@
       </Grid>
 
       <StackPanel Orientation="Horizontal" Margin="0,8,0,12">
-        <ui:SymbolIcon Symbol="DeviceEq24" FontSize="16" VerticalAlignment="Center" Margin="0,0,6,0"/>
-        <TextBlock Text="{x:Static app:Strings.PerfGroupGpu}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <ui:SymbolIcon Symbol="DeviceEq24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <TextBlock Text="{x:Static app:Strings.PerfGroupGpu}" FontSize="{DynamicResource FontSizeSubheader}" FontWeight="SemiBold" VerticalAlignment="Center"/>
       </StackPanel>
 
       <Grid x:Name="GpuPerfGrid">
@@ -653,7 +689,7 @@
                   <ui:SymbolIcon Symbol="TopSpeed24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.GpuCoreOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.GpuCoreOcDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.GpuCoreOcDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="GpuCoreOCCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -687,7 +723,7 @@
                   <ui:SymbolIcon Symbol="Clock24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.GpuMemoryOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.GpuMemOcDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.GpuMemOcDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="GpuMemoryOCCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -728,7 +764,7 @@
                   <ComboBoxItem Content="{x:Static app:Strings.GfxUMALabel}"/>
                 </ComboBox>
               </Grid>
-              <TextBlock Text="{x:Static app:Strings.PerfGfxReboot}" FontSize="12"
+              <TextBlock Text="{x:Static app:Strings.PerfGfxReboot}" FontSize="{DynamicResource FontSizeBody}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
           </ui:CardControl.Header>
@@ -747,10 +783,10 @@
                   <TextBlock Text="{x:Static app:Strings.HotSwitchHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <ui:Button x:Name="HotSwitchBtn" Grid.Column="1" Width="32" Height="34" Padding="0" VerticalAlignment="Top" Margin="0,0,12,0" Appearance="Transparent" Click="HotSwitch_Click">
-                  <ui:SymbolIcon Symbol="ArrowSync24" FontSize="14"/>
+                  <ui:SymbolIcon Symbol="ArrowSync24" FontSize="{DynamicResource FontSizeTitle}"/>
                 </ui:Button>
               </Grid>
-              <TextBlock Text="{x:Static app:Strings.HotSwitchDesc}" FontSize="12"
+              <TextBlock Text="{x:Static app:Strings.HotSwitchDesc}" FontSize="{DynamicResource FontSizeBody}"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
           </ui:CardControl.Header>
@@ -774,7 +810,7 @@
                   <ComboBoxItem Content="{x:Static app:Strings.PerfDbNormalLabel}"/>
                 </ComboBox>
               </Grid>
-              <TextBlock Text="{x:Static app:Strings.PerfPpabDesc}" FontSize="11" Margin="0,6,0,0"
+              <TextBlock Text="{x:Static app:Strings.PerfPpabDesc}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,6,0,0"
                          Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
             </StackPanel>
           </ui:CardControl.Header>
@@ -790,7 +826,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
 	                <TextBlock Text="{x:Static app:Strings.TgpHardwareLabel}" FontWeight="SemiBold"/>
-		                <TextBlock Text="{x:Static app:Strings.TgpDesc}" FontSize="12"
+		                <TextBlock Text="{x:Static app:Strings.TgpDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="CtgpCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -805,15 +841,15 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="{x:Static app:Strings.PpabCheckLabel}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  <TextBlock Text="{x:Static app:Strings.PpabCheckLabel}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                   <ui:ToggleSwitch x:Name="PpabCheck" Grid.Column="1"
                                   Checked="Ppab_Changed" Unchecked="Ppab_Changed"/>
                 </Grid>
               </ui:CardControl.Header>
             </ui:CardControl>
-            <TextBlock Text="{x:Static app:Strings.PerfTppTip}" FontSize="11" Margin="0,0,0,6"
+            <TextBlock Text="{x:Static app:Strings.PerfTppTip}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,6"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap"/>
-            <TextBlock Text="{x:Static app:Strings.SetTppSlider}" FontSize="11" Margin="0,0,0,2"
+            <TextBlock Text="{x:Static app:Strings.SetTppSlider}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,0,0,2"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
             <Grid Margin="0,0,0,4">
               <Grid.ColumnDefinitions>
@@ -827,7 +863,7 @@
                       TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0"
                       VerticalAlignment="Center"/>
             </Grid>
-            <TextBlock x:Name="TgpStatus" FontSize="11" Margin="0,4,0,0"
+            <TextBlock x:Name="TgpStatus" FontSize="{DynamicResource FontSizeCaption}" Margin="0,4,0,0"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
           </StackPanel>
         </ui:CardExpander>
@@ -864,7 +900,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <TextBlock Text="{x:Static app:Strings.MaxFrameRateHeading}" FontWeight="SemiBold"/>
-                <TextBlock Text="{x:Static app:Strings.PerfMaxFpsDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.PerfMaxFpsDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="FpsCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -883,7 +919,7 @@
               <Slider x:Name="FpsSlider" Grid.Column="1" Minimum="0" Maximum="1000"
                       TickFrequency="1" Margin="12,0,0,0" VerticalAlignment="Center"/>
             </Grid>
-            <TextBlock Text="{x:Static app:Strings.MaxFrameRateNote}" FontSize="11" Margin="0,4,0,0"
+            <TextBlock Text="{x:Static app:Strings.MaxFrameRateNote}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,4,0,0"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
           </StackPanel>
         </ui:CardExpander>
@@ -901,7 +937,7 @@
                   <ui:SymbolIcon Symbol="DesktopPulse24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.RefreshRateHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.PerfRefreshRateDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.PerfRefreshRateDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="RefreshRateCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -921,7 +957,7 @@
                       TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0"
                       VerticalAlignment="Center"/>
             </Grid>
-            <TextBlock Text="{x:Static app:Strings.RefreshRateNote}" FontSize="11" Margin="0,4,0,0"
+            <TextBlock Text="{x:Static app:Strings.RefreshRateNote}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,4,0,0"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
           </StackPanel>
         </ui:CardExpander>
@@ -939,7 +975,7 @@
                   <ui:SymbolIcon Symbol="FullScreenMaximize24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.ResolutionHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.PerfResolutionDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.PerfResolutionDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="ResolutionCombo" MinWidth="130" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -961,7 +997,7 @@
                   <ui:SymbolIcon Symbol="Scales24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.DpiScaleHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.PerfDpiDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.PerfDpiDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="DpiCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -983,7 +1019,7 @@
                   <ui:SymbolIcon Symbol="Hdr24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.HdrHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.PerfHdrDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.PerfHdrDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ui:ToggleSwitch Grid.Column="1" x:Name="HdrToggle" VerticalAlignment="Center" Margin="0,0,12,0"
@@ -1005,7 +1041,7 @@
                   <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.TurnOffDisplayHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{x:Static app:Strings.PerfTurnOffDisplayDesc}" FontSize="12"
+                <TextBlock Text="{x:Static app:Strings.PerfTurnOffDisplayDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ui:Button Grid.Column="1" Content="{x:Static app:Strings.TurnOffDisplayBtn}" MinWidth="80"
@@ -1021,25 +1057,25 @@
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
 	        <ui:Button x:Name="btnPerfUndo" Height="36" MinWidth="44" Margin="0,0,6,0" ToolTip="{x:Static app:Strings.PerfBtnResetDefaultsTip}" Click="btnPerfUndo_Click" Appearance="Danger">
 	          <StackPanel Orientation="Horizontal">
-	            <ui:SymbolIcon Symbol="ArrowReset24" FontSize="14" Margin="0,0,4,0"/>
+	            <ui:SymbolIcon Symbol="ArrowReset24" FontSize="{DynamicResource FontSizeTitle}" Margin="0,0,4,0"/>
 	            <TextBlock VerticalAlignment="Center" Text="{x:Static app:Strings.PerfBtnResetText}"/>
 	          </StackPanel>
 	        </ui:Button>
 	        <ui:Button x:Name="btnPerfLoad" Height="36" MinWidth="44" Margin="0,0,6,0" ToolTip="{x:Static app:Strings.PerfBtnReloadTip}" Click="btnPerfLoad_Click" Appearance="Secondary">
 	          <StackPanel Orientation="Horizontal">
-	            <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="14" Margin="0,0,4,0"/>
+	            <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="{DynamicResource FontSizeTitle}" Margin="0,0,4,0"/>
 	            <TextBlock VerticalAlignment="Center" Text="{x:Static app:Strings.PerfBtnReloadText}"/>
 	          </StackPanel>
 	        </ui:Button>
 	        <ui:Button x:Name="btnPerfDelete" Height="36" MinWidth="44" Margin="0,0,6,0" ToolTip="{x:Static app:Strings.PerfBtnDeleteTip}" Click="btnPerfDelete_Click" Appearance="Secondary">
 	          <StackPanel Orientation="Horizontal">
-	            <ui:SymbolIcon Symbol="Delete24" FontSize="14" Margin="0,0,4,0"/>
+	            <ui:SymbolIcon Symbol="Delete24" FontSize="{DynamicResource FontSizeTitle}" Margin="0,0,4,0"/>
 	            <TextBlock VerticalAlignment="Center" Text="{x:Static app:Strings.PerfBtnDeleteText}"/>
 	          </StackPanel>
 	        </ui:Button>
 	        <ui:Button x:Name="btnPerfSave" Height="36" MinWidth="44" Margin="0,0,0,0" ToolTip="{x:Static app:Strings.PerfBtnSaveTip}" Click="btnPerfSave_Click" Appearance="Primary">
 	          <StackPanel Orientation="Horizontal">
-	            <ui:SymbolIcon Symbol="Save24" FontSize="14" Margin="0,0,4,0"/>
+	            <ui:SymbolIcon Symbol="Save24" FontSize="{DynamicResource FontSizeTitle}" Margin="0,0,4,0"/>
 	            <TextBlock VerticalAlignment="Center" Text="{x:Static app:Strings.PerfBtnSaveText}"/>
           </StackPanel>
         </ui:Button>

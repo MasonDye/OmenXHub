@@ -15,13 +15,13 @@ No advertisements · No wallpapers · No network connections.
 
 > A lightweight, offline replacement for HP OMEN Gaming Hub — no advertisements, no wallpapers, no network connections.
 
-**OMEN X Hub** (formerly OmenSuperHub) is a WPF-based control center for HP OMEN / VICTUS gaming laptops. It provides comprehensive hardware monitoring, fan control, performance tuning, keyboard lighting, and system diagnostics — all without the bloat of the official OGH software.
+**OMEN X Hub** (based on and primarily derived from OmenSuperHub) is a WPF-based control center for HP OMEN / VICTUS gaming laptops. It provides comprehensive hardware monitoring, fan control, performance tuning, keyboard lighting, network boosting, and system diagnostics — all without the bloat of the official OGH software.
 
 ## Features
 
 ### Dashboard
 
-Real-time CPU/GPU temperature, usage, frequency, power, fan speed, and RAM usage. Color-coded progress bars (green → yellow → red) reflect load at a glance.
+Real-time CPU/GPU temperature, usage, frequency, power, fan speed, memory usage, and storage. **Memory utilization is shown as a ring, storage capacity as a bar chart**; color-coded progress bars (green → yellow → red) reflect load at a glance.
 
 ![Dashboard](Preview/Dashboard.png)
 
@@ -47,11 +47,21 @@ Keyboard / light bar devices, Basic/Dojo 4-zone protocols. 10 animation effects,
 
 ### Automation
 
-16 trigger types (process start/stop, session lock/unlock, AC/DC, display connect/disconnect, schedule, CPU/GPU temp, battery level) + 23 step types (preset, refresh rate, power, WiFi/Bluetooth, brightness, audio, macro, etc.). Quick actions triggerable from tray menu.
+16 trigger types (process start/stop, session lock/unlock, AC/DC, display connect/disconnect, schedule, CPU/GPU temp, battery level) + 23 step types (preset, refresh rate, power, WiFi/Bluetooth, brightness, audio, macro, etc.). Quick actions triggerable from the tray menu.
 
-| Pipeline List | Edit Pipeline |
-|:---:|:---:|
-| ![Automation](Preview/Automation.png) | ![Other](Preview/Other.png) |
+![Automation](Preview/Automation.png)
+
+### Network Boost
+
+WinTUN virtual adapter + sing-box TUN system-level proxy mode. Per-adapter selection, per-process routing rules, real-time up/down rate limiting — keeps games and downloads running full speed even under proxy.
+
+![Network Boost](Preview/NetworkBoost.png)
+
+### Core Keep
+
+P-Core / E-Core / SMT topology visualization + automatic affinity engine. On startup, binds processes to specified cores per user rules — long-running 24×7 sessions never lose affinity.
+
+![Core Keep](Preview/CoreKeep.png)
 
 ### Keyboard Macro
 
@@ -61,17 +71,15 @@ Record and replay keyboard sequences, with trigger hotkey support and event edit
 
 ### Other
 
-Smart charging, Num Lock, Caps Lock, touchpad lock, HWiNFO64 integration, HTTP API service.
+Smart charging, Num Lock, Caps Lock, touchpad lock, HWiNFO64 integration, HTTP API service, AMD CPU undervolt, OMEN Command Center compatibility stub, system optimization window.
 
-![Other](Preview/Other.png)
+![Other](Preview/Other-Settings.png)
 
 ### Settings
 
 Overlay display (position / layout / font / opacity / multi-monitor), Omen Key, OSD toast, tray icon (default / custom / dynamic), auto-start, custom main logo, theme (dark / light), language, custom background (opacity / Gaussian blur), data localization, debug log.
 
-| Overlay Settings | Performance Control |
-|:---:|:---:|
-| ![Lighting](Preview/Lighting.png) | ![Performance](Preview/Perf-Full.png) |
+![Settings](Preview/Settings.png)
 
 ## Preset Management
 
@@ -123,7 +131,7 @@ Output: `bin\x64\Release\OmenXHub.exe` (single-file — all DLLs embedded via Co
 ## Acknowledgments
 
 - **MasonDye** — GUI design & WPF front-end development
-- **One1turn** - WPF-UI Windows 11 style rewrite + performance optimization
+- **One1turn** — WPF-UI Windows 11 style rewrite + performance optimization
 - **breadeding** — [OmenSuperHub](https://github.com/breadeding/OmenSuperHub) (original framework & code)
 - **GeographicCone** — [OmenMon](https://github.com/GeographicCone) / [OmenHwCtl](https://github.com/GeographicCone) (inspiration & OGH interaction research)
 - **OpenHardwareMonitor** — [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) (hardware monitoring core)

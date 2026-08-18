@@ -115,79 +115,79 @@ namespace OmenSuperHub.Services.CpuAffinity {
       return result;
     }
 
-    /// <summary>检测 SMT 布局。每物理核的 ProcessorMask 含全部 SMT 兄弟，最低 bit 为 SMT0。</summary>
-    static (bool smtEnabled, ulong smt0Mask, ulong smt1Mask)? DetectSmtLayout(int totalLogical) {
-      if (totalLogical > 64) return null;
-      uint bufSize = 0;
-      Kernel32.GetLogicalProcessorInformation(IntPtr.Zero, ref bufSize);
-      if (bufSize == 0) return null;
+    // ── EX API 检测（GetLogicalProcessorInformationEx）──
+    // ponytail: 用 EX API + 固定偏移解包，替代旧的非 EX 结构体（其 x64 布局 ULONG_PTR 对齐
+    // 导致字段错位、SMT/CCD/Socket 全部检测失效）。
+    // 条目布局：Header = rel(int)@0 + size(int)@4；union 从 @8 起。
+    // PROCESSOR_RELATIONSHIP（core/die/package 共用）：
+    //   Flags@0, EfficiencyClass@1, Reserved[20], GroupCount(WORD)@22, GROUP_AFFINITY[GroupCount]@24。
+    // GROUP_AFFINITY：Mask(ULONG_PTR)@0, Group(WORD)@8。
 
-      IntPtr buf = Marshal.AllocHGlobal((int)bufSize);
+    /// <summary>枚举指定关系的 EX 条目，回调 (buffer, 条目偏移, 条目大小)。返回是否至少枚举到一个条目。</summary>
+    static bool EnumerateEx(LOGICAL_PROCESSOR_RELATIONSHIP relationship, Action<IntPtr, int, int> onEntry) {
+      int len = 0;
+      if (!Kernel32.GetLogicalProcessorInformationEx((uint)relationship, IntPtr.Zero, ref len) || len <= 0)
+        return false;
+      IntPtr buf = Marshal.AllocHGlobal(len);
       try {
-        if (!Kernel32.GetLogicalProcessorInformation(buf, ref bufSize)) return null;
-        int structSize = Marshal.SizeOf<SYSTEM_LOGICAL_PROCESSOR_INFORMATION>();
-        ulong smt0 = 0, smt1 = 0;
-        bool hasSmt = false;
+        if (!Kernel32.GetLogicalProcessorInformationEx((uint)relationship, buf, ref len))
+          return false;
         int offset = 0;
-        while (offset + structSize <= (int)bufSize) {
-          var info = Marshal.PtrToStructure<SYSTEM_LOGICAL_PROCESSOR_INFORMATION>(buf + offset);
-          if (info.Relationship == LOGICAL_PROCESSOR_RELATIONSHIP.RelationProcessorCore) {
-            ulong mask = (ulong)info.ProcessorMask;
-            if (mask != 0) {
-              ulong lowest = mask & (~mask + 1); // 最低 set bit
-              smt0 |= lowest;
-              ulong rest = mask & ~lowest;
-              if (rest != 0) { smt1 |= rest; hasSmt = true; }
-            }
-          }
-          offset += structSize;
+        while (offset + 8 <= len) {
+          int rel = Marshal.ReadInt32(buf, offset);
+          int size = Marshal.ReadInt32(buf, offset + 4);
+          if (size == 0) break;
+          if (rel == (int)relationship) onEntry(buf, offset, size);
+          offset += size;
         }
-        return (hasSmt, smt0, smt1);
+        return true;
       } finally { Marshal.FreeHGlobal(buf); }
     }
 
-    /// <summary>检测 AMD CCD 布局（RelationProcessorDie）。</summary>
-    static (ulong ccd0Mask, ulong ccd1Mask)? DetectCcdLayout() {
-      uint bufSize = 0;
-      Kernel32.GetLogicalProcessorInformation(IntPtr.Zero, ref bufSize);
-      if (bufSize == 0) return null;
+    /// <summary>读取 PROCESSOR_RELATIONSHIP 条目的第一个 GROUP_AFFINITY mask（ulong，entryOffset+8+24 处）。</summary>
+    static ulong ReadFirstGroupMask(IntPtr buf, int entryOffset) {
+      ushort groupCount = (ushort)Marshal.ReadInt16(buf, entryOffset + 8 + 22);
+      if (groupCount < 1) return 0;
+      return (ulong)Marshal.ReadInt64(buf, entryOffset + 8 + 24);
+    }
 
-      IntPtr buf = Marshal.AllocHGlobal((int)bufSize);
-      try {
-        if (!Kernel32.GetLogicalProcessorInformation(buf, ref bufSize)) return null;
-        int structSize = Marshal.SizeOf<SYSTEM_LOGICAL_PROCESSOR_INFORMATION>();
-        var dies = new List<ulong>();
-        int offset = 0;
-        while (offset + structSize <= (int)bufSize) {
-          var info = Marshal.PtrToStructure<SYSTEM_LOGICAL_PROCESSOR_INFORMATION>(buf + offset);
-          if (info.Relationship == LOGICAL_PROCESSOR_RELATIONSHIP.RelationProcessorDie)
-            dies.Add((ulong)info.ProcessorMask);
-          offset += structSize;
-        }
-        if (dies.Count >= 2) return (dies[0], dies[1]);
-      } finally { Marshal.FreeHGlobal(buf); }
-      return null;
+    /// <summary>检测 SMT 布局。每物理核的 mask 含全部 SMT 兄弟，最低 bit 为 SMT0。</summary>
+    static (bool smtEnabled, ulong smt0Mask, ulong smt1Mask)? DetectSmtLayout(int totalLogical) {
+      if (totalLogical > 64) return null;
+      ulong smt0 = 0, smt1 = 0;
+      bool hasSmt = false, any = false;
+      bool ok = EnumerateEx(LOGICAL_PROCESSOR_RELATIONSHIP.RelationProcessorCore, (buf, off, _) => {
+        ulong mask = ReadFirstGroupMask(buf, off);
+        if (mask == 0) return;
+        any = true;
+        ulong lowest = mask & (~mask + 1); // 最低 set bit = SMT0
+        smt0 |= lowest;
+        ulong rest = mask & ~lowest;
+        if (rest != 0) { smt1 |= rest; hasSmt = true; }
+      });
+      if (!ok || !any) return null;
+      return (hasSmt, smt0, smt1);
+    }
+
+    /// <summary>检测 AMD CCD 布局（RelationProcessorDie）。Intel 无 die 条目，返回 null。</summary>
+    static (ulong ccd0Mask, ulong ccd1Mask)? DetectCcdLayout() {
+      var dies = new List<ulong>();
+      bool ok = EnumerateEx(LOGICAL_PROCESSOR_RELATIONSHIP.RelationProcessorDie, (buf, off, _) => {
+        ulong mask = ReadFirstGroupMask(buf, off);
+        if (mask != 0) dies.Add(mask);
+      });
+      if (!ok || dies.Count < 2) return null;
+      return (dies[0], dies[1]);
     }
 
     /// <summary>检测物理 CPU Socket（RelationProcessorPackage）。</summary>
     static (int socketCount, List<ulong> socketMasks) DetectSockets() {
       var masks = new List<ulong>();
-      uint bufSize = 0;
-      Kernel32.GetLogicalProcessorInformation(IntPtr.Zero, ref bufSize);
-      if (bufSize == 0) return (1, masks);
-
-      IntPtr buf = Marshal.AllocHGlobal((int)bufSize);
-      try {
-        if (!Kernel32.GetLogicalProcessorInformation(buf, ref bufSize)) return (1, masks);
-        int structSize = Marshal.SizeOf<SYSTEM_LOGICAL_PROCESSOR_INFORMATION>();
-        int offset = 0;
-        while (offset + structSize <= (int)bufSize) {
-          var info = Marshal.PtrToStructure<SYSTEM_LOGICAL_PROCESSOR_INFORMATION>(buf + offset);
-          if (info.Relationship == LOGICAL_PROCESSOR_RELATIONSHIP.RelationProcessorPackage)
-            masks.Add((ulong)info.ProcessorMask);
-          offset += structSize;
-        }
-      } finally { Marshal.FreeHGlobal(buf); }
+      bool ok = EnumerateEx(LOGICAL_PROCESSOR_RELATIONSHIP.RelationProcessorPackage, (buf, off, _) => {
+        ulong mask = ReadFirstGroupMask(buf, off);
+        if (mask != 0) masks.Add(mask);
+      });
+      if (!ok) return (1, masks);
       return (masks.Count > 0 ? masks.Count : 1, masks);
     }
   }

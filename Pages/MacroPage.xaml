@@ -17,13 +17,13 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ui:SymbolIcon Symbol="Keyboard24" FontSize="{DynamicResource FontSizeHeader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <TextBlock x:Name="MacroEnabledText" Text="{x:Static app:Strings.MacroEnabled}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
               <ui:ToggleSwitch Grid.Column="1" x:Name="MacroMasterToggle"
                                Checked="MacroMasterToggle_Checked" Unchecked="MacroMasterToggle_Unchecked"/>
             </Grid>
-            <TextBlock Text="{x:Static app:Strings.MacroMasterDesc}" FontSize="12"
+            <TextBlock Text="{x:Static app:Strings.MacroMasterDesc}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0"/>
           </StackPanel>
         </ui:CardControl.Header>
@@ -36,19 +36,19 @@
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
           <StackPanel Orientation="Horizontal">
-            <ui:SymbolIcon Symbol="Keyboard24" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBlock Text="{x:Static app:Strings.MacroListHeading}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <ui:SymbolIcon Symbol="Keyboard24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBlock Text="{x:Static app:Strings.MacroListHeading}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
           </StackPanel>
           <Button x:Name="AddMacroBtn" Grid.Column="1" MinWidth="90" Height="30"
-                  Padding="10,0" FontSize="12" Click="AddMacro_Click">
+                  Padding="10,0" FontSize="{DynamicResource FontSizeBody}" Click="AddMacro_Click">
             <StackPanel Orientation="Horizontal">
-              <ui:SymbolIcon Symbol="Add24" FontSize="12" Margin="0,0,4,0"/>
+              <ui:SymbolIcon Symbol="Add24" FontSize="{DynamicResource FontSizeBody}" Margin="0,0,4,0"/>
               <TextBlock Text="{x:Static app:Strings.MacroAddMacro}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
         </Grid>
         <StackPanel x:Name="MacroList"/>
-        <TextBlock x:Name="NoMacrosText" Text="{x:Static app:Strings.MacroNoMacros}" FontSize="12"
+        <TextBlock x:Name="NoMacrosText" Text="{x:Static app:Strings.MacroNoMacros}" FontSize="{DynamicResource FontSizeBody}"
                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                    Margin="0,8,0,0" Visibility="Visible"/>
       </StackPanel>

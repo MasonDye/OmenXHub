@@ -330,7 +330,21 @@ namespace OmenSuperHub.Views {
       UpdateAllTextCore(forceLayout: true);
     }
 
+    // ponytail: 1Hz tray-tick entry — unforced (dirty-flag driven) and skips the UI-thread
+    // marshalling entirely when no floating window exists. The old tick called the forced
+    // UpdateAllText(), which unconditionally Dispatcher.Invoke'd even with _instances empty,
+    // pinning the UI message pump awake every second after the main window was hidden — the
+    // visible symptom was the working-set creeping up post-close and never settling back.
+    public static void UpdateAllTextTicked() {
+      if (_instances.Count == 0) return;
+      UpdateAllTextCore(forceLayout: false);
+    }
+
     static void UpdateAllTextCore(bool forceLayout) {
+      // ponytail: zero floating windows → nothing to refresh. Early-out BEFORE the
+      // Dispatcher.Invoke hop so the UI thread isn't woken just to loop over nothing.
+      // Dirty flags stay set on purpose: the next real window gets laid out on its first tick.
+      if (_instances.Count == 0) return;
       Application.Current?.Dispatcher.Invoke(() => {
         bool needLayout = forceLayout || _layoutDirty;
         bool needPosition = forceLayout || _positionDirty;
@@ -398,7 +412,9 @@ namespace OmenSuperHub.Views {
     public static List<string> ParseSelectedDeviceNames() {
       var result = new List<string>();
       var raw = ConfigService.FloatingBarScreen;
-      if (string.IsNullOrWhiteSpace(raw)) return result;
+      // ponytail: 空 = 首次运行未配置 → 默认勾选所有显示器;用户改动后显式串接管(持久化已有)
+      if (string.IsNullOrWhiteSpace(raw))
+        return Forms.Screen.AllScreens.Select(s => s.DeviceName).ToList();
       var parts = raw.Split(',');
       foreach (var p in parts) {
         var trimmed = p.Trim();

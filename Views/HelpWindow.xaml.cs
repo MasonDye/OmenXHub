@@ -25,13 +25,12 @@ namespace OmenSuperHub.Views {
         if (_instance == null || !_instance.IsLoaded) {
           _instance = new HelpWindow();
         }
-        _instance.BtnIAgree.Visibility = isFirstRun ? Visibility.Visible : Visibility.Collapsed;
         _instance.Show();
         _instance.Activate();
       });
     }
 
-    private void BtnIAgree_Click(object sender, RoutedEventArgs e) {
+    private void BtnClose_Click(object sender, RoutedEventArgs e) {
       Close();
     }
 

@@ -25,7 +25,7 @@
                               HorizontalAlignment="Center" VerticalAlignment="Center"
                               TextElement.Foreground="{DynamicResource NavigationViewItemForeground}"/>
             <Grid x:Name="ContentGrid" MaxHeight="30" Margin="0,2,0,6">
-              <TextBlock FontSize="10" FontWeight="SemiBold"
+              <TextBlock FontSize="{DynamicResource FontSizeCaption}" FontWeight="SemiBold"
                          Text="{TemplateBinding Content}"
                          TextAlignment="Center" TextWrapping="Wrap"
                          TextElement.Foreground="{DynamicResource NavigationViewItemForeground}"/>

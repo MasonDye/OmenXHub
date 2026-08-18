@@ -22,7 +22,7 @@
             BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1"
             Padding="16,12">
       <TextBlock x:Name="DialogTitle" Text="{x:Static app:Strings.AutomationEditPipeline}"
-                 FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                 FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
     </Border>
 
     <!-- Scrollable content -->
@@ -39,9 +39,9 @@
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Text="{x:Static app:Strings.AutomationPipelineName}"
-                       FontSize="13" VerticalAlignment="Center"/>
+                       FontSize="{DynamicResource FontSizeSubtitle}" VerticalAlignment="Center"/>
             <TextBox x:Name="NameBox" Grid.Column="1" Height="38" MinWidth="220"
-                     FontSize="14" VerticalContentAlignment="Center"/>
+                     FontSize="{DynamicResource FontSizeTitle}" VerticalContentAlignment="Center"/>
           </Grid>
         </Border>
 
@@ -51,10 +51,10 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <TextBlock x:Name="TriggersHeading" FontSize="14" FontWeight="SemiBold"
+          <TextBlock x:Name="TriggersHeading" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold"
                      VerticalAlignment="Center"/>
           <Button x:Name="AddTriggerBtn" Grid.Column="1" MinWidth="90" Height="28"
-                  Padding="8,0" FontSize="11" Click="AddTriggerBtn_Click"/>
+                  Padding="8,0" FontSize="{DynamicResource FontSizeCaption}" Click="AddTriggerBtn_Click"/>
         </Grid>
 
         <StackPanel x:Name="TriggersPanel" Margin="0,0,0,4"/>
@@ -65,10 +65,10 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <TextBlock x:Name="StepsHeading" FontSize="14" FontWeight="SemiBold"
+          <TextBlock x:Name="StepsHeading" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold"
                      VerticalAlignment="Center"/>
           <Button x:Name="AddStepBtn" Grid.Column="1" MinWidth="90" Height="28"
-                  Padding="8,0" FontSize="11" Click="AddStepBtn_Click"/>
+                  Padding="8,0" FontSize="{DynamicResource FontSizeCaption}" Click="AddStepBtn_Click"/>
         </Grid>
 
         <StackPanel x:Name="StepsPanel" Margin="0,0,0,4"/>

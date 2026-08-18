@@ -64,7 +64,12 @@
       <HintPath>Resources\McuSDK2.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <!-- ponytail: SMBiosSDK/Utf8Json 零引用，已删除 DLL + Reference + EmbeddedResource -->
+    <!-- ponytail: SMBiosSDK/Utf8Json restored — runtime deps of HP.Omen.Core.Model.Device.dll
+         (SMBIOS table read + JSON deserialization), loaded via Costura AssemblyResolve.
+         Static "zero C# refs" analysis was wrong: DeviceModel.ThisSystemID/GetPlatformSku
+         throw without them → board product shows 未知, CPU temp wall falls back to 100. -->
+    <EmbeddedResource Include="Resources\SMBiosSDK.dll" />
+    <EmbeddedResource Include="Resources\Utf8Json.dll" />
     <!-- PerformanceControl: HP firmware control helper, required for DeviceModel.IsHP etc. -->
     <Reference Include="PerformanceControl">
       <HintPath>Resources\PerformanceControl.dll</HintPath>
@@ -83,8 +88,11 @@
   <!-- Framework References -->
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Management" />
     <Reference Include="System.Numerics" />
+    <Reference Include="Microsoft.VisualBasic" />
     <!-- ponytail: System.Windows.Forms.DataVisualization / WindowsFormsIntegration 0 引用已删除 -->
   </ItemGroup>
 
@@ -114,10 +122,21 @@
     <EmbeddedResource Include="Resources\McuSDK2.dll" />
     <EmbeddedResource Include="Resources\HP.Omen.Core.Common.dll" />
     <EmbeddedResource Include="Resources\HP.Omen.Core.Model.Device.dll" />
-    <!-- ponytail: HP.Omen.Core.Api/Model.DataStructure/Utilities/Logger/Logger.APIs/Logger 零引用，已删除 -->
+    <!-- ponytail: HP.Omen.Core.Api/Model.DataStructure/Utilities/Logger/Logger.APIs/Logger
+         restored — runtime deps of HP.Omen.Core.Model.Device.dll + PerformanceControl.dll,
+         loaded via Costura AssemblyResolve. -->
+    <EmbeddedResource Include="Resources\HP.Omen.Core.Api.dll" />
+    <EmbeddedResource Include="Resources\HP.Omen.Core.Model.DataStructure.dll" />
+    <EmbeddedResource Include="Resources\HP.Omen.Core.Utilities.dll" />
+    <EmbeddedResource Include="Resources\HP.Omen.Core.Logger.dll" />
+    <EmbeddedResource Include="Resources\HP.Omen.Logger.dll" />
+    <EmbeddedResource Include="Resources\HP.Omen.Logger.APIs.dll" />
+    <EmbeddedResource Include="Resources\System.Threading.Tasks.Extensions.dll" />
     <EmbeddedResource Include="Resources\PerformanceControl.dll" />
     <EmbeddedResource Include="Resources\OmenFourZoneLighting.dll" />
     <EmbeddedResource Include="Resources\OmenLightingSDK.dll" />
+    <EmbeddedResource Include="Resources\SingBox\sing-box.exe.gz" />
+    <EmbeddedResource Include="Resources\SingBox\wintun.dll.gz" />
   </ItemGroup>
 
   <!-- Resource (Fluent Icons) -->

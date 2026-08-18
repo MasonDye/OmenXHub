@@ -48,6 +48,22 @@ namespace OmenSuperHub.Services {
     public static bool IsExecuting => _executing;
     public static string CurrentPipelineName => _currentPipelineName;
 
+    // ponytail: "自动化后端是否应该运行"的统一判定 —— 两个条件都满足才允许运行:
+    //   1) 总开关 AutomationEnabled 打开;
+    //   2) Automation 页对用户可见(简洁模式没把它隐藏)。
+    // 旧版只看总开关,简洁模式隐藏 Automation 页时后端仍在空转跑 WMI watcher/定时器/热键。
+    // 注意:这个方法只在用户操作 (总开关 / 简洁模式 / 白名单) 后调用,不会影响性能/风扇服务。
+    static bool IsBackendWanted()
+      => ConfigService.AutomationEnabled
+         && Views.MainWindow.ShouldShowNavItem("Automation");
+
+    // ponytail: 让后端运行状态对齐 IsBackendWanted —— 总开关切 / 简洁模式 toggle / 白名单变更都调它,
+    // 内部幂等 (_running 守卫),该启启该停停。性能/风扇服务与本类无关,本方法不碰。
+    public static void ReevaluateBackendNeeded() {
+      if (IsBackendWanted()) Start();
+      else Stop();
+    }
+
     public static void Start() {
       if (_running) return;
       _running = true;
@@ -107,47 +123,73 @@ namespace OmenSuperHub.Services {
       if (_displaySettingsHandler != null) { SystemEvents.DisplaySettingsChanged -= _displaySettingsHandler; _displaySettingsHandler = null; }
       _tempTriggerFired.Clear();
       UnregisterAllHotkeys();
-      if (_hotkeyHwndSource != null) { _hotkeyHwndSource.Dispose(); _hotkeyHwndSource = null; }
+      // ponytail: 修复 bug — 之前这里 _hotkeyHwndSource.Dispose(), 但 _hotkeyHwndSource
+      // 是 MainWindow 自己的 HwndSource(InitHotkeyHwnd 里 HwndSource.FromHwnd(MainWindow.Handle),
+      // 注释还写"use main window handle instead of a hidden HwndSource")。对一个顶级 WPF 窗口的
+      // HwndSource 调 Dispose 等于拔掉它的底层 HWND → 关总开关时主界面被连根关掉。
+      // 主窗口的 HwndSource 生命周期由窗口自己管, 这里只拆钩子、置 null 让下次 Start 重 AddHook。
+      if (_hotkeyHwndSource != null) {
+        try { _hotkeyHwndSource.RemoveHook(HotkeyWndProc); } catch { }
+        _hotkeyHwndSource = null;
+      }
       Logger.Info("AutomationProcessor stopped");
     }
 
+    // ponytail: 触发改为串行排队 — 进程启动类触发是突发的(游戏+启动器+反作弊几秒内连发),
+    // 旧 _executing 门在另一管道执行中(含 Delay 步骤)时直接静默丢弃后续触发,
+    // 表现为"自动化大多失效"(issue #20)。同名管道去重防止重复排队刷屏。
+    static readonly System.Collections.Concurrent.ConcurrentQueue<AutomationPipeline> _pendingPipelines = new();
+    static int _drainRunning;
+
     public static void ExecutePipeline(AutomationPipeline pipeline) {
       if (pipeline == null || pipeline.Steps == null || pipeline.Steps.Count == 0) return;
-      lock (ExecLock) {
-        if (_executing) return;
-        _executing = true;
-        _currentPipelineName = pipeline.Name;
+      if (!_pendingPipelines.IsEmpty) {
+        foreach (var p in _pendingPipelines)
+          if (p.Name == pipeline.Name) return;
       }
-      // ponytail: fire on calling thread (UI thread for button clicks, ThreadPool for timers)
-      ExecutionStatusChanged?.Invoke(pipeline.Name);
-      Task.Run(async () => {
-        try {
-          foreach (var step in pipeline.Steps) {
-            if (step.DelayMs > 0)
-              await System.Threading.Tasks.Task.Delay(step.DelayMs);
-            await ExecuteStep(step);
-          }
-        } catch (Exception ex) {
-          Logger.Error("AutomationProcessor.ExecutePipeline error: " + ex.Message);
-        } finally {
-          lock (ExecLock) { _executing = false; _currentPipelineName = null; }
-          // ponytail: marshal to UI thread for anyone subscribing from XAML/code-behind
+      _pendingPipelines.Enqueue(pipeline);
+      if (Interlocked.CompareExchange(ref _drainRunning, 1, 0) == 0)
+        _ = Task.Run(DrainPipelines);
+    }
+
+    static async System.Threading.Tasks.Task DrainPipelines() {
+      try {
+        while (_running && _pendingPipelines.TryDequeue(out var pipeline)) {
+          lock (ExecLock) { _executing = true; _currentPipelineName = pipeline.Name; }
+          ExecutionStatusChanged?.Invoke(pipeline.Name);
           try {
-            var app = System.Windows.Application.Current;
-            if (app != null && app.Dispatcher != null && !app.Dispatcher.CheckAccess())
-              app.Dispatcher.Invoke(() => ExecutionStatusChanged?.Invoke(null));
-            else
-              ExecutionStatusChanged?.Invoke(null);
-          } catch { }
+            foreach (var step in pipeline.Steps) {
+              if (step.DelayMs > 0)
+                await System.Threading.Tasks.Task.Delay(step.DelayMs);
+              await ExecuteStep(step);
+            }
+          } catch (Exception ex) {
+            Logger.Error("AutomationProcessor.ExecutePipeline error: " + ex.Message);
+          } finally {
+            lock (ExecLock) { _executing = false; _currentPipelineName = null; }
+            // ponytail: marshal to UI thread for anyone subscribing from XAML/code-behind
+            try {
+              var app = System.Windows.Application.Current;
+              if (app != null && app.Dispatcher != null && !app.Dispatcher.CheckAccess())
+                app.Dispatcher.Invoke(() => ExecutionStatusChanged?.Invoke(null));
+              else
+                ExecutionStatusChanged?.Invoke(null);
+            } catch { }
+          }
         }
-      });
+      } finally {
+        _drainRunning = 0;
+        // ponytail: TryDequeue 失败与 _drainRunning 清零之间入队的管道需要重新拉起 drain
+        if (!_pendingPipelines.IsEmpty && Interlocked.CompareExchange(ref _drainRunning, 1, 0) == 0)
+          _ = Task.Run(DrainPipelines);
+      }
     }
 
     private static async System.Threading.Tasks.Task ExecuteStep(AutomationStep step) {
       if (step == null || string.IsNullOrEmpty(step.Type)) return;
       switch (step.Type) {
         case "SetPreset":
-          ApplyPreset(step.Value);
+          await ApplyPresetAsync(step.Value);
           break;
         case "SetRefreshRate":
           if (int.TryParse(step.Value, out int rr) && rr >= 30 && rr <= 360) {
@@ -323,65 +365,29 @@ namespace OmenSuperHub.Services {
       }
     }
 
-    internal static void ApplyPreset(string preset) {
+    internal static async System.Threading.Tasks.Task ApplyPresetAsync(string preset) {
       if (string.IsNullOrEmpty(preset)) return;
 
       PresetManager.SwitchPreset(preset);
 
-      // Apply hardware
-      TrayService.SetGPUClockLimit(ConfigService.GpuClock);
-      OmenHardware.SetGpuPowerState(ConfigService.TgpEnabled, ConfigService.PpabEnabled,
-          ConfigService.DState == 2 ? 2 : 1);
-      if (ConfigService.Tpp > 0) OmenHardware.SetConcurrentTdp((byte)ConfigService.Tpp);
-      if (ConfigService.IccMax > 0) OmenHardware.SetIccMaxByWmi(ConfigService.IccMax);
-      if (ConfigService.AcLoadLine > 0) OmenHardware.SetLoadLine(ConfigService.AcLoadLine);
-      if (OmenHardware.HasNvidiaGpu()) {
-        int fps = ConfigService.MaxFrameRate;
-        HP.Omen.Core.Common.NVidiaApi.NvApiWrapper.NVAPI_SetMaxFrameRate(fps <= 0 ? 0 : fps);
-      }
-      if (!string.IsNullOrEmpty(ConfigService.PowerPlanGuid)) {
-        Guid g = Guid.Parse(ConfigService.PowerPlanGuid);
-        NativeMethods_Power.PowerSetActiveScheme(IntPtr.Zero, ref g);
-      }
-      Guid pmGuid;
-      if (ConfigService.PowerMode == 0) pmGuid = NativeMethods_Power.BEST_POWER_EFFICIENCY;
-      else if (ConfigService.PowerMode == 2) pmGuid = NativeMethods_Power.BEST_PERFORMANCE;
-      else pmGuid = Guid.Empty;
-      NativeMethods_Power.PowerSetActiveOverlayScheme(pmGuid);
-      if (ConfigService.CpuPower == "max") OmenHardware.SetCpuPowerLimit(254);
-      else if (int.TryParse(ConfigService.CpuPower?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
-        OmenHardware.SetCpuPowerLimit((byte)cpuVal);
-      // Apply fan curves — ponytail: 镜像 FanPage.ApplyPresetFanConfig 三分支。
-      // 原代码只处理 smart/custom, 漏掉 silent/cool/balanced 自动档 → SwitchPreset 写了
-      // FanTable 但 CPUTempFanMap 仍是旧曲线, 自动化切预设时风扇不切。手动 RPM 模式同样
-      // 需要应用 SetFanLevel, 否则 SwitchPreset 从注册表恢复的 FanControl 不会作用到 EC。
-      string fc = ConfigService.FanControl;
-      string ft = ConfigService.FanTable;
-      if (fc == "smart" || fc == "custom") {
-        var cpuCurve = FanService.LoadPresetCurve(preset, false);
-        if (cpuCurve != null && cpuCurve.Count > 0) FanService.ApplyCustomCurve(cpuCurve);
-        var gpuCurve = FanService.LoadPresetCurve(preset, true);
-        if (gpuCurve != null && gpuCurve.Count > 0) FanService.ApplyCustomCurveGPU(gpuCurve);
-        SetMaxFanSpeedOff();
-        TrayService.fanControlTimer.Change(0, 1000);
-      } else if (!string.IsNullOrEmpty(fc) && (fc.Contains(" RPM") || fc.EndsWith("%"))) {
-        int rpm = FanService.ParseFanRpm(fc);
-        SetMaxFanSpeedOff();
-        OmenHardware.SetFanLevel(rpm / 100, rpm / 100);
-        TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
-      } else {
-        string table = ft == "cool" ? "cool.txt"
-                     : ft == "balanced" ? "balanced.txt"
-                     : "silent.txt";
-        FanService.LoadFanConfig(table);
-        SetMaxFanSpeedOff();
-        TrayService.fanControlTimer.Change(0, 1000);
-      }
-      // Apply refresh rate from preset config
-      if (ConfigService.RefreshRate > 0)
-        ApplyRefreshRate(ConfigService.RefreshRate);
+      // ponytail: 硬件应用委托给 PresetManager.ApplyPresetHardware —— 与 OMEN 键 /
+      // 手动切换预设走同一条经过验证的路径。此处旧的内联副本有两个缺陷(issue #20
+      // "通知弹了但预设/风扇/CPU 功率没生效"):
+      //   1) 缺 SetFanMode(0x31) unleash 前置,部分机型 EC 会忽略后续 0x29 功率写入;
+      //   2) TPP 写在 SetGpuPowerState 之后,PPAB 读到的仍是 BIOS 默认总功率预算。
+      // 规范路径还覆盖 PL1/PL2 独立写入、自定义预设 1.2 参数与按预设风扇曲线。
+      // ponytail: 改为 await —— 多步骤 pipeline 连发时,确保 SetPreset 把 GPU/CPU 功率
+      // 真正写入完,再跑下一步的 SetGpuPower/SetCpuPower,否则后写者可能反向覆盖前者。
+      await PresetManager.AwaitableApplyPresetHardware();
+
       Views.OsdWindow.ShowPresetOsd(preset);
       ConfigService.FirePresetCycled(preset);
+    }
+
+    // ponytail: 保留旧入口给 HardwareApiService 等非 async 调用点 —— fire-and-forget,
+    // 不阻塞 HTTP 处理线。语义与旧 void 一致:触发后不等硬件写完即返回。
+    internal static void ApplyPreset(string preset) {
+      _ = ApplyPresetAsync(preset);
     }
 
     private static void ApplyRefreshRate(int hz) {

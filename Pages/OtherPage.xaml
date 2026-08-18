@@ -18,10 +18,10 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="NumberSymbol24" FontSize="18" Margin="0,0,8,0"/>
-                <TextBlock x:Name="NumLockText" Text="{x:Static app:Strings.NumLockHeading}" Tag="NumLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="NumberSymbol24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
+                <TextBlock x:Name="NumLockText" Text="{x:Static app:Strings.NumLockHeading}" Tag="NumLock" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock x:Name="NumLockDescText" Text="{x:Static app:Strings.NumLockDesc}" Tag="NumLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="NumLockDescText" Text="{x:Static app:Strings.NumLockDesc}" Tag="NumLockDesc" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="NumLockToggle" Grid.Column="1" 
                           Checked="NumLockToggle_Changed" Unchecked="NumLockToggle_Changed"/>
@@ -38,10 +38,10 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" Margin="0,0,8,0"/>
-                <TextBlock x:Name="CapsLockText" Text="{x:Static app:Strings.CapsLockHeading}" Tag="CapsLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Keyboard24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
+                <TextBlock x:Name="CapsLockText" Text="{x:Static app:Strings.CapsLockHeading}" Tag="CapsLock" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock x:Name="CapsLockDescText" Text="{x:Static app:Strings.CapsLockDesc}" Tag="CapsLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="CapsLockDescText" Text="{x:Static app:Strings.CapsLockDesc}" Tag="CapsLockDesc" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="CapsLockToggle" Grid.Column="1" 
                           Checked="CapsLockToggle_Changed" Unchecked="CapsLockToggle_Changed"/>
@@ -58,10 +58,10 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Cursor24" FontSize="18" Margin="0,0,8,0"/>
-                <TextBlock x:Name="TouchpadLockText" Text="{x:Static app:Strings.TouchpadLockHeading}" Tag="TouchpadLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Cursor24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
+                <TextBlock x:Name="TouchpadLockText" Text="{x:Static app:Strings.TouchpadLockHeading}" Tag="TouchpadLock" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock x:Name="TouchpadLockDescText" Text="{x:Static app:Strings.TouchpadLockDesc}" Tag="TouchpadLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="TouchpadLockDescText" Text="{x:Static app:Strings.TouchpadLockDesc}" Tag="TouchpadLockDesc" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="TouchpadLockToggle" Grid.Column="1"
                           Checked="TouchpadLockToggle_Changed" Unchecked="TouchpadLockToggle_Changed"/>
@@ -78,10 +78,10 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Keyboard24" FontSize="18" Margin="0,0,8,0"/>
-                <TextBlock x:Name="WinLockText" Text="{x:Static app:Strings.WinLockHeading}" Tag="WinLock" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Keyboard24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
+                <TextBlock x:Name="WinLockText" Text="{x:Static app:Strings.WinLockHeading}" Tag="WinLock" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock x:Name="WinLockDescText" Text="{x:Static app:Strings.WinLockDesc}" Tag="WinLockDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="WinLockDescText" Text="{x:Static app:Strings.WinLockDesc}" Tag="WinLockDesc" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="WinLockToggle" Grid.Column="1"
                           Checked="WinLockToggle_Changed" Unchecked="WinLockToggle_Changed"/>
@@ -98,10 +98,10 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Settings24" FontSize="18" Margin="0,0,8,0"/>
-                <TextBlock x:Name="HWiNFOHeadingText" Text="{x:Static app:Strings.HWiNFOHeading}" Tag="HWiNFO" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Settings24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
+                <TextBlock x:Name="HWiNFOHeadingText" Text="{x:Static app:Strings.HWiNFOHeading}" Tag="HWiNFO" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock x:Name="HWiNFODescText" Text="{x:Static app:Strings.HWiNFODesc}" Tag="HWiNFODesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="HWiNFODescText" Text="{x:Static app:Strings.HWiNFODesc}" Tag="HWiNFODesc" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="HWiNFOToggle" Grid.Column="1" 
                           Checked="HWiNFOToggle_Changed" Unchecked="HWiNFOToggle_Changed"/>
@@ -119,11 +119,11 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="DataHistogram24" FontSize="18" Margin="0,0,8,0"/>
-                <TextBlock x:Name="HWiNFOReadHeadingText" Text="{x:Static app:Strings.HWiNFOReadHeading}" Tag="HWiNFORead" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="DataHistogram24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
+                <TextBlock x:Name="HWiNFOReadHeadingText" Text="{x:Static app:Strings.HWiNFOReadHeading}" Tag="HWiNFORead" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock x:Name="HWiNFOReadDescText" Text="{x:Static app:Strings.HWiNFOReadDesc}" Tag="HWiNFOReadDesc" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
-              <TextBlock x:Name="HWiNFOReadStatusText" Text="" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" FontWeight="SemiBold"/>
+              <TextBlock x:Name="HWiNFOReadDescText" Text="{x:Static app:Strings.HWiNFOReadDesc}" Tag="HWiNFOReadDesc" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="HWiNFOReadStatusText" Text="" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" FontWeight="SemiBold"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="HWiNFOReadToggle" Grid.Column="1"
                           Checked="HWiNFOReadToggle_Changed" Unchecked="HWiNFOReadToggle_Changed"/>
@@ -140,14 +140,35 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Globe24" FontSize="18" Margin="0,0,8,0"/>
-                <TextBlock x:Name="HttpApiHeadingText" Text="{x:Static app:Strings.OtherHttpApiHeading}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+                <ui:SymbolIcon Symbol="Globe24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
+                <TextBlock x:Name="HttpApiHeadingText" Text="{x:Static app:Strings.OtherHttpApiHeading}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock x:Name="HttpApiDescText" Text="{x:Static app:Strings.OtherHttpApiDesc}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
-              <TextBlock x:Name="HttpApiStatusText" Text="" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" FontWeight="SemiBold"/>
+              <TextBlock x:Name="HttpApiDescText" Text="{x:Static app:Strings.OtherHttpApiDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="HttpApiStatusText" Text="" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" FontWeight="SemiBold"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="HttpApiToggle" Grid.Column="1" 
                           Checked="HttpApiToggle_Changed" Unchecked="HttpApiToggle_Changed"/>
+          </Grid>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
+      <!-- 系统优化：服务 + 启动项（二级弹窗） -->
+      <ui:CardControl Margin="{StaticResource CardMargin}">
+        <ui:CardControl.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Server24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
+                <TextBlock x:Name="SysOptHeadingText" Text="{x:Static app:Strings.SysOptCardTitle}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="SysOptDescText" Text="{x:Static app:Strings.SysOptCardDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <ui:Button Grid.Column="1" x:Name="SysOptOpenBtn" Content="{x:Static app:Strings.SysOptViewButton}"
+                       Click="SysOptOpen_Click" Appearance="Secondary" VerticalAlignment="Center"/>
           </Grid>
         </ui:CardControl.Header>
       </ui:CardControl>

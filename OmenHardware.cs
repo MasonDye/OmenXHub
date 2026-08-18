@@ -15,6 +15,11 @@ namespace OmenSuperHub {
     static readonly byte[] Sign = { 0x53, 0x45, 0x43, 0x55 };
     static ManagementScope _wmiScope;
     static readonly object _scopeLock = new object();
+    // ponytail: 缓存 hpqBIntM 方法宿主对象 — 旧实现每次调用 new ManagementObjectSearcher
+    // 全量枚举该类,是 WMI 单次延迟的主要来源(百毫秒级);缓存后静态色通道才撑得起
+    // 软件渲染动画的 20 FPS(参考 OmenLinux/omen-rgb-keyboard 同接口帧率)。
+    // ManagementException 时 Dispose+置 null 重探(与 scope 同生命周期,sleep/resume 断连)。
+    static ManagementObject _biosMethods;
 
     // ── WMI result cache (static hardware info, never changes at runtime) ──
     static byte[] _cachedDesignData;
@@ -51,32 +56,38 @@ namespace OmenSuperHub {
       }
 
       try {
-        using (var biosDataInClass = new ManagementClass(scope, new ManagementPath("hpqBDataIn"), null))
-        using (var biosDataIn = biosDataInClass.CreateInstance()) {
-          biosDataIn["Command"] = command;
-          biosDataIn["CommandType"] = commandType;
-          biosDataIn["Sign"] = Sign;
-          if (data != null) {
-            biosDataIn["hpqBData"] = data;
-            biosDataIn["Size"] = (uint)data.Length;
-          } else {
-            biosDataIn["Size"] = (uint)0;
+        // ponytail: _scopeLock 串行化整个 BIOS WMI 调用 — hpqBIntM 方法对象缓存后是共享
+        // COM 状态,并发 Invoke 有竞态;BIOS 通道本身串行,锁不损失吞吐。
+        lock (_scopeLock) {
+          if (_biosMethods == null) {
+            using (var searcher = new ManagementObjectSearcher(scope, new ObjectQuery($"SELECT * FROM {className}")))
+            using (var collection = searcher.Get()) {
+              // ponytail: 枚举出的 ManagementObject 独立持有 COM 引用,searcher/collection
+              // 释放后仍可用 — 缓存它,后续调用直接 Invoke(仅首枚举一次)。
+              _biosMethods = collection.Cast<ManagementObject>().FirstOrDefault();
+            }
+          }
+          if (_biosMethods == null) {
+            Logger.Error($"SendOmenBiosWmi: {className} WMI class not found!");
+            return null;
           }
 
-          using (var localSearcher = new ManagementObjectSearcher(scope, new ObjectQuery($"SELECT * FROM {className}")))
-          using (var collection = localSearcher.Get()) {
-            // ponytail: FirstOrDefault 不接管 dispose 责任；由外层 using (biosMethods) 统一释放（对齐 OSH 实现）
-            ManagementObject biosMethods = collection.Cast<ManagementObject>().FirstOrDefault();
-            if (biosMethods == null) {
-              Logger.Error($"SendOmenBiosWmi: {className} WMI class not found!");
-              return null;
+          using (var biosDataInClass = new ManagementClass(scope, new ManagementPath("hpqBDataIn"), null))
+          using (var biosDataIn = biosDataInClass.CreateInstance()) {
+            biosDataIn["Command"] = command;
+            biosDataIn["CommandType"] = commandType;
+            biosDataIn["Sign"] = Sign;
+            if (data != null) {
+              biosDataIn["hpqBData"] = data;
+              biosDataIn["Size"] = (uint)data.Length;
+            } else {
+              biosDataIn["Size"] = (uint)0;
             }
 
-            using (biosMethods)
-            using (var inParams = biosMethods.GetMethodParameters(methodName)) {
+            using (var inParams = _biosMethods.GetMethodParameters(methodName)) {
               inParams["InData"] = biosDataIn;
 
-              using (var result = biosMethods.InvokeMethod(methodName, inParams, null)) {
+              using (var result = _biosMethods.InvokeMethod(methodName, inParams, null)) {
                 using (var outData = result["OutData"] as ManagementBaseObject) {
                   uint returnCode = (uint)outData["rwReturnCode"];
 
@@ -101,6 +112,12 @@ namespace OmenSuperHub {
         }
       } catch (ManagementException ex) {
         Logger.Error($"SendOmenBiosWmi: WMI EXCEPTION CmdType=0x{commandType:X2}: {ex.ErrorCode} - {ex.Message}");
+        // ponytail: invalidate cached scope+methods so next call reconnects (sleep/resume can break WMI)
+        lock (_scopeLock) {
+          _biosMethods?.Dispose();
+          _biosMethods = null;
+          _wmiScope = null;
+        }
       } catch (Exception ex) {
         Logger.Error($"SendOmenBiosWmi: EXCEPTION CmdType=0x{commandType:X2}: {ex.Message}");
       }
@@ -952,11 +969,16 @@ namespace OmenSuperHub {
     public static int GetCpuTempLimit() {
       try {
         string sku = PerformanceControlHelper.GetPlatformSku(isInit: true);
-        var ps = PerformanceControlHelper.GetPlatformSettings(
-            DeviceModel.DeviceType.ToString(), sku);
+        string devType = DeviceModel.OmenPlatform.Name.ToString();
+        Logger.Info($"[GetCpuTempLimit] sku='{sku}', devType='{devType}'");
+        var ps = PerformanceControlHelper.GetPlatformSettings(devType, sku);
+        Logger.Info($"[GetCpuTempLimit] platformSettings={(ps == null ? "null" : "not null")}" +
+            (ps != null ? $", tempThrottle={ps.temperatureThrottlingPerformance}" : ""));
         if (ps != null && ps.temperatureThrottlingPerformance > 0)
           return ps.temperatureThrottlingPerformance;
-      } catch { }
+      } catch (Exception ex) {
+        Logger.Error($"[GetCpuTempLimit] EXCEPTION: {ex}");
+      }
       return 100;
     }
 
@@ -966,7 +988,7 @@ namespace OmenSuperHub {
       try {
         string sku = PerformanceControlHelper.GetPlatformSku(isInit: false);
         var ps = PerformanceControlHelper.GetPlatformSettings(
-            DeviceModel.DeviceType.ToString(), sku);
+            DeviceModel.OmenPlatform.Name.ToString(), sku);
         return ps != null && ps.UnleashedModeMaxIccMax > 0;
       } catch { return false; }
     }

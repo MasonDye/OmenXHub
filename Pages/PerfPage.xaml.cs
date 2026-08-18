@@ -17,11 +17,9 @@ namespace OmenSuperHub.Pages {
     public static PerfPage Instance { get; private set; }
     bool _loading;
     bool _optionsBuilt;
-    static void Log(string msg) {
-      string line = "[PerfPage] " + msg;
-      Debug.WriteLine(line);
-      try { System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "OmenXHub-PerfPage.log"), line + Environment.NewLine); } catch { }
-    }
+    // ponytail: 原临时写 %TEMP%/OmenXHub-PerfPage.log 的调试日志,统一收敛到全局 Logger.Verbose
+    // (受 ConfigService.VerboseLogging 开关控制,默认不落盘;开 verbose 才记录)。
+    static void Log(string msg) => Logger.Verbose($"[PerfPage] {msg}");
 
     public PerfPage() {
       Instance = this;
@@ -37,6 +35,9 @@ namespace OmenSuperHub.Pages {
     void PerfPage_Unloaded(object sender, RoutedEventArgs e) {
       PresetManager.OnPresetChanged -= OnPresetChanged;
       Strings.OnLanguageChanged -= RefreshHeteroLabels;
+      // ponytail: 断静态强引用 — CachedPageService 在 ReleaseFrontend 时会清掉本页字典引用,
+      // 但 Instance 静态字段会持续钉住旧实例。Unloaded 是唯一对称的清理点；下次 ctor 重赋值。
+      Instance = null;
     }
 
     void PerfPage_Loaded(object sender, RoutedEventArgs e) {
@@ -421,6 +422,9 @@ namespace OmenSuperHub.Pages {
       // ── AMD 滑块同步（预设切换时通过 OnPresetChanged → LoadStateFast 带到这里） ──
       AmdCpuPptSlider.Value = ConfigService.AmdCpuPpt > 0 ? ConfigService.AmdCpuPpt : 105;
       AmdCpuPptNum.Value = AmdCpuPptSlider.Value;
+      // ── AMD Curve Optimizer 降压滑块同步 ──
+      AmdUndervoltSlider.Value = ConfigService.AmdCpuUndervolt;
+      AmdUndervoltNum.Value = ConfigService.AmdCpuUndervolt;
       // ── 电源模式：从 ConfigService 同步 ──
       SelectComboByTag(PowerModeCombo, ConfigService.PowerMode);
 
@@ -1645,6 +1649,13 @@ namespace OmenSuperHub.Pages {
       // ponytail: AMD 基础卡 — PPT 走 WMI 始终可用。TDC/EDC/Tctl 三组控件已随高级调教删除。
       AmdCpuPowerCard.Visibility = hasAmd ? Visibility.Visible : Visibility.Collapsed;
       CpuPowerCard.Visibility = hasIntel && !hasAmd ? Visibility.Visible : Visibility.Collapsed;
+      // ponytail: AMD 降压卡 — 仅需 PawnIO 驱动 + 受支持家族,不依赖 EnableEcAccess 开关。
+      // 首次访问 AmdUndervoltService.Instance 会触发 WMI CPU 检测(~100ms,后续缓存)。
+      bool uvCapable = hasAmd;
+      if (uvCapable && !ConfigService.DebugShowAllUi) {
+        try { uvCapable = Services.AmdUndervoltService.Instance.IsAvailable; } catch { uvCapable = false; }
+      }
+      AmdUndervoltCard.Visibility = uvCapable ? Visibility.Visible : Visibility.Collapsed;
     }
 
     void RefreshHeteroLabels() {
@@ -1847,6 +1858,257 @@ namespace OmenSuperHub.Pages {
       // ponytail: PPT 走 WMI（SMU 兜底已随高级调教删除；本机不可用）
       bool pptOk = watts <= 255 && SetCpuPowerLimit((byte)watts);
       AmdCpuPowerStatus.Text = pptOk ? $"PPT={watts}W ✓" : "WMI 写入失败";
+    }
+
+    // ── AMD Curve Optimizer 全核降压 (SMU 直写) ──
+    // ponytail: SMU 写走 Global\Access_PCI mutex,可能因 LHM 持锁而短暂阻塞,
+    // 故在 ThreadPool 执行,避免 UI 冻结。预设切换时由 PresetManager.ApplyAdvanced 重应用。
+    void AmdUndervoltNum_ValueChanged(object s, RoutedEventArgs e) {
+      if (_loading) return;
+      double? v = AmdUndervoltNum.Value; if (v == null) return;
+      int offset = (int)v;
+      ConfigService.AmdCpuUndervolt = offset; ConfigService.Save("AmdCpuUndervolt");
+      AmdUndervoltStatus.Text = $"CO={offset} …";
+      System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+        var svc = Services.AmdUndervoltService.Instance;
+        if (!svc.IsAvailable) {
+          Dispatcher.Invoke(() => AmdUndervoltStatus.Text = "SMU 不可用");
+          return;
+        }
+        var st = svc.SetAllCoreCO(offset);
+        Dispatcher.Invoke(() => AmdUndervoltStatus.Text = st == Services.SmuStatus.Ok
+          ? $"CO={offset} ✓" : $"CO={offset} 失败 ({st})");
+      });
+    }
+
+    // ── AMD Curve Optimizer 分核降压弹窗 ──
+    // ponytail: FluentWindow + Mica 风格,对齐项目 DialogHelper/HelpWindow 约定。
+    // 双列 UniformGrid 呈现核心,卡片式行布局,加全核批量设置。
+    // 应用后不关闭弹窗,允许用户继续调整后再应用。
+    void AmdUndervoltMore_Click(object sender, RoutedEventArgs e) {
+      int coreCount = Math.Min(Environment.ProcessorCount, 16);
+      if (coreCount < 1) coreCount = 8;
+      var existing = Services.AmdUndervoltService.ParsePerCoreOffsets(ConfigService.AmdCpuPerCoreOffsets);
+      var tertiaryBrush = (System.Windows.Media.Brush)FindResource("TextFillColorTertiaryBrush");
+      var cardBrush = (System.Windows.Media.Brush)FindResource("ControlFillColorDefaultBrush");
+      var bgDeep = (System.Windows.Media.Brush)FindResource("BgDeepBrush");
+      var borderSubtle = (System.Windows.Media.Brush)FindResource("BorderSubtleBrush");
+      var accentOmen = (System.Windows.Media.Brush)FindResource("AccentOmenBrush");
+
+      var dlg = new Wpf.Ui.Controls.FluentWindow {
+        Title = Strings.AmdUndervoltPerCoreTitle,
+        Width = 640, Height = 780,
+        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        Owner = Window.GetWindow(this),
+        ExtendsContentIntoTitleBar = true,
+        WindowBackdropType = Wpf.Ui.Controls.WindowBackdropType.Mica,
+        Background = System.Windows.Media.Brushes.Transparent,
+        ResizeMode = ResizeMode.CanResize,
+        MinWidth = 520, MinHeight = 600
+      };
+      var outer = new Grid();
+      outer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // 标题栏
+      outer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // 内容卡片
+      outer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // 按钮栏
+
+      // ── 标题栏 (对齐 DashboardPage 错误弹窗: BgDeep + 下边框 + 图标 + 标题) ──
+      var titleBar = new Border {
+        Background = bgDeep, BorderBrush = borderSubtle,
+        BorderThickness = new Thickness(0, 0, 0, 1),
+        Padding = new Thickness(16, 12, 16, 12)
+      };
+      var titlePanel = new StackPanel { Orientation = Orientation.Horizontal };
+      titlePanel.Children.Add(new Wpf.Ui.Controls.SymbolIcon {
+        Symbol = Wpf.Ui.Controls.SymbolRegular.DeveloperBoard24, FontSize = 18,
+        Foreground = accentOmen, Margin = new Thickness(0, 0, 8, 0),
+        VerticalAlignment = VerticalAlignment.Center
+      });
+      titlePanel.Children.Add(new TextBlock {
+        Text = Strings.AmdUndervoltPerCoreTitle, FontSize = 14, FontWeight = FontWeights.SemiBold,
+        VerticalAlignment = VerticalAlignment.Center
+      });
+      titleBar.Child = titlePanel;
+      Grid.SetRow(titleBar, 0); outer.Children.Add(titleBar);
+
+      // ── 内容卡片 (对齐 DashboardPage 错误弹窗: CardBg + CornerRadius) ──
+      var contentCard = new Border {
+        Background = cardBrush,
+        CornerRadius = new CornerRadius(6),
+        Padding = new Thickness(12, 14, 12, 14),
+        Margin = new Thickness(12, 8, 12, 8)
+      };
+      var root = new Grid();
+      root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });   // 描述
+      root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });   // 批量栏
+      root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // 核心列表(占满)
+      root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });   // 状态栏
+      contentCard.Child = root;
+      Grid.SetRow(contentCard, 1); outer.Children.Add(contentCard);
+      dlg.Content = outer;
+
+      // ── 描述 ──
+      var descTb = new TextBlock {
+        Text = Strings.AmdUndervoltPerCoreDesc, FontSize = 12,
+        Foreground = tertiaryBrush, TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0, 0, 0, 14)
+      };
+      Grid.SetRow(descTb, 0); root.Children.Add(descTb);
+
+      // ── 全核批量设置栏 ──
+      var batchRow = new Grid { Margin = new Thickness(0, 0, 0, 14) };
+      batchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+      batchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+      batchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+      var batchLbl = new TextBlock {
+        Text = "全核批量:", VerticalAlignment = VerticalAlignment.Center,
+        FontSize = 13, FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 8, 0)
+      };
+      Grid.SetColumn(batchLbl, 0); batchRow.Children.Add(batchLbl);
+      var batchNum = new Wpf.Ui.Controls.NumberBox {
+        Minimum = -100, Maximum = 0, SmallChange = 1, MaxDecimalPlaces = 0,
+        PlaceholderText = "0", Width = 100
+      };
+      Grid.SetColumn(batchNum, 1); batchRow.Children.Add(batchNum);
+      var batchApplyBtn = new Wpf.Ui.Controls.Button {
+        Content = "应用到所有核", Margin = new Thickness(8, 0, 0, 0),
+        Height = 30, MinWidth = 120, Padding = new Thickness(16, 4, 16, 4),
+        VerticalAlignment = VerticalAlignment.Center
+      };
+      Grid.SetColumn(batchApplyBtn, 2); batchRow.Children.Add(batchApplyBtn);
+      Grid.SetRow(batchRow, 1); root.Children.Add(batchRow);
+
+      // ── 核心列表(双列 UniformGrid + 滚动,占满剩余空间) ──
+      var scroll = new ScrollViewer {
+        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        Margin = new Thickness(0, 0, 0, 12),
+        Padding = new Thickness(4)
+      };
+      // ponytail: UniformGrid 双列自动排列,核心数奇数时最后一格独占一行右半
+      var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+      var numBoxes = new System.Collections.Generic.List<Wpf.Ui.Controls.NumberBox>();
+      for (int i = 0; i < coreCount; i++) {
+        // 单核卡片(浅底色 + 圆角)
+        var card = new Border {
+          Background = cardBrush,
+          CornerRadius = new CornerRadius(6),
+          Padding = new Thickness(12, 8, 12, 8),
+          Margin = new Thickness(4)
+        };
+        var row = new Grid();
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var lbl = new TextBlock {
+          Text = $"{Strings.AmdUndervoltPerCoreLabel} {i}",
+          VerticalAlignment = VerticalAlignment.Center,
+          FontSize = 13, FontWeight = FontWeights.SemiBold
+        };
+        Grid.SetColumn(lbl, 0); row.Children.Add(lbl);
+        var num = new Wpf.Ui.Controls.NumberBox {
+          Minimum = -100, Maximum = 0, SmallChange = 1, MaxDecimalPlaces = 0,
+          ClearButtonEnabled = true, PlaceholderText = "0",
+          HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        if (existing.TryGetValue(i, out int v) && v != 0) num.Value = v;
+        Grid.SetColumn(num, 1); row.Children.Add(num);
+        numBoxes.Add(num);
+        card.Child = row;
+        grid.Children.Add(card);
+      }
+      scroll.Content = grid;
+      Grid.SetRow(scroll, 2); root.Children.Add(scroll);
+
+      // ── 状态栏 ──
+      var status = new TextBlock {
+        FontSize = 12, Margin = new Thickness(0, 0, 0, 10),
+        Foreground = tertiaryBrush
+      };
+      Grid.SetRow(status, 3); root.Children.Add(status);
+
+      // ── 按钮栏 (对齐 DashboardPage 错误弹窗: 上边框分隔) ──
+      var btnRow = new Grid();
+      btnRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+      btnRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+      btnRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+      var resetBtn = new Wpf.Ui.Controls.Button {
+        Content = "重置全部", Height = 30, MinWidth = 80,
+        Padding = new Thickness(16, 4, 16, 4),
+        HorizontalAlignment = HorizontalAlignment.Left
+      };
+      Grid.SetColumn(resetBtn, 0); btnRow.Children.Add(resetBtn);
+      var cancelBtn = new Wpf.Ui.Controls.Button {
+        Content = Strings.AmdUndervoltClosePage, Height = 30, MinWidth = 80,
+        Padding = new Thickness(16, 4, 16, 4),
+        Margin = new Thickness(0, 0, 8, 0)
+      };
+      cancelBtn.Click += (_, __) => dlg.Close();
+      Grid.SetColumn(cancelBtn, 1); btnRow.Children.Add(cancelBtn);
+      var applyBtn = new Wpf.Ui.Controls.Button {
+        Content = Strings.ButtonOK, Height = 30, MinWidth = 80,
+        Padding = new Thickness(16, 4, 16, 4)
+      };
+      Grid.SetColumn(applyBtn, 2); btnRow.Children.Add(applyBtn);
+      var btnBorder = new Border {
+        BorderBrush = borderSubtle,
+        BorderThickness = new Thickness(0, 1, 0, 0),
+        Padding = new Thickness(16, 8, 16, 8),
+        Child = btnRow
+      };
+      Grid.SetRow(btnBorder, 2); outer.Children.Add(btnBorder);
+
+      // ── 事件 ──
+      batchApplyBtn.Click += (_, __) => {
+        double? bv = batchNum.Value;
+        if (!bv.HasValue) { status.Text = "请先输入批量值"; return; }
+        int bo = (int)bv.Value;
+        foreach (var nb in numBoxes) nb.Value = bo;
+        status.Text = $"已将 {numBoxes.Count} 核全部设为 {bo}";
+      };
+      resetBtn.Click += (_, __) => {
+        foreach (var nb in numBoxes) nb.Value = null;
+        status.Text = "已清空所有核心偏移";
+      };
+      applyBtn.Click += (_, __) => {
+        // 收集非零偏移
+        var offsets = new System.Collections.Generic.Dictionary<int, int>();
+        for (int i = 0; i < numBoxes.Count; i++) {
+          var v = numBoxes[i].Value;
+          if (v.HasValue && v.Value != 0) offsets[i] = (int)v.Value;
+        }
+        // 持久化(空字典存空串)
+        var sb = new System.Text.StringBuilder();
+        foreach (var kv in offsets) {
+          if (sb.Length > 0) sb.Append(',');
+          sb.Append(kv.Key).Append(':').Append(kv.Value);
+        }
+        ConfigService.AmdCpuPerCoreOffsets = sb.ToString();
+        ConfigService.Save("AmdCpuPerCoreOffsets");
+
+        if (offsets.Count == 0) {
+          status.Text = "已清空分核偏移(持久化)";
+          return;
+        }
+        status.Text = $"应用中 ({offsets.Count} 核)…";
+        applyBtn.IsEnabled = false; resetBtn.IsEnabled = false; batchApplyBtn.IsEnabled = false;
+        // 后台线程逐核写 SMU,完成后保持弹窗打开
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+          var svc = Services.AmdUndervoltService.Instance;
+          if (!svc.IsAvailable) {
+            Dispatcher.Invoke(() => {
+              status.Text = "SMU 不可用,配置已保存";
+              applyBtn.IsEnabled = true; resetBtn.IsEnabled = true; batchApplyBtn.IsEnabled = true;
+            });
+            return;
+          }
+          int ok = svc.ApplyPerCoreCO(offsets);
+          Dispatcher.Invoke(() => {
+            status.Text = ok == offsets.Count ? $"已应用 {ok}/{offsets.Count} 核 ✓ (可继续调整)"
+                                              : $"部分失败 {ok}/{offsets.Count} (可重试)";
+            applyBtn.IsEnabled = true; resetBtn.IsEnabled = true; batchApplyBtn.IsEnabled = true;
+          });
+        });
+      };
+
+      dlg.ShowDialog();
     }
 
     /// <summary>Dynamically build 12-core slider rows into Ccd1CoPanel / Ccd2CoPanel</summary>

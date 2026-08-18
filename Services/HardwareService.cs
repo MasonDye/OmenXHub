@@ -54,7 +54,54 @@ namespace OmenSuperHub.Services {
     public static string PawnIOState = "";
 
     // Internal state
-    public static LibreComputer LibreComputer = new LibreComputer() { IsCpuEnabled = true, IsGpuEnabled = true };
+    // ponytail: Storage/Motherboard group 启动时常开,不按勾选动态开/关 LHM Computer。代价是这两个 group
+    // 进入 800ms 轮询(每 group 1-3 个传感器,微秒级),避免 Open/Close 动态增删 group 的复杂度。
+    public static LibreComputer LibreComputer = new LibreComputer() {
+      IsCpuEnabled = true, IsGpuEnabled = true,
+      IsStorageEnabled = true, IsMotherboardEnabled = true,
+    };
+
+    // ═══ 额外温度传感器 — 固定候选清单(稳定唯一 ID;UI 显示名见 App/Strings.cs 的 SysGpuHotSpot 等) ═══
+    // ponytail: 固定清单不复用 OMEN WMI 0x23 那路(IR/Ambient/PCH/VR 已在 Dashboard 独立显示,纳入本管理会双重)
+    public static readonly string[] ExtraSensorIds = {
+      "GPUNV_HOTSPOT", "CPU_COREMAX", "CPU_COREAVG", "CPU_TJMAX_DISTANCE",
+      "STORAGE_NVME_0", "MOTHERBOARD_SUPERIO",
+    };
+    // ID → 当前温度(未读到=负数)。每轮 QueryHardware 按"读到才覆写"语义,读不到保留上次值(避免 UI 抖动)。
+    static readonly Dictionary<string, float> _extraRaw = new();
+    static readonly Dictionary<string, float> _extraSmoothed = new();   // EMA 平滑副本
+    // ponytail: 标记本轮读到与否,只用于"未读到"时刷新逻辑(同上)
+    static readonly Dictionary<string, bool> _extraSeenThisTick = new();
+    public static IReadOnlyDictionary<string, float> ExtraTemps => _extraSmoothed;
+    // ponytail: 读不到值返回负数,UI 借此显 "-"。1~120°C 钳位与 CPU/GPU 同口径。
+    public static float GetDisplayExtraTemp(string id) {
+      if (!_extraRaw.TryGetValue(id, out float raw) || raw < 1f || raw > 120f) return -1;
+      return _displayRaw ? raw : (_extraSmoothed.TryGetValue(id, out float s) ? s : raw);
+    }
+
+    // ═══ GPU 选择 — 用户在设置页选指定 GPU 显示其温度/利用率/功耗/时钟 ═══
+    // ponytail: 空 SelectedGpu = 独显优先(只读 GpuNvidia/GpuAmd, 跳过 GpuIntel),否则只匹配 IHardware.Name。
+    // 三个 vendor 分支前置 GpuWanted(hardware) 守卫,只有选中的 GPU 才进分支写 GPUTemp/GPUUsage/GPUPower/GPUClock。
+    static bool IsDiscreteGPU(LibreHardwareType t) => t == LibreHardwareType.GpuNvidia || t == LibreHardwareType.GpuAmd;
+    static bool GpuWanted(LibreIHardware h) {
+      string sel = ConfigService.SelectedGpu ?? "";
+      if (string.IsNullOrWhiteSpace(sel)) return IsDiscreteGPU(h.HardwareType);   // 默认独显优先
+      return h.Name == sel;   // 指定名精确匹配(IHardware.Name 是 LHM 稳定唯一字符串)
+    }
+    // 列出可用 GPU(供设置页 ComboBox 枚举)。返回 (Name, Vendor) 列表,启动 LibreComputer.Open 后才有效。
+    public static List<(string Name, string Vendor)> GetAvailableGpus() {
+      var list = new List<(string, string)>();
+      try {
+        foreach (LibreIHardware h in LibreComputer.Hardware) {
+          string v = h.HardwareType == LibreHardwareType.GpuNvidia ? "NVIDIA"
+                   : h.HardwareType == LibreHardwareType.GpuAmd ? "AMD"
+                   : h.HardwareType == LibreHardwareType.GpuIntel ? "Intel" : null;
+          if (v != null) list.Add((h.Name, v));
+        }
+      } catch { }
+      return list;
+    }
+
     static bool openLib = true;
     static int countQuery = 0;
     public static bool AutoStartMonitorGPU = true, AutoStopMonitorGPU = true;
@@ -144,6 +191,9 @@ namespace OmenSuperHub.Services {
     public static void QueryHardware() {
       if ((DateTime.Now - _lastQueryTime) < _cacheInterval) return;
       _lastQueryTime = DateTime.Now;
+      // ponytail: 不每轮 Clear —— 改"读到了就覆盖,读不到保留上次值",避免 LHM 间歇读不到
+      // (尤其 Intel Core Max/Distance to TjMax 启动初期读不到)导致 UI 抖动出 "-"
+      foreach (var id in ExtraSensorIds) _extraSeenThisTick[id] = false;
 
       // ponytail: HWiNFO Read 启用时，跳过 LibreHardwareMonitor 传感器轮询及后续覆盖
       float libreTempCPU = -300;
@@ -158,7 +208,7 @@ namespace OmenSuperHub.Services {
       }
 
       foreach (LibreIHardware hardware in LibreComputer.Hardware) {
-        if (hardware.HardwareType == LibreHardwareType.Cpu || hardware.HardwareType == LibreHardwareType.GpuNvidia || hardware.HardwareType == LibreHardwareType.GpuAmd || hardware.HardwareType == LibreHardwareType.GpuIntel) {
+        if (hardware.HardwareType == LibreHardwareType.Cpu || hardware.HardwareType == LibreHardwareType.GpuNvidia || hardware.HardwareType == LibreHardwareType.GpuAmd || hardware.HardwareType == LibreHardwareType.GpuIntel || hardware.HardwareType == LibreHardwareType.Storage || hardware.HardwareType == LibreHardwareType.Motherboard || hardware.HardwareType == LibreHardwareType.SuperIO) {
           hardware.Update();
 
           foreach (LibreISensor sensor in hardware.Sensors) {
@@ -167,6 +217,16 @@ namespace OmenSuperHub.Services {
               if (sensor.SensorType == LibreSensorType.Temperature &&
                   (sensor.Name.Contains("Package") || sensor.Name.Contains("Tctl/Tdie") || sensor.Name.Contains("Tdie"))) {
                 libreTempCPU = (int)sensor.Value.GetValueOrDefault();
+              }
+              // CPU 额外项 — Intel: CPU Core Max / CPU Core Average / Distance to TjMax;AMD 双 CCD 命名不同(Tdie/CCD1)留待以后
+              // ponytail: 1~120°C 钳位;读到才覆写,读不到保留上次 EMA(避免 LHM 间歇读 null 时 UI 抖 "-")
+              if (sensor.SensorType == LibreSensorType.Temperature && sensor.Value != null) {
+                int v = (int)sensor.Value.GetValueOrDefault();
+                if (v >= 1 && v <= 120) {
+                  if (sensor.Name == "Core Max")         { _extraRaw["CPU_COREMAX"] = v; _extraSeenThisTick["CPU_COREMAX"] = true; }
+                  if (sensor.Name == "Core Average")    { _extraRaw["CPU_COREAVG"] = v; _extraSeenThisTick["CPU_COREAVG"] = true; }
+                  if (sensor.Name == "Distance to TjMax") { _extraRaw["CPU_TJMAX_DISTANCE"] = v; _extraSeenThisTick["CPU_TJMAX_DISTANCE"] = true; }
+                }
               }
               if (sensor.SensorType == LibreSensorType.Power && sensor.Name.Contains("Package")) {
                 librePowerCPU = sensor.Value.GetValueOrDefault();
@@ -178,10 +238,17 @@ namespace OmenSuperHub.Services {
                 float v = (float)sensor.Value.GetValueOrDefault();
                 if (v > snapCpuClock) snapCpuClock = v;
               }
-            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuNvidia) {
+            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuNvidia && GpuWanted(hardware)) {
               if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
                 _rawGpuTemp = (int)sensor.Value.GetValueOrDefault();
-                GPUTemp = _rawGpuTemp * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+                // ponytail: reject impossible GPU temps (<15°C or >120°C)
+                if (_rawGpuTemp >= 15 && _rawGpuTemp <= 120)
+                  GPUTemp = _rawGpuTemp * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+              }
+              // GPU Hot Spot(nVIDIA 命中 "GPU Hot Spot")
+              if (sensor.SensorType == LibreSensorType.Temperature && sensor.Name.Contains("Hot Spot")) {
+                int v = (int)sensor.Value.GetValueOrDefault();
+                if (v >= 1 && v <= 120) { _extraRaw["GPUNV_HOTSPOT"] = v; _extraSeenThisTick["GPUNV_HOTSPOT"] = true; }
               }
               if (sensor.Name == "GPU Package" && sensor.SensorType == LibreSensorType.Power) {
                 getGPU = true;
@@ -197,10 +264,17 @@ namespace OmenSuperHub.Services {
                 float v = (float)sensor.Value.GetValueOrDefault();
                 if (v > snapGpuClock) snapGpuClock = v;
               }
-            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuAmd) {
+            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuAmd && GpuWanted(hardware)) {
               if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
                 _rawGpuTemp = (int)sensor.Value.GetValueOrDefault();
-                GPUTemp = _rawGpuTemp * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+                // ponytail: reject impossible GPU temps (<15°C or >120°C)
+                if (_rawGpuTemp >= 15 && _rawGpuTemp <= 120)
+                  GPUTemp = _rawGpuTemp * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+              }
+              // GPU Hot Spot(AMD 命中 "Hot Spot" 或 "Temperature #2",两者都认)
+              if (sensor.SensorType == LibreSensorType.Temperature && (sensor.Name.Contains("Hot Spot") || sensor.Name.Contains("Hotspot"))) {
+                int v = (int)sensor.Value.GetValueOrDefault();
+                if (v >= 1 && v <= 120) { _extraRaw["GPUNV_HOTSPOT"] = v; _extraSeenThisTick["GPUNV_HOTSPOT"] = true; }
               }
               if (sensor.Name == "GPU Package" && sensor.SensorType == LibreSensorType.Power) {
                 getGPU = true;
@@ -217,10 +291,22 @@ namespace OmenSuperHub.Services {
                 float v = (float)sensor.Value.GetValueOrDefault();
                 if (v > snapGpuClock) snapGpuClock = v;
               }
-            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuIntel) {
+            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuIntel && GpuWanted(hardware)) {
               if (sensor.SensorType == LibreSensorType.Load) {
                 float val = (float)sensor.Value.GetValueOrDefault();
                 if (val > GPUUsage) GPUUsage = val;
+              }
+            } else if (hardware.HardwareType == LibreHardwareType.Storage) {
+              // ponytail: 多盘只取第一个 hardware 的第一个温度(符合"固定清单"本意,多盘留待以后)
+              if (sensor.SensorType == LibreSensorType.Temperature && !_extraRaw.ContainsKey("STORAGE_NVME_0")) {
+                int v = (int)sensor.Value.GetValueOrDefault();
+                if (v >= 1 && v <= 120) { _extraRaw["STORAGE_NVME_0"] = v; _extraSeenThisTick["STORAGE_NVME_0"] = true; }
+              }
+            } else if (hardware.HardwareType == LibreHardwareType.Motherboard || hardware.HardwareType == LibreHardwareType.SuperIO) {
+              // SuperIO/主板第一个温度(PCH 等已在 OMEN WMI 0x23 那路独立显示,本路补位非 OMEN 机型)
+              if (sensor.SensorType == LibreSensorType.Temperature && !_extraRaw.ContainsKey("MOTHERBOARD_SUPERIO")) {
+                int v = (int)sensor.Value.GetValueOrDefault();
+                if (v >= 1 && v <= 120) { _extraRaw["MOTHERBOARD_SUPERIO"] = v; _extraSeenThisTick["MOTHERBOARD_SUPERIO"] = true; }
               }
             }
           }
@@ -235,10 +321,22 @@ namespace OmenSuperHub.Services {
       }
 
       float tempCPU = 50;
-      if (libreTempCPU > -299)
+      // ponytail: reject physically impossible temps (<15°C or >120°C) to prevent
+      // sensor glitches from polluting EMA and triggering wrong fan behavior
+      if (libreTempCPU >= 15 && libreTempCPU <= 120)
         tempCPU = libreTempCPU;
       _rawCpuTemp = tempCPU;
       CPUTemp = tempCPU * RespondSpeed + CPUTemp * (1.0f - RespondSpeed);
+
+      // ponytail: 额外传感器 EMA 平滑(同 CPU/GPU 口径,1~120°C 钳位)。只有本轮读到才更新,
+      // 读不到保留上次平滑值,避免 LHM 间歇读到 null 让 UI 抖为 "-"。
+      foreach (var id in ExtraSensorIds) {
+        if (_extraSeenThisTick.TryGetValue(id, out bool seen) && seen &&
+            _extraRaw.TryGetValue(id, out float raw) && raw >= 1 && raw <= 120) {
+          float prev = _extraSmoothed.TryGetValue(id, out float p) ? p : raw;
+          _extraSmoothed[id] = raw * RespondSpeed + prev * (1.0f - RespondSpeed);
+        }
+      }
 
       if (librePowerCPU >= 0)
         CPUPower = librePowerCPU;

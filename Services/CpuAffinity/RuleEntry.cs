@@ -46,6 +46,13 @@ namespace OmenSuperHub.Services.CpuAffinity {
     /// <summary>优先级类提示：idle/belowNormal/normal/aboveNormal/high/realtime。</summary>
     [DataMember] public string CpuPriority { get; set; }
 
+    /// <summary>内存优先级提示：veryLow/low/medium/belowNormal/normal，null=不设置。
+    /// SetProcessInformation(ProcessMemoryPriority) 设置进程内存优先级。</summary>
+    [DataMember] public string MemoryPriority { get; set; }
+
+    /// <summary>true 时把进程最忙线程绑定到亲和性掩码的第一个核心（采样 3×75ms 识别）。</summary>
+    [DataMember] public bool MainThreadBind { get; set; }
+
     /// <summary>true 时阻止子进程脱离 Job（配合 job-enforced）。</summary>
     [DataMember] public bool Lock { get; set; }
 
