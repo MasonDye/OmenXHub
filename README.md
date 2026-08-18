@@ -15,13 +15,13 @@ No advertisements · No wallpapers · No network connections.
 
 > 轻量、离线的 HP OMEN Gaming Hub 替代品 —— 无广告、无壁纸、无联网。
 
-**OMEN X Hub**（参考和主要功能来源于 OmenSuperHub）是一个基于 WPF 的 OMEN / VICTUS 游戏本控制中心，提供全面的硬件监控、风扇控制、性能调优、键盘灯光和系统诊断功能，无需安装臃肿的官方 OGH 软件。
+**OMEN X Hub**（参考和主要功能来源于 OmenSuperHub）是一个基于 WPF 的 OMEN / VICTUS 游戏本控制中心，提供全面的硬件监控、风扇控制、性能调优、键盘灯光、网络加速和系统诊断功能，无需安装臃肿的官方 OGH 软件。
 
 ## 功能一览
 
 ### 仪表板 (Dashboard)
 
-实时显示 CPU/GPU 温度、使用率、频率、功耗、风扇转速、内存占用。颜色编码进度条（绿→黄→红）直观反映负载状态。
+实时显示 CPU/GPU 温度、使用率、频率、功耗、风扇转速、内存占用、储存空间。**运存利用率以圆环呈现,容量分布以柱状图呈现**;颜色编码进度条（绿→黄→红）直观反映负载状态。
 
 ![仪表板](Preview/Dashboard.png)
 
@@ -41,7 +41,7 @@ CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、电源模式/计划、EcoQo
 
 ### 灯光控制 (Lighting)
 
-键盘/灯条设备，Basic/Dojo 四分区协议。10 种动画效果、4 区独立颜色、亮度与速度控制。
+键盘 / 灯条设备,Basic / Dojo 四分区协议。10 种动画效果、4 区独立颜色、亮度与速度控制。
 
 ![灯光](Preview/Lighting.png)
 
@@ -49,29 +49,37 @@ CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、电源模式/计划、EcoQo
 
 16 种触发条件（进程启动/停止、锁定/解锁、电源插拔、外接显示器、定时、CPU/GPU 温度、电池电量等）+ 23 种执行步骤（预设、刷新率、电源、WiFi/蓝牙、亮度、音频、宏等）。快捷操作可从托盘一键触发。
 
-| 流水线列表 | 编辑管道 |
-|:---:|:---:|
-| ![自动化](Preview/Automation.png) | ![其他](Preview/Other.png) |
+![自动化](Preview/Automation.png)
+
+### 网络加速 (Network Boost)
+
+基于 WinTUN 虚拟网卡 + sing-box TUN 的系统级代理模式。选网卡、按进程分流路由规则,实时上下行限速,确保代理下游戏 / 下载不限速。
+
+![网络加速](Preview/NetworkBoost.png)
+
+### 核心保持 (Core Keep)
+
+P-Core / E-Core / SMT 拓扑可视化 + 自动亲和性引擎。启动后按进程规则自动绑定到指定核心,24×7 长期挂机不掉亲和。
+
+![核心保持](Preview/CoreKeep.png)
 
 ### 键盘宏 (Macro)
 
-录制/回放键盘操作序列，支持触发快捷键、事件编辑。
+录制 / 回放键盘操作序列,支持触发快捷键、事件编辑。
 
 ![宏](Preview/Macro.png)
 
 ### 其他 (Other)
 
-智能充电、数字锁定、大写锁定、触摸板锁定、HWiNFO64 集成、HTTP API 服务。
+智能充电、数字锁定、大写锁定、触摸板锁定、HWiNFO64 集成、HTTP API 服务、AMD CPU 压降、OMEN Command Center 兼容桩、系统优化窗口。
 
-![其他](Preview/Other.png)
+![其他](Preview/Other-Settings.png)
 
 ### 设置 (Settings)
 
 浮窗显示（位置/布局/字体/透明度/多显示器）、Omen 键、OSD 提示、托盘图标（原版/自定义/动态）、开机自启、自定义主界面 LOGO、主题（深色/亮色）、语言、自定义背景（透明度/高斯模糊）、数据本地化、调试日志。
 
-| 浮窗设置 | 性能控制 |
-|:---:|:---:|
-| ![灯光](Preview/Lighting.png) | ![性能](Preview/Perf-Full.png) |
+![设置](Preview/Settings.png)
 
 ## 预设管理
 
@@ -82,7 +90,7 @@ CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、电源模式/计划、EcoQo
 | 轻度使用 (LightUse) | 25W | 25W | Silent | 关闭 | 无限制 |
 | 自定义 (Custom 1-3) | 用户保存 | 用户保存 | 用户保存 | 用户保存 | 用户保存 |
 
-仅 CPU 功率、电源计划、GPU 频率上限、TGP+PPAB、dState 跟随预设绑定；灯光、宏、音频等参数独立保存。
+仅 CPU 功率、电源计划、GPU 频率上限、TGP+PPAB、dState 跟随预设绑定;灯光、宏、音频等参数独立保存。
 
 ## 支持硬件
 
@@ -91,11 +99,11 @@ CPU 功率限制 (PL1/PL2)、IccMax、AC Load Line、电源模式/计划、EcoQo
 | 已确认 | 暗影精灵 8 Plus · 8 Plus Plus · 9 · 9 Plus · 10 · 光影精灵 10 · 光影精灵 10 (Victus) · OMEN 16 (Ryzen) · OMEN 15 · OMEN Phantom Gaming |
 | 不支持 | 暗影精灵 6 |
 
-> 主要针对 **OMEN 10 Intel (i7-13650HX + RTX 4070)** 开发，兼容性不保证适用于所有平台。
+> 主要针对 **OMEN 10 Intel (i7-13650HX + RTX 4070)** 开发,兼容性不保证适用于所有平台。
 
 ### 环境要求
 
-- HP OMEN / VICTUS 游戏本，具有 WMI BIOS 接口
+- HP OMEN / VICTUS 游戏本,具有 WMI BIOS 接口
 - Windows 10/11 64-bit · .NET Framework 4.8
 - 管理员权限（WMI、风扇控制、驱动安装所需）
 
@@ -123,11 +131,11 @@ MSBuild.exe OmenSuperHub.csproj /t:Build /p:Configuration=Release /p:Platform=x6
 ## 致谢
 
 - **MasonDye** — GUI 设计与 WPF 前端开发
-- **One1turn** - WPF-UI Windows 11 样式重写 + 性能优化
+- **One1turn** — WPF-UI Windows 11 样式重写 + 性能优化
 - **breadeding** — [OmenSuperHub](https://github.com/breadeding/OmenSuperHub)（原始框架与代码）
 - **GeographicCone** — [OmenMon](https://github.com/GeographicCone) / [OmenHwCtl](https://github.com/GeographicCone)（灵感来源与 OGH 交互研究）
 - **OpenHardwareMonitor** — [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)（硬件监控核心库）
 
 ## 免责声明
 
-OMEN X Hub **与 HP 或 OMEN 无关联**。品牌名称仅作参考。本软件直接与硬件交互，可能存在潜在风险。**使用风险自负。**
+OMEN X Hub **与 HP 或 OMEN 无关联**。品牌名称仅作参考。本软件直接与硬件交互,可能存在潜在风险。**使用风险自负。**
