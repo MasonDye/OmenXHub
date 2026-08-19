@@ -500,10 +500,24 @@ namespace OmenSuperHub.Services {
         int fanSpeed1, fanSpeed2;
         if (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom") {
           fanSpeed1 = FanService.GetSmartFanSpeed(0) / 100;
-          fanSpeed2 = ConfigService.FanSync ? fanSpeed1 : FanService.GetSmartFanSpeed(1) / 100;
+          int gpuTargetSmart = FanService.GetSmartFanSpeed(1) / 100;
+          if (ConfigService.FanSync) {
+            int syncSpeed = System.Math.Max(fanSpeed1, gpuTargetSmart);
+            fanSpeed1 = syncSpeed;
+            fanSpeed2 = syncSpeed;
+          } else {
+            fanSpeed2 = gpuTargetSmart;
+          }
         } else {
           fanSpeed1 = FanService.GetFanSpeedForTemperature(0) / 100;
-          fanSpeed2 = ConfigService.FanSync ? fanSpeed1 : FanService.GetFanSpeedForTemperature(1) / 100;
+          int gpuTargetAuto = FanService.GetFanSpeedForTemperature(1) / 100;
+          if (ConfigService.FanSync) {
+            int syncSpeed = System.Math.Max(fanSpeed1, gpuTargetAuto);
+            fanSpeed1 = syncSpeed;
+            fanSpeed2 = syncSpeed;
+          } else {
+            fanSpeed2 = gpuTargetAuto;
+          }
         }
         // ponytail: AMD EC 需要每 tick 保活，否则 ~3 秒后回退到 BIOS 风扇表。
         // SetMaxFanSpeedOff(0x27) 通知 EC "保持在软件控制模式"，
