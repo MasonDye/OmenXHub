@@ -258,7 +258,13 @@ namespace OmenSuperHub {
         data[1] = (byte)fanSpeed2;
         if (fan3) data[2] = (byte)((fanSpeed1 + fanSpeed2) / 2);
       }
-      SendOmenBiosWmi(0x2E, data, 0);
+      // ponytail: 暗影精灵 6 等老机型 WMI BIOS 可能失败,失败时降级到 EC 直接读写
+      // (需 PawnIO 驱动; 参考 OmenMon 项目的 EC 寄存器表)
+      var result = SendOmenBiosWmi(0x2E, data, 0);
+      if (result == null && Services.EcFanService.IsAvailable) {
+        Logger.Verbose($"[OmenHardware] WMI SetFanLevel failed, EC fallback: {fanSpeed1}%, {fanSpeed2}%");
+        Services.EcFanService.SetFanSpeed(fanSpeed1, fanSpeed2);
+      }
     }
 
     public static void SetMaxFanSpeedOn() { SendOmenBiosWmi(0x27, new byte[] { 0x01 }, 0); }
