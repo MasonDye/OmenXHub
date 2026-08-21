@@ -98,6 +98,12 @@ namespace OmenSuperHub {
                     else
                       return Array.Empty<byte>();
                   } else {
+                    // ponytail: 暗影精灵 6 的 BIOS 在 SetFanLevel(0x2E) 时把 RPM 值写入 rwReturnCode
+                    // (而非状态码 0),导致误报错误。检测到此情况时降级为 Verbose 日志。
+                    if (commandType == 0x2E && returnCode == 0x2E) {
+                      Logger.Verbose($"SendOmenBiosWmi: CmdType=0x{commandType:X2} executed, fan RPM={returnCode} (Omen 6 BIOS quirk)");
+                      return Array.Empty<byte>();
+                    }
                     string errorMessage = "";
                     switch (returnCode) {
                       case 0x03: errorMessage = "Command Not Available"; break;
