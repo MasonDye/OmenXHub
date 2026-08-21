@@ -498,6 +498,10 @@ namespace OmenSuperHub.Services {
       // Fan control timer
       fanControlTimer = new System.Threading.Timer((e) => {
         int fanSpeed1, fanSpeed2;
+        // ponytail: FanSync 开启时,两条路径内部已用 max(CPU,GPU) 算出同源 RPM。
+        // 这里再 fanSpeed2 = fanSpeed1 是一次 EC 写入前的防御性兜底,防止
+        // 两条独立路径的 EMA/插值偶尔抖动一帧造成 RPM 差异。FanSync 关闭时
+        // 两把风扇按各自 CPU/GPU 温度独立计算。
         if (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom") {
           fanSpeed1 = FanService.GetSmartFanSpeed(0) / 100;
           fanSpeed2 = ConfigService.FanSync ? fanSpeed1 : FanService.GetSmartFanSpeed(1) / 100;

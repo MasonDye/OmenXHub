@@ -35,7 +35,7 @@ CPU power limits (PL1/PL2), IccMax, AC Load Line, power plan/mode, EcoQoS effici
 
 ### Fan Control
 
-Fan modes (Auto / Max / Fixed RPM), temperature sensitivity, custom fan curve (drag-and-drop), high-temp auto-protection, fan dust removal.
+Fan modes (Auto / Max / Fixed RPM), temperature sensitivity, custom fan curve (drag-and-drop), high-temp auto-protection, fan dust removal. **Fan sync**: both fans track the higher of CPU/GPU temperature so the GPU is not under-cooled.
 
 ![Fan](Preview/Fan.png)
 
