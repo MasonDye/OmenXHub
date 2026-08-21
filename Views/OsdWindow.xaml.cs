@@ -258,8 +258,6 @@ namespace OmenSuperHub.Views {
       }
     }
 
-    private void UpdatePosition() => RepositionAll();
-
     private void BeginAnimate() {
       BeginAnimation(OpacityProperty, null);
       Opacity = 0;
