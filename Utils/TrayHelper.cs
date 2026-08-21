@@ -17,8 +17,6 @@ namespace OmenSuperHub.Utils {
   public class TrayHelper : IDisposable {
     [DllImport("user32.dll")]
     static extern bool SetForegroundWindow(IntPtr hWnd);
-    [DllImport("user32.dll")]
-    static extern bool DestroyIcon(IntPtr handle);
 
     private readonly Action _bringToForeground;
     private System.Windows.Controls.ContextMenu _contextMenu;
@@ -282,56 +280,6 @@ namespace OmenSuperHub.Utils {
       _popupCts?.Dispose();
       _trayIcon?.Dispose();
       _trayIcon = null;
-    }
-
-    public static Icon LoadLogoIcon(int size = 0) {
-      var asm = Assembly.GetExecutingAssembly();
-      using (var stream = asm.GetManifestResourceStream("OmenSuperHub.Resources.fan.ico")) {
-        if (stream != null) {
-          if (size > 0) return new Icon(stream, size, size);
-          return new Icon(stream);
-        }
-      }
-      return CreateLogoIcon(size > 0 ? size : 32);
-    }
-
-    public static Icon CreateLogoIcon(int size) {
-      using (var bitmap = new Bitmap(size, size)) {
-        using (Graphics g = Graphics.FromImage(bitmap)) {
-          g.Clear(Color.Transparent);
-          g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-          float s = size / 100f;
-          using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(
-              new PointF(0, size * 0.79f), new PointF(size * 0.98f, size * 0.39f),
-              Color.Transparent, Color.Transparent)) {
-            brush.InterpolationColors = new System.Drawing.Drawing2D.ColorBlend {
-              Colors = new[] { Color.FromArgb(0xFF, 0x55, 0xE1), Color.FromArgb(0xFF, 0x04, 0x02), Color.FromArgb(0xFF, 0xB4, 0x02) },
-              Positions = new[] { 0f, 0.46078f, 1f }
-            };
-            var topV = new System.Drawing.Drawing2D.GraphicsPath();
-            topV.AddPolygon(new PointF[] {
-              new PointF(3*s, 47*s), new PointF(50*s, 3*s), new PointF(97*s, 47*s),
-              new PointF(70*s, 47*s), new PointF(50*s, 30*s), new PointF(30*s, 47*s)
-            });
-            var bottomV = new System.Drawing.Drawing2D.GraphicsPath();
-            bottomV.AddPolygon(new PointF[] {
-              new PointF(3*s, 53*s), new PointF(50*s, 97*s), new PointF(97*s, 53*s),
-              new PointF(70*s, 53*s), new PointF(50*s, 70*s), new PointF(30*s, 53*s)
-            });
-            g.FillPath(brush, topV);
-            g.FillPath(brush, bottomV);
-          }
-          IntPtr hIcon = bitmap.GetHicon();
-          using (var temp = Icon.FromHandle(hIcon)) {
-            using (var ms = new MemoryStream()) {
-              temp.Save(ms);
-              ms.Position = 0;
-              DestroyIcon(hIcon);
-              return new Icon(ms);
-            }
-          }
-        }
-      }
     }
   }
 }
