@@ -170,7 +170,7 @@
                     Margin="12,0,0,0" VerticalAlignment="Center"/>
           </Grid>
         </ui:CardExpander>
-        <ui:CardExpander Grid.Row="0" Grid.Column="2" Margin="4,0,0,8" x:Name="CpuOcCard"
+        <ui:CardExpander Grid.Row="0" Grid.Column="2" Margin="4,0,0,8" x:Name="CpuOcCard" Visibility="Collapsed"
                          Icon="Rocket24">
           <ui:CardExpander.Header>
             <Grid>
@@ -1106,3 +1106,4 @@
     </StackPanel>
   </ScrollViewer>
 </Page>
+

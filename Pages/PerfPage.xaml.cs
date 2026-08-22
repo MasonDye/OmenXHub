@@ -1444,6 +1444,8 @@ namespace OmenSuperHub.Pages {
         try { uvCapable = Services.AmdUndervoltService.Instance.IsAvailable; } catch { uvCapable = false; }
       }
       AmdUndervoltCard.Visibility = uvCapable ? Visibility.Visible : Visibility.Collapsed;
+      // Intel XTU 超频卡 — 仅 Intel 机型可见(经 XTU3SERVICE 服务控制每核倍频/电压偏移)
+      CpuOcCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
     }
 
     void RefreshHeteroLabels() {
@@ -2401,6 +2403,7 @@ namespace OmenSuperHub.Pages {
   }
   // ponytail: CoreCheckItem 已迁移到 CoreKeepPage.xaml.cs，PerfPage 不再需要
 }
+
 
 
 
