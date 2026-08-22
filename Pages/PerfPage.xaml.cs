@@ -453,6 +453,11 @@ namespace OmenSuperHub.Pages {
     }
 
     // ── 电源模式 ──
+    
+    async void CpuOcSettings_Click(object sender, RoutedEventArgs e) {
+      var dialog = new CpuOcDialog { Owner = Window.GetWindow(this) }; dialog.ShowDialog();
+    }
+
     void PowerMode_SelectionChanged(object sender, SelectionChangedEventArgs e) {
       if (_loading) return;
       var item = PowerModeCombo.SelectedItem as ComboBoxItem;
@@ -2396,4 +2401,6 @@ namespace OmenSuperHub.Pages {
   }
   // ponytail: CoreCheckItem 已迁移到 CoreKeepPage.xaml.cs，PerfPage 不再需要
 }
+
+
 
