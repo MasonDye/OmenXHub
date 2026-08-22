@@ -39,6 +39,7 @@
     <PackageReference Include="Costura.Fody" Version="5.7.0" PrivateAssets="all" />
     <PackageReference Include="HidSharp" Version="2.1.0" />
     <PackageReference Include="Microsoft.Windows.WDK.x64" Version="10.0.28000.1839" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NvAPIWrapper.Net" Version="0.8.1.101" />
     <!-- ponytail: removed unused Microsoft.Extensions.ObjectPool 6.0.4 -->
 
