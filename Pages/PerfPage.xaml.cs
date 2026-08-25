@@ -454,7 +454,7 @@ namespace OmenSuperHub.Pages {
 
     // ── 电源模式 ──
     
-    async void CpuOcSettings_Click(object sender, RoutedEventArgs e) {
+    void CpuOcSettings_Click(object sender, RoutedEventArgs e) {
       var dialog = new CpuOcDialog { Owner = Window.GetWindow(this) }; dialog.ShowDialog();
     }
 

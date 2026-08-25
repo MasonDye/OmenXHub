@@ -135,18 +135,18 @@ namespace OmenSuperHub.Views {
     }
 
     static FrameworkElement BuildTriggerValueControl(string type, out Func<string> getValue) {
-      var textBox = new TextBox { Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center };
+      var textBox = new TextBox { Height = 36, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center };
       getValue = () => textBox.Text;
 
       switch (type) {
         case "TimeSchedule": {
           var sp = new StackPanel { Orientation = Orientation.Horizontal };
-          var hr = new ComboBox { Height = 32, FontSize = 13, Width = 70 };
+          var hr = new ComboBox { Height = 36, FontSize = 13, Width = 70 };
           for (int i = 0; i < 24; i++) hr.Items.Add(i.ToString("D2"));
           hr.SelectedIndex = 8;
           sp.Children.Add(hr);
           sp.Children.Add(new TextBlock { Text = ":", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) });
-          var mn = new ComboBox { Height = 32, FontSize = 13, Width = 70 };
+          var mn = new ComboBox { Height = 36, FontSize = 13, Width = 70 };
           for (int i = 0; i < 60; i++) mn.Items.Add(i.ToString("D2"));
           mn.SelectedIndex = 0;
           sp.Children.Add(mn);
@@ -155,10 +155,10 @@ namespace OmenSuperHub.Views {
         }
         case "Hotkey": {
           var sp = new StackPanel { Orientation = Orientation.Horizontal };
-          var tb = new TextBox { Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 160, IsReadOnly = true };
+          var tb = new TextBox { Height = 36, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 160, IsReadOnly = true };
           tb.Text = "";
           tb.Tag = "点击录制...";
-          var btn = new Button { Content = "录制", Height = 32, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
+          var btn = new Button { Content = "录制", Height = 36, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
           btn.Click += (s, a) => {
             tb.Text = "按下快捷键...";
             var win = Window.GetWindow((DependencyObject)s);
@@ -190,9 +190,9 @@ namespace OmenSuperHub.Views {
         case "CpuTempAbove":
         case "GpuTempAbove": {
           var sp = new StackPanel { Orientation = Orientation.Horizontal };
-          var numBox = new TextBox { Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 80, Text = "80" };
-          var decBtn = new Button { Content = "-", Width = 28, Height = 28, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(0) };
-          var incBtn = new Button { Content = "+", Width = 28, Height = 28, Margin = new Thickness(2, 0, 0, 0), Padding = new Thickness(0) };
+          var numBox = new TextBox { Height = 36, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 80, Text = "80" };
+          var decBtn = new Button { Content = "-", Width = 28, Height = 36, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(0) };
+          var incBtn = new Button { Content = "+", Width = 28, Height = 36, Margin = new Thickness(2, 0, 0, 0), Padding = new Thickness(0) };
           decBtn.Click += (s, a) => { if (int.TryParse(numBox.Text, out int v) && v > 0) numBox.Text = (v - 1).ToString(); };
           incBtn.Click += (s, a) => { if (int.TryParse(numBox.Text, out int v)) numBox.Text = (v + 1).ToString(); };
           sp.Children.Add(numBox); sp.Children.Add(decBtn); sp.Children.Add(incBtn);
@@ -202,8 +202,8 @@ namespace OmenSuperHub.Views {
         case "ProcessStart":
         case "ProcessStop": {
           var sp = new StackPanel { Orientation = Orientation.Horizontal };
-          var tb = new TextBox { Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 160, Text = "notepad.exe" };
-          var browseBtn = new Button { Content = "浏览...", Height = 32, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0) };
+          var tb = new TextBox { Height = 36, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 160, Text = "notepad.exe" };
+          var browseBtn = new Button { Content = "浏览...", Height = 36, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0) };
           browseBtn.Click += (s, a) => {
             var ofd = new Microsoft.Win32.OpenFileDialog { Filter = "可执行文件|*.exe|所有文件|*.*", Title = "选择程序" };
             if (ofd.ShowDialog() == true) {
@@ -227,7 +227,7 @@ namespace OmenSuperHub.Views {
 
       var dialog = new Wpf.Ui.Controls.FluentWindow {
         Title = Strings.AutomationAddTrigger,
-        Width = 480, Height = 420,
+        Width = 480, Height = 430,
         WindowStartupLocation = WindowStartupLocation.CenterOwner,
         Owner = this, ResizeMode = ResizeMode.NoResize,
         ShowInTaskbar = false,
@@ -282,7 +282,7 @@ namespace OmenSuperHub.Views {
         VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 6)
       });
 
-      var valContainer = new ContentPresenter { VerticalAlignment = VerticalAlignment.Center, MinHeight = 32 };
+      var valContainer = new ContentPresenter { VerticalAlignment = VerticalAlignment.Center, MinHeight = 36 };
       Grid.SetColumn(valContainer, 1);
       valGrid.Children.Add(valContainer);
 
@@ -435,7 +435,7 @@ namespace OmenSuperHub.Views {
           Margin = new Thickness(0, 0, 8, 4)
         });
         var valBox = new TextBox {
-          Text = step.Value ?? "", Height = 32, FontSize = 12,
+          Text = step.Value ?? "", Height = 36, FontSize = 12,
           VerticalContentAlignment = VerticalAlignment.Center
         };
         valBox.TextChanged += (s, a) => { _pipeline.Steps[idx].Value = valBox.Text; };
@@ -449,7 +449,7 @@ namespace OmenSuperHub.Views {
         });
         Grid.SetRow(bodyGrid.Children[bodyGrid.Children.Count - 1], 1);
         var delayBox = new TextBox {
-          Text = step.DelayMs.ToString(), Height = 32, FontSize = 12,
+          Text = step.DelayMs.ToString(), Height = 36, FontSize = 12,
           VerticalContentAlignment = VerticalAlignment.Center
         };
         delayBox.TextChanged += (s, a) => {
@@ -491,12 +491,12 @@ namespace OmenSuperHub.Views {
     }
 
     static FrameworkElement BuildStepValueControl(string type, out Func<string> getValue) {
-      var textBox = new TextBox { Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center };
+      var textBox = new TextBox { Height = 36, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center };
       getValue = () => textBox.Text;
 
       switch (type) {
         case "SetPreset": {
-          var cb = new ComboBox { Height = 32, FontSize = 13, IsEditable = true };
+          var cb = new ComboBox { Height = 36, FontSize = 13, IsEditable = true };
           // ponytail: dynamic — populate from PresetManager
           foreach (var (display, key) in PresetManager.EnumerateAllPresets())
             cb.Items.Add(display);
@@ -510,14 +510,14 @@ namespace OmenSuperHub.Views {
           return cb;
         }
         case "SetRefreshRate": {
-          var cb = new ComboBox { Height = 32, FontSize = 13, IsEditable = true };
+          var cb = new ComboBox { Height = 36, FontSize = 13, IsEditable = true };
           foreach (var v in new[] { "30", "60", "120", "144", "165", "240", "360" }) cb.Items.Add(v);
           cb.SelectedIndex = 1;
           getValue = () => cb.Text;
           return cb;
         }
         case "SetPowerMode": {
-          var cb = new ComboBox { Height = 32, FontSize = 13 };
+          var cb = new ComboBox { Height = 36, FontSize = 13 };
           cb.Items.Add(new ComboBoxItem { Content = "节能 (0)", Tag = "0" });
           cb.Items.Add(new ComboBoxItem { Content = "平衡 (1)", Tag = "1" });
           cb.Items.Add(new ComboBoxItem { Content = "性能 (2)", Tag = "2" });
@@ -526,21 +526,21 @@ namespace OmenSuperHub.Views {
           return cb;
         }
         case "SetMaxFrameRate": {
-          var cb = new ComboBox { Height = 32, FontSize = 13, IsEditable = true };
+          var cb = new ComboBox { Height = 36, FontSize = 13, IsEditable = true };
           foreach (var v in new[] { "0", "30", "60", "120", "144", "240" }) cb.Items.Add(v);
           cb.SelectedIndex = 1;
           getValue = () => cb.Text;
           return cb;
         }
         case "SetCpuPower": {
-          var cb = new ComboBox { Height = 32, FontSize = 13, IsEditable = true };
+          var cb = new ComboBox { Height = 36, FontSize = 13, IsEditable = true };
           foreach (var v in new[] { "max", "65 W", "55 W", "45 W", "35 W", "25 W", "20 W", "15 W", "10 W" }) cb.Items.Add(v);
           getValue = () => cb.Text;
           return cb;
         }
         case "SetFanMode": {
           var sp = new StackPanel();
-          var cb = new ComboBox { Height = 32, FontSize = 13 };
+          var cb = new ComboBox { Height = 36, FontSize = 13 };
           cb.Items.Add(new ComboBoxItem { Content = "安静模式", Tag = "silent" });
           cb.Items.Add(new ComboBoxItem { Content = "降温模式", Tag = "cool" });
           cb.Items.Add(new ComboBoxItem { Content = "平衡模式", Tag = "balanced" });
@@ -562,8 +562,8 @@ namespace OmenSuperHub.Views {
           extraPanel.Children.Add(manualRow);
 
           var importRow = new StackPanel { Orientation = Orientation.Horizontal, Visibility = Visibility.Collapsed };
-          var importPath = new TextBox { Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 200, IsReadOnly = true };
-          var importBtn = new Button { Content = "浏览...", Height = 32, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0) };
+          var importPath = new TextBox { Height = 36, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 200, IsReadOnly = true };
+          var importBtn = new Button { Content = "浏览...", Height = 36, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0) };
           importBtn.Click += (s, a) => {
             var ofd = new OpenFileDialog { Filter = "风扇曲线 JSON|*.json|所有文件|*.*" };
             if (ofd.ShowDialog() == true) {
@@ -597,7 +597,7 @@ namespace OmenSuperHub.Views {
           return sp;
         }
         case "SetTempSensitivity": {
-          var cb = new ComboBox { Height = 32, FontSize = 13 };
+          var cb = new ComboBox { Height = 36, FontSize = 13 };
           foreach (var v in new[] { "realtime", "high", "medium", "low" })
             cb.Items.Add(new ComboBoxItem { Content = v, Tag = v });
           cb.SelectedIndex = 2;
@@ -605,7 +605,7 @@ namespace OmenSuperHub.Views {
           return cb;
         }
         case "SetGPUHybridMode": {
-          var cb = new ComboBox { Height = 32, FontSize = 13 };
+          var cb = new ComboBox { Height = 36, FontSize = 13 };
           cb.Items.Add(new ComboBoxItem { Content = "关闭独显", Tag = "disable" });
           cb.Items.Add(new ComboBoxItem { Content = "开启独显", Tag = "enable" });
           cb.SelectedIndex = 0;
@@ -622,7 +622,7 @@ namespace OmenSuperHub.Views {
           return sp;
         }
         case "SetMicrophone": {
-          var cb = new ComboBox { Height = 32, FontSize = 13 };
+          var cb = new ComboBox { Height = 36, FontSize = 13 };
           cb.Items.Add(new ComboBoxItem { Content = "静音", Tag = "mute" });
           cb.Items.Add(new ComboBoxItem { Content = "取消静音", Tag = "unmute" });
           cb.SelectedIndex = 0;
@@ -631,7 +631,7 @@ namespace OmenSuperHub.Views {
         }
         case "SetWiFi":
         case "SetBluetooth": {
-          var cb = new ComboBox { Height = 32, FontSize = 13 };
+          var cb = new ComboBox { Height = 36, FontSize = 13 };
           cb.Items.Add(new ComboBoxItem { Content = "开启", Tag = "on" });
           cb.Items.Add(new ComboBoxItem { Content = "关闭", Tag = "off" });
           cb.SelectedIndex = 0;
@@ -641,9 +641,9 @@ namespace OmenSuperHub.Views {
         case "RunProgram":
         case "PlaySound": {
           var sp = new StackPanel { Orientation = Orientation.Horizontal };
-          var tb = new TextBox { Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 200 };
+          var tb = new TextBox { Height = 36, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 200 };
           var btn = new Button {
-            Content = "浏览...", Height = 32, Margin = new Thickness(4, 0, 0, 0),
+            Content = "浏览...", Height = 36, Margin = new Thickness(4, 0, 0, 0),
             Padding = new Thickness(8, 0, 8, 0)
           };
           btn.Click += (s, a) => {
@@ -657,7 +657,7 @@ namespace OmenSuperHub.Views {
           return sp;
         }
         case "SetGpuPower": {
-          var cb = new ComboBox { Height = 32, FontSize = 13 };
+          var cb = new ComboBox { Height = 36, FontSize = 13 };
           cb.Items.Add(new ComboBoxItem { Content = "CTGP开+DB开 (max)", Tag = "max" });
           cb.Items.Add(new ComboBoxItem { Content = "CTGP开+DB关 (med)", Tag = "med" });
           cb.Items.Add(new ComboBoxItem { Content = "CTGP关+DB关 (min)", Tag = "min" });
@@ -677,7 +677,7 @@ namespace OmenSuperHub.Views {
 
       var dialog = new Wpf.Ui.Controls.FluentWindow {
         Title = Strings.AutomationAddStep,
-        Width = 480, Height = 460,
+        Width = 480, Height = 470,
         WindowStartupLocation = WindowStartupLocation.CenterOwner,
         Owner = this, ResizeMode = ResizeMode.NoResize,
         ShowInTaskbar = false,
@@ -735,7 +735,7 @@ namespace OmenSuperHub.Views {
       valCardGrid.Children.Add(valLabel);
 
       _getStepValue = () => "";
-      var valContainer = new ContentPresenter { VerticalAlignment = VerticalAlignment.Center, MinHeight = 32 };
+      var valContainer = new ContentPresenter { VerticalAlignment = VerticalAlignment.Center, MinHeight = 36 };
       Grid.SetColumn(valContainer, 1);
       valCardGrid.Children.Add(valContainer);
 
@@ -773,7 +773,7 @@ namespace OmenSuperHub.Views {
         Text = Strings.AutomationDelayMs + ":", FontSize = 13,
         VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0)
       });
-      var delayBox = new TextBox { Text = "0", Height = 32, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center };
+      var delayBox = new TextBox { Text = "0", Height = 36, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center };
       Grid.SetColumn(delayBox, 1);
       delayGrid.Children.Add(delayBox);
       cs.Children.Add(new Border {

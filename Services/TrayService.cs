@@ -16,9 +16,9 @@ using System.Windows.Forms;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32.TaskScheduler;
+using OmenSuperHub.Pages;
 using OmenSuperHub.Utils;
 using OmenSuperHub.Views;
-using OmenSuperHub.Pages;
 using static OmenSuperHub.OmenHardware;
 using static OmenSuperHub.OmenLighting;
 
@@ -56,6 +56,11 @@ namespace OmenSuperHub.Services {
 
     static bool checkFloating = false;
     static int flagStart = 0;
+
+    // ponytail: tooltip 文本 / 数据导出与硬件 tick 解耦 —— 两者都是"hoover 或导出才看得到"
+    // 的低频 UI/IO 动作,不必每秒刷。节流 5s(与 1s 硬件 tick 保持整数倍,相位稳定)。
+    static DateTime _lastTooltipTextUtc;
+    static DateTime _lastDataLocalizeUtc;
 
     // ══════════════════════════════════════════════════════
     // WPF Context Menu
@@ -312,8 +317,16 @@ namespace OmenSuperHub.Services {
       HardwareService.QueryHardware();
       if (HardwareService.MonitorFan)
         HardwareService.UpdateFanSpeed(GetFanLevel());
-      UpdateTooltipText();
-      WriteDataLocalize();
+      // ponytail: tooltip 文本与数据导出降频到 5s —— 二者都是低频可见的 UI/IO(悬浮 tooltip 才
+      // 看、导出文件给外部工具看),不随 1s 硬件 tick(tooltipUpdateTimer)空刷。
+      if (DateTime.UtcNow - _lastTooltipTextUtc >= TimeSpan.FromSeconds(5)) {
+        _lastTooltipTextUtc = DateTime.UtcNow;
+        UpdateTooltipText();
+      }
+      if (DateTime.UtcNow - _lastDataLocalizeUtc >= TimeSpan.FromSeconds(5)) {
+        _lastDataLocalizeUtc = DateTime.UtcNow;
+        WriteDataLocalize();
+      }
       CheckAutoFanProtect();
       // ponytail: tick path — unforced + skips the UI-thread hop when no floating window is open,
       // so hiding the main window (with the floating bar off) actually lets the UI thread sleep.
@@ -781,17 +794,17 @@ namespace OmenSuperHub.Services {
       if (!string.IsNullOrEmpty(ConfigService.PowerPlanGuid)) {
         try {
           Guid g = Guid.Parse(ConfigService.PowerPlanGuid);
-          NativeMethods.PowerSetActiveScheme(IntPtr.Zero, ref g);
+          NativeMethods_Power.PowerSetActiveScheme(IntPtr.Zero, ref g);
         } catch { }
       }
 
       // Power mode overlay — restore saved Windows power mode
       try {
         Guid pmGuid;
-        if (ConfigService.PowerMode == 0) pmGuid = NativeMethods.BEST_POWER_EFFICIENCY;
-        else if (ConfigService.PowerMode == 2) pmGuid = NativeMethods.BEST_PERFORMANCE;
+        if (ConfigService.PowerMode == 0) pmGuid = NativeMethods_Power.BEST_POWER_EFFICIENCY;
+        else if (ConfigService.PowerMode == 2) pmGuid = NativeMethods_Power.BEST_PERFORMANCE;
         else pmGuid = Guid.Empty;
-        NativeMethods.PowerSetActiveOverlayScheme(pmGuid);
+        NativeMethods_Power.PowerSetActiveOverlayScheme(pmGuid);
       } catch { }
     }
 
@@ -954,12 +967,12 @@ namespace OmenSuperHub.Services {
     }
 
     internal static void ApplyRefreshRate(int hz) {
-      var dm = new NativeMethods.DEVMODE();
+      var dm = new NativeMethods_Display.DEVMODE();
       dm.dmSize = (short)System.Runtime.InteropServices.Marshal.SizeOf(dm);
-      NativeMethods.EnumDisplaySettings(null, NativeMethods.ENUM_CURRENT_SETTINGS, ref dm);
+      NativeMethods_Display.EnumDisplaySettings(null, NativeMethods_Display.ENUM_CURRENT_SETTINGS, ref dm);
       dm.dmDisplayFrequency = hz;
-      dm.dmFields = NativeMethods.DM_DISPLAYFREQUENCY | NativeMethods.DM_PELSWIDTH | NativeMethods.DM_PELSHEIGHT;
-      NativeMethods.ChangeDisplaySettings(ref dm, NativeMethods.CDS_UPDATEREGISTRY);
+      dm.dmFields = NativeMethods_Display.DM_DISPLAYFREQUENCY | NativeMethods_Display.DM_PELSWIDTH | NativeMethods_Display.DM_PELSHEIGHT;
+      NativeMethods_Display.ChangeDisplaySettings(ref dm, NativeMethods_Display.CDS_UPDATEREGISTRY);
     }
 
     // ══════════════════════════════════════════════════════
@@ -1421,63 +1434,6 @@ namespace OmenSuperHub.Services {
       } else {
         Environment.Exit(0);
       }
-    }
-  }
-
-  static class NativeMethods {
-    public const int ENUM_CURRENT_SETTINGS = -1;
-    public const int DM_DISPLAYFREQUENCY = 0x400000;
-    public const int DM_PELSWIDTH = 0x80000;
-    public const int DM_PELSHEIGHT = 0x100000;
-    public const int CDS_UPDATEREGISTRY = 0x00000001;
-
-    // Power plan P/Invoke for startup restore
-    // ponytail: GUID 提取到共享 PowerOverlay (Services/NativeDefs.cs)
-    public static readonly Guid BEST_POWER_EFFICIENCY = PowerOverlay.BestPowerEfficiency;
-    public static readonly Guid BEST_PERFORMANCE = PowerOverlay.BestPerformance;
-
-    [System.Runtime.InteropServices.DllImport("powrprof.dll")]
-    public static extern uint PowerSetActiveScheme(IntPtr userPowerKey, ref Guid activePolicyGuid);
-
-    [System.Runtime.InteropServices.DllImport("powrprof.dll")]
-    public static extern uint PowerSetActiveOverlayScheme(Guid overlaySchemeGuid);
-
-    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
-    public static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
-
-    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
-    public static extern int ChangeDisplaySettings(ref DEVMODE lpDevMode, int dwFlags);
-
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
-    public struct DEVMODE {
-      [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
-      public string dmDeviceName;
-      public short dmSpecVersion;
-      public short dmDriverVersion;
-      public short dmSize;
-      public short dmDriverExtra;
-      public int dmFields;
-      public short dmOrientation;
-      public short dmPaperSize;
-      public short dmPaperLength;
-      public short dmPaperWidth;
-      public short dmScale;
-      public short dmCopies;
-      public short dmDefaultSource;
-      public short dmPrintQuality;
-      public short dmColor;
-      public short dmDuplex;
-      public short dmYResolution;
-      public short dmTTOption;
-      public short dmCollate;
-      [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
-      public string dmFormName;
-      public short dmLogPixels;
-      public int dmBitsPerPel;
-      public int dmPelsWidth;
-      public int dmPelsHeight;
-      public int dmDisplayFlags;
-      public int dmDisplayFrequency;
     }
   }
 }

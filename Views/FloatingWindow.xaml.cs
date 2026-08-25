@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using OmenSuperHub.Services;
+using static OmenSuperHub.Pages.NativeMethods_Proc;
 using Forms = System.Windows.Forms;
 
 namespace OmenSuperHub.Views {
@@ -43,27 +44,6 @@ namespace OmenSuperHub.Views {
       _refreshTimer.Start();
     }
 
-    struct MEMORYSTATUSEX {
-      public uint dwLength;
-      public uint dwMemoryLoad;
-      public ulong ullTotalPhys;
-      public ulong ullAvailPhys;
-      public ulong ullTotalPageFile;
-      public ulong ullAvailPageFile;
-      public ulong ullTotalVirtual;
-      public ulong ullAvailVirtual;
-      public ulong ullAvailExtendedVirtual;
-    }
-
-    [DllImport("kernel32.dll")]
-    static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
-
-    static MEMORYSTATUSEX GetMemoryStatus() {
-      var mem = new MEMORYSTATUSEX();
-      mem.dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
-      GlobalMemoryStatusEx(ref mem);
-      return mem;
-    }
     private static List<FloatingWindow> _instances = new List<FloatingWindow>();
 
     private string _deviceName;

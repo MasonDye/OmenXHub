@@ -61,7 +61,7 @@ namespace OmenSuperHub {
             }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[GetGpuApps] {ex.Message}"); }
       return apps;
     }
 
@@ -102,7 +102,7 @@ namespace OmenSuperHub {
         }
         if (string.IsNullOrEmpty(instanceId)) return;
         ExecuteCommand($"pnputil /restart-device \"{instanceId}\"");
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[RestartGpu] {ex.Message}"); }
     }
 
     public static List<string> GetAllGpuNamesList() {
@@ -120,7 +120,7 @@ namespace OmenSuperHub {
             }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[GetAllGpuNamesList] {ex.Message}"); }
       return gpuNames;
     }
 
@@ -133,7 +133,7 @@ namespace OmenSuperHub {
               return true;
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[HasNvidiaGpu] {ex.Message}"); }
       return false;
     }
 
@@ -151,7 +151,7 @@ namespace OmenSuperHub {
             limits[1] = float.Parse(maxMatch.Groups[1].Value);
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[GetGpuPowerLimits] {ex.Message}"); }
       return limits;
     }
 
@@ -164,7 +164,7 @@ namespace OmenSuperHub {
           var targetMatch = Regex.Match(result.Output, targetPattern);
           if (targetMatch.Success) limit = int.Parse(targetMatch.Groups[1].Value);
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[GetGpuTemperatureTarget] {ex.Message}"); }
       return limit;
     }
 

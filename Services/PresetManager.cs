@@ -17,6 +17,7 @@ using System.Text;
 using System.Threading;
 using Microsoft.Win32;
 using OmenSuperHub;
+using OmenSuperHub.Pages;
 using OmenSuperHub.Services.CpuAffinity;
 
 namespace OmenSuperHub.Services {
@@ -51,6 +52,9 @@ namespace OmenSuperHub.Services {
     // ponytail: TDC/EDC/Tctl 已随高级调教删除（依赖 SMU 服务，本机不可用）；仅保留 PPT 走 WMI。
     [DataMember(Order = 21)] public int AmdCpuPpt { get; set; }
     internal bool IsFromCustomSubkey { get; set; } = false;
+
+    // ponytail: 全字段均为值类型/字符串 — MemberwiseClone 即完整拷贝,供 LoadCustomPreset 缓存安全返回
+    public PresetData CloneShallow() => (PresetData)MemberwiseClone();
   }
 
   internal static class PresetManager {
@@ -286,22 +290,36 @@ namespace OmenSuperHub.Services {
       } catch { }
     }
 
+    // ponytail: LoadCustomPreset 被 Dashboard 雷达/圆环每 tick 调用 — 按 (路径, LastWriteTimeUtc)
+    // memoize,文件未变时零 IO/零 JSON(mtime stat 由 OS 缓存,微秒级)。返回私有实例,调用方可改。
+    // 上限:注册表回退结果也按文件 mtime 缓存 — 纯注册表预设(迁移场景)的改动要等文件出现才失效。
+    static readonly Dictionary<string, (DateTime stamp, PresetData data)> _customPresetLoadCache
+      = new Dictionary<string, (DateTime, PresetData)>();
+    static readonly object _loadCacheLock = new object();
+
     public static PresetData LoadCustomPreset(string presetKey) {
       if (!IsCustom(presetKey)) return null;
       string path = PresetFilePath(presetKey);
+      var stamp = File.GetLastWriteTimeUtc(path);  // 文件不存在返回 1601,常量可作缓存键
+      lock (_loadCacheLock) {
+        if (_customPresetLoadCache.TryGetValue(path, out var hit) && hit.stamp == stamp)
+          return hit.data.CloneShallow();
+      }
+      PresetData d = null;
       if (File.Exists(path)) {
         try {
-          var d = DeserializePreset(File.ReadAllText(path, Encoding.UTF8));
-          if (d != null) { d.IsFromCustomSubkey = true; return d; }
+          d = DeserializePreset(File.ReadAllText(path, Encoding.UTF8));
         } catch (Exception ex) {
           Console.WriteLine($"Error loading custom preset from file: {ex.Message}");
         }
       }
-      try {
-        var d = LoadCustomPresetFromRegistry(presetKey);
-        if (d != null) { d.IsFromCustomSubkey = true; return d; }
-      } catch { }
-      return null;
+      if (d == null) {
+        try { d = LoadCustomPresetFromRegistry(presetKey); } catch { }
+      }
+      if (d == null) return null;
+      d.IsFromCustomSubkey = true;
+      lock (_loadCacheLock) { _customPresetLoadCache[path] = (stamp, d.CloneShallow()); }
+      return d;
     }
 
     // ── 旧注册表持久化 (回退/迁移用) ──
@@ -449,15 +467,12 @@ namespace OmenSuperHub.Services {
     }
 
     // ═══════════════════════════════════════════════════════
-    // 电源计划 P/Invoke 与 helper
+    // 电源计划 helper — P/Invoke 复用 Pages/NativeMethods.cs
     // ═══════════════════════════════════════════════════════
-    [DllImport("powrprof.dll")]
-    private static extern uint PowerGetActiveScheme(IntPtr userPowerKey, out IntPtr activePolicyGuid);
-
     static string GetActivePowerPlanGuid() {
       try {
         IntPtr ptr;
-        if (PowerGetActiveScheme(IntPtr.Zero, out ptr) != 0 || ptr == IntPtr.Zero) return "";
+        if (NativeMethods_Power.PowerGetActiveScheme(IntPtr.Zero, out ptr) != 0 || ptr == IntPtr.Zero) return "";
         // ponytail: free HGlobal in finally. If PtrToStructure ever throws, the old
         // code leaked unmanaged memory; power APIs allocate repeatedly so it accumulates.
         try {
@@ -465,26 +480,19 @@ namespace OmenSuperHub.Services {
         } finally {
           Marshal.FreeHGlobal(ptr);
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose("GetActivePowerPlanGuid: " + ex.Message); }
       return "";
     }
 
     // ── 电源模式覆盖 (Power Mode overlay) ──
-    // ponytail: GUID 提取到共享 PowerOverlay (Services/NativeDefs.cs)
-    static readonly Guid OVERLAY_BEST_EFFICIENCY = PowerOverlay.BestPowerEfficiency;
-    static readonly Guid OVERLAY_BEST_PERFORMANCE = PowerOverlay.BestPerformance;
-
-    [DllImport("powrprof.dll")]
-    static extern uint PowerSetActiveOverlayScheme(Guid overlaySchemeGuid);
-
     static void ApplyPowerModeOverlay(int powerMode) {
       try {
         Guid g;
-        if (powerMode == 0) g = OVERLAY_BEST_EFFICIENCY;
-        else if (powerMode == 2) g = OVERLAY_BEST_PERFORMANCE;
+        if (powerMode == 0) g = NativeMethods_Power.BEST_POWER_EFFICIENCY;
+        else if (powerMode == 2) g = NativeMethods_Power.BEST_PERFORMANCE;
         else g = Guid.Empty;  // 1=平衡 → 默认
-        PowerSetActiveOverlayScheme(g);
-      } catch { }
+        NativeMethods_Power.PowerSetActiveOverlayScheme(g);
+      } catch (Exception ex) { Logger.Verbose("ApplyPowerModeOverlay: " + ex.Message); }
     }
 
     // ═══════════════════════════════════════════════════════
@@ -607,7 +615,7 @@ namespace OmenSuperHub.Services {
           try {
             if (!string.IsNullOrEmpty(ConfigService.PowerPlanGuid)) {
               Guid g = Guid.Parse(ConfigService.PowerPlanGuid);
-              NativeMethods.PowerSetActiveScheme(IntPtr.Zero, ref g);
+              NativeMethods_Power.PowerSetActiveScheme(IntPtr.Zero, ref g);
             }
           } catch { }
           // EcoQoS

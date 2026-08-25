@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:app="clr-namespace:OmenSuperHub"
-        Title="{x:Static app:Strings.AutomationEditPipeline}" Width="560" Height="600"
+        Title="{x:Static app:Strings.AutomationEditPipeline}" Width="560" Height="620"
         MinWidth="500" MinHeight="400"
         WindowStartupLocation="CenterOwner" ResizeMode="CanMinimize"
         ShowInTaskbar="False"

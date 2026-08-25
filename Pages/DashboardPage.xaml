@@ -348,6 +348,14 @@
                   <ui:SymbolIcon Symbol="Storage24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.DashboardStorageLabel}" FontWeight="SemiBold" FontSize="{DynamicResource FontSizeSubtitle}" VerticalAlignment="Center"/>
                 </StackPanel>
+                <!-- ponytail: 储存清理入口 — 参考 Dism++ 空间回收,弹窗勾选系统垃圾类目 -->
+                <ui:Button Grid.Column="2" Content="{x:Static app:Strings.StorageCleanTitle}"
+                           Height="28" Padding="10,0" HorizontalAlignment="Right"
+                           Click="StorageClean_Click">
+                  <ui:Button.Icon>
+                    <ui:SymbolIcon Symbol="Broom24" FontSize="{DynamicResource FontSizeSubtitle}"/>
+                  </ui:Button.Icon>
+                </ui:Button>
               </Grid>
               <!-- ponytail: 储存柱状图 — 每盘一根竖条,高度=已用占比,颜色按占比渐变。
                    Canvas 固定 220×132 容纳至多 8 盘(每柱 24px + 4px 间隔);

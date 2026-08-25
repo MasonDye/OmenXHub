@@ -4,7 +4,7 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:app="clr-namespace:OmenSuperHub"
       Title="{x:Static app:Strings.PageSettings}">
-<ScrollViewer VerticalScrollBarVisibility="Auto">
+<ScrollViewer VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly">
     <StackPanel Margin="24,20" TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
       <TextBlock x:Name="HeadingSettings" Text="{x:Static app:Strings.PageSettings}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"/>
 
@@ -47,7 +47,7 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <TextBlock Text="{x:Static app:Strings.PositionHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
-              <ComboBox x:Name="FloatLocCombo" Grid.Column="1" MinWidth="140"
+              <ComboBox x:Name="FloatLocCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
                         SelectionChanged="FloatLoc_SelectionChanged">
                 <ComboBoxItem Content="{x:Static app:Strings.FloatingLocLeft}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.FloatingLocRight}"/>
@@ -63,7 +63,7 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <TextBlock Text="{x:Static app:Strings.FloatLayoutHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
-              <ComboBox x:Name="FloatLayoutCombo" Grid.Column="1" MinWidth="120"
+              <ComboBox x:Name="FloatLayoutCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
                         SelectionChanged="FloatLayout_SelectionChanged">
                 <ComboBoxItem Content="{x:Static app:Strings.FloatLayoutRow}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.FloatLayoutCol}"/>
@@ -129,7 +129,7 @@
                 <ui:SymbolIcon Symbol="Keyboard24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <TextBlock Text="{x:Static app:Strings.OmenKeyHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-              <ComboBox x:Name="OmenKeyCombo" Grid.Column="1" MinWidth="160"
+              <ComboBox x:Name="OmenKeyCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
                         SelectionChanged="OmenKey_SelectionChanged">
                 <ComboBoxItem Content="{x:Static app:Strings.OmenKeyCustomLabel}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.OmenKeyShowMain}"/>
@@ -301,7 +301,7 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <TextBlock Text="{x:Static app:Strings.OsdPositionHeading}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
-              <ComboBox x:Name="OsdPositionCombo" Grid.Column="1" MinWidth="140"
+              <ComboBox x:Name="OsdPositionCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
                         SelectionChanged="OsdPosition_SelectionChanged">
                 <ComboBoxItem Content="{x:Static app:Strings.OsdPosBottomCenter}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.OsdPosTopLeft}"/>
@@ -331,7 +331,7 @@
                 <TextBlock Text="{x:Static app:Strings.TrayIconHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
             </StackPanel>
-            <ComboBox x:Name="TrayIconCombo" Grid.Column="1" MinWidth="140"
+            <ComboBox x:Name="TrayIconCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
                       SelectionChanged="TrayIcon_SelectionChanged">
               <ComboBoxItem Content="{x:Static app:Strings.IconOriginal}"/>
               <ComboBoxItem Content="{x:Static app:Strings.IconCustom}"/>
@@ -409,7 +409,7 @@
                 <TextBlock Text="{x:Static app:Strings.ThemeHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
             </StackPanel>
-            <ComboBox x:Name="ThemeCombo" Grid.Column="1" MinWidth="140"
+            <ComboBox x:Name="ThemeCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
                       SelectionChanged="Theme_SelectionChanged">
               <ComboBoxItem Content="{x:Static app:Strings.ThemeSystem}"/>
               <ComboBoxItem Content="{x:Static app:Strings.ThemeDark}"/>
@@ -435,7 +435,7 @@
 	              <TextBlock FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="24,2,0,0"
 	                         Text="{x:Static app:Strings.LangRestartHint}"/>
 	            </StackPanel>
-            <ComboBox x:Name="LangCombo" Grid.Column="1" MinWidth="160"
+            <ComboBox x:Name="LangCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
                       SelectionChanged="Lang_SelectionChanged">
               <ComboBoxItem Content="{x:Static app:Strings.LangSimplified}"/>
               <ComboBoxItem Content="{x:Static app:Strings.LangTraditional}"/>
@@ -567,7 +567,7 @@
                 <TextBlock Text="{x:Static app:Strings.SettingsDebugKbKindDesc}" FontSize="{DynamicResource FontSizeCaption}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
               </StackPanel>
-              <ComboBox x:Name="DebugKbKindCombo" Grid.Column="1" MinWidth="140" VerticalAlignment="Center"
+              <ComboBox x:Name="DebugKbKindCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}" VerticalAlignment="Center"
                         SelectionChanged="DebugKbKindCombo_SelectionChanged">
                 <ComboBoxItem Tag="" Content="{x:Static app:Strings.DebugKbKindReal}"/>
                 <ComboBoxItem Tag="Normal" Content="{x:Static app:Strings.DebugKbKindNormal}"/>

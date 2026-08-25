@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using OmenSuperHub.Pages;
 using LibreComputer = LibreHardwareMonitor.Hardware.Computer;
 using LibreIHardware = LibreHardwareMonitor.Hardware.IHardware;
 using LibreHardwareType = LibreHardwareMonitor.Hardware.HardwareType;
@@ -108,23 +109,8 @@ namespace OmenSuperHub.Services {
 
     // ═══════════════════════════════════════════════════════
     // Display device detection (for GPU connection check)
+    // struct/PInvoke 复用 Pages/NativeMethods.cs 的 NativeMethods_Display
     // ═══════════════════════════════════════════════════════
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-    struct DISPLAY_DEVICE {
-      [MarshalAs(UnmanagedType.U4)]
-      public int cb;
-      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-      public string DeviceName;
-      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-      public string DeviceString;
-      [MarshalAs(UnmanagedType.U4)]
-      public DisplayDeviceStateFlags StateFlags;
-      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-      public string DeviceID;
-      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-      public string DeviceKey;
-    }
-
     [Flags()]
     enum DisplayDeviceStateFlags : int {
       AttachedToDesktop = 0x1,
@@ -138,22 +124,15 @@ namespace OmenSuperHub.Services {
       Disconnect = 0x2000000
     }
 
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    static extern bool EnumDisplayDevices(
-        string lpDevice,
-        uint iDevNum,
-        ref DISPLAY_DEVICE lpDisplayDevice,
-        uint dwFlags);
-
     public static void MonitorQuery() {
       if (Screen.AllScreens.Length != 1)
         return;
-      DISPLAY_DEVICE d = new DISPLAY_DEVICE();
+      var d = new NativeMethods_Display.DISPLAY_DEVICE();
       d.cb = Marshal.SizeOf(d);
       uint deviceNum = 0;
 
-      while (EnumDisplayDevices(null, deviceNum, ref d, 0)) {
-        if (d.StateFlags.HasFlag(DisplayDeviceStateFlags.AttachedToDesktop)) {
+      while (NativeMethods_Display.EnumDisplayDevices(null, deviceNum, ref d, 0)) {
+        if (((DisplayDeviceStateFlags)d.StateFlags).HasFlag(DisplayDeviceStateFlags.AttachedToDesktop)) {
           if (d.DeviceString.Contains("Intel") || d.DeviceString.Contains("AMD")) {
             IsConnectedToNVIDIA = false;
             return;

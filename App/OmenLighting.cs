@@ -64,9 +64,9 @@ namespace OmenSuperHub {
           // HP SDK 通道 (Rgb 判定比 WMI 更可靠 — AutoDetectProtocol 优先级同理)
           Omen.OmenFourZoneLighting.KeyboardType sdkType = FourZoneHelper.GetKeyboardType();
           bool lightBar = false;
-          try { lightBar = FourZoneHelper.IsLightBarSupported(); } catch { }
+          try { lightBar = FourZoneHelper.IsLightBarSupported(); } catch (Exception ex) { Logger.Verbose($"[DetectKbCap] IsLightBarSupported: {ex.Message}"); }
           bool anim = false;
-          try { anim = IsAnimationSupported(); } catch { }
+          try { anim = IsAnimationSupported(); } catch (Exception ex) { Logger.Verbose($"[DetectKbCap] IsAnimationSupported: {ex.Message}"); }
 
           // ponytail: WMI 返回 None 表示命令失败而非"确认无灯" — 保守 FourZone。
           // 只有 WMI 明确 Normal 且 HP SDK 也非 Rgb 才能定性 Normal。
@@ -89,8 +89,9 @@ namespace OmenSuperHub {
           cap.LightBarSupported = lightBar;
           cap.AnimationSupported = anim;
           cap.Detected = !wmiFailed;
-        } catch {
+        } catch (Exception ex) {
           // 全不可用 — 保守 FourZone, Detected=false 阻止隐藏灯光页
+          Logger.Verbose($"[DetectKbCap] 全探测失败: {ex.Message}");
         }
         ApplyDebugKbKindOverride(cap);
         _kbCapability = cap;
@@ -332,7 +333,7 @@ namespace OmenSuperHub {
       try {
         var (success, brightness) = await McuKeyboardHelper.GetAllKeyboardBrightness(handle);
         return success ? brightness : (byte)0;
-      } catch { return 0; }
+      } catch (Exception ex) { Logger.Verbose($"[GetPerKeyBrightness] {ex.Message}"); return (byte)0; }
     }
 
     public static NbKeyboardLightingType GetKeyboardType() {
@@ -349,7 +350,7 @@ namespace OmenSuperHub {
     public static bool IsAnimationSupported() {
       try {
         return FourZoneSupportHelper.IsAnimationSupported(GetKeyboardType(), DeviceModel.DeviceType);
-      } catch { return false; }
+      } catch (Exception ex) { Logger.Verbose($"[IsAnimationSupported] {ex.Message}"); return false; }
     }
 
     // ponytail: SystemID→protocol 映射表 — 提取自 OmenCore KeyboardModelDatabase。
@@ -391,7 +392,7 @@ namespace OmenSuperHub {
       try {
         if (FourZoneHelper.GetKeyboardType() == Omen.OmenFourZoneLighting.KeyboardType.Rgb)
           return "PerKey";
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[AutoDetectProtocol] PerKey probe: {ex.Message}"); }
 
       // 2. SystemID lookup → exact match from OmenCore database
       try {
@@ -400,13 +401,13 @@ namespace OmenSuperHub {
           if (!string.IsNullOrEmpty(proto)) return proto;
           // proto == "" → BacklightOnly, fall through to heuristic
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[AutoDetectProtocol] SystemID lookup: {ex.Message}"); }
 
       // 3. Animation-capable (cycle > 260) → Dojo (covers unknown 2023+ models not in table)
       try {
         if (IsAnimationSupported())
           return "Dojo";
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[AutoDetectProtocol] Dojo probe: {ex.Message}"); }
 
       // 4. HP SDK available → safest official path for 4-zone
       if (FourZoneHelper.Available)
@@ -449,7 +450,7 @@ namespace OmenSuperHub {
           try {
             _isAnimationSupported = DeviceModel.GetCycleNumber(
               DeviceModel.OmenPlatform.ProductNum.FirstOrDefault((SSIDInfo x) => x.SSID.Equals(DeviceModel.ThisSystemID)).Cycle) > 260;
-          } catch { _isAnimationSupported = false; }
+          } catch (Exception ex) { Logger.Verbose($"[FourZoneSupportHelper] cycle 判定失败: {ex.Message}"); _isAnimationSupported = false; }
         }
         return _isAnimationSupported.Value && IsSupported(kbType, device);
       }
@@ -706,14 +707,14 @@ namespace OmenSuperHub {
         get {
           if (!_available.HasValue)
             try { _available = Omen.OmenFourZoneLighting.FourZoneLighting.IsTurnOn(); }
-            catch { _available = false; }
+            catch (Exception ex) { Logger.Verbose($"[FourZoneHelper] IsTurnOn probe: {ex.Message}"); _available = false; }
           return _available.Value;
         }
       }
 
       public static Omen.OmenFourZoneLighting.KeyboardType GetKeyboardType() {
         try { return Omen.OmenFourZoneLighting.FourZoneLighting.GetKeyboardType(); }
-        catch { return Omen.OmenFourZoneLighting.KeyboardType.Normal; }
+        catch (Exception ex) { Logger.Verbose($"[FourZoneHelper] GetKeyboardType: {ex.Message}"); return Omen.OmenFourZoneLighting.KeyboardType.Normal; }
       }
 
       public static string GetKeyboardTypeName() => GetKeyboardType() switch {
@@ -727,12 +728,12 @@ namespace OmenSuperHub {
 
       public static bool IsLightBarSupported() {
         try { return Omen.OmenFourZoneLighting.FourZoneLighting.GetLightBarSupport(); }
-        catch { return false; }
+        catch (Exception ex) { Logger.Verbose($"[FourZoneHelper] GetLightBarSupport: {ex.Message}"); return false; }
       }
 
       public static bool IsTurnedOn() {
         try { return Omen.OmenFourZoneLighting.FourZoneLighting.IsTurnOn(); }
-        catch { return false; }
+        catch (Exception ex) { Logger.Verbose($"[FourZoneHelper] IsTurnOn: {ex.Message}"); return false; }
       }
 
       public static void SetStaticColor(LightingDevice device, List<System.Windows.Media.Color> colors, byte brightness) {
@@ -797,7 +798,7 @@ namespace OmenSuperHub {
           bool ok = OmenLightingNative.SetStatic(type, h, r, g, b);
           OmenLightingNative.Close(type, h);
           return ok;
-        } catch { return false; }
+        } catch (Exception ex) { Logger.Verbose($"[NativeSdk.SetStatic] {ex.Message}"); return false; }
       }
     }
 

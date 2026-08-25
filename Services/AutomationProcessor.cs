@@ -13,13 +13,18 @@ using System.Windows.Interop;
 using Microsoft.Win32;
 using Windows.Devices.Radios;
 using static OmenSuperHub.OmenHardware;
+using OmenSuperHub.Pages;
 
 namespace OmenSuperHub.Services {
   internal static class AutomationProcessor {
     public static event Action<string> ExecutionStatusChanged;
     private static bool _running;
-    private static ManagementEventWatcher _processStartWatcher;
-    private static ManagementEventWatcher _processStopWatcher;
+    private static Timer _processPollTimer;
+    // ponytail: 进程状态按「镜像名 → 存活 PID 集合」追踪,而非布尔值。
+    // 旧 HashSet<string> 只记"是否有同名进程",一旦主进程退出但启动器/反作弊等
+    // 同名子进程仍存活,now 恒为 true,停止边沿永远到不了(issue #25)。
+    private static readonly Dictionary<string, HashSet<int>> _watchedProcsSeen = new(StringComparer.OrdinalIgnoreCase);
+    private static bool _procBaselineTaken;
     private static Timer _scheduleTimer;
     private static Timer _tempPollTimer;
     private static Microsoft.Win32.SessionSwitchEventHandler _sessionSwitchHandler;
@@ -68,7 +73,6 @@ namespace OmenSuperHub.Services {
       if (_running) return;
       _running = true;
 
-	      SubscribeProcessEvents();
 	      SubscribePowerEvents();
 	      SubscribeSessionEvents();
 	      // ponytail: 只有实际存在对应轮询触发器的管道才启定时器,空载用户不再每 2/5/15s 空转。
@@ -91,9 +95,13 @@ namespace OmenSuperHub.Services {
       bool needTemp = HasPolledTriggerType(t => t == "CpuTempAbove" || t == "GpuTempAbove");
       bool needBattery = HasPolledTriggerType(t => t == "BatteryAbove" || t == "BatteryBelow");
       bool needSchedule = HasPolledTriggerType(t => t == "TimeSchedule");
+      bool needProc = HasPolledTriggerType(t => t == "ProcessStart" || t == "ProcessStop");
 
       if (needTemp && _tempPollTimer == null) StartTempPollTimer();
       else if (!needTemp && _tempPollTimer != null) { _tempPollTimer.Dispose(); _tempPollTimer = null; }
+
+      if (needProc && _processPollTimer == null) StartProcessPollTimer();
+      else if (!needProc && _processPollTimer != null) { _processPollTimer.Dispose(); _processPollTimer = null; }
 
       if (needBattery && _batteryPollTimer == null) SubscribeBatteryEvents();
       else if (!needBattery && _batteryPollTimer != null) { _batteryPollTimer.Dispose(); _batteryPollTimer = null; }
@@ -113,8 +121,8 @@ namespace OmenSuperHub.Services {
 
     public static void Stop() {
       _running = false;
-      if (_processStartWatcher != null) { _processStartWatcher.Stop(); _processStartWatcher.Dispose(); _processStartWatcher = null; }
-      if (_processStopWatcher != null) { _processStopWatcher.Stop(); _processStopWatcher.Dispose(); _processStopWatcher = null; }
+      if (_processPollTimer != null) { _processPollTimer.Dispose(); _processPollTimer = null; }
+      _watchedProcsSeen.Clear(); _procBaselineTaken = false;
       if (_scheduleTimer != null) { _scheduleTimer.Dispose(); _scheduleTimer = null; }
       if (_tempPollTimer != null) { _tempPollTimer.Dispose(); _tempPollTimer = null; }
       if (_batteryPollTimer != null) { _batteryPollTimer.Dispose(); _batteryPollTimer = null; }
@@ -149,7 +157,9 @@ namespace OmenSuperHub.Services {
       }
       _pendingPipelines.Enqueue(pipeline);
       if (Interlocked.CompareExchange(ref _drainRunning, 1, 0) == 0)
-        _ = Task.Run(DrainPipelines);
+        _ = Task.Run(DrainPipelines).ContinueWith(
+            t => Logger.Error("[DrainPipelines] " + t.Exception?.GetBaseException().Message),
+            TaskContinuationOptions.OnlyOnFaulted);
     }
 
     static async System.Threading.Tasks.Task DrainPipelines() {
@@ -181,7 +191,9 @@ namespace OmenSuperHub.Services {
         _drainRunning = 0;
         // ponytail: TryDequeue 失败与 _drainRunning 清零之间入队的管道需要重新拉起 drain
         if (!_pendingPipelines.IsEmpty && Interlocked.CompareExchange(ref _drainRunning, 1, 0) == 0)
-          _ = Task.Run(DrainPipelines);
+          _ = Task.Run(DrainPipelines).ContinueWith(
+              t => Logger.Error("[DrainPipelines] " + t.Exception?.GetBaseException().Message),
+              TaskContinuationOptions.OnlyOnFaulted);
       }
     }
 
@@ -509,35 +521,82 @@ namespace OmenSuperHub.Services {
       if (!_running) return;
       var pipelines = AutomationService.GetEnabledPipelines();
       foreach (var p in pipelines) {
-        if (p.MatchesTrigger(triggerType, triggerValue))
+        if (p.MatchesTrigger(triggerType, triggerValue)) {
+          // ponytail: 触发命中可观测点 — 排查"触发器不生效"时先看这行有没有出现
+          Logger.Info($"Automation: trigger [{triggerType}:{triggerValue}] -> pipeline \"{p.Name}\"");
           ExecutePipeline(p);
+        }
       }
     }
 
-    private static void SubscribeProcessEvents() {
-      try {
-        var startQuery = new WqlEventQuery("WIN32_ProcessStartTrace", TimeSpan.FromSeconds(1), "ProcessName LIKE '%'");
-        _processStartWatcher = new ManagementEventWatcher(startQuery);
-        _processStartWatcher.EventArrived += (s, e) => {
-          string name = e.NewEvent.Properties["ProcessName"]?.Value?.ToString() ?? "";
-          FireTrigger("ProcessStart", name);
-        };
-        _processStartWatcher.Start();
-      } catch (Exception ex) {
-        Logger.Error("Automation: ProcessStart watcher failed: " + ex.Message);
-      }
+    private static void StartProcessPollTimer() {
+      // ponytail: 弃用 WMI 进程事件 —— 两个方案都不行:
+      //   a) Win32_ProcessStartTrace/StopTrace(内核 ETW,零开销)在本机订阅成功但永不投递(实测);
+      //   b) __InstanceCreationEvent WITHIN 轮询让 CIMOM 每秒为全部进程各嵌一份完整
+      //      Win32_Process 对象做差分,数百进程时 wmiprvse/应用内存与 GC 明显上涨。
+      // 自轮询按"已配置的触发进程名"点名查询(GetProcessesByName): 未命中时托管分配≈零,
+      // 状态仅一个 HashSet<string>。天花板: ~1s 延迟;<1s 极短命进程的 Stop 可能漏报。
+      _processPollTimer = new Timer(PollProcessTriggers, null, 500, 1000);
+      Logger.Info("Automation: process poll timer started");
+    }
 
+    static void PollProcessTriggers(object state) {
+      if (!_running) return;
       try {
-        var stopQuery = new WqlEventQuery("WIN32_ProcessStopTrace", TimeSpan.FromSeconds(1), "ProcessName LIKE '%'");
-        _processStopWatcher = new ManagementEventWatcher(stopQuery);
-        _processStopWatcher.EventArrived += (s, e) => {
-          string name = e.NewEvent.Properties["ProcessName"]?.Value?.ToString() ?? "";
-          FireTrigger("ProcessStop", name);
-        };
-        _processStopWatcher.Start();
-      } catch (Exception ex) {
-        Logger.Error("Automation: ProcessStop watcher failed: " + ex.Message);
-      }
+        var watched = CollectWatchedProcNames();
+        if (watched.Count == 0) return;
+
+        if (!_procBaselineTaken) {
+          // 首个 tick 只记录基线不触发 — 应用启动时已在运行的进程不算"启动"
+          _procBaselineTaken = true;
+          foreach (var name in watched) {
+            var pids = WatchedProcPids(name);
+            if (pids.Length > 0) _watchedProcsSeen[name] = new HashSet<int>(pids);
+          }
+          return;
+        }
+        // 移除已不再被任何触发器关注的进程名,避免残留的旧 PID 集合越积越多
+        foreach (var stale in _watchedProcsSeen.Keys.Where(k => !watched.Contains(k)).ToList())
+          _watchedProcsSeen.Remove(stale);
+        foreach (var name in watched) {
+          var nowPids = WatchedProcPids(name);
+          var beforePids = _watchedProcsSeen.TryGetValue(name, out var s) ? s : null;
+          // 出现新 PID → 启动;某个已见过 PID 消失 → 停止。
+          // 同名子进程接力不再掩盖主进程退出:停止只看"具体 PID 是否消失"。
+          if (nowPids.Length > 0 && (beforePids == null || nowPids.Any(p => !beforePids.Contains(p))))
+            FireTrigger("ProcessStart", name);
+          else if (beforePids != null && beforePids.Any(p => !nowPids.Contains(p)))
+            FireTrigger("ProcessStop", name);
+          _watchedProcsSeen[name] = new HashSet<int>(nowPids);
+        }
+      } catch { }
+    }
+
+    // ponytail: 点名查询而非全量 GetProcesses() —— 后者每秒造几百个 Process 对象(纯托管垃圾),
+    // 是内存冲高到 300MB 的元凶;GetProcessesByName 只为命中的进程建对象,目标不在时分配接近零。
+    // 返回存活 PID 而非布尔值,使停止判定能区分"同名主进程退出"与"同名子进程仍在跑"。
+    static int[] WatchedProcPids(string nameWithExe) {
+      try {
+        string n = nameWithExe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? nameWithExe.Substring(0, nameWithExe.Length - 4) : nameWithExe;
+        var procs = Process.GetProcessesByName(n);
+        var ids = new int[procs.Length];
+        for (int i = 0; i < procs.Length; i++) {
+          ids[i] = procs[i].Id;
+          procs[i].Dispose();
+        }
+        return ids;
+      } catch { return Array.Empty<int>(); }
+    }
+
+    static HashSet<string> CollectWatchedProcNames() {
+      var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      foreach (var p in AutomationService.GetEnabledPipelines())
+        foreach (var t in p.Triggers)
+          if (t.Enabled && !string.IsNullOrWhiteSpace(t.Value) &&
+              (t.Type == "ProcessStart" || t.Type == "ProcessStop"))
+            set.Add(AutomationService.NormalizeProcName(t.Value));
+      return set;
     }
 
     private static void SubscribePowerEvents() {
@@ -674,66 +733,6 @@ namespace OmenSuperHub.Services {
 	      _lastScheduleMinute = null;
 	      _scheduleTimer = new Timer(PollSchedule, null, 0, 15000);
 	    }
-
-    // ── Native methods for display ──
-
-    private static class NativeMethods_Display {
-      public const int ENUM_CURRENT_SETTINGS = -1;
-      public const int DM_DISPLAYFREQUENCY = 0x400000;
-      public const int DM_PELSWIDTH = 0x80000;
-      public const int DM_PELSHEIGHT = 0x100000;
-      public const int DM_BITSPERPEL = 0x40000;
-
-      [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
-      public static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
-
-      [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
-      public static extern int ChangeDisplaySettings(ref DEVMODE lpDevMode, int dwFlags);
-
-      [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
-      public struct DEVMODE {
-        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string dmDeviceName;
-        public short dmSpecVersion;
-        public short dmDriverVersion;
-        public short dmSize;
-        public short dmDriverExtra;
-        public int dmFields;
-        public short dmOrientation;
-        public short dmPaperSize;
-        public short dmPaperLength;
-        public short dmPaperWidth;
-        public short dmScale;
-        public short dmCopies;
-        public short dmDefaultSource;
-        public short dmPrintQuality;
-        public short dmColor;
-        public short dmDuplex;
-        public short dmYResolution;
-        public short dmTTOption;
-        public short dmCollate;
-        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string dmFormName;
-        public short dmLogPixels;
-        public int dmBitsPerPel;
-        public int dmPelsWidth;
-        public int dmPelsHeight;
-        public int dmDisplayFlags;
-        public int dmDisplayFrequency;
-      }
-    }
-
-    private static class NativeMethods_Power {
-      // ponytail: GUID 提取到共享 PowerOverlay (Services/NativeDefs.cs) — 4 处不再重复定义
-      public static readonly Guid BEST_POWER_EFFICIENCY = PowerOverlay.BestPowerEfficiency;
-      public static readonly Guid BEST_PERFORMANCE = PowerOverlay.BestPerformance;
-
-      [System.Runtime.InteropServices.DllImport("powrprof.dll")]
-      public static extern uint PowerSetActiveScheme(IntPtr userPowerKey, ref Guid activePolicyGuid);
-
-      [System.Runtime.InteropServices.DllImport("powrprof.dll")]
-      public static extern uint PowerSetActiveOverlayScheme(Guid overlaySchemeGuid);
-    }
 
     // ── New automation step actions ──
 

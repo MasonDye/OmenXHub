@@ -9,7 +9,7 @@ using OmenSuperHub.Services;
 
 namespace OmenSuperHub.Pages
 {
-    public partial class CpuOcDialog : Window
+    public partial class CpuOcDialog : Wpf.Ui.Controls.FluentWindow
     {
         private readonly XtuService _xtuService;
         private ObservableCollection<CoreRatioItem> _coreRatioItems;
@@ -29,63 +29,69 @@ namespace OmenSuperHub.Pages
             await InitializeXtuAsync();
         }
 
-        private void SetStatus(string message, string colorHex)
+        // ponytail: 状态条用主题语义笔刷(Wpf.Ui SystemFillColor* 家族)而非硬编码十六进制色 —
+        // 后者在暗色主题下是刺眼的亮色块。key 未命中时退化为透明,不崩。
+        private void SetStatus(string message, string brushKey)
         {
             StatusText.Text = message;
-            StatusBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colorHex));
+            StatusBorder.Background = (TryFindResource(brushKey) as Brush) ?? Brushes.Transparent;
         }
 
         private async Task InitializeXtuAsync()
         {
             try
             {
-                SetStatus("正在检测超频支持...", "#FFF3CD");
+                SetStatus(Strings.CpuOcStatusDetecting, "SystemFillColorAttentionBackgroundBrush");
 
                 var connected = await _xtuService.InitializeAsync();
                 if (!connected)
                 {
-                    SetStatus("❌ 无法连接到 XTU 服务,请确保已安装 Intel XTU", "#F8D7DA");
+                    SetStatus(Strings.CpuOcStatusNoService, "SystemFillColorCriticalBackgroundBrush");
                     return;
                 }
 
                 var info = await _xtuService.GetOverclockingInfoAsync();
                 if (!info.IsOverclockSupported)
                 {
-                    SetStatus("⚠️ 当前平台不支持超频", "#FFF3CD");
+                    SetStatus(Strings.CpuOcStatusNotSupported, "SystemFillColorAttentionBackgroundBrush");
                     return;
                 }
 
                 var controls = await _xtuService.GetAllControlsAsync();
-                var coreRatioControls = controls.Where(c => c.Id >= 0x1F0 && c.Id <= 0x1F7).ToList();
+                // ponytail: 核心倍频 ID 非连续(OGH CONTROL_ID 枚举)— 按规范序取前 N 个物理核
+                var coreRatioControls = controls
+                    .Where(c => XtuService.CoreRatioIds.Contains(c.Id))
+                    .OrderBy(c => Array.IndexOf(XtuService.CoreRatioIds, c.Id))
+                    .ToList();
 
-                for (uint i = 0; i < info.PhysicalCoreCount; i++)
+                for (uint i = 0; i < info.PhysicalCoreCount && i < coreRatioControls.Count; i++)
                 {
-                    var control = coreRatioControls.FirstOrDefault(c => c.Id == 0x1F0 + i);
-                    if (control != null)
+                    var control = coreRatioControls[(int)i];
+                    _coreRatioItems.Add(new CoreRatioItem
                     {
-                        _coreRatioItems.Add(new CoreRatioItem
-                        {
-                            Id = control.Id,
-                            Name = $"核心 {i}",
-                            Value = (double)control.ActiveValue,
-                            MinValue = (double)control.MinValue,
-                            MaxValue = (double)control.MaxValue
-                        });
-                    }
+                        Id = control.Id,
+                        Name = Strings.CpuOcCoreNameFormat((int)i),
+                        Value = (double)control.ActiveValue,
+                        MinValue = (double)control.MinValue,
+                        MaxValue = (double)control.MaxValue
+                    });
                 }
 
-                var voltageControl = controls.FirstOrDefault(c => c.Id == 0x1F1);
+                var voltageControl = controls.FirstOrDefault(c => c.Id == XtuService.CpuVoltageOffsetId);
                 if (voltageControl != null)
                 {
+                    // 平台真实限值收紧滑块范围(硬件安全:不做超出 XTU 上报范围的输入)
+                    VoltageOffsetSlider.Minimum = (double)voltageControl.MinValue;
+                    VoltageOffsetSlider.Maximum = (double)voltageControl.MaxValue;
                     VoltageOffsetSlider.Value = (double)voltageControl.ActiveValue;
                     VoltageOffsetNum.Text = voltageControl.ActiveValue.ToString();
                 }
 
-                SetStatus($"✅ 检测到 {info.PhysicalCoreCount} 个物理核心,超频已解锁", "#D4EDDA");
+                SetStatus(Strings.CpuOcStatusReadyFormat((int)info.PhysicalCoreCount), "SystemFillColorSuccessBackgroundBrush");
             }
             catch (Exception ex)
             {
-                SetStatus($"❌ 初始化失败: {ex.Message}", "#F8D7DA");
+                SetStatus(Strings.CpuOcStatusInitFailedPrefix + ex.Message, "SystemFillColorCriticalBackgroundBrush");
             }
         }
 
@@ -101,27 +107,31 @@ namespace OmenSuperHub.Pages
 
                 var ratioSuccess = await _xtuService.SetCoreRatioAsync(coreRatios);
 
+                // ponytail: 键用 CpuVoltageOffsetId 哨兵(原硬编码 0x1F1 是逆向文档猜错的旧 ID,
+                // 与 XtuService.CpuVoltageOffsetId 不一致,导致电压写入发到无效控制项)。
+                if (!decimal.TryParse(VoltageOffsetNum.Text, out decimal voltageMv))
+                    voltageMv = 0;
                 var voltageOffsets = new Dictionary<uint, decimal>
                 {
-                    { 0x1F1, decimal.Parse(VoltageOffsetNum.Text) }
+                    { XtuService.CpuVoltageOffsetId, voltageMv }
                 };
                 var voltageSuccess = await _xtuService.SetVoltageOffsetAsync(voltageOffsets);
 
                 if (ratioSuccess && voltageSuccess)
                 {
-                    SetStatus("✅ 超频设置已应用", "#D4EDDA");
+                    SetStatus(Strings.CpuOcStatusApplied, "SystemFillColorSuccessBackgroundBrush");
                     await Task.Delay(1500);
                     DialogResult = true;
                     Close();
                 }
                 else
                 {
-                    SetStatus("⚠️ 部分设置失败,请查看日志", "#FFF3CD");
+                    SetStatus(Strings.CpuOcStatusPartialFail, "SystemFillColorAttentionBackgroundBrush");
                 }
             }
             catch (Exception ex)
             {
-                SetStatus($"❌ 应用失败: {ex.Message}", "#F8D7DA");
+                SetStatus(Strings.CpuOcStatusApplyFailedPrefix + ex.Message, "SystemFillColorCriticalBackgroundBrush");
             }
         }
 

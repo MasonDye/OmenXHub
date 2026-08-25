@@ -116,7 +116,7 @@ namespace OmenSuperHub.Services {
     public static bool LaunchLightStudio() {
       var st = QueryState();
       if (st.LightStudioPath == null) return false;
-      try { Process.Start("explorer.exe", "\"" + st.LightStudioPath + "\""); return true; }
+      try { Process.Start("explorer.exe", "\"" + st.LightStudioPath + "\"")?.Dispose(); return true; }
       catch { return false; }
     }
 
@@ -126,7 +126,7 @@ namespace OmenSuperHub.Services {
     /// <summary>拉起 Microsoft Store 到 Light Studio 详情页(explorer 壳,不继承管理员令牌)。
     /// ms-store 无法静默装,深链是唯一干净路径 — 用户在商店点"获取"完成安装。</summary>
     public static bool InstallLightStudio() {
-      try { Process.Start("explorer.exe", "\"ms-windows-store://pdp/?PFN=" + LightStudioPFN + "\""); return true; }
+      try { Process.Start("explorer.exe", "\"ms-windows-store://pdp/?PFN=" + LightStudioPFN + "\"")?.Dispose(); return true; }
       catch { return false; }
     }
   }

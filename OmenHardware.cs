@@ -341,7 +341,7 @@ namespace OmenSuperHub {
         _isSupported = false;
         try {
           _isSupported = GetThermalPolicyVersion() == ThermalPolicyVersion.V1;
-        } catch { _isSupported = false; }
+        } catch (Exception ex) { Logger.Verbose($"[IsSupported] {ex.Message}"); _isSupported = false; }
       }
       return _isSupported.Value;
     }
@@ -775,7 +775,8 @@ namespace OmenSuperHub {
         Marshal.FreeCoTaskMem(data.pFile);
         Marshal.FreeCoTaskMem(pData);
         return result == 0;
-      } catch {
+      } catch (Exception ex) {
+        Logger.Verbose($"[VerifyFileSignature] {ex.Message}");
         return false;
       }
     }
@@ -836,7 +837,7 @@ namespace OmenSuperHub {
             _cachedBiosVersion = obj["SMBIOSBIOSVersion"]?.ToString() ?? "未知";
             return _cachedBiosVersion;
           }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[GetBiosVersion] {ex.Message}"); }
       _cachedBiosVersion = "未知";
       return _cachedBiosVersion;
     }
@@ -850,7 +851,7 @@ namespace OmenSuperHub {
             _cachedCpuModel = obj["Name"]?.ToString()?.Trim() ?? "未知";
             return _cachedCpuModel;
           }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[GetCpuModel] {ex.Message}"); }
       _cachedCpuModel = "未知";
       return _cachedCpuModel;
     }
@@ -870,7 +871,7 @@ namespace OmenSuperHub {
             }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[HasIntelCpu] {ex.Message}"); }
       _cachedHasIntelCpu = false;
       return false;
     }
@@ -892,7 +893,7 @@ namespace OmenSuperHub {
             }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[HasAmdCpu] {ex.Message}"); }
       _cachedHasAmdCpu = false;
       return false;
     }
@@ -911,7 +912,7 @@ namespace OmenSuperHub {
             }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[HasAmdGpu] {ex.Message}"); }
       _cachedHasAmdGpu = false;
       return false;
     }
@@ -934,7 +935,7 @@ namespace OmenSuperHub {
             if (!string.IsNullOrEmpty(processor) && !processor.Contains("Renoir") && !processor.Contains("Cezanne") && !processor.Contains("Rembrandt")) { _cachedHasAmdDiscrete = true; return true; }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[HasAmdDiscreteGpu] {ex.Message}"); }
       _cachedHasAmdDiscrete = false;
       return false;
     }
@@ -970,10 +971,10 @@ namespace OmenSuperHub {
         // ponytail: each DeviceModel call wrapped separately. On non-HP
         // hardware individual calls can throw — we don't want one failure
         // to mask the other.
-        try { if (DeviceModel.IsOldOmenProduct) return 1; } catch { }
-        try { if (DeviceModel.IsHP) return 1; } catch { }
+        try { if (DeviceModel.IsOldOmenProduct) return 1; } catch (Exception ex) { Logger.Verbose($"[Validation] IsOldOmenProduct: {ex.Message}"); }
+        try { if (DeviceModel.IsHP) return 1; } catch (Exception ex) { Logger.Verbose($"[Validation] IsHP: {ex.Message}"); }
         return 0;
-      } catch { return 0; }
+      } catch (Exception ex) { Logger.Verbose($"[Validation] {ex.Message}"); return 0; }
     }
 
     // ponytail: mirrors OSH InitMaxTemp — reads BIOS-set temperature throttling
@@ -1002,7 +1003,7 @@ namespace OmenSuperHub {
         var ps = PerformanceControlHelper.GetPlatformSettings(
             DeviceModel.OmenPlatform.Name.ToString(), sku);
         return ps != null && ps.UnleashedModeMaxIccMax > 0;
-      } catch { return false; }
+      } catch (Exception ex) { Logger.Verbose($"[IsIccMaxSupported] {ex.Message}"); return false; }
     }
 
     // ─── Convenience Mode Setters ─────────────────────────────────────

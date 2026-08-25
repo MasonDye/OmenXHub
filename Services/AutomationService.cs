@@ -65,6 +65,10 @@ namespace OmenSuperHub.Services {
 
     static bool MatchTriggerValue(string triggerType, string triggerDefValue, string firedValue) {
       switch (triggerType) {
+        case "ProcessStart":
+        case "ProcessStop":
+          // ponytail: WMI ProcessName 全小写且总带 .exe；用户输入可能大小写不同/漏 .exe — 归一化后比较
+          return string.Equals(AutomationService.NormalizeProcName(triggerDefValue), AutomationService.NormalizeProcName(firedValue), StringComparison.OrdinalIgnoreCase);
         case "BatteryAbove":
           if (int.TryParse(triggerDefValue, out int batThresh) && int.TryParse(firedValue, out int batCur))
             return batCur >= batThresh;
@@ -99,6 +103,11 @@ namespace OmenSuperHub.Services {
     private static readonly object FileLock = new object();
     private static DataContractJsonSerializer _serializer;
     public static List<AutomationPipeline> Pipelines { get; private set; }
+
+    internal static string NormalizeProcName(string name) {
+      name = (name ?? "").Trim();
+      return name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? name : name + ".exe";
+    }
 
     public static void Initialize() {
       string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);

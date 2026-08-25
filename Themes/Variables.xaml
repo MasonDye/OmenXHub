@@ -26,6 +26,8 @@
   <SolidColorBrush x:Key="DividerBrush" Color="#33888888"/>
 
   <!-- Spacing / Sizing -->
+  <!-- ponytail: 下拉统一最小宽度(灯光页已验证 180);窄卡片列如需例外用字面量并注释 -->
+  <sys:Double x:Key="ComboMinWidth">180</sys:Double>
   <Thickness x:Key="CardPadding">16,14</Thickness>
   <Thickness x:Key="ButtonPadding">16,8</Thickness>
   <Thickness x:Key="SmallButtonPadding">8,4</Thickness>

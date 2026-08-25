@@ -42,12 +42,23 @@ namespace OmenSuperHub.Views {
       State == TweakState.Applied ? Strings.SysOptTweakApplied :
       State == TweakState.Partial ? Strings.SysOptTweakPartial :
       Strings.SysOptTweakNotApplied;
+    // ponytail: 绑定每次刷新都会读 StateBrush — 静态冻结,不再每次访问 new 画刷
+    static readonly SolidColorBrush BrushApplied = FrozenBrush(0x4C, 0xC3, 0x8A);
+    static readonly SolidColorBrush BrushPartial = FrozenBrush(0xFF, 0xB9, 0x00);
+    static readonly SolidColorBrush BrushNone = FrozenBrush(0x8A, 0x8A, 0x8A);
+
+    static SolidColorBrush FrozenBrush(byte r, byte g, byte b) {
+      var b2 = new SolidColorBrush(Color.FromRgb(r, g, b));
+      b2.Freeze();
+      return b2;
+    }
+
     public SolidColorBrush StateBrush {
       get {
         switch (State) {
-          case TweakState.Applied: return new SolidColorBrush(Color.FromRgb(0x4C, 0xC3, 0x8A));
-          case TweakState.Partial: return new SolidColorBrush(Color.FromRgb(0xFF, 0xB9, 0x00));
-          default: return new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x8A));
+          case TweakState.Applied: return BrushApplied;
+          case TweakState.Partial: return BrushPartial;
+          default: return BrushNone;
         }
       }
     }

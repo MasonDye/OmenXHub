@@ -24,6 +24,9 @@ namespace OmenSuperHub.Pages {
       if (!_extraSensorsBuilt) { BuildExtraTempSensorOptions(); _extraSensorsBuilt = true; }
       if (!_gpuSelectorBuilt) { BuildGpuSelectorOptions(); _gpuSelectorBuilt = true; }
       _loading = false;
+      // ponytail: Loaded 里 Build 三个选择器(可视树填充),缓存页二次 Loaded 会空白 —
+      // 显式 UpdateLayout 强制一遍,对齐 LightingPage/CoreKeepPage 的修法。
+      UpdateLayout();
       // ponytail: 由 LightingPage 触发的定向跳转 — 滚到 OMEN Light Studio 存根卡, 让用户能直接接
       // "注册存根/启动"/"恢复 OXH 灯效"。Loaded 后页面已上可视树,BringIntoView 在 ThreadPool 再跑一拍
       // 确保 ScrollViewer 已度量, 避免滚错位置。
@@ -567,7 +570,7 @@ namespace OmenSuperHub.Pages {
           UseShellExecute = false,
           CreateNoWindow = true
         };
-        System.Diagnostics.Process.Start(psi);
+        using (System.Diagnostics.Process.Start(psi)) { }
       } catch (Exception ex) {
         Utils.DialogHelper.Warn(Strings.UefiRestartFailed + ex.Message, Strings.UefiRestartHeading);
       }

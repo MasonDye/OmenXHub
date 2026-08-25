@@ -228,5 +228,31 @@ namespace OmenSuperHub.Pages {
     [DllImport("powrprof.dll")] public static extern uint PowerWriteACValueIndex(IntPtr rootPowerKey, ref Guid schemeGuid, ref Guid subGroupOfPowerSettings, ref Guid powerSetting, uint acValueIndex);
     [DllImport("powrprof.dll")] public static extern uint PowerWriteDCValueIndex(IntPtr rootPowerKey, ref Guid schemeGuid, ref Guid subGroupOfPowerSettings, ref Guid powerSetting, uint dcValueIndex);
   }
+  internal static class NativeMethods_Proc {
+    [DllImport("psapi.dll")] public static extern bool EmptyWorkingSet(IntPtr hProcess);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MEMORYSTATUSEX {
+      public uint dwLength;
+      public uint dwMemoryLoad;
+      public ulong ullTotalPhys;
+      public ulong ullAvailPhys;
+      public ulong ullTotalPageFile;
+      public ulong ullAvailPageFile;
+      public ulong ullTotalVirtual;
+      public ulong ullAvailVirtual;
+      public ulong ullAvailExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll")]
+    public static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+
+    public static MEMORYSTATUSEX GetMemoryStatus() {
+      var mem = new MEMORYSTATUSEX();
+      mem.dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
+      GlobalMemoryStatusEx(ref mem);
+      return mem;
+    }
+  }
 
 }
