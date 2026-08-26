@@ -1,0 +1,19 @@
+=== Probe v9: cmdType 76 mode scan (read-only modes) ===
+hpqBIntM: OK
+--- baseline read ---
+  cmd=1 t=4C rc=0x0 data=01 00 00 00
+--- read with input byte 1 ---
+  cmd=1 t=4C rc=0x0 data=01 00 00 00
+--- read with input byte 2 ---
+  cmd=1 t=4C rc=0x0 data=01 00 00 00
+--- scan cmdType 0x4D..0x55 read (4B) ---
+  cmd=1 t=4D rc=0x4 data=00 00 00 00
+  cmd=1 t=4E rc=0x4 data=00 00 00 00
+  cmd=1 t=4F rc=0x4 data=00 00 00 00
+  cmd=1 t=50 rc=0x4 data=00 00 00 00
+  cmd=1 t=51 rc=0x4 data=00 00 00 00
+  cmd=1 t=52 rc=0x0 data=02 00 00 00
+  cmd=1 t=53 rc=0x4 data=00 00 00 00
+  cmd=1 t=54 rc=0x4 data=00 00 00 00
+  cmd=1 t=55 rc=0x4 data=00 00 00 00
+=== done ===

@@ -170,8 +170,10 @@ namespace OmenSuperHub.Services
                 if (mv < VoltageMinMv) mv = VoltageMinMv;
                 if (mv > VoltageMaxMv) mv = VoltageMaxMv;
 
-                // ponytail: 电压编码 port UXTU convertVoltageToHexMSR: round(mv*1.024)<<21。
-                uint data = unchecked((uint)((int)Math.Round(mv * 1.024) << 21));
+                // ponytail: 电压编码官方 S11.0.10 —— round(mv*1.024) 得 1/1024 单位值，
+                // 11-bit 二补码(& 0x7FF)放 bit21。int 左移 21 是 mod-2^32 运算，高位溢出
+                // 即丢弃，恒等价于先 & 0x7FF 再移位（全区间实测 diffs=0）；掩码仅为显式表达位宽。
+                uint data = unchecked((uint)(((int)Math.Round(mv * 1.024) & 0x7FF) << 21));
                 ulong msrValue = (VoltageWriteCmdCore << 32) | data;
 
                 if (!WaitMailboxIdle()) return Task.FromResult(false);

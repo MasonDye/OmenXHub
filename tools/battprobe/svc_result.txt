@@ -1,0 +1,4 @@
+State: Running
+Restarting...
+After restart: Running
+=== done ===

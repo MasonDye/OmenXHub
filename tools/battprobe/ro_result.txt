@@ -1,0 +1,5 @@
+=== WinRT activation test ===
+Activate HP.AppFramework.PowerManagerClient.BatteryParticulars: 0x80070057 inst=0
+Activate HP.AppFramework.PowerManagerClient.BatteryParticularsClass: 0x80070057 inst=0
+Activate HP.AppFramework.PowerManagerClient.Helpers.FeatureSwitch: 0x80070057 inst=0
+=== done ===

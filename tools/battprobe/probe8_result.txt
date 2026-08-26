@@ -1,0 +1,9 @@
+=== Probe v8: SystemControl cmdType 76 write test ===
+hpqBIntM: OK
+--- read t=76 ---
+  cmd=1 t=4C rc=0x0 data=01 00 00 00
+--- write-back same value ---
+  cmd=2 t=4C rc=0x0 data=00 00 00 00
+--- read again ---
+  cmd=1 t=4C rc=0x0 data=01 00 00 00
+=== done ===

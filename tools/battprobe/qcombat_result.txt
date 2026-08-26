@@ -1,0 +1,2 @@
+=== QCOMBATTMGR probe ===
+CreateFile FAILED err=0x2 (2)

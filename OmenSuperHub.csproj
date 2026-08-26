@@ -124,6 +124,11 @@
     <Compile Remove="packages\**" />
     <Compile Remove="backup\**" />
     <Compile Remove="LibreHardwareMonitor-pawnio-squashed\**" />
+    <!-- ponytail: tools\ 是独立探针/工具工程(battprobe 等),不得并入主程序编译;
+         自身 obj/bin 生成物(AssemblyInfo.cs 等)也排除,否则 CS0579 重复特性。 -->
+    <Compile Remove="tools\**" />
+    <Compile Remove="bin\**" />
+    <Compile Remove="obj\**" />
     <EmbeddedResource Remove="packages\**" />
     <None Remove="packages\**" />
   </ItemGroup>
