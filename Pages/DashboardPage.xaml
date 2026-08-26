@@ -260,7 +260,9 @@
         </ui:CardControl>
 
         <!-- Memory -->
-        <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,12,0,0" MinHeight="180">
+        <!-- ponytail: CardControl 默认 VerticalAlignment=Center(WPF-UI 样式),同行两卡内容不等高时
+             矮卡不被拉伸导致边框不齐 — 显式 Stretch 让运存/储存卡片等高(行高取两者内容上限)。 -->
+        <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,12,0,0" MinHeight="180" VerticalAlignment="Stretch">
           <ui:CardControl.Header>
             <Grid>
               <Grid.RowDefinitions>
@@ -331,7 +333,7 @@
         </ui:CardControl>
 
         <!-- Storage -->
-        <ui:CardControl Grid.Row="1" Grid.Column="2" Margin="0,12,0,0" MinHeight="180">
+        <ui:CardControl Grid.Row="1" Grid.Column="2" Margin="0,12,0,0" MinHeight="180" VerticalAlignment="Stretch">
           <ui:CardControl.Header>
             <Grid>
               <Grid.RowDefinitions>
