@@ -17,10 +17,13 @@ namespace OmenSuperHub.Pages {
       InitializeComponent();
       Loaded += OnLoaded;
       Unloaded += OnUnloaded;
-      BoostService.OnLog += OnBoostLog;
     }
 
     void OnLoaded(object s, RoutedEventArgs e) {
+      // ponytail: OnLog 订阅移到 Loaded(先退订再订,幂等) — 页面被 CachedPageService 缓存后
+      // 离开(Unloaded 退订)→再回来(Loaded)能重新订阅,否则日志面板在二次进入后不再更新。
+      BoostService.OnLog -= OnBoostLog;
+      BoostService.OnLog += OnBoostLog;
       _loading = true;
       // 模式下拉
       ModeCombo.SelectedIndex = ConfigService.BoostMode == "tun" ? 1 : 0;
@@ -35,6 +38,8 @@ namespace OmenSuperHub.Pages {
       RebuildNicList();
       UpdateStatus();
 
+      // ponytail: 守卫 —— 页被缓存且上次 Unloaded 未触发时旧 timer 可能仍在跑,先停再建避免叠加。
+      if (_timer != null) { _timer.Stop(); _timer = null; }
       _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
       _timer.Tick += OnTimerTick;
       _timer.Start();

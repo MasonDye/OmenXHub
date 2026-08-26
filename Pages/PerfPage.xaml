@@ -170,6 +170,28 @@
                     Margin="12,0,0,0" VerticalAlignment="Center"/>
           </Grid>
         </ui:CardExpander>
+        <ui:CardExpander Grid.Row="0" Grid.Column="2" Margin="4,0,0,8" x:Name="CpuOcCard" Visibility="Collapsed"
+                         Icon="Rocket24">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="CPU 超频" FontWeight="SemiBold"/>
+                <TextBlock Text="每核频率 / 电压偏移" FontSize="{DynamicResource FontSizeBody}"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+              </StackPanel>
+              <Button Grid.Column="1" Content="设置" MinWidth="80" Margin="0,0,12,0"
+                      Click="CpuOcSettings_Click"/>
+            </Grid>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <TextBlock Text="点击右侧按钮打开超频设置" FontSize="{DynamicResource FontSizeCaption}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+          </StackPanel>
+        </ui:CardExpander>
 
         <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="AcLoadLineCard">
           <ui:CardControl.Header>
@@ -1084,3 +1106,4 @@
     </StackPanel>
   </ScrollViewer>
 </Page>
+

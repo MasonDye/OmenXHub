@@ -39,6 +39,7 @@
     <PackageReference Include="Costura.Fody" Version="5.7.0" PrivateAssets="all" />
     <PackageReference Include="HidSharp" Version="2.1.0" />
     <PackageReference Include="Microsoft.Windows.WDK.x64" Version="10.0.28000.1839" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NvAPIWrapper.Net" Version="0.8.1.101" />
     <!-- ponytail: removed unused Microsoft.Extensions.ObjectPool 6.0.4 -->
 
@@ -83,6 +84,23 @@
       <HintPath>lib\Microsoft.Win32.TaskScheduler.dll</HintPath>
       <Private>true</Private>
     </Reference>
+    <!-- Intel XTU 超频: 复用 OGH (OmenCommandCenter) 的官方托管 SDK。
+         传输层是 HP 自有 MSRPC/ncalrpc (端点 HPOmenRpcEndpoint,NativeRpcClient.dll 原生实现) —
+         自造管道协议不可行(XtuService.exe 不开命名管道)。NativeRpcClient 为原生 DLL,
+         启动时经 ExtractAndPreloadNativeDll 释放到 exe 目录。 -->
+    <Reference Include="IntelXTUSDK">
+      <HintPath>Resources\IntelXTUSDK.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="RpcClient">
+      <HintPath>Resources\RpcClient.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Logging">
+      <HintPath>Resources\Logging.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <EmbeddedResource Include="Resources\NativeRpcClient.dll" />
   </ItemGroup>
 
   <!-- Framework References -->

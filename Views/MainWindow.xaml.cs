@@ -107,6 +107,15 @@ namespace OmenSuperHub.Views {
       _instance.Hide();
       _instance.ShowInTaskbar = true;
       _instance.Opacity = 1;
+      // ponytail: 消除首帧白屏的 Minimized→Show 序列会在窗口尚未完成布局时把
+      // RestoreBounds 写成 0×0/左下角脏值(issue #25 自启首点托盘小窗)。此处趁
+      // Loaded 已跑、布局已完成,显式重置到 XAML 默认尺寸并居中,覆盖脏 RestoreBounds,
+      // 首次 ShowInstance 才能以正常尺寸唤出。
+      _instance.Width = 1150;   // 与 MainWindow.xaml 的 Width/Height 一致
+      _instance.Height = 750;
+      _instance.Left = (System.Windows.SystemParameters.WorkArea.Width - _instance.Width) / 2;
+      _instance.Top = (System.Windows.SystemParameters.WorkArea.Height - _instance.Height) / 2;
+      _instance.WindowState = WindowState.Normal;
     }
 
     public static void ApplyLanguageToInstance() {
@@ -568,14 +577,25 @@ namespace OmenSuperHub.Views {
     // 下次 Show 跳转走 Navigate → CachedPageService 重新 ctor + Loaded,与首访问体验一致。
     // 注意:wakeUpWndProc/ShowInstance 的"可见但最小化"路径不走 Hide,不会触发本方法 —
     // 那种情况下页面应保持热缓存 (用户体验:从最小化唤回不重建页面)。
+    // ponytail: 反射元数据缓存 — GetProperty/GetSetMethod 结果按类型固定,缓存后每次 Hide
+    // 免 3+n 次反射查找(原每 Hide 都重新查找)。
+    static readonly System.Reflection.PropertyInfo _navPresenterProp = typeof(Wpf.Ui.Controls.NavigationView).GetProperty(
+        "NavigationViewContentPresenter",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+    static readonly System.Reflection.PropertyInfo _navStackProp = typeof(Wpf.Ui.Controls.NavigationView).GetProperty(
+        "NavigationStack",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+    static readonly System.Reflection.MethodInfo _navSelectedSetter = typeof(Wpf.Ui.Controls.NavigationView).GetProperty(
+        "SelectedItem",
+        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)?.GetSetMethod(nonPublic: true);
+    static readonly System.Collections.Generic.Dictionary<System.Type, System.Reflection.MethodInfo> _deactivateCache
+        = new System.Collections.Generic.Dictionary<System.Type, System.Reflection.MethodInfo>();
+
     void ReleaseFrontend() {
       var nav = NavigationView;
       try {
         if (nav != null) {
-          var presenterProp = typeof(Wpf.Ui.Controls.NavigationView).GetProperty(
-            "NavigationViewContentPresenter",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-          var presenter = presenterProp?.GetValue(nav) as System.Windows.Controls.ContentControl;
+          var presenter = _navPresenterProp?.GetValue(nav) as System.Windows.Controls.ContentControl;
           if (presenter != null) presenter.Content = null;
           nav.ClearJournal();
           // ponytail: 真正的短路源 — Wpf.Ui NavigateInternal (decompiled 3.1.1:1321-1327):
@@ -590,9 +610,6 @@ namespace OmenSuperHub.Views {
           // 这就是"如果在总览页关闭就不能"的根因。修法:反射取 protected NavigationStack 并 Clear()。
           // NavigationStack 是 protected get (Family 可见性,非 public),与 SelectedItem(public get)相反 —
           // NonPublic binding 能匹配它,GetProperty(NonPublic|Instance) 返回 PropertyInfo,GetValue 可用。
-          var navStackProp = typeof(Wpf.Ui.Controls.NavigationView).GetProperty(
-            "NavigationStack",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
           // ponytail: 清栈前先逐项 Deactivate。NavigationStackOnCollectionChanged 的 Reset
           // 分支(decompiled:1123-1146)只动面包屑栏 _breadcrumbBarItems,不 Deactivate 被移除项。
           // 不主动清 → 旧页 item 的 Activated 视觉态跨 hide/show 存活 = 关前那页侧栏按钮继续亮、
@@ -600,16 +617,20 @@ namespace OmenSuperHub.Views {
           // Clear(),两段症状一起修。
           // 反射 duck-type 调 Deactivate(nav) — INavigationViewItem 接口在 Wpf.Ui 3.1.1 不在
           // Wpf.Ui.Controls.Interfaces 命名空间(CS0234),与其猜命名空间不如直接在运行时类型上 Invoke,
-          // 与上方 presenterProp/selectedSetter 同款反射模式。上限:逐项反射是 O(n),
-          // n = 已进过的页数(≤ 侧栏项数 + 子页),首关后每次 Hide 触发一次,量级可忽略。
-          var navStack = navStackProp?.GetValue(nav) as System.Collections.IList;
+          // 与上方 presenterProp/selectedSetter 同款反射模式(元数据已缓存,Invoke 才是每次 Hide 的成本)。
+          // 上限:逐项 Invoke 是 O(n),n = 已进过的页数(≤ 侧栏项数 + 子页),量级可忽略。
+          var navStack = _navStackProp?.GetValue(nav) as System.Collections.IList;
           if (navStack != null) {
             var items = new System.Collections.Generic.List<object>();
             foreach (var it in navStack) if (it != null) items.Add(it);
             foreach (var it in items) {
               try {
-                var deact = it.GetType().GetMethod("Deactivate",
-                  System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var t = it.GetType();
+                if (!_deactivateCache.TryGetValue(t, out var deact)) {
+                  deact = t.GetMethod("Deactivate",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                  _deactivateCache[t] = deact;
+                }
                 deact?.Invoke(it, new object[] { nav });
               } catch { }
             }
@@ -619,22 +640,24 @@ namespace OmenSuperHub.Views {
           // 检查 SelectedItem != NavigationStack[0] 后 OnSelectionChanged)。SelectedItem 是
           // public get + protected set;GetProperty(NonPublic|Instance) 因 public getter 返回 null
           // (前两轮的坑),必须 GetProperty(Public|Instance).GetSetMethod(nonPublic:true).Invoke。
-          var selectedProp = typeof(Wpf.Ui.Controls.NavigationView).GetProperty(
-            "SelectedItem",
-            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-          var selectedSetter = selectedProp?.GetSetMethod(nonPublic: true);
-          selectedSetter?.Invoke(nav, new object[] { null });
+          _navSelectedSetter?.Invoke(nav, new object[] { null });
         }
       } catch { /* ponytail: 导航控件尚未应用模板时成员可能 null — 此时本就无页可清 */ }
       _pageService?.Clear();
       _activePage = null;
+      // ponytail: 解耦 —— 断开鼠标滚轮 handler 对旧页 UIElement 的引用。_wheelHandler 是捕获旧 page
+      // 的 lambda,_wheelRoot 指向旧 page 的祖先 UIElement;MainWindow 常驻持有这两个字段会让旧 page 无法 GC。
+      // 下次 Show 走 AttachWheelHandler 时会重新指向新页(它内部先 RemoveHandler 旧的)。
+      if (_wheelRoot != null && _wheelHandler != null)
+        _wheelRoot.RemoveHandler(UIElement.PreviewMouseWheelEvent, _wheelHandler);
+      _wheelHandler = null; _wheelRoot = null;
       // ponytail: 仅清引用只是允许被回收,真正缩工作集需要 GC + 工作集修剪。Wpf.Ui Page 是
       // 100KB+ XAML 可视树,显式回收一次让任务管理器看得见内存回落。一次 Hide 的渲染开销远高于
       // 这 200µs。和 DashboardPage:492 用的是同一个 PSAPI 调用。
       System.GC.Collect();
       System.GC.WaitForPendingFinalizers();
       System.GC.Collect();
-      try { EmptyWorkingSet(System.Diagnostics.Process.GetCurrentProcess().Handle); } catch { }
+      try { NativeMethods_Proc.EmptyWorkingSet(System.Diagnostics.Process.GetCurrentProcess().Handle); } catch { }
       // ponytail: 标记需要 re-navigate。下次任何 Show 路径看到此标志会 Navigate 回 Dashboard,
       // 重建可视树。否则窗口会停在"ContentPresenter 已清空"的白板上。
       _frontendReleased = true;
@@ -672,9 +695,6 @@ namespace OmenSuperHub.Views {
         } catch { /* ponytail: 导航失败不该阻塞窗口显示,用户可手动点侧栏重建 */ }
       }), System.Windows.Threading.DispatcherPriority.Background);
     }
-
-    [System.Runtime.InteropServices.DllImport("psapi.dll")]
-    static extern bool EmptyWorkingSet(IntPtr hProcess);
 
     void OnThemeChanged() {
       Dispatcher.InvokeAsync(() => {

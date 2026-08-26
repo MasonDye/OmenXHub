@@ -164,6 +164,11 @@ namespace OmenSuperHub.Services {
     // ponytail: AMD 分核 Curve Optimizer 偏移。格式 "core:offset,core:offset"(如 "0:-10,2:-15")。
     // 空串=未设置。全局设置,不随预设切换重置。SMU 写易失,预设切换时重应用。
     public static string AmdCpuPerCoreOffsets = "";
+    // ponytail: Intel 混合架构(8P+8E)每核倍频 + 电压偏移。格式 "core:ratio,core:ratio"(core 0..15,
+    // 前 8= P-core 写 MSR 0x1AD,后 8= E-core 写 0x1AE),空串=未设置。与 AmdCpuPerCoreOffsets
+    // 同为全局易失设置(MSR 写重启清零),PresetManager 重应用。电压 mV,0=未设置。
+    public static string IntelPerCoreRatios = "";
+    public static int IntelVoltageOffset = 0;
     // ponytail: 仅 PPT 一组保留走 WMI；TDC/EDC/Tctl 三组已随高级调教删除（依赖 SMU 服务，本机不可用）。
     // ponytail: 首次启动默认开启风扇一致性 (CPU/GPU 同转速); 用户在 FanPage 关掉后
     // RegBool 会读到 false 并保留 — 默认 true 仅在注册表无 FanSync 键时生效 (新安装/首次运行)。
@@ -342,6 +347,8 @@ namespace OmenSuperHub.Services {
             case "AmdCpuPpt": key.SetValue("AmdCpuPpt", AmdCpuPpt); break;
             case "AmdCpuUndervolt": key.SetValue("AmdCpuUndervolt", AmdCpuUndervolt); break;
             case "AmdCpuPerCoreOffsets": key.SetValue("AmdCpuPerCoreOffsets", AmdCpuPerCoreOffsets ?? ""); break;
+            case "IntelPerCoreRatios": key.SetValue("IntelPerCoreRatios", IntelPerCoreRatios ?? ""); break;
+            case "IntelVoltageOffset": key.SetValue("IntelVoltageOffset", IntelVoltageOffset); break;
             case "AmdCpuPowerMasterEnabled": key.SetValue("AmdCpuPowerMasterEnabled", AmdCpuPowerMasterEnabled); break;
             case "FanSync": key.SetValue("FanSync", FanSync); break;
             // ponytail: SmartFanEmaAlpha/StepDown/Hysteresis 不再走注册表，
@@ -639,6 +646,8 @@ namespace OmenSuperHub.Services {
             AmdCpuPpt = RegInt(key, "AmdCpuPpt", 0);
             AmdCpuUndervolt = RegInt(key, "AmdCpuUndervolt", 0);
             AmdCpuPerCoreOffsets = RegStr(key, "AmdCpuPerCoreOffsets", "");
+            IntelPerCoreRatios = RegStr(key, "IntelPerCoreRatios", "");
+            IntelVoltageOffset = RegInt(key, "IntelVoltageOffset", 0);
             AmdCpuPowerMasterEnabled = RegBool(key, "AmdCpuPowerMasterEnabled", true);
             FanSync = RegBool(key, "FanSync", true);
             // ponytail: smart 参数不再从注册表读，由 FanPage 从 FanCurves/custom_<preset>_smart.txt 加载后写回

@@ -66,9 +66,12 @@ namespace OmenSuperHub.Services {
     public static void Stop() {
       if (_cts != null) {
         _cts.Cancel();
-        try { _refreshTask?.Wait(2000); } catch { }
+        // ponytail: 不同步 Wait(2000) —— 该路径从 OtherPage 切 Toggle 的 UI 线程调用,同步等最多 2s
+        // 会冻结界面。RefreshLoopAsync 用 token,Task.Delay(token) 在 Cancel 后立即返回,循环自然退出,
+        // 无需等待。Dispose 已 Cancel 的 CTS 安全。
         _cts.Dispose();
         _cts = null;
+        _refreshTask = null;
       }
       _sensorIndex.Clear();
       _lastValueCount = 0;

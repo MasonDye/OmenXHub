@@ -25,7 +25,7 @@ namespace OmenSuperHub.Services {
       try {
         using (var key = Registry.LocalMachine.OpenSubKey(KGroupPath))
           return key != null && key.GetValue("SmallProcessorMask") != null;
-      } catch { return false; }
+      } catch (Exception ex) { Logger.Verbose($"[HeteroCpu.IsActive] {ex.Message}"); return false; }
     }
 
     public static string ReadSmallProcessorMask() {
@@ -43,7 +43,7 @@ namespace OmenSuperHub.Services {
             return $"{recovered:X8}";
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[ReadSmallProcessorMask] {ex.Message}"); }
       return "FFFF0000";
     }
 
@@ -149,7 +149,8 @@ namespace OmenSuperHub.Services {
 
         string mask = GenerateMask(totalLp, ccd0Count);
         return (true, totalLp, ccd0Count, mask);
-      } catch {
+      } catch (Exception ex) {
+        Logger.Verbose($"[DetectTopology] {ex.Message}");
         return (false, 0, 0, "");
       }
     }
@@ -193,7 +194,7 @@ namespace OmenSuperHub.Services {
         } finally {
           Marshal.FreeHGlobal(buffer);
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[DetectCcdBoundary] {ex.Message}"); }
       return 0;
     }
 
@@ -212,7 +213,7 @@ namespace OmenSuperHub.Services {
         using (var mos = new ManagementObjectSearcher("SELECT Name, Manufacturer, NumberOfCores, NumberOfLogicalProcessors FROM Win32_Processor"))
           foreach (var mo in mos.Get())
             return $"{mo["Name"]} ({mo["NumberOfCores"]} cores / {mo["NumberOfLogicalProcessors"]} threads)";
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[GetCpuInfo] {ex.Message}"); }
       return "";
     }
 

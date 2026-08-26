@@ -24,6 +24,9 @@ namespace OmenSuperHub.Pages {
     void OnLoaded(object s, RoutedEventArgs e) {
       BuildPresets();
       LoadRules();
+      // ponytail: Loaded 里大量填充可视树,被 CachedPageService 缓存二次 Loaded 时会渲染成
+      // 空白页 — 显式 UpdateLayout 强制一遍,对齐 LightingPage/CoreKeepPage 的修法。
+      UpdateLayout();
     }
 
     void BackBtn_Click(object s, RoutedEventArgs e) {

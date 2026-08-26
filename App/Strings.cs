@@ -357,7 +357,7 @@ namespace OmenSuperHub {
     public static string CleanCreekStartBtn => T("开始除尘 (30秒)", "開始除塵 (30秒)", "Start Cleaning (30s)");
     public static string AutoFanProtectDesc => T("CPU温度>95°C且固定转速时强制切换为降温曲线", "CPU溫度>95°C且固定轉速時強制切換為降溫曲線", "Forces cool curve when CPU >95°C with fixed fan speed");
     public static string FanSync => T("风扇一致性", "風扇一致性", "Fan Consistency");
-    public static string FanSyncDesc => T("所有风扇转速与CPU风扇保持一致", "所有風扇轉速與CPU風扇保持一致", "Keep all fan speeds synchronized with CPU fan");
+    public static string FanSyncDesc => T("所有风扇转速随 CPU/GPU 中较高温度同步", "所有風扇轉速隨 CPU/GPU 中較高溫度同步", "All fans track the higher of CPU/GPU temperature");
     public static string FanSmartSettings => T("曲线温度设置", "曲線溫度設置", "Curve Temperature Settings");
     public static string FanSmartEmaAlpha => T("温度平滑系数", "溫度平滑係數", "Temp Smoothing (EMA)");
     public static string FanSmartStepDown => T("降速保护 (RPM/s)", "降速保護 (RPM/s)", "Step-Down Rate (RPM/s)");
@@ -477,6 +477,8 @@ namespace OmenSuperHub {
     public static string AutomationStepRunProgram => T("运行程序", "運行程式", "Run Program");
     public static string AutomationStepDelay => T("延迟", "延遲", "Delay");
     public static string AutomationStepNotification => T("通知", "通知", "Notification");
+    public static string AutomationStepCleanMemory => T("清理内存", "清理記憶體", "Clean Memory");
+    public static string AutomationCleanMemoryHint => T("清理各进程工作集(无需参数)", "清理各程序工作集(無需參數)", "Trim process working sets (no argument)");
     public static string AutomationStepSetGpuPower => T("设置GPU功率", "設定GPU功率", "Set GPU Power");
     public static string AutomationStepSetTempSensitivity => T("设置温度灵敏度", "設定溫度靈敏度", "Set Temp Sensitivity");
     public static string AutomationProgramPath => T("程序路径", "程式路徑", "Program Path");
@@ -491,7 +493,6 @@ namespace OmenSuperHub {
     public static string NewPipelineDefaultName => T("新管道", "新管道", "New Pipeline");
     // EcoQoS / Efficiency Mode
     public static string EcoQosHeading => T("EcoQoS 效率模式", "EcoQoS 效率模式", "EcoQoS Efficiency Mode");
-    public static string EcoQosEnable => T("开启 EcoQoS", "開啓 EcoQoS", "Enable EcoQoS");
     public static string EcoQosThrottlePlugged => T("插电时限制所有后台进程", "插電時限制所有後臺進程", "Throttle background processes when plugged in");
     public static string EcoQosWhitelist => T("进程白名单", "進程白名單", "Process Whitelist");
     public static string EcoQosBlacklist => T("进程黑名单", "進程黑名單", "Process Blacklist");
@@ -519,7 +520,6 @@ namespace OmenSuperHub {
 
     // Core Keep
     public static string CoreKeepHeading => T("核心保持", "核心保持", "Core Keep");
-    public static string CoreKeepProcessLabel => T("进程:", "進程:", "Process:");
     public static string CoreKeepPriorityLabel => T("优先级:", "優先級:", "Priority:");
     public static string CoreKeepAffinityLabel => T("关联性:", "關聯性:", "Affinity:");
     public static string CoreKeepPriorityIdle => T("空闲", "空閒", "Idle");
@@ -528,10 +528,8 @@ namespace OmenSuperHub {
     public static string CoreKeepPriorityAboveNormal => T("高于标准", "高於標準", "Above Normal");
     public static string CoreKeepPriorityHigh => T("高", "高", "High");
     public static string CoreKeepPriorityRealtime => T("实时", "實時", "Realtime");
-    public static string CoreKeepPriorityUnknown => T("未知", "未知", "Unknown");
     public static string CoreKeepGuardLabel => T("运行中守护", "運行中守護", "Runtime Guard");
     public static string CoreKeepModeLabel => T("核心模式:", "核心模式:", "Core Mode:");
-    public static string CoreKeepModeAuto => T("自动", "自動", "Auto");
     public static string CoreKeepModeAll => T("全部核心", "全部核心", "All Cores");
     public static string CoreKeepModeManual => T("手动选择", "手動選擇", "Manual");
     public static string CoreKeepModePerformanceFirst => T("P核优先", "P核優先", "P-core First");
@@ -543,7 +541,6 @@ namespace OmenSuperHub {
     public static string CoreKeepStatusMatched => T("✓ 已应用", "✓ 已應用", "✓ Applied");
     public static string CoreKeepStatusMismatch => T("✗ 已被修改", "✗ 已被修改", "✗ Modified");
     public static string CoreKeepStatusNotRunning => T("- 进程未运行", "- 進程未運行", "- Not running");
-    public static string CoreKeepSaveCurrent => T("捕获更新", "捕獲更新", "Capture");
     public static string CoreKeepTopologyHybrid => T("{0} 核 ({1} P + {2} E)", "{0} 核 ({1} P + {2} E)", "{0} cores ({1} P + {2} E)");
     public static string CoreKeepTopologyDualCcd => T("{0} 核 (CCD0={1} CCD1={2})", "{0} 核 (CCD0={1} CCD1={2})", "{0} cores (CCD0={1} CCD1={2})");
     public static string CoreKeepTopologyNormal => T("{0} 核", "{0} 核", "{0} cores");
@@ -557,7 +554,6 @@ namespace OmenSuperHub {
     public static string CoreKeepMasterLabel => T("核心保持主开关", "核心保持主開關", "Core Keep Master");
     public static string CoreKeepMasterDesc => T("启用后，进程启动时自动应用规则并定期守护", "啟用後，進程啟動時自動應用規則並定期守護", "When enabled, rules auto-apply on process start and are guarded periodically");
     public static string CoreKeepAddBtn => ButtonAdd;
-    public static string CoreKeepSaveBtn => ButtonSave;
     public static string CoreKeepDeleteBtn => ButtonDelete;
     public static string CoreKeepRefreshBtn => ButtonRefresh;
     public static string CoreKeepBenchBtn => T("核心竞速", "核心競速", "Benchmark");
@@ -566,12 +562,9 @@ namespace OmenSuperHub {
     // ponytail: 系统保留 CPU 核心集 — ReservedCpuSets 注册表（Win11 19044+，重启生效）
     public static string CoreKeepReservedHeading => T("系统保留核心", "系統保留核心", "System Reserved Cores");
     public static string CoreKeepReservedDesc => T("写入注册表 ReservedCpuSets，内核重启后保留勾选的核心不调度给用户进程。仅 Win11 19044+ 支持，需重启生效。", "寫入登錄檔 ReservedCpuSets，內核重啟後保留勾選的核心不調度給使用者進程。僅 Win11 19044+ 支援，需重啟生效。", "Writes ReservedCpuSets registry; kernel won't schedule checked cores to user processes after reboot. Win11 19044+ only, requires restart.");
-    public static string CoreKeepReservedEnabled => T("启用系统保留", "啟用系統保留", "Enable reserved cores");
     public static string CoreKeepReservedSelectCores => T("勾选要保留的核心：", "勾選要保留的核心：", "Select cores to reserve:");
     public static string CoreKeepReservedApplyNow => T("写入注册表", "寫入登錄檔", "Write to registry");
     public static string CoreKeepReservedUnsupported => T("当前系统不支持 ReservedCpuSets（需 Win11 19044+）", "當前系統不支援 ReservedCpuSets（需 Win11 19044+）", "ReservedCpuSets not supported (requires Win11 19044+)");
-    public static string CoreKeepReservedNeedReboot => T("已写入，重启后生效", "已寫入，重啟後生效", "Written, takes effect after reboot");
-    public static string CoreKeepReservedCleared => T("已清除保留，重启后生效", "已清除保留，重啟後生效", "Reservation cleared, takes effect after reboot");
     public static string CoreKeepReservedWriteFailed => T("写入失败，请以管理员身份运行", "寫入失敗，請以管理員身份運行", "Write failed, please run as administrator");
     public static string CoreKeepReservedCurrent => T("注册表当前值：", "登錄檔當前值：", "Current registry value:");
     public static string CoreKeepReservedEffective => T("系统当前生效：", "系統當前生效：", "Currently active:");
@@ -658,9 +651,6 @@ namespace OmenSuperHub {
     public static string CoreKeepStatRulesActive => T("活跃规则", "活躍規則", "Active Rules");
     public static string CoreKeepStatPCores => T("P 性能核", "P 效能核", "P-Cores");
     public static string CoreKeepStatECores => T("E 能效核", "E 能效核", "E-Cores");
-    public static string CoreKeepRuleCardMode => T("模式", "模式", "Mode");
-    public static string CoreKeepRuleCardLevel => T("级别", "級別", "Level");
-    public static string CoreKeepRuleCardEdit => T("编辑", "編輯", "Edit");
 
     // Pin tooltip
     // New automation step types
@@ -795,26 +785,19 @@ namespace OmenSuperHub {
     // 场景触发模式
     public static string LightingSceneTrigger => T("触发模式", "觸發模式", "Trigger Mode");
     public static string LightingTriggerNone => T("手动", "手動", "Manual");
-    public static string LightingTriggerTurbo => T("极致性能", "極致效能", "Extreme (Turbo)");
-    public static string LightingTriggerBalanced => T("平衡", "平衡", "Balanced");
-    public static string LightingTriggerQuiet => T("省电", "省電", "Quiet");
 
     // ponytail: 能力自适应布局 + 逐键着色 + 灯条独立面板 — 按键盘类型差异化 UI
     public static string LightingUnsupportedHint => T("未检测到支持 RGB 灯光的键盘或灯条，本页功能不可用。", "未偵測到支援 RGB 燈光的鍵盤或燈條，本頁功能不可用。", "No RGB keyboard or light bar detected. This page is unavailable.");
     public static string LightingPerKeyPickerTitle => T("逐键着色", "逐鍵著色", "Per-Key Coloring");
-    public static string LightingPerKeySelectKey => T("点击键盘布局中的按键，再从色板选择颜色", "點擊鍵盤佈局中的按鍵，再從色板選擇顏色", "Click a key in the layout, then pick a color");
     public static string LightingPerKeyClear => T("全部重置", "全部重置", "Reset All");
     public static string LightingPerKeyAnimKeyDisabled => T("动画模式下不支持逐键着色，请将动画设为「无」", "動畫模式下不支援逐鍵著色，請將動畫設為「無」", "Per-key coloring requires animation = None");
     public static string LightingLightBarTitle => T("灯条控制", "燈條控制", "Light Bar");
-    public static string LightingLightBarPreview => T("灯条预览", "燈條預覽", "Light Bar Preview");
     public static string LightingLightBarNotResponding => T("灯条未响应，请确认 OMEN 中心服务可用", "燈條未響應，請確認 OMEN 中心服務可用", "Light bar not responding. Make sure the OMEN Gaming Hub service is running.");
-    public static string LightingPerKeyConnected => T("已连接", "已連接", "Connected");
     public static string LightingPerKeyDisconnected => T("未连接", "未連接", "Disconnected");
     public static string LightingPerKeyColored => T("{0} 键已着色", "{0} 鍵已著色", "{0} key(s) colored");
     // ponytail: 逐键布局键名本地化 + 优化提示
     public static string LightingPerKeyBkSp => T("⌫", "⌫", "BkSp");
     public static string LightingPerKeyEnter => T("Enter ⏎", "Enter ⏎", "Enter ⏎");
-    public static string LightingPerKeyShift => T("Shift", "Shift", "Shift");
     public static string LightingPerKeyCaps => T("Caps", "Caps", "Caps");
     public static string LightingPerKeyCustomColor => T("自定义...", "自訂...", "Custom...");
     public static string LightingPerKeyApplyHint => T("点击按键选中,再点下方色块上色 · 长按键可清除", "點擊按鍵選中,再點下方色塊上色 · 長按鍵可清除", "Click a key to select, then tap a color below · long-press a colored key to clear");
@@ -863,7 +846,7 @@ namespace OmenSuperHub {
 
     // System optimization (services + startup items)
     public static string SysOptCardTitle => T("系统优化", "系統優化", "System Optimization");
-    public static string SysOptCardDesc => T("管理 Windows 服务启动类型与开机启动项", "管理 Windows 服務啟動類型與開機啟動項", "Manage Windows service startup types and startup items");
+    public static string SysOptCardDesc => T("管理 Windows 服务启动类型、开机启动项，以及去广告/关遥测/关更新等通用优化", "管理 Windows 服務啟動類型、開機啟動項，以及去廣告/關遙測/關更新等通用優化", "Manage service startup types, startup items, and general tweaks (debloat, telemetry, updates)");
     public static string SysOptViewButton => T("查看", "查看", "View");
     public static string SysOptWindowTitle => T("系统优化", "系統優化", "System Optimization");
     public static string SysOptRefresh => ButtonRefresh;
@@ -894,7 +877,6 @@ namespace OmenSuperHub {
     public static string SysOptTweakPartial => T("部分生效", "部分生效", "Partial");
     public static string SysOptTweakNeedsRestart => T("重启后生效", "重啟後生效", "Restart required");
     public static string SysOptTweakFailed(string name) => T($"切换优化项 \"{name}\" 失败，可能需要管理员权限。", $"切換優化項 \"{name}\" 失敗，可能需要管理員權限。", $"Failed to toggle tweak \"{name}\". Administrator rights may be required.");
-    public static string SysOptTweakApplyError => T("应用优化项时出错", "套用優化項時出錯", "Failed to apply tweak");
 
     public static string TweakName(string id) {
       switch (id) {
@@ -993,6 +975,21 @@ namespace OmenSuperHub {
     public static string ButtonRefresh => T("刷新", "刷新", "Refresh");
     public static string ButtonDelete => T("删除", "刪除", "Delete");
     public static string ButtonAdd => T("添加", "添加", "Add");
+    // CPU 超频弹窗 (CpuOcDialog)
+    public static string CpuOcDialogTitle => T("CPU 超频设置", "CPU 超頻設定", "CPU Overclock Settings");
+    public static string CpuOcCoreRatioHeader => T("核心频率 (倍频)", "核心頻率 (倍頻)", "Core Ratio (Multiplier)");
+    public static string CpuOcVoltageHeader => T("电压偏移 (mV)", "電壓偏移 (mV)", "Voltage Offset (mV)");
+    public static string CpuOcCoreLabel => T("CPU 核心", "CPU 核心", "CPU Core");
+    public static string CpuOcWarning => T("⚠️ 过高的电压或频率可能导致系统不稳定或硬件损坏", "⚠️ 過高的電壓或頻率可能導致系統不穩定或硬體損壞", "⚠️ Excessive voltage or frequency may cause system instability or hardware damage");
+    public static string CpuOcStatusDetecting => T("正在检测超频支持...", "正在偵測超頻支援...", "Detecting overclock support...");
+    public static string CpuOcStatusNoService => T("❌ 无法连接到 XTU 服务,请确保已安装 Intel XTU", "❌ 無法連線到 XTU 服務,請確認已安裝 Intel XTU", "❌ Cannot connect to XTU service. Make sure Intel XTU is installed");
+    public static string CpuOcStatusNotSupported => T("⚠️ 当前平台不支持超频", "⚠️ 目前平台不支援超頻", "⚠️ Overclocking not supported on this platform");
+    public static string CpuOcStatusReadyFormat(int count) => T($"✅ 检测到 {count} 个物理核心,超频已解锁", $"✅ 偵測到 {count} 個物理核心,超頻已解鎖", $"✅ {count} physical core(s) detected, overclocking unlocked");
+    public static string CpuOcStatusInitFailedPrefix => T("❌ 初始化失败: ", "❌ 初始化失敗: ", "❌ Init failed: ");
+    public static string CpuOcStatusApplied => T("✅ 超频设置已应用", "✅ 超頻設定已套用", "✅ Overclock settings applied");
+    public static string CpuOcStatusPartialFail => T("⚠️ 部分设置失败,请查看日志", "⚠️ 部分設定失敗,請查看日誌", "⚠️ Some settings failed, check the log");
+    public static string CpuOcStatusApplyFailedPrefix => T("❌ 应用失败: ", "❌ 套用失敗: ", "❌ Apply failed: ");
+    public static string CpuOcCoreNameFormat(int i) => T($"核心 {i}", $"核心 {i}", $"Core {i}");
     // Automation page
     public static string AutomationStepCount(int count) => T($"{count} 个步骤", $"{count} 個步驟", $"{count} steps");
     public static string AutomationExecuting => T(" [执行中...]", " [執行中...]", " [Executing...]");
@@ -1048,6 +1045,31 @@ namespace OmenSuperHub {
 
     public static string DashboardMemoryLabel => T("运存", "運存", "Memory");
     public static string DashboardStorageLabel => T("储存", "儲存", "Storage");
+    // ── 储存清理 (参考 Dism++ 空间回收) ──
+    public static string StorageCleanTitle => T("储存清理", "儲存清理", "Storage Cleanup");
+    public static string StorageCleanRescan => T("重新扫描", "重新掃描", "Rescan");
+    public static string StorageCleanRun => T("开始清理", "開始清理", "Clean Up");
+    public static string StorageCleanScanning => T("正在扫描…", "正在掃描…", "Scanning…");
+    public static string StorageCleanCleaning => T("正在清理…", "正在清理…", "Cleaning…");
+    public static string StorageCleanNothingSelected => T("请先勾选要清理的项目。", "請先勾選要清理的項目。", "Select items to clean first.");
+    public static string StorageCleanConfirm => T("所选项目共 {0}，将被永久删除且不可恢复。确定清理？", "所選項目共 {0}，將被永久刪除且無法復原。確定清理？", "Selected items total {0} and will be permanently deleted. Continue?");
+    public static string StorageCleanFreed => T("已释放 {0}。", "已釋放 {0}。", "Freed {0}.");
+    public static string StorageCleanTempSys => T("系统临时文件", "系統暫存檔案", "System Temp Files");
+    public static string StorageCleanTempSysDesc => T("Windows 运行时产生的临时文件（C:\\Windows\\Temp）", "Windows 執行產生的暫存檔案（C:\\Windows\\Temp）", "Temp files created during Windows run (C:\\Windows\\Temp)");
+    public static string StorageCleanTempUser => T("用户临时文件", "使用者暫存檔案", "User Temp Files");
+    public static string StorageCleanTempUserDesc => T("当前用户临时目录内容（%TEMP%）", "目前使用者暫存目錄（%TEMP%）", "Current user's temp directory (%TEMP%)");
+    public static string StorageCleanRecycleBin => T("回收站", "資源回收筒", "Recycle Bin");
+    public static string StorageCleanRecycleBinDesc => T("所有驱动器的回收站内容，清空后不可恢复", "所有磁碟機的資源回收筒內容，清空後無法復原", "Recycle Bin contents on all drives (irreversible)");
+    public static string StorageCleanWuCache => T("Windows 更新缓存", "Windows 更新快取", "Windows Update Cache");
+    public static string StorageCleanWuCacheDesc => T("SoftwareDistribution\\Download 中已下载的更新安装包缓存", "SoftwareDistribution\\Download 裡已下載的更新安裝包快取", "Downloaded update packages in SoftwareDistribution\\Download");
+    public static string StorageCleanDosCache => T("传递优化缓存", "傳遞最佳化快取", "Delivery Optimization Cache");
+    public static string StorageCleanDosCacheDesc => T("Windows 更新与商店应用下载加速缓存，可安全删除", "更新與商店應用下載加速快取，可安全移除", "Download acceleration cache for updates and store apps");
+    public static string StorageCleanDumps => T("崩溃转储文件", "當機傾印檔案", "Crash Dumps");
+    public static string StorageCleanDumpsDesc => T("程序崩溃生成的 .dmp 调试文件（CrashDumps / Minidump / MEMORY.DMP）", "程式當機產生的 .dmp 偵錯檔案（CrashDumps / Minidump / MEMORY.DMP）", ".dmp debug files from crashes (CrashDumps / Minidump / MEMORY.DMP)");
+    public static string StorageCleanWer => T("Windows 错误报告", "Windows 錯誤報告", "Windows Error Reports");
+    public static string StorageCleanWerDesc => T("WER 错误报告队列与归档，不影响系统稳定性", "WER 錯誤報告佇列與封存，不影響系統穩定性", "WER report queue/archive (no stability impact)");
+    public static string StorageCleanThumb => T("缩略图缓存", "縮圖快取", "Thumbnail Cache");
+    public static string StorageCleanThumbDesc => T("资源管理器缩略图/图标缓存，Windows 会按需重建", "檔案總管縮圖/圖示快取，Windows 會自動重建", "Explorer thumbnail/icon cache, rebuilt on demand");
     public static string DashboardMemoryUsedLabel => T("已用/总计", "已用/總計", "Used/Total");
     public static string DashboardMemoryCleanBtn => T("一键清理", "一鍵清理", "Clean");
     // ponytail: 雷达四轴标签 — 中心圆环用 TendencyLabel。RadarCaption 标明"倾向画像非实测"上限。
@@ -1136,6 +1158,8 @@ namespace OmenSuperHub {
 	  public static string OccStubWorking => T("处理中…", "處理中…", "Working…");
 	  public static string OccStubRegFail => T("注册失败(需开发者模式)", "註冊失敗(需開發者模式)", "Register failed (Developer Mode required)");
 	  public static string OccStubRmFail => T("移除失败", "移除失敗", "Remove failed");
+	  public static string OccStubEnableDevModePrompt => T("注册存根需要开启「开发者模式」。是否现在自动开启？（将写入系统开发者模式开关）", "註冊存根需要開啟「開發者模式」。是否現在自動開啟？（將寫入系統開發者模式開關）", "Registering the stub requires Developer Mode. Enable it now? (This writes the system Developer Mode switch.)");
+	  public static string OccStubEnableDevModeFail => T("开启开发者模式失败，请用管理员权限运行后重试。", "開啟開發者模式失敗，請用系統管理員權限執行後重試。", "Failed to enable Developer Mode. Run as administrator and retry.");
 
 	  // ═══ Phase 2: PerfPage.xaml hardcoded strings ═══
 	  public static string PerfPresetLabel => T("预设:", "預設:", "Preset:");
@@ -1338,7 +1362,6 @@ namespace OmenSuperHub {
   public static string BoostDown => T("总下载", "總下載", "Download");
   public static string BoostUp => T("总上传", "總上傳", "Upload");
   public static string BoostConnections => T("连接", "連線", "conn");
-  public static string BoostUnitMBs => T("MB/s", "MB/s", "MB/s");
   public static string BoostNoNicSelected => T("请先选择至少一张网卡", "請先選擇至少一張網卡", "Select at least one NIC first");
   public static string BoostSingboxMissing => T("未找到 sing-box.exe，无法启动虚拟网卡模式", "未找到 sing-box.exe，無法啟動虛擬網卡模式", "sing-box.exe not found, cannot start TUN mode");
 
@@ -1346,7 +1369,6 @@ namespace OmenSuperHub {
   public static string BoostRulesDesc => T("设置进程的出口通道。规则仅在虚拟网卡模式下生效，修改后下次启动加速时应用。", "設定進程的出口通道。規則僅在虛擬網卡模式下生效，修改後下次啟動加速時套用。", "Choose an outbound channel per process. Rules apply in Virtual NIC (TUN) mode and take effect on next start.");
   public static string BoostRulesAdd => T("添加规则", "新增規則", "Add Rule");
   public static string BoostRulesDelete => T("删除", "刪除", "Delete");
-  public static string BoostRulesProcessHint => T("例如 cs2.exe", "例如 cs2.exe", "e.g. cs2.exe");
   public static string BoostRulesProcessHeader => T("进程名", "進程名", "Process");
   public static string BoostRulesOutboundHeader => T("出口通道", "出口通道", "Outbound");
   public static string BoostOutboundAgg => T("聚合加速", "聚合加速", "Aggregate");

@@ -24,6 +24,9 @@ namespace OmenSuperHub.Pages {
       if (!_extraSensorsBuilt) { BuildExtraTempSensorOptions(); _extraSensorsBuilt = true; }
       if (!_gpuSelectorBuilt) { BuildGpuSelectorOptions(); _gpuSelectorBuilt = true; }
       _loading = false;
+      // ponytail: Loaded 里 Build 三个选择器(可视树填充),缓存页二次 Loaded 会空白 —
+      // 显式 UpdateLayout 强制一遍,对齐 LightingPage/CoreKeepPage 的修法。
+      UpdateLayout();
       // ponytail: 由 LightingPage 触发的定向跳转 — 滚到 OMEN Light Studio 存根卡, 让用户能直接接
       // "注册存根/启动"/"恢复 OXH 灯效"。Loaded 后页面已上可视树,BringIntoView 在 ThreadPool 再跑一拍
       // 确保 ScrollViewer 已度量, 避免滚错位置。
@@ -276,12 +279,21 @@ namespace OmenSuperHub.Pages {
     }
 
     void FloatScreen_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;   // 构建期 IsChecked 赋值不应触发保存
       var selected = new System.Collections.Generic.List<string>();
       foreach (System.Windows.Controls.CheckBox cb in FloatScreenPanel.Children) {
         if (cb.IsChecked == true) selected.Add((string)cb.Tag);
       }
-      ConfigService.FloatingBarScreen = string.Join(",", selected);
+      // ponytail: 全空时存显式哨兵 "NONE" 而非空串 —— 空串被 ParseSelectedDeviceNames 当成
+      // "未配置→默认全选"，取消勾选唯一一块屏时会立刻把浮窗又拉回来（"关了还有"）。用哨兵
+      // 区分"用户显式清空选择（不显示浮窗）"与"从未配置（默认全屏浮窗）"。
+      string joined = string.Join(",", selected);
+      ConfigService.FloatingBarScreen = joined.Length == 0 ? "NONE" : joined;
       ConfigService.Save("FloatingBarScreen");
+      // ponytail: 实时应用 —— 与 FloatSize/FloatLoc/FloatLayout 一致,改选择后立刻按新集合增删浮窗。
+      // 否则勾选/取消显示器只落盘,浮窗仍停留在旧显示器上,表现为"多选失效"。
+      if (ConfigService.FloatingBar == "on")
+        Views.FloatingWindow.ShowInstances();
     }
 
     // ═══ 额外温度传感器勾选(照抄 BuildScreenOptions / FloatScreen_Changed 范式) ═══
@@ -371,6 +383,15 @@ namespace OmenSuperHub.Pages {
     }
 
     async void OccStubReg_Click(object sender, RoutedEventArgs e) {
+      // ponytail: 注册存根走 Add-AppxPackage -Register,需要开发者模式。未开启时先询问用户,
+      // 用户同意才写入 HKLM 开启(需管理员,程序已 requireAdministrator)再继续;拒绝则中止。
+      if (!Services.OccStubService.IsDeveloperModeEnabled()) {
+        if (!Utils.DialogHelper.Confirm(Strings.OccStubEnableDevModePrompt, Strings.OccStubRegBtn)) return;
+        if (!Services.OccStubService.EnableDeveloperMode()) {
+          Utils.DialogHelper.Error(Strings.OccStubEnableDevModeFail, Strings.OccStubRegBtn);
+          return;
+        }
+      }
       OccStubRegBtn.IsEnabled = OccStubRmBtn.IsEnabled = false;
       LightStudioStatusText.Text = Strings.OccStubWorking;
       string err = await System.Threading.Tasks.Task.Run(() => Services.OccStubService.Register());
@@ -567,7 +588,7 @@ namespace OmenSuperHub.Pages {
           UseShellExecute = false,
           CreateNoWindow = true
         };
-        System.Diagnostics.Process.Start(psi);
+        using (System.Diagnostics.Process.Start(psi)) { }
       } catch (Exception ex) {
         Utils.DialogHelper.Warn(Strings.UefiRestartFailed + ex.Message, Strings.UefiRestartHeading);
       }

@@ -98,6 +98,12 @@ namespace OmenSuperHub {
                     else
                       return Array.Empty<byte>();
                   } else {
+                    // ponytail: 暗影精灵 6 的 BIOS 在 SetFanLevel(0x2E) 时把 RPM 值写入 rwReturnCode
+                    // (而非状态码 0),导致误报错误。检测到此情况时降级为 Verbose 日志。
+                    if (commandType == 0x2E && returnCode == 0x2E) {
+                      Logger.Verbose($"SendOmenBiosWmi: CmdType=0x{commandType:X2} executed, fan RPM={returnCode} (Omen 6 BIOS quirk)");
+                      return Array.Empty<byte>();
+                    }
                     string errorMessage = "";
                     switch (returnCode) {
                       case 0x03: errorMessage = "Command Not Available"; break;
@@ -252,7 +258,13 @@ namespace OmenSuperHub {
         data[1] = (byte)fanSpeed2;
         if (fan3) data[2] = (byte)((fanSpeed1 + fanSpeed2) / 2);
       }
-      SendOmenBiosWmi(0x2E, data, 0);
+      // ponytail: 暗影精灵 6 等老机型 WMI BIOS 可能失败,失败时降级到 EC 直接读写
+      // (需 PawnIO 驱动; 参考 OmenMon 项目的 EC 寄存器表)
+      var result = SendOmenBiosWmi(0x2E, data, 0);
+      if (result == null && Services.EcFanService.IsAvailable) {
+        Logger.Verbose($"[OmenHardware] WMI SetFanLevel failed, EC fallback: {fanSpeed1}%, {fanSpeed2}%");
+        Services.EcFanService.SetFanSpeed(fanSpeed1, fanSpeed2);
+      }
     }
 
     public static void SetMaxFanSpeedOn() { SendOmenBiosWmi(0x27, new byte[] { 0x01 }, 0); }
@@ -329,7 +341,7 @@ namespace OmenSuperHub {
         _isSupported = false;
         try {
           _isSupported = GetThermalPolicyVersion() == ThermalPolicyVersion.V1;
-        } catch { _isSupported = false; }
+        } catch (Exception ex) { Logger.Verbose($"[IsSupported] {ex.Message}"); _isSupported = false; }
       }
       return _isSupported.Value;
     }
@@ -763,7 +775,8 @@ namespace OmenSuperHub {
         Marshal.FreeCoTaskMem(data.pFile);
         Marshal.FreeCoTaskMem(pData);
         return result == 0;
-      } catch {
+      } catch (Exception ex) {
+        Logger.Verbose($"[VerifyFileSignature] {ex.Message}");
         return false;
       }
     }
@@ -824,7 +837,7 @@ namespace OmenSuperHub {
             _cachedBiosVersion = obj["SMBIOSBIOSVersion"]?.ToString() ?? "未知";
             return _cachedBiosVersion;
           }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[GetBiosVersion] {ex.Message}"); }
       _cachedBiosVersion = "未知";
       return _cachedBiosVersion;
     }
@@ -838,7 +851,7 @@ namespace OmenSuperHub {
             _cachedCpuModel = obj["Name"]?.ToString()?.Trim() ?? "未知";
             return _cachedCpuModel;
           }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[GetCpuModel] {ex.Message}"); }
       _cachedCpuModel = "未知";
       return _cachedCpuModel;
     }
@@ -858,7 +871,7 @@ namespace OmenSuperHub {
             }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[HasIntelCpu] {ex.Message}"); }
       _cachedHasIntelCpu = false;
       return false;
     }
@@ -880,7 +893,7 @@ namespace OmenSuperHub {
             }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[HasAmdCpu] {ex.Message}"); }
       _cachedHasAmdCpu = false;
       return false;
     }
@@ -899,7 +912,7 @@ namespace OmenSuperHub {
             }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[HasAmdGpu] {ex.Message}"); }
       _cachedHasAmdGpu = false;
       return false;
     }
@@ -922,7 +935,7 @@ namespace OmenSuperHub {
             if (!string.IsNullOrEmpty(processor) && !processor.Contains("Renoir") && !processor.Contains("Cezanne") && !processor.Contains("Rembrandt")) { _cachedHasAmdDiscrete = true; return true; }
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose($"[HasAmdDiscreteGpu] {ex.Message}"); }
       _cachedHasAmdDiscrete = false;
       return false;
     }
@@ -958,10 +971,10 @@ namespace OmenSuperHub {
         // ponytail: each DeviceModel call wrapped separately. On non-HP
         // hardware individual calls can throw — we don't want one failure
         // to mask the other.
-        try { if (DeviceModel.IsOldOmenProduct) return 1; } catch { }
-        try { if (DeviceModel.IsHP) return 1; } catch { }
+        try { if (DeviceModel.IsOldOmenProduct) return 1; } catch (Exception ex) { Logger.Verbose($"[Validation] IsOldOmenProduct: {ex.Message}"); }
+        try { if (DeviceModel.IsHP) return 1; } catch (Exception ex) { Logger.Verbose($"[Validation] IsHP: {ex.Message}"); }
         return 0;
-      } catch { return 0; }
+      } catch (Exception ex) { Logger.Verbose($"[Validation] {ex.Message}"); return 0; }
     }
 
     // ponytail: mirrors OSH InitMaxTemp — reads BIOS-set temperature throttling
@@ -990,7 +1003,7 @@ namespace OmenSuperHub {
         var ps = PerformanceControlHelper.GetPlatformSettings(
             DeviceModel.OmenPlatform.Name.ToString(), sku);
         return ps != null && ps.UnleashedModeMaxIccMax > 0;
-      } catch { return false; }
+      } catch (Exception ex) { Logger.Verbose($"[IsIccMaxSupported] {ex.Message}"); return false; }
     }
 
     // ─── Convenience Mode Setters ─────────────────────────────────────

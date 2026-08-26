@@ -57,7 +57,11 @@ namespace OmenSuperHub.Services {
 
     public static int GetSmartFanSpeed(int fanIndex) {
       lock (_fanLock) {
-        float rawTemp = (fanIndex == 0) ? HardwareService.CPUTemp : HardwareService.GPUTemp;
+        // ponytail: FanSync 开启时,两把风扇共用 max(CPU,GPU) 作为参考温度,
+        // 两条 EMA 同步收敛到同一源,避免 GPU 高温时风扇被低估。
+        float rawTemp = ConfigService.FanSync && HardwareService.MonitorGPU
+          ? Math.Max(HardwareService.CPUTemp, HardwareService.GPUTemp)
+          : (fanIndex == 0) ? HardwareService.CPUTemp : HardwareService.GPUTemp;
         if (rawTemp <= 0) rawTemp = OmenHardware.GetFittingTemperature();
         if (rawTemp <= 0) return _smartLastAppliedRpmCpu > 0 ? _smartLastAppliedRpmCpu : 2000;
 
@@ -67,7 +71,10 @@ namespace OmenSuperHub.Services {
           _smartLastTick = (uint)Environment.TickCount;
         }
         float prevEma = (fanIndex == 0) ? _smartEmaCpuTemp : _smartEmaGpuTemp;
-        if (fanIndex == 0)
+        if (ConfigService.FanSync && HardwareService.MonitorGPU) {
+          _smartEmaCpuTemp = _smartAlpha * rawTemp + (1f - _smartAlpha) * _smartEmaCpuTemp;
+          _smartEmaGpuTemp = _smartEmaCpuTemp;
+        } else if (fanIndex == 0)
           _smartEmaCpuTemp = _smartAlpha * rawTemp + (1f - _smartAlpha) * _smartEmaCpuTemp;
         else
           _smartEmaGpuTemp = _smartAlpha * rawTemp + (1f - _smartAlpha) * _smartEmaGpuTemp;
@@ -250,6 +257,13 @@ namespace OmenSuperHub.Services {
             && HardwareService.CPUPower < 0.01f && HardwareService.IsAmbientSensorSupported) {
           float fitted = OmenHardware.GetFittingTemperature();
           return GetFanSpeedForSpecificTemperature(fitted, CPUTempFanMap, fanIndex);
+        }
+
+        // ponytail: FanSync 开启且有 GPU 时,两把风扇以 max(CPU,GPU) 对同一曲线插值,
+        // 从源头保证 RPM 一致。MonitorGPU==false 时落到下方"仅 CPU"分支。
+        if (ConfigService.FanSync && HardwareService.MonitorGPU) {
+          float maxT = Math.Max(HardwareService.CPUTemp, HardwareService.GPUTemp);
+          return GetFanSpeedForSpecificTemperature(maxT, CPUTempFanMap, fanIndex);
         }
 
         if (fanIndex == 0)

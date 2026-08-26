@@ -22,6 +22,11 @@ namespace OmenSuperHub {
     static bool _ownsMutex;  // ponytail: 仅在 createdNew==true 时 ReleaseMutex,否则 SynchronizationLockException
     static int alreadyReadCode = 1000;
 
+    [DllImport("kernel32.dll")]
+    static extern IntPtr GetCurrentProcess();
+    [DllImport("kernel32.dll")]
+    static extern bool SetProcessWorkingSetSize(IntPtr hProcess, IntPtr dwMinimumWorkingSetSize, IntPtr dwMaximumWorkingSetSize);
+
     protected override void OnStartup(StartupEventArgs e) {
       RenderOptions.ProcessRenderMode = RenderMode.Default;
       base.OnStartup(e);
@@ -31,7 +36,8 @@ namespace OmenSuperHub {
         string result = OmenSuperHub.Services.CpuAffinity.SelfCheck.Run()
           + "\n" + OmenSuperHub.Services.LightingSceneService.SelfCheck()
           + "\n" + OmenSuperHub.Pages.LightingPage.LightBarAnimsSelfCheck()
-          + "\n" + OmenSuperHub.Services.LightingAnimationService.SelfCheck();
+          + "\n" + OmenSuperHub.Services.LightingAnimationService.SelfCheck()
+          + "\n" + OmenSuperHub.Services.DiskCleaner.SelfCheck();
         // ponytail: 关面板释放前端内存的自检 —— 跑完静态自检后启动一次主窗 → 导航 Dashboard
         // (热缓存 +订阅 OnPresetCycled) → Hide 触发 IsVisibleChanged→ReleaseFrontend → 反射断言
         // 三条:页面缓存清空 / PerfPage.Instance 断开 / OnPresetCycled 订阅归零。任一不成立写 FAIL。
@@ -124,6 +130,21 @@ namespace OmenSuperHub {
           } catch (Exception ex) { Logger.Error($"KeyboardCapability probe: {ex.Message}"); }
         });
 
+        // ponytail: 初次占用整理 —— LibreComputer.Open(驱动+全部传感器)、原生 SDK 预加载、首帧渲染
+        // 完成后堆里遗留大量启动期临时对象。延迟 10s(等 LHM Open + 首轮硬件采样跑完)后做一次
+        // 全量 GC + 修剪工作集,任务管理器里的初始占用显著下降。
+        // 天花板: 只压"初次"峰值 — 页面导航/持续轮询触碰内存后会回到真实水位。
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+          try {
+            System.Threading.Thread.Sleep(10000);
+            GC.Collect(2, GCCollectionMode.Optimized);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Optimized);
+            SetProcessWorkingSetSize(GetCurrentProcess(), (IntPtr)(-1), (IntPtr)(-1));
+            Logger.Info("Startup memory trim done");
+          } catch { }
+        });
+
         // Initialize System Theme integration
         ThemeService.Initialize();
 
@@ -170,7 +191,11 @@ namespace OmenSuperHub {
 
         // Start local HTTP API server if enabled in settings
         if (ConfigService.HttpApiEnabled) {
-          System.Threading.ThreadPool.QueueUserWorkItem(_ => HardwareApiService.Start());
+          // ponytail: QueueUserWorkItem 会静默吞异常 — HTTP 监听失败必须留下痕迹
+          System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+            try { HardwareApiService.Start(); }
+            catch (Exception ex) { Logger.Error("HardwareApiService.Start: " + ex.Message); }
+          });
         }
 
         // Start Omen Key listener

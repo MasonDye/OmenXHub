@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using OmenSuperHub.Services;
+using static OmenSuperHub.Pages.NativeMethods_Proc;
 using Forms = System.Windows.Forms;
 
 namespace OmenSuperHub.Views {
@@ -43,27 +44,6 @@ namespace OmenSuperHub.Views {
       _refreshTimer.Start();
     }
 
-    struct MEMORYSTATUSEX {
-      public uint dwLength;
-      public uint dwMemoryLoad;
-      public ulong ullTotalPhys;
-      public ulong ullAvailPhys;
-      public ulong ullTotalPageFile;
-      public ulong ullAvailPageFile;
-      public ulong ullTotalVirtual;
-      public ulong ullAvailVirtual;
-      public ulong ullAvailExtendedVirtual;
-    }
-
-    [DllImport("kernel32.dll")]
-    static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
-
-    static MEMORYSTATUSEX GetMemoryStatus() {
-      var mem = new MEMORYSTATUSEX();
-      mem.dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
-      GlobalMemoryStatusEx(ref mem);
-      return mem;
-    }
     private static List<FloatingWindow> _instances = new List<FloatingWindow>();
 
     private string _deviceName;
@@ -204,7 +184,56 @@ namespace OmenSuperHub.Views {
       // ponytail: separators toggled per-cycle in DoUpdateText so collapsed rows don't leave orphaned `|`
     }
 
-    private static void DoUpdateText(FloatingWindow w) {
+    // ponytail: 每 tick 只采样一次跨窗共享数据(内存/网络/FPS),再喂给每个浮窗。
+    // 旧版在 DoUpdateText 里逐窗各自 GetMemoryStatus()/GetSpeed()/Poll() —— 多屏浮窗时
+    // 快照被重复采样。其中 GetSpeed() 有状态(消费 _prevDown/_prevUp 推进时间),逐窗各调
+    // 会让后采样的窗读到缩小的时间窗,速率失真;Poll() 带锁+字典遍历,也是纯浪费。
+    // 上限:单屏浮窗省得有限,多屏/开启 FPS 监控时收益明显。
+    struct TickSnapshot {
+      public bool MemValid; public double MemPct, MemUsedGB, MemTotalGB;
+      public bool NetValid; public double DownKBps, UpKBps;
+      public bool FpsValid; public int Fps; public string FpsApp;
+    }
+
+    static TickSnapshot BuildTickSnapshot() {
+      var s = new TickSnapshot();
+      if (ConfigService.MonitorMemory) {
+        var mem = GetMemoryStatus();
+        s.MemValid = true;
+        s.MemPct = mem.dwMemoryLoad;
+        s.MemUsedGB = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024.0 * 1024 * 1024);
+        s.MemTotalGB = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
+      }
+      if (ConfigService.MonitorNetwork && NetworkSpeedService.IsAvailable) {
+        s.NetValid = true;
+        (s.DownKBps, s.UpKBps) = NetworkSpeedService.GetSpeed();
+      }
+      if (ConfigService.MonitorFPS) {
+        // ponytail: spawn presentMon off the UI thread; first tick shows nothing, next tick after startup shows FPS
+        if (_fpsMonitor == null && !_fpsStarting) {
+          _fpsStarting = true;
+          var seed = new PresentMonFpsMonitor();
+          System.Threading.Tasks.Task.Run(() => {
+            try { seed.EnsureRunning("", out _); } catch { }
+            _fpsMonitor = seed;
+            _fpsStarting = false;
+          });
+        }
+        _fpsMonitor?.Poll();
+        int fps = _fpsMonitor?.LastFps ?? 0;
+        string app = _fpsMonitor?.LastApp ?? "";
+        if (fps > 0) {
+          s.FpsValid = true;
+          s.Fps = fps;
+          s.FpsApp = string.IsNullOrWhiteSpace(app) ? "" : ShortAppName(app);
+        }
+      } else if (_fpsMonitor != null) {
+        DisposeFpsMonitorAsync();
+      }
+      return s;
+    }
+
+    private static void DoUpdateText(FloatingWindow w, in TickSnapshot s) {
       if (w == null) return;
 
       if (HardwareService.MonitorCPU) {
@@ -241,52 +270,32 @@ namespace OmenSuperHub.Views {
         w.FanRow.Visibility = Visibility.Collapsed;
       }
 
-      if (ConfigService.MonitorMemory) {
+      if (ConfigService.MonitorMemory && s.MemValid) {
         w.MemRow.Visibility = Visibility.Visible;
-        var mem = GetMemoryStatus();
-        double memPct = mem.dwMemoryLoad;
-        double usedGB = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024.0 * 1024 * 1024);
-        double totalGB = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
-        SetIfChanged(w.MemPctText, ref w._lastMemPct, $"{memPct:F0}%");
-        SetIfChanged(w.MemUsedText, ref w._lastMemUsed, $"{usedGB:F1}/{totalGB:F1}G");
+        SetIfChanged(w.MemPctText, ref w._lastMemPct, $"{s.MemPct:F0}%");
+        SetIfChanged(w.MemUsedText, ref w._lastMemUsed, $"{s.MemUsedGB:F1}/{s.MemTotalGB:F1}G");
       } else {
         w.MemRow.Visibility = Visibility.Collapsed;
       }
 
-      if (ConfigService.MonitorNetwork && NetworkSpeedService.IsAvailable) {
+      if (ConfigService.MonitorNetwork && s.NetValid) {
         w.NetRow.Visibility = Visibility.Visible;
-        var (down, up) = NetworkSpeedService.GetSpeed();
-        SetIfChanged(w.NetDownText, ref w._lastNetDown, $"↓{down:F0}KB/s");
-        SetIfChanged(w.NetUpText, ref w._lastNetUp, $"↑{up:F0}KB/s");
+        SetIfChanged(w.NetDownText, ref w._lastNetDown, $"↓{s.DownKBps:F0}KB/s");
+        SetIfChanged(w.NetUpText, ref w._lastNetUp, $"↑{s.UpKBps:F0}KB/s");
       } else {
         w.NetRow.Visibility = Visibility.Collapsed;
       }
 
       if (ConfigService.MonitorFPS) {
-        // ponytail: spawn PresentMon off the UI thread; first tick shows nothing, next tick after startup shows FPS
-        if (_fpsMonitor == null && !_fpsStarting) {
-          _fpsStarting = true;
-          var seed = new PresentMonFpsMonitor();
-          System.Threading.Tasks.Task.Run(() => {
-            try { seed.EnsureRunning("", out _); } catch { }
-            _fpsMonitor = seed;
-            _fpsStarting = false;
-          });
-        }
-        _fpsMonitor?.Poll();
-        int fps = _fpsMonitor?.LastFps ?? 0;
-        string app = _fpsMonitor?.LastApp ?? "";
-        if (fps > 0) {
+        if (s.FpsValid) {
           w.FpsRow.Visibility = Visibility.Visible;
-          SetIfChanged(w.FpsValueText, ref w._lastFps, fps.ToString());
-          string appDisplay = string.IsNullOrWhiteSpace(app) ? "" : ShortAppName(app);
-          SetIfChanged(w.FpsAppText, ref w._lastFpsApp, appDisplay);
+          SetIfChanged(w.FpsValueText, ref w._lastFps, s.Fps.ToString());
+          SetIfChanged(w.FpsAppText, ref w._lastFpsApp, s.FpsApp);
         } else {
           w.FpsRow.Visibility = Visibility.Collapsed;
         }
       } else {
         w.FpsRow.Visibility = Visibility.Collapsed;
-        if (_fpsMonitor != null) { DisposeFpsMonitorAsync(); }
       }
 
       UpdateSeparators(w);
@@ -348,11 +357,12 @@ namespace OmenSuperHub.Views {
       Application.Current?.Dispatcher.Invoke(() => {
         bool needLayout = forceLayout || _layoutDirty;
         bool needPosition = forceLayout || _positionDirty;
+        var snap = BuildTickSnapshot();
         foreach (var w in _instances.ToArray()) {
           if (w != null && w.IsLoaded) {
             if (needLayout) w.ApplyLayoutAndTextSize();
             if (needPosition) { w.UpdatePosition(); w.ApplyWindowStyles(); }
-            DoUpdateText(w);
+            DoUpdateText(w, snap);
           }
         }
         if (needLayout) _layoutDirty = false;
@@ -374,12 +384,13 @@ namespace OmenSuperHub.Views {
         // ponytail: first position is deferred to Loaded event where ActualWidth/DPI are ready;
         // layout + text are filled by the next timer tick (or immediately if already loaded)
         bool created = false;
+        var snap = BuildTickSnapshot();
         foreach (string dev in selected) {
           if (!_instances.Any(w => w._deviceName == dev)) {
             var w = new FloatingWindow(dev);
             _instances.Add(w);
             w.Show();
-            DoUpdateText(w);
+            DoUpdateText(w, snap);
             created = true;
           }
         }

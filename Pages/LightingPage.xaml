@@ -31,7 +31,7 @@
         <StackPanel>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <TextBlock Text="{x:Static app:Strings.LightingSceneLabel}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <ComboBox x:Name="SceneCombo" MinWidth="140" SelectionChanged="SceneCombo_SelectionChanged"/>
+            <ComboBox x:Name="SceneCombo" MinWidth="{StaticResource ComboMinWidth}" SelectionChanged="SceneCombo_SelectionChanged"/>
             <Button x:Name="BtnSceneSave" Content="{x:Static app:Strings.LightingSceneSave}" Click="BtnSceneSave_Click"
                     Padding="6,2" Margin="8,0,0,0" ToolTip="{x:Static app:Strings.LightingSceneSaveTip}"/>
             <Button x:Name="BtnSceneSaveAs" Content="{x:Static app:Strings.LightingSceneSaveAs}" Click="BtnSceneSaveAs_Click"
@@ -43,7 +43,7 @@
           <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
             <TextBlock Text="{x:Static app:Strings.LightingSceneTrigger}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <ComboBox x:Name="SceneTriggerCombo" MinWidth="120"
+            <ComboBox x:Name="SceneTriggerCombo" MinWidth="{StaticResource ComboMinWidth}"
                       SelectionChanged="SceneTrigger_SelectionChanged">
               <ComboBoxItem Tag="" Content="{x:Static app:Strings.LightingTriggerNone}"/>
               <ComboBoxItem Tag="Extreme" Content="{x:Static app:Strings.PresetExtreme}"/>
@@ -119,7 +119,7 @@
                 <ui:SymbolIcon Symbol="DeviceEq24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
                 <TextBlock x:Name="LightDeviceText" Text="{x:Static app:Strings.LightingDeviceHeading}" Tag="Device" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <ComboBox x:Name="LightDevCombo" MinWidth="120"
+              <ComboBox x:Name="LightDevCombo" MinWidth="{StaticResource ComboMinWidth}"
                         SelectionChanged="LightDev_SelectionChanged">
                 <ComboBoxItem Content="{x:Static app:Strings.LightingKeyboard}"/>
                 <ComboBoxItem x:Name="LightBarItem" Content="{x:Static app:Strings.LightingLightBar}"/>
@@ -135,7 +135,7 @@
                 <ui:SymbolIcon Symbol="Settings24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
                 <TextBlock x:Name="LightProtocolText" Text="{x:Static app:Strings.LightingProtocolHeading}" Tag="Protocol" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <ComboBox x:Name="LightProtoCombo" MinWidth="120"
+              <ComboBox x:Name="LightProtoCombo" MinWidth="{StaticResource ComboMinWidth}"
                         SelectionChanged="LightProto_SelectionChanged">
                 <ComboBoxItem Content="{x:Static app:Strings.LightingProtoBasic}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.LightingProtoDojo}"/>
@@ -182,7 +182,7 @@
                         Click="BtnBrightHigh_Click" Tag="228" Padding="8,2"/>
               </StackPanel>
               <TextBlock Text="{x:Static app:Strings.LightingSpeedHeading}" FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,8,0,4"/>
-              <ComboBox x:Name="AnimSpeedCombo" MinWidth="140">
+              <ComboBox x:Name="AnimSpeedCombo" MinWidth="{StaticResource ComboMinWidth}">
                 <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedSlow}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedMedium}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedFast}"/>
@@ -262,7 +262,7 @@
 
                 <StackPanel Grid.Row="0" Grid.Column="0" x:Name="Zone1Cell">
                   <TextBlock x:Name="Zone1Text" Text="{x:Static app:Strings.LightingZone1}" Tag="Zone1" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                  <ComboBox x:Name="Zone1Combo" MinWidth="120"
+                  <ComboBox x:Name="Zone1Combo" MinWidth="{StaticResource ComboMinWidth}"
                             SelectionChanged="ZoneColor_SelectionChanged">
                     <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
                     <ComboBoxItem Tag="Green" Content="{x:Static app:Strings.LightingColorGreen}"/>
@@ -282,7 +282,7 @@
 
                 <StackPanel Grid.Row="0" Grid.Column="2" x:Name="Zone2Cell">
                   <TextBlock x:Name="Zone2Text" Text="{x:Static app:Strings.LightingZone2}" Tag="Zone2" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                  <ComboBox x:Name="Zone2Combo" MinWidth="120"
+                  <ComboBox x:Name="Zone2Combo" MinWidth="{StaticResource ComboMinWidth}"
                             SelectionChanged="ZoneColor_SelectionChanged">
                     <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
                     <ComboBoxItem Tag="Green" Content="{x:Static app:Strings.LightingColorGreen}"/>
@@ -302,7 +302,7 @@
 
                 <StackPanel Grid.Row="2" Grid.Column="0" x:Name="Zone3Cell">
                   <TextBlock x:Name="Zone3Text" Text="{x:Static app:Strings.LightingZone3}" Tag="Zone3" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                  <ComboBox x:Name="Zone3Combo" MinWidth="120"
+                  <ComboBox x:Name="Zone3Combo" MinWidth="{StaticResource ComboMinWidth}"
                             SelectionChanged="ZoneColor_SelectionChanged">
                     <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
                     <ComboBoxItem Tag="Green" Content="{x:Static app:Strings.LightingColorGreen}"/>
@@ -322,7 +322,7 @@
 
                 <StackPanel Grid.Row="2" Grid.Column="2" x:Name="Zone4Cell">
                   <TextBlock x:Name="Zone4Text" Text="{x:Static app:Strings.LightingZone4}" Tag="Zone4" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                  <ComboBox x:Name="Zone4Combo" MinWidth="120"
+                  <ComboBox x:Name="Zone4Combo" MinWidth="{StaticResource ComboMinWidth}"
                             SelectionChanged="ZoneColor_SelectionChanged">
                     <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
                     <ComboBoxItem Tag="Green" Content="{x:Static app:Strings.LightingColorGreen}"/>
@@ -352,7 +352,7 @@
               <ui:SymbolIcon Symbol="Replay24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,10,0"/>
               <TextBlock x:Name="LightAnimText" Text="{x:Static app:Strings.LightingAnimation}" Tag="LightingAnimation" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
             </StackPanel>
-            <ComboBox x:Name="AnimCombo" MinWidth="180" Margin="0,8,0,0"
+            <ComboBox x:Name="AnimCombo" MinWidth="{StaticResource ComboMinWidth}" Margin="0,8,0,0"
                       SelectionChanged="Anim_SelectionChanged">
               <ComboBoxItem Tag="None" Content="{x:Static app:Strings.LightingAnimNone}"/>
               <ComboBoxItem Tag="ColorCycle" Content="{x:Static app:Strings.LightingAnimColorCycle}"/>
@@ -378,7 +378,7 @@
               <StackPanel Grid.Column="0" Margin="0,0,8,0">
                 <TextBlock Text="{x:Static app:Strings.LightingDirection}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-                <ComboBox x:Name="AnimDirCombo" MinWidth="140" IsEnabled="False"
+                <ComboBox x:Name="AnimDirCombo" MinWidth="{StaticResource ComboMinWidth}" IsEnabled="False"
                           SelectionChanged="AnimDir_SelectionChanged">
                   <ComboBoxItem Tag="Left" Content="{x:Static app:Strings.LightingDirLeft}"/>
                   <ComboBoxItem Tag="Right" Content="{x:Static app:Strings.LightingDirRight}"/>
@@ -387,7 +387,7 @@
               <StackPanel Grid.Column="1" Margin="8,0,0,0">
                 <TextBlock Text="{x:Static app:Strings.LightingTheme}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-                <ComboBox x:Name="AnimThemeCombo" MinWidth="140" IsEnabled="False"
+                <ComboBox x:Name="AnimThemeCombo" MinWidth="{StaticResource ComboMinWidth}" IsEnabled="False"
                           SelectionChanged="AnimTheme_SelectionChanged">
                   <ComboBoxItem Tag="Galaxy" Content="{x:Static app:Strings.LightingThemeGalaxy}"/>
                   <ComboBoxItem Tag="Volcano" Content="{x:Static app:Strings.LightingThemeVolcano}"/>
@@ -437,7 +437,7 @@
             </StackPanel>
             <TextBlock Text="{x:Static app:Strings.LightingPerKeyStaticColor}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-            <ComboBox x:Name="PerKeyStaticCombo" MinWidth="180" Margin="0,0,0,12"
+            <ComboBox x:Name="PerKeyStaticCombo" MinWidth="{StaticResource ComboMinWidth}" Margin="0,0,0,12"
                       SelectionChanged="PerKeyStatic_SelectionChanged">
               <ComboBoxItem Tag="Red" Content="{x:Static app:Strings.LightingColorRed}"/>
               <ComboBoxItem Tag="Green" Content="{x:Static app:Strings.LightingColorGreen}"/>
@@ -476,7 +476,7 @@
 
             <TextBlock Text="{x:Static app:Strings.LightingPerKeyAnimation}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-            <ComboBox x:Name="PerKeyAnimCombo" MinWidth="180" Margin="0,0,0,12"
+            <ComboBox x:Name="PerKeyAnimCombo" MinWidth="{StaticResource ComboMinWidth}" Margin="0,0,0,12"
                       SelectionChanged="PerKeyAnim_SelectionChanged">
               <ComboBoxItem Tag="None" Content="{x:Static app:Strings.LightingAnimNone}"/>
               <ComboBoxItem Tag="ColorCycle" Content="{x:Static app:Strings.LightingAnimColorCycle}"/>
@@ -493,7 +493,7 @@
 
             <TextBlock Text="{x:Static app:Strings.LightingSpeedHeading}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-            <ComboBox x:Name="PerKeySpeedCombo" MinWidth="180" Margin="0,0,0,12"
+            <ComboBox x:Name="PerKeySpeedCombo" MinWidth="{StaticResource ComboMinWidth}" Margin="0,0,0,12"
                       SelectionChanged="PerKeySpeed_SelectionChanged">
               <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedSlow}"/>
               <ComboBoxItem Content="{x:Static app:Strings.LightingSpeedMedium}"/>
@@ -571,10 +571,10 @@
             </Grid>
             <TextBlock Text="{x:Static app:Strings.LightingZoneColorHeading}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-            <ComboBox x:Name="LightBarSeg1Combo" MinWidth="180" Margin="0,0,0,6" SelectionChanged="LightBarColor_SelectionChanged"/>
-            <ComboBox x:Name="LightBarSeg2Combo" MinWidth="180" Margin="0,0,0,6" SelectionChanged="LightBarColor_SelectionChanged"/>
-            <ComboBox x:Name="LightBarSeg3Combo" MinWidth="180" Margin="0,0,0,6" SelectionChanged="LightBarColor_SelectionChanged"/>
-            <ComboBox x:Name="LightBarSeg4Combo" MinWidth="180" Margin="0,0,0,10" SelectionChanged="LightBarColor_SelectionChanged"/>
+            <ComboBox x:Name="LightBarSeg1Combo" MinWidth="{StaticResource ComboMinWidth}" Margin="0,0,0,6" SelectionChanged="LightBarColor_SelectionChanged"/>
+            <ComboBox x:Name="LightBarSeg2Combo" MinWidth="{StaticResource ComboMinWidth}" Margin="0,0,0,6" SelectionChanged="LightBarColor_SelectionChanged"/>
+            <ComboBox x:Name="LightBarSeg3Combo" MinWidth="{StaticResource ComboMinWidth}" Margin="0,0,0,6" SelectionChanged="LightBarColor_SelectionChanged"/>
+            <ComboBox x:Name="LightBarSeg4Combo" MinWidth="{StaticResource ComboMinWidth}" Margin="0,0,0,10" SelectionChanged="LightBarColor_SelectionChanged"/>
 
             <TextBlock Text="{x:Static app:Strings.LightingBrightness}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
@@ -599,7 +599,7 @@
 
             <TextBlock Text="{x:Static app:Strings.LightingAnimation}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-            <ComboBox x:Name="LightBarAnimCombo" MinWidth="180" Margin="0,0,0,10"
+            <ComboBox x:Name="LightBarAnimCombo" MinWidth="{StaticResource ComboMinWidth}" Margin="0,0,0,10"
                       SelectionChanged="LightBarAnim_SelectionChanged"/>
             <!-- 灯条未响应提示 — 探测/写入失败时显示 -->
             <TextBlock x:Name="LightBarStatusText" FontSize="{DynamicResource FontSizeCaption}"

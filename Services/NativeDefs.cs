@@ -1,6 +1,6 @@
 // NativeDefs.cs - 共享的 P/Invoke 定义 (电源模式 overlay GUID)
-// ponytail: 之前 4 处重复定义同一对 GUID (AutomationProcessor/TrayService/PresetManager/PerfPage)，
-// 升级路径是把 PowerSetActive* 一起搬过来，DEVMODE 因 PerfPage 用更完整布局暂不合并。
+// ponytail: GUID 原先在 4 处重复定义; PowerSetActive*/DEVMODE 等函数与结构
+// 已统一归口到 Pages/NativeMethods.cs (NativeMethods_Display/Power/Proc)。
 // 注意类名用 PowerOverlay 避免与 System.Windows.Forms.PowerModes enum 冲突。
 using System;
 

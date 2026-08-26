@@ -17,6 +17,7 @@ using System.Text;
 using System.Threading;
 using Microsoft.Win32;
 using OmenSuperHub;
+using OmenSuperHub.Pages;
 using OmenSuperHub.Services.CpuAffinity;
 
 namespace OmenSuperHub.Services {
@@ -51,6 +52,9 @@ namespace OmenSuperHub.Services {
     // ponytail: TDC/EDC/Tctl 已随高级调教删除（依赖 SMU 服务，本机不可用）；仅保留 PPT 走 WMI。
     [DataMember(Order = 21)] public int AmdCpuPpt { get; set; }
     internal bool IsFromCustomSubkey { get; set; } = false;
+
+    // ponytail: 全字段均为值类型/字符串 — MemberwiseClone 即完整拷贝,供 LoadCustomPreset 缓存安全返回
+    public PresetData CloneShallow() => (PresetData)MemberwiseClone();
   }
 
   internal static class PresetManager {
@@ -286,22 +290,36 @@ namespace OmenSuperHub.Services {
       } catch { }
     }
 
+    // ponytail: LoadCustomPreset 被 Dashboard 雷达/圆环每 tick 调用 — 按 (路径, LastWriteTimeUtc)
+    // memoize,文件未变时零 IO/零 JSON(mtime stat 由 OS 缓存,微秒级)。返回私有实例,调用方可改。
+    // 上限:注册表回退结果也按文件 mtime 缓存 — 纯注册表预设(迁移场景)的改动要等文件出现才失效。
+    static readonly Dictionary<string, (DateTime stamp, PresetData data)> _customPresetLoadCache
+      = new Dictionary<string, (DateTime, PresetData)>();
+    static readonly object _loadCacheLock = new object();
+
     public static PresetData LoadCustomPreset(string presetKey) {
       if (!IsCustom(presetKey)) return null;
       string path = PresetFilePath(presetKey);
+      var stamp = File.GetLastWriteTimeUtc(path);  // 文件不存在返回 1601,常量可作缓存键
+      lock (_loadCacheLock) {
+        if (_customPresetLoadCache.TryGetValue(path, out var hit) && hit.stamp == stamp)
+          return hit.data.CloneShallow();
+      }
+      PresetData d = null;
       if (File.Exists(path)) {
         try {
-          var d = DeserializePreset(File.ReadAllText(path, Encoding.UTF8));
-          if (d != null) { d.IsFromCustomSubkey = true; return d; }
+          d = DeserializePreset(File.ReadAllText(path, Encoding.UTF8));
         } catch (Exception ex) {
           Console.WriteLine($"Error loading custom preset from file: {ex.Message}");
         }
       }
-      try {
-        var d = LoadCustomPresetFromRegistry(presetKey);
-        if (d != null) { d.IsFromCustomSubkey = true; return d; }
-      } catch { }
-      return null;
+      if (d == null) {
+        try { d = LoadCustomPresetFromRegistry(presetKey); } catch { }
+      }
+      if (d == null) return null;
+      d.IsFromCustomSubkey = true;
+      lock (_loadCacheLock) { _customPresetLoadCache[path] = (stamp, d.CloneShallow()); }
+      return d;
     }
 
     // ── 旧注册表持久化 (回退/迁移用) ──
@@ -389,32 +407,11 @@ namespace OmenSuperHub.Services {
 
       if (data == null) return;
 
-      // ponytail: 内置预设出厂默认把 FanControl 写死成 "auto"。但用户在该预设下手改过
-      // RPM（如 Extreme→4500 RPM）后，ApplyPresetData 会用硬编码默认覆盖回 auto，造成
-      // "上次手动转速没保存"。这里读回 Presets\<preset> 子键里已存的 FanControl（见
-      // ConfigService.SavePresetFanControl 由 FanPage 拖动 RPM 时写入），用用户值覆盖硬编码默认。
-      // 关键: 只覆盖 FanControl，**不覆盖 FanTable**。FanTable 是预设语义的固有映射
-      // (Extreme=cool / GpuPriority=balanced / LightUse=silent)，跨预设切换应回归预设默认，
-      // 旧版本残留的子键 FanTable=cool 也会让 GpuPriority 默认 balanced 被错误覆盖回 cool。
-      // 用户主动切档（silent/cool/balanced）的偏好通过全局 FanTable 注册表键保留 — 不持久化到预设子键。
-      // 子键不存在 (新机器或未改过风扇) → 保持硬编码默认，行为不变。
-      try {
-        using (var key = Registry.CurrentUser.OpenSubKey(PresetSubKey(preset))) {
-          if (key != null) {
-            var savedFc = key.GetValue("FanControl") as string;
-            // ponytail: 仅保留用户手改的 RPM 形态（"4000 RPM"/"60%"），不保留 "smart"/"auto"/""
-            // —— 后者会被 ApplyPresetData 用预设默认重置，但若用户在某预设下切到 smart 模式且
-            // 走 fan mode 切换路径会被 SaveCustomPreset 处理（仅自定义预设）。Built-in 预设下的
-            // smart 选择仅在当前会话有效（FC 字符串=smart 走 ApplyPresetHardware smart 分支），
-            // 不应跨会话覆盖预设语义 "auto" → 跳过。
-            if (!string.IsNullOrEmpty(savedFc)
-                && (savedFc.Contains(" RPM") || savedFc.EndsWith("%"))) {
-              data.FanControl = savedFc;
-            }
-          }
-        }
-      } catch { }
-
+      // ponytail: 内置预设的风扇档(含手动/固定 RPM)是「临时绑定」——切走即丢、重启回到
+      // 预设的 FanTable 语义默认(Extreme=cool / GpuPriority=balanced / LightUse=silent)。
+      // 不再从 Presets\<preset> 子键读回任何 FanControl 覆盖硬编码 "auto"(旧逻辑会把用户
+      // 手动选的 "4000 RPM" 跨切换/重启复活,导致"改其他档后仍回手动")。
+      // 自定义预设的完整风扇绑定(含手动)走 LoadCustomPreset 的 JSON 恢复,不在此处。
       // 1. 写入 ConfigService (1.1 始终写入，1.2 仅自定义)
       ApplyPresetData(data);
 
@@ -449,15 +446,12 @@ namespace OmenSuperHub.Services {
     }
 
     // ═══════════════════════════════════════════════════════
-    // 电源计划 P/Invoke 与 helper
+    // 电源计划 helper — P/Invoke 复用 Pages/NativeMethods.cs
     // ═══════════════════════════════════════════════════════
-    [DllImport("powrprof.dll")]
-    private static extern uint PowerGetActiveScheme(IntPtr userPowerKey, out IntPtr activePolicyGuid);
-
     static string GetActivePowerPlanGuid() {
       try {
         IntPtr ptr;
-        if (PowerGetActiveScheme(IntPtr.Zero, out ptr) != 0 || ptr == IntPtr.Zero) return "";
+        if (NativeMethods_Power.PowerGetActiveScheme(IntPtr.Zero, out ptr) != 0 || ptr == IntPtr.Zero) return "";
         // ponytail: free HGlobal in finally. If PtrToStructure ever throws, the old
         // code leaked unmanaged memory; power APIs allocate repeatedly so it accumulates.
         try {
@@ -465,26 +459,19 @@ namespace OmenSuperHub.Services {
         } finally {
           Marshal.FreeHGlobal(ptr);
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Verbose("GetActivePowerPlanGuid: " + ex.Message); }
       return "";
     }
 
     // ── 电源模式覆盖 (Power Mode overlay) ──
-    // ponytail: GUID 提取到共享 PowerOverlay (Services/NativeDefs.cs)
-    static readonly Guid OVERLAY_BEST_EFFICIENCY = PowerOverlay.BestPowerEfficiency;
-    static readonly Guid OVERLAY_BEST_PERFORMANCE = PowerOverlay.BestPerformance;
-
-    [DllImport("powrprof.dll")]
-    static extern uint PowerSetActiveOverlayScheme(Guid overlaySchemeGuid);
-
     static void ApplyPowerModeOverlay(int powerMode) {
       try {
         Guid g;
-        if (powerMode == 0) g = OVERLAY_BEST_EFFICIENCY;
-        else if (powerMode == 2) g = OVERLAY_BEST_PERFORMANCE;
+        if (powerMode == 0) g = NativeMethods_Power.BEST_POWER_EFFICIENCY;
+        else if (powerMode == 2) g = NativeMethods_Power.BEST_PERFORMANCE;
         else g = Guid.Empty;  // 1=平衡 → 默认
-        PowerSetActiveOverlayScheme(g);
-      } catch { }
+        NativeMethods_Power.PowerSetActiveOverlayScheme(g);
+      } catch (Exception ex) { Logger.Verbose("ApplyPowerModeOverlay: " + ex.Message); }
     }
 
     // ═══════════════════════════════════════════════════════
@@ -607,7 +594,7 @@ namespace OmenSuperHub.Services {
           try {
             if (!string.IsNullOrEmpty(ConfigService.PowerPlanGuid)) {
               Guid g = Guid.Parse(ConfigService.PowerPlanGuid);
-              NativeMethods.PowerSetActiveScheme(IntPtr.Zero, ref g);
+              NativeMethods_Power.PowerSetActiveScheme(IntPtr.Zero, ref g);
             }
           } catch { }
           // EcoQoS

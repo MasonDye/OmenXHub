@@ -181,12 +181,30 @@ namespace OmenSuperHub.Pages {
       CoreVisualGrid.ItemsSource = items;
     }
 
+    // ponytail: 画刷静态冻结 — 进程列表刷新/过滤时每行 new ×2 未冻结画刷造成 GC 洪峰;
+    // 冻结后跨线程可用且系统可缓存渲染。颜色与图例一一对应,运行期不变。
+    static readonly SolidColorBrush BrushP = Frozen(0xE7, 0x48, 0x56);   // 亮红
+    static readonly SolidColorBrush BrushE = Frozen(0x00, 0x78, 0xD4);   // 蓝
+    static readonly SolidColorBrush BrushSmt1 = Frozen(0x8B, 0x95, 0xA1); // 浅灰
+    static readonly SolidColorBrush BrushDefault = Frozen(0x5B, 0x6B, 0x73); // 深灰 (SMT0)
+
+    static SolidColorBrush Frozen(byte r, byte g, byte b) {
+      var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+      brush.Freeze();
+      return brush;
+    }
+    static SolidColorBrush FrozenAlpha(byte a, byte r, byte g, byte b) {
+      var brush = new SolidColorBrush(Color.FromArgb(a, r, g, b));
+      brush.Freeze();
+      return brush;
+    }
+
     static SolidColorBrush CoreTypeToBrush(string type) {
       switch (type) {
-        case "P":    return new SolidColorBrush(Color.FromRgb(0xE7, 0x48, 0x56)); // 亮红 — 与图例一致
-        case "E":    return new SolidColorBrush(Color.FromRgb(0x00, 0x78, 0xD4)); // 蓝 — 与图例一致
-        case "SMT1": return new SolidColorBrush(Color.FromRgb(0x8B, 0x95, 0xA1)); // 浅灰
-        default:     return new SolidColorBrush(Color.FromRgb(0x5B, 0x6B, 0x73)); // 深灰 (SMT0)
+        case "P":    return BrushP;
+        case "E":    return BrushE;
+        case "SMT1": return BrushSmt1;
+        default:     return BrushDefault;
       }
     }
 
@@ -287,23 +305,32 @@ namespace OmenSuperHub.Pages {
     }
 
     // ponytail: 按强制级别设置进程列表标签颜色 — soft 蓝 / hard 黄 / enforced 橙 / locked 红
+    static readonly SolidColorBrush BadgeSoft = FrozenAlpha(0x33, 0x00, 0x78, 0xD4);
+    static readonly SolidColorBrush BadgeSoftFg = Frozen(0x00, 0x78, 0xD4);
+    static readonly SolidColorBrush BadgeHard = FrozenAlpha(0x33, 0xFF, 0xB9, 0x00);
+    static readonly SolidColorBrush BadgeHardFg = Frozen(0xFF, 0xB9, 0x00);
+    static readonly SolidColorBrush BadgeEnforced = FrozenAlpha(0x33, 0xF7, 0x63, 0x0C);
+    static readonly SolidColorBrush BadgeEnforcedFg = Frozen(0xF7, 0x63, 0x0C);
+    static readonly SolidColorBrush BadgeLocked = FrozenAlpha(0x33, 0xE7, 0x48, 0x56);
+    static readonly SolidColorBrush BadgeLockedFg = Frozen(0xE7, 0x48, 0x56);
+
     static void ApplyLevelColors(ProcessItemView v) {
       switch (v.RuleLevel) {
         case "soft-cpu-sets":
-          v.RuleBadgeBrush = new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x78, 0xD4));
-          v.RuleBadgeForeground = new SolidColorBrush(Color.FromRgb(0x00, 0x78, 0xD4));
+          v.RuleBadgeBrush = BadgeSoft;
+          v.RuleBadgeForeground = BadgeSoftFg;
           break;
         case "hard-affinity":
-          v.RuleBadgeBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xB9, 0x00));
-          v.RuleBadgeForeground = new SolidColorBrush(Color.FromRgb(0xFF, 0xB9, 0x00));
+          v.RuleBadgeBrush = BadgeHard;
+          v.RuleBadgeForeground = BadgeHardFg;
           break;
         case "job-enforced":
-          v.RuleBadgeBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xF7, 0x63, 0x0C));
-          v.RuleBadgeForeground = new SolidColorBrush(Color.FromRgb(0xF7, 0x63, 0x0C));
+          v.RuleBadgeBrush = BadgeEnforced;
+          v.RuleBadgeForeground = BadgeEnforcedFg;
           break;
         case "job-locked":
-          v.RuleBadgeBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xE7, 0x48, 0x56));
-          v.RuleBadgeForeground = new SolidColorBrush(Color.FromRgb(0xE7, 0x48, 0x56));
+          v.RuleBadgeBrush = BadgeLocked;
+          v.RuleBadgeForeground = BadgeLockedFg;
           break;
       }
     }

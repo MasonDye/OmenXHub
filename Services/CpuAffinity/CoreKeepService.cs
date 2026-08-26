@@ -93,7 +93,6 @@ namespace OmenSuperHub.Services.CpuAffinity {
     static readonly EnforcementService _enforcement = new EnforcementService(_topoService, _jobManager);
     static readonly RuleEngine _ruleEngine = new RuleEngine();
 
-    static ManagementEventWatcher _watcher;
     static Timer _guardTimer;
     static int _guardRunning;
     static CoreKeepData _activeData;
@@ -390,36 +389,14 @@ namespace OmenSuperHub.Services.CpuAffinity {
       // ponytail: ApplyAll 后台执行 — 同步枚举全部进程 + P/Invoke 设亲和性会阻塞 UI 线程数秒
       // ReservedCpuSets 是注册表方案（重启生效），不需要守护定时器重设，故不在此调用
       ThreadPool.QueueUserWorkItem(_ => { try { ApplyAll(); } catch { } });
-      // ponytail: WMI watcher 创建+Start 后台执行 — ManagementEventWatcher.Start() 冷启动（WMI 服务首次连接）
-      // 阻塞 UI 线程 1-3s，是"第一次打开核心保持卡顿且无法操作"的根因。
-      // EventArrived 在 WMI 投递线程触发，不依赖 Start 调用线程。先赋值 _watcher 再 Start：StopAutoApply 可见即 Dispose；
-      // Start 后二次校验 _watcher!=w 防泄漏（期间被 Stop 中断则丢弃此 watcher）。
-      ThreadPool.QueueUserWorkItem(_ => {
-        try {
-          var w = new ManagementEventWatcher(new WqlEventQuery("SELECT * FROM Win32_ProcessStartTrace"));
-          w.EventArrived += (s, e) => {
-            try {
-              int pid = Convert.ToInt32(e.NewEvent.Properties["ProcessID"].Value);
-              string name = e.NewEvent.Properties["ProcessName"].Value?.ToString() ?? "";
-              // ponytail: 延迟 200ms 让进程完成初始化，避免过早 Apply 失败
-              ThreadPool.QueueUserWorkItem(_2 => {
-                Thread.Sleep(200);
-                try { ApplyToPidByName(pid, name); } catch { }
-              });
-            } catch { }
-          };
-          _watcher = w;
-          w.Start();
-          if (_watcher != w) { try { w.Stop(); w.Dispose(); } catch { } } // 期间被 Stop 中断则丢弃
-        } catch { }
-      });
+      // ponytail: 删除 WMI __InstanceCreationEvent watcher — 订阅会让 wmiprvse.exe(WMI 宿主)
+      // 常驻占内存,且内核 ETW trace 类在本机不投递。守护定时器本身每 intervalMs 全量
+      // ApplyAll 已覆盖新进程应用;首次 due 提前到 500ms 补偿启动突发,新进程最迟 ~2s(默认)生效。
       StartGuardTimer(data.GuardIntervalMs);
     }
 
     public static void StopAutoApply() {
       StopGuardTimer();
-      try { _watcher?.Stop(); _watcher?.Dispose(); } catch { }
-      _watcher = null;
       // ponytail: RelaxAll 后台执行 — 恢复亲和性是 fire-and-forget，不阻塞 UI
       var data = _activeData;
       _activeData = null;
@@ -490,7 +467,8 @@ namespace OmenSuperHub.Services.CpuAffinity {
     static void StartGuardTimer(int intervalMs) {
       StopGuardTimer();
       if (intervalMs < 500) intervalMs = 500;
-      _guardTimer = new Timer(GuardTick, null, intervalMs, intervalMs);
+      // ponytail: 首次 due 500ms — 补偿已删除的 WMI watcher,让启动瞬间的进程尽快被首轮 Apply 覆盖
+      _guardTimer = new Timer(GuardTick, null, 500, intervalMs);
     }
 
     static void StopGuardTimer() {
