@@ -645,6 +645,12 @@ namespace OmenSuperHub.Views {
       } catch { /* ponytail: 导航控件尚未应用模板时成员可能 null — 此时本就无页可清 */ }
       _pageService?.Clear();
       _activePage = null;
+      // ponytail: 解耦 —— 断开鼠标滚轮 handler 对旧页 UIElement 的引用。_wheelHandler 是捕获旧 page
+      // 的 lambda,_wheelRoot 指向旧 page 的祖先 UIElement;MainWindow 常驻持有这两个字段会让旧 page 无法 GC。
+      // 下次 Show 走 AttachWheelHandler 时会重新指向新页(它内部先 RemoveHandler 旧的)。
+      if (_wheelRoot != null && _wheelHandler != null)
+        _wheelRoot.RemoveHandler(UIElement.PreviewMouseWheelEvent, _wheelHandler);
+      _wheelHandler = null; _wheelRoot = null;
       // ponytail: 仅清引用只是允许被回收,真正缩工作集需要 GC + 工作集修剪。Wpf.Ui Page 是
       // 100KB+ XAML 可视树,显式回收一次让任务管理器看得见内存回落。一次 Hide 的渲染开销远高于
       // 这 200µs。和 DashboardPage:492 用的是同一个 PSAPI 调用。

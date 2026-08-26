@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -58,19 +59,18 @@ namespace OmenSuperHub.Pages
                 }
 
                 var controls = await _xtuService.GetAllControlsAsync();
-                // ponytail: 核心倍频 ID 非连续(OGH CONTROL_ID 枚举)— 按规范序取前 N 个物理核
+                // ponytail: 倍频项 = 16 个槽(8P+8E),Id 已按 0..15 排序;control.Name 已含 P-Core/E-Core 前缀。
                 var coreRatioControls = controls
                     .Where(c => XtuService.CoreRatioIds.Contains(c.Id))
                     .OrderBy(c => Array.IndexOf(XtuService.CoreRatioIds, c.Id))
                     .ToList();
 
-                for (uint i = 0; i < info.PhysicalCoreCount && i < coreRatioControls.Count; i++)
+                foreach (var control in coreRatioControls)
                 {
-                    var control = coreRatioControls[(int)i];
                     _coreRatioItems.Add(new CoreRatioItem
                     {
                         Id = control.Id,
-                        Name = Strings.CpuOcCoreNameFormat((int)i),
+                        Name = control.Name,
                         Value = (double)control.ActiveValue,
                         MinValue = (double)control.MinValue,
                         MaxValue = (double)control.MaxValue
@@ -87,7 +87,7 @@ namespace OmenSuperHub.Pages
                     VoltageOffsetNum.Text = voltageControl.ActiveValue.ToString();
                 }
 
-                SetStatus(Strings.CpuOcStatusReadyFormat((int)info.PhysicalCoreCount), "SystemFillColorSuccessBackgroundBrush");
+                SetStatus(Strings.CpuOcStatusReadyFormat((int)coreRatioControls.Count), "SystemFillColorSuccessBackgroundBrush");
             }
             catch (Exception ex)
             {
@@ -143,13 +143,26 @@ namespace OmenSuperHub.Pages
         }
     }
 
-    public class CoreRatioItem
+    public class CoreRatioItem : INotifyPropertyChanged
     {
         public uint Id { get; set; }
         public string Name { get; set; }
-        public double Value { get; set; }
         public double MinValue { get; set; }
         public double MaxValue { get; set; }
+
+        private double _value;
+        public double Value
+        {
+            get => _value;
+            set
+            {
+                if (_value == value) return;
+                _value = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value)));
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
     }
 }
 

@@ -48,6 +48,10 @@ namespace OmenSuperHub.Services {
     static System.Windows.Controls.ContextMenu wpfContextMenu;
     public static int countDB = 0, countDBInit = 5, tryTimes = 0, CPULimitDB = 25;
     static int countRestore = 0;
+    // ponytail: Resume 专门标志 —— 修复 countRestore 判断 bug:RestoreConfig 进入时
+    // countRestore 已被 HandleRestoreCountdown 倒数到 0,原 `if (countRestore != 0)` 恒 false,
+    // 电源恢复后从不重读注册表。改用独立 bool,由 OnPowerChange(Resume) 置 true,RestoreConfig 消费后清零。
+    static bool _resumeRestore;
 
     // Timers
     public static System.Threading.Timer fanControlTimer;
@@ -585,8 +589,12 @@ namespace OmenSuperHub.Services {
       // registry values that predate the preset apply, overwriting preset values.
       // App.xaml.cs already called ConfigService.Load() + SwitchPreset before us.
       // Only reload on power-resume (countRestore path), where fresh values are needed.
-      if (countRestore != 0)
+      // ponytail: 仅电源恢复(Resume)路径重读注册表 —— 冷启动由 App.xaml.cs 已 Load + SwitchPreset。
+      // 之前用 `if (countRestore != 0)` 判断,但进入本方法时 countRestore 已被 HandleRestoreCountdown
+      // 倒数到 0,条件恒 false → Resume 后从不重读新注册表值。改用 _resumeRestore 标志。
+      if (_resumeRestore)
         ConfigService.Load();
+      _resumeRestore = false;
 
       // 重新应用预设，确保 ConfigService 字段反映预设值而非陈旧注册表独立值
       if (!string.IsNullOrEmpty(ConfigService.Preset))
@@ -618,19 +626,10 @@ namespace OmenSuperHub.Services {
     }
 
     static void RestoreFanSettings() {
-      // ponytail: built-in preset's ApplyPresetData overwrites FanControl to
-      // "auto", losing the user's saved manual RPM/%.  Re-read the raw registry
-      // value so that manual fan speed survives restart.
-      try {
-        using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\OmenXHub")) {
-          if (key != null) {
-            string saved = key.GetValue("FanControl", "") as string;
-            if (!string.IsNullOrEmpty(saved) &&
-                (saved.Contains(" RPM") || saved.EndsWith("%") || saved.Contains("max")))
-              ConfigService.FanControl = saved;
-          }
-        }
-      } catch { }
+      // ponytail: 不再从全局健读回手动 RPM/% 覆盖 FanControl —— 内置预设的手动(固定 RPM)
+      // 是临时绑定,不应跨重启复活(旧逻辑导致"内置预设改其他档后重启仍回手动")。
+      // 自定义预设的手动已由 SwitchPreset → LoadCustomPreset 的 JSON 完整恢复。
+      // 这里 FanControl 直接沿用 ConfigService 当前值(已被 SwitchPreset/ApplyPresetData 设置)。
 
       // Fan table
       if (ConfigService.FanTable.Contains("cool")) {
@@ -751,6 +750,12 @@ namespace OmenSuperHub.Services {
     }
 
     static void RestoreMaxFrameRate() {
+      // ponytail: MaxFrameRate 是 1.2 自定义预设专属。切到内置预设后该值残留,
+      // 若不加守卫,重启会把残留帧率锁错误应用到硬件(选了 Extreme 却锁到自定义帧率)。
+      if (!PresetManager.IsCustom(ConfigService.Preset)) {
+        HP.Omen.Core.Common.NVidiaApi.NvApiWrapper.NVAPI_SetMaxFrameRate(0);
+        return;
+      }
       int[] frRates = { 0, 30, 60, 90, 120, 144, 165, 240, 300, 360, 480, 1000 };
       int frIdx = Array.IndexOf(frRates, ConfigService.MaxFrameRate);
       if (frIdx > 0 && frIdx < frRates.Length) {
@@ -791,14 +796,16 @@ namespace OmenSuperHub.Services {
 
     static void RestorePowerPlan() {
       // Power plan — restore saved Windows power plan
-      if (!string.IsNullOrEmpty(ConfigService.PowerPlanGuid)) {
+      // ponytail: PowerPlanGuid 是 1.2 自定义预设专属,切到内置预设后残留值不该被应用
+      // (否则重启把内置预设误切到上次自定义预设的节能/高性能电源计划)。
+      if (PresetManager.IsCustom(ConfigService.Preset) && !string.IsNullOrEmpty(ConfigService.PowerPlanGuid)) {
         try {
           Guid g = Guid.Parse(ConfigService.PowerPlanGuid);
           NativeMethods_Power.PowerSetActiveScheme(IntPtr.Zero, ref g);
         } catch { }
       }
 
-      // Power mode overlay — restore saved Windows power mode
+      // Power mode overlay — restore saved Windows power mode (1.1 全局,内置/自定义都应用)
       try {
         Guid pmGuid;
         if (ConfigService.PowerMode == 0) pmGuid = NativeMethods_Power.BEST_POWER_EFFICIENCY;
@@ -809,6 +816,11 @@ namespace OmenSuperHub.Services {
     }
 
     static void RestoreEcoQos() {
+      // ponytail: EcoQos 是 1.2 自定义预设专属,内置预设下残留值不应被应用。
+      if (!PresetManager.IsCustom(ConfigService.Preset)) {
+        try { EcoQosService.SetEnabled(false); EcoQosService.SetThrottlePlugged(false); } catch { }
+        return;
+      }
       try {
         EcoQosService.SetEnabled(ConfigService.EcoQosEnabled);
         EcoQosService.SetThrottlePlugged(ConfigService.EcoQosThrottlePlugged);
@@ -816,6 +828,8 @@ namespace OmenSuperHub.Services {
     }
 
     static void RestoreGpuOverclock() {
+      // ponytail: GpuCoreOverclock/GpuMemoryOverclock 是 1.2 自定义预设专属,内置预设下残留值不应被应用。
+      if (!PresetManager.IsCustom(ConfigService.Preset)) return;
       if (ConfigService.GpuCoreOverclock > 0)
         System.Threading.ThreadPool.QueueUserWorkItem(_ => { try { GpuAppManager.SetCoreClockOffset(ConfigService.GpuCoreOverclock); } catch { } });
       if (ConfigService.GpuMemoryOverclock > 0)
@@ -932,6 +946,7 @@ namespace OmenSuperHub.Services {
         SendOmenBiosWmi(0x10, new byte[] { 0x00, 0x00, 0x00, 0x00 }, 4);
         tooltipUpdateTimer.Start();
         countRestore = 3;
+        _resumeRestore = true;   // ponytail: 通知 RestoreConfig 走电源恢复的重读注册表路径
       }
 
       if (e.Mode == Microsoft.Win32.PowerModes.StatusChange) {

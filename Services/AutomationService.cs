@@ -149,6 +149,9 @@ namespace OmenSuperHub.Services {
       }
       // ponytail: 管道增删/启用/禁用都过 Save —— 同步按需启停温度/电池/计划定时器,无需各自插钩子。
       AutomationProcessor.ReevaluateTimers();
+      // ponytail: 启用/禁用管道也须刷新热键 —— automation.json 里 Enabled 翻转后,Hotkey 触发管道
+      // 应同步注册/注销全局热键。RefreshHotkeys 有 _running 守卫 + 内部重注册,幂等。
+      AutomationProcessor.RefreshHotkeys();
     }
 
 	    public static void AddPipeline(AutomationPipeline pipeline) {
@@ -197,7 +200,7 @@ namespace OmenSuperHub.Services {
       "SetFanMode",
       "SetTempSensitivity", "SetGPUHybridMode", "SetBrightness",
       "SetMicrophone", "SetWiFi", "SetBluetooth", "PlaySound",
-      "RunProgram", "Delay", "Notification", "RunMacro"
+      "RunProgram", "Delay", "Notification", "RunMacro", "CleanMemory"
     };
 
     public static string GetLabel(string type) {
@@ -221,6 +224,7 @@ namespace OmenSuperHub.Services {
         case "Delay": return Strings.AutomationStepDelay;
         case "Notification": return Strings.AutomationStepNotification;
         case "RunMacro": return Strings.AutomationStepRunMacro;
+        case "CleanMemory": return Strings.AutomationStepCleanMemory;
         default: return type;
       }
     }
@@ -245,6 +249,7 @@ namespace OmenSuperHub.Services {
         case "RunProgram": return Strings.AutomationProgramPath;
         case "Notification": return Strings.AutomationMessage;
         case "RunMacro": return "Macro Name";
+        case "CleanMemory": return Strings.AutomationCleanMemoryHint;
         default: return Strings.AutomationStepValue;
       }
     }

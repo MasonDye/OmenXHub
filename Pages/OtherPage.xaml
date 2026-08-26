@@ -165,7 +165,7 @@
                 <ui:SymbolIcon Symbol="Server24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0"/>
                 <TextBlock x:Name="SysOptHeadingText" Text="{x:Static app:Strings.SysOptCardTitle}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <TextBlock x:Name="SysOptDescText" Text="{x:Static app:Strings.SysOptCardDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+              <TextBlock x:Name="SysOptDescText" Text="{x:Static app:Strings.SysOptCardDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap" MaxWidth="420"/>
             </StackPanel>
             <ui:Button Grid.Column="1" x:Name="SysOptOpenBtn" Content="{x:Static app:Strings.SysOptViewButton}"
                        Click="SysOptOpen_Click" Appearance="Secondary" VerticalAlignment="Center"/>

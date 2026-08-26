@@ -206,6 +206,8 @@ namespace OmenSuperHub.Services {
         case "SetRefreshRate":
           if (int.TryParse(step.Value, out int rr) && rr >= 30 && rr <= 360) {
             ApplyRefreshRate(rr);
+            ConfigService.RefreshRate = rr;      // ponytail: 同步+持久化,否则重启恢复旧值
+            ConfigService.Save("RefreshRate");
             Views.OsdWindow.ShowRefreshRateOsd(rr);
           }
           break;
@@ -213,14 +215,19 @@ namespace OmenSuperHub.Services {
           if (!string.IsNullOrEmpty(step.Value)) {
             Guid g = Guid.Parse(step.Value);
             NativeMethods_Power.PowerSetActiveScheme(IntPtr.Zero, ref g);
+            ConfigService.PowerPlanGuid = step.Value;   // ponytail: 同步+持久化
+            ConfigService.Save("PowerPlanGuid");
           }
           break;
         case "SetPowerMode":
           ExecuteSetPowerMode(step.Value);
           break;
         case "SetMaxFrameRate":
-          if (int.TryParse(step.Value, out int fps) && OmenHardware.HasNvidiaGpu())
+          if (int.TryParse(step.Value, out int fps) && OmenHardware.HasNvidiaGpu()) {
             HP.Omen.Core.Common.NVidiaApi.NvApiWrapper.NVAPI_SetMaxFrameRate(fps);
+            ConfigService.MaxFrameRate = fps;    // ponytail: 同步+持久化
+            ConfigService.Save("MaxFrameRate");
+          }
           break;
         case "SetCpuPower":
           ExecuteSetCpuPower(step.Value);
@@ -241,6 +248,7 @@ namespace OmenSuperHub.Services {
         case "SetTempSensitivity":
           if (!string.IsNullOrEmpty(step.Value)) {
             ConfigService.TempSensitivity = step.Value;
+            ConfigService.Save("TempSensitivity");
             switch (step.Value) {
               case "realtime": HardwareService.RespondSpeed = 1f; break;
               case "high": HardwareService.RespondSpeed = 0.4f; break;
@@ -278,6 +286,9 @@ namespace OmenSuperHub.Services {
             if (macro != null) MacroController.PlayMacro(macro);
           }
           break;
+        case "CleanMemory":
+          ExecuteCleanMemory();
+          break;
         case "Delay":
           // ponytail: DelayMs 已在 ExecutePipeline 循环开头 await Task.Delay(step.DelayMs),
           // "Delay" 步骤本身只是个占位/分隔器——这里显式 break 表明是 no-op 而非 switch 漏处理。
@@ -292,13 +303,29 @@ namespace OmenSuperHub.Services {
       else if (pm == 2) guid = NativeMethods_Power.BEST_PERFORMANCE;
       else guid = Guid.Empty;
       NativeMethods_Power.PowerSetActiveOverlayScheme(guid);
+      ConfigService.PowerMode = pm;      // ponytail: 同步+持久化,否则重启恢复旧电源模式
+      ConfigService.Save("PowerMode");
     }
 
     static void ExecuteSetCpuPower(string value) {
       if (value == "max") {
+        // ponytail: 同步 ConfigService 三字段 + 持久化 —— 否则硬件短暂降频后,下次
+        // RestoreConfig/RestorePowerConfig 用注册表旧值覆盖回原功率,且 UI 与硬件不一致。
+        ConfigService.CpuPower = "max";
+        ConfigService.CpuPowerPl1 = 254;
+        ConfigService.CpuPowerPl2 = 254;
+        ConfigService.Save("CpuPower");
+        ConfigService.Save("CpuPowerPl1");
+        ConfigService.Save("CpuPowerPl2");
         OmenHardware.SetCpuPowerLimit(254);
         Views.OsdWindow.ShowCpuPowerOsd("max");
       } else if (int.TryParse(value, out int cpuVal) && cpuVal >= 10 && cpuVal <= 254) {
+        ConfigService.CpuPower = cpuVal + " W";
+        ConfigService.CpuPowerPl1 = cpuVal;
+        ConfigService.CpuPowerPl2 = cpuVal;
+        ConfigService.Save("CpuPower");
+        ConfigService.Save("CpuPowerPl1");
+        ConfigService.Save("CpuPowerPl2");
         OmenHardware.SetCpuPowerLimit((byte)cpuVal);
         Views.OsdWindow.ShowCpuPowerOsd(cpuVal + " W");
       }
@@ -346,22 +373,37 @@ namespace OmenSuperHub.Services {
           TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
         }
       }
+      // ponytail: 自动化改风扇模式后持久化 —— 与 FanPage 写回路径一致,否则风速模式
+      // 只活在内存,重启/切换预设即丢(issue: 自动化风速不持久)。manual/自动档写预设
+      // 子键(内置)或自定义预设(JSON);"smart"/彩档则写全局键。
+      ConfigService.Save("FanControl");
+      ConfigService.Save("FanTable");
+      if (PresetManager.IsCustom(ConfigService.Preset))
+        PresetManager.SaveCustomPreset(ConfigService.Preset);
+      else
+        ConfigService.SavePresetFanState(ConfigService.Preset);
     }
 
     static void ExecuteSetGpuPower(string value) {
       if (value == "max") {
         ConfigService.GpuPower = "max";
         ConfigService.TgpEnabled = true; ConfigService.PpabEnabled = true; ConfigService.DState = 1;
+        ConfigService.Save("GpuPower"); ConfigService.Save("TgpEnabled");
+        ConfigService.Save("PpabEnabled"); ConfigService.Save("DState");
         OmenHardware.SetGpuPowerState(true, true, 1);
         Views.OsdWindow.ShowTextOsd("GPU: CTGP开+DB开");
       } else if (value == "med") {
         ConfigService.GpuPower = "med";
         ConfigService.TgpEnabled = true; ConfigService.PpabEnabled = false; ConfigService.DState = 1;
+        ConfigService.Save("GpuPower"); ConfigService.Save("TgpEnabled");
+        ConfigService.Save("PpabEnabled"); ConfigService.Save("DState");
         OmenHardware.SetGpuPowerState(true, false, 1);
         Views.OsdWindow.ShowTextOsd("GPU: CTGP开+DB关");
       } else if (value == "min") {
         ConfigService.GpuPower = "min";
         ConfigService.TgpEnabled = false; ConfigService.PpabEnabled = false; ConfigService.DState = 1;
+        ConfigService.Save("GpuPower"); ConfigService.Save("TgpEnabled");
+        ConfigService.Save("PpabEnabled"); ConfigService.Save("DState");
         OmenHardware.SetGpuPowerState(false, false, 1);
         Views.OsdWindow.ShowTextOsd("GPU: CTGP关+DB关");
       }
@@ -374,6 +416,25 @@ namespace OmenSuperHub.Services {
         Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true })?.Dispose();
       } catch (Exception ex) {
         Logger.Error(errorTag + " failed: " + ex.Message);
+      }
+    }
+
+    // ponytail: 内存清理 — 纯后端,遍历进程 trim 工作集。与 DashboardPage.CleanMemory_Click
+    // 同一动作,但无 UI 依赖(自动化触发无需主界面/仪表盘可见)。EmptyWorkingSet 逐进程调用。
+    static void ExecuteCleanMemory() {
+      try {
+        var before = NativeMethods_Proc.GetMemoryStatus();
+        ulong usedBefore = before.ullTotalPhys - before.ullAvailPhys;
+        foreach (var proc in Process.GetProcesses()) {
+          try { using (proc) NativeMethods_Proc.EmptyWorkingSet(proc.Handle); } catch { }
+        }
+        var after = NativeMethods_Proc.GetMemoryStatus();
+        ulong usedAfter = after.ullTotalPhys - after.ullAvailPhys;
+        long freed = (long)(usedBefore - usedAfter);
+        if (freed < 0) freed = 0;
+        Logger.Info($"Automation CleanMemory: freed {(freed / 1024.0 / 1024.0):F1} MB");
+      } catch (Exception ex) {
+        Logger.Error("Automation CleanMemory failed: " + ex.Message);
       }
     }
 

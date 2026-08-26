@@ -324,6 +324,8 @@ namespace OmenSuperHub.Pages {
           ConfigService.CpuPowerPl1 = -1;
           ConfigService.CpuPowerPl2 = -1;
           ConfigService.Save("CpuPower");
+          ConfigService.Save("CpuPowerPl1");
+          ConfigService.Save("CpuPowerPl2");
           return;
         }
         if (tag == "max") {
@@ -336,6 +338,8 @@ namespace OmenSuperHub.Pages {
           CpuPowerPL2Num.Value = 254;
           SetCpuPowerLimit(254);
           ConfigService.Save("CpuPower");
+          ConfigService.Save("CpuPowerPl1");
+          ConfigService.Save("CpuPowerPl2");
           return;
         }
         if (int.TryParse(tag, out int val) && val >= 10 && val <= 254) {
@@ -349,6 +353,8 @@ namespace OmenSuperHub.Pages {
           // ponytail: AMD PPT 走 WMI（SMU 兜底已随高级调教删除）
           SetCpuPowerLimit((byte)val);
           ConfigService.Save("CpuPower");
+          ConfigService.Save("CpuPowerPl1");
+          ConfigService.Save("CpuPowerPl2");
         }
       } finally { _loading = false; }
     }

@@ -76,6 +76,14 @@ namespace OmenSuperHub.Services {
     public static HashSet<string> Blacklist { get; private set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     static EcoQosService() {
+      // ponytail: 解耦懒分配 —— 不再在 cctor 无条件 AllocHGlobal。cctor 在首次访问本类型
+      // 任意成员时触发(含 RestoreEcoQos 里 SetEnabled(false)),导致用户从未启用 EcoQoS 也分配
+      // 两块非托管内存并 marshal。改为首启用 Start() 时才分配,Cleanup() 释放。
+    }
+
+    // ponytail: 首次真正启用节流时才分配非托管缓冲,未启用功能不占非托管内存。
+    static void EnsureNativeBuffers() {
+      if (pThrottleOn != IntPtr.Zero) return;
       var throttleOn = new PROCESS_POWER_THROTTLING_STATE {
         Version = PROCESS_POWER_THROTTLING_STATE.CURRENT_VERSION,
         ControlMask = ProcessorPowerThrottlingFlags.PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
@@ -109,6 +117,7 @@ namespace OmenSuperHub.Services {
 
     public static void Start() {
       lock (_lock) {
+        EnsureNativeBuffers();   // 懒分配,未启用时不分配
         if (_throttleTimer == null) {
           _throttleTimer = new Timer(_ => ThrottleTick(), null, 0, 2000);
         }

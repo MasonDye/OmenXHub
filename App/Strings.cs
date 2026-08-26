@@ -477,6 +477,8 @@ namespace OmenSuperHub {
     public static string AutomationStepRunProgram => T("运行程序", "運行程式", "Run Program");
     public static string AutomationStepDelay => T("延迟", "延遲", "Delay");
     public static string AutomationStepNotification => T("通知", "通知", "Notification");
+    public static string AutomationStepCleanMemory => T("清理内存", "清理記憶體", "Clean Memory");
+    public static string AutomationCleanMemoryHint => T("清理各进程工作集(无需参数)", "清理各程序工作集(無需參數)", "Trim process working sets (no argument)");
     public static string AutomationStepSetGpuPower => T("设置GPU功率", "設定GPU功率", "Set GPU Power");
     public static string AutomationStepSetTempSensitivity => T("设置温度灵敏度", "設定溫度靈敏度", "Set Temp Sensitivity");
     public static string AutomationProgramPath => T("程序路径", "程式路徑", "Program Path");
@@ -844,7 +846,7 @@ namespace OmenSuperHub {
 
     // System optimization (services + startup items)
     public static string SysOptCardTitle => T("系统优化", "系統優化", "System Optimization");
-    public static string SysOptCardDesc => T("管理 Windows 服务启动类型与开机启动项", "管理 Windows 服務啟動類型與開機啟動項", "Manage Windows service startup types and startup items");
+    public static string SysOptCardDesc => T("管理 Windows 服务启动类型、开机启动项，以及去广告/关遥测/关更新等通用优化", "管理 Windows 服務啟動類型、開機啟動項，以及去廣告/關遙測/關更新等通用優化", "Manage service startup types, startup items, and general tweaks (debloat, telemetry, updates)");
     public static string SysOptViewButton => T("查看", "查看", "View");
     public static string SysOptWindowTitle => T("系统优化", "系統優化", "System Optimization");
     public static string SysOptRefresh => ButtonRefresh;
@@ -1156,6 +1158,8 @@ namespace OmenSuperHub {
 	  public static string OccStubWorking => T("处理中…", "處理中…", "Working…");
 	  public static string OccStubRegFail => T("注册失败(需开发者模式)", "註冊失敗(需開發者模式)", "Register failed (Developer Mode required)");
 	  public static string OccStubRmFail => T("移除失败", "移除失敗", "Remove failed");
+	  public static string OccStubEnableDevModePrompt => T("注册存根需要开启「开发者模式」。是否现在自动开启？（将写入系统开发者模式开关）", "註冊存根需要開啟「開發者模式」。是否現在自動開啟？（將寫入系統開發者模式開關）", "Registering the stub requires Developer Mode. Enable it now? (This writes the system Developer Mode switch.)");
+	  public static string OccStubEnableDevModeFail => T("开启开发者模式失败，请用管理员权限运行后重试。", "開啟開發者模式失敗，請用系統管理員權限執行後重試。", "Failed to enable Developer Mode. Run as administrator and retry.");
 
 	  // ═══ Phase 2: PerfPage.xaml hardcoded strings ═══
 	  public static string PerfPresetLabel => T("预设:", "預設:", "Preset:");

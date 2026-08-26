@@ -84,6 +84,9 @@ namespace OmenSuperHub.Pages {
           _ = RefreshNvidiaPowerLimitAsync();
           _gpuAppsLoaded = true;
         }
+        // ponytail: 守卫 —— 若页被 CachedPageService 缓存且上次 Unloaded 未触发,旧 timer 可能仍在跑;
+        // 先停掉再建,避免新旧 timer 叠加。Interval 随 MonRefreshInterval 可能变化,故停旧建新而非复用。
+        if (_refreshTimer != null) { _refreshTimer.Stop(); _refreshTimer = null; }
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ConfigService.MonRefreshInterval) };
         // ponytail: Tick 用命名方法 —— Unloaded 才能 -= 解除,使 CachedPageService 缓存的 Page 不被 lambda
         // 捕获 this 永久挂住,且每 Loaded/Unloaded 避免 (s2,e2)=>{} lambda 多次叠加触发相同 tick。
@@ -149,10 +152,9 @@ namespace OmenSuperHub.Pages {
         Dispatcher.BeginInvoke(new Action(() =>
           RefreshSensorsCore(cpuTemp, gpuOn ? gpuTemp : 0, ir, amb, pch, vr)
         ), DispatcherPriority.Background);
-        // ponytail: refresh floating window on same timer so network speed & other data stay live
-        Dispatcher.BeginInvoke(new Action(() =>
-          Views.FloatingWindow.UpdateAllText()
-        ), DispatcherPriority.Background);
+        // ponytail: 解耦 —— 不再在此驱动 FloatingWindow.UpdateAllText()。浮窗已有独立 1Hz 后端
+        // timer(EnsureTimer)+ TrayService.UpdateTooltip 的 UpdateAllTextTicked 驱动,此处再 forceLayout
+        // 一帧是前端职责混入后端,且在窗口隐藏后反复强制重排、唤醒 UI 线程。数据不丢(独立 timer 兜底)。
       });
     }
 
@@ -409,9 +411,10 @@ namespace OmenSuperHub.Pages {
 
     // ponytail: 存储柱刷新节流 — DriveInfo 枚举+容量读是真磁盘 IO(网络盘 5-50ms/tick),
     // 存储变化慢,10s 足够。上限:切主题后柱标签笔刷最长 10s 才换色,罕见且自愈。
-    // static 而非实例字段:主窗口 Hide 时 ReleaseFrontend 会清页面缓存,恢复时 new 一个
-    // DashboardPage,实例字段会归零导致节流失效、每次恢复都重新同步枚举磁盘(issue #25 卡顿)。
-    static DateTime _lastStorageRefreshUtc = DateTime.MinValue;
+    // 必须是实例字段:节流只能作用在"同一页面实例内的重复刷新",不能跨实例。若 static,
+    // 页面销毁重建(隐藏到托盘再恢复/切页返回)后的新空 Canvas 会被上次实例的节流窗口跳过,
+    // 导致柱状图不显示(issue: 储存柱状图消失)。
+    DateTime _lastStorageRefreshUtc = DateTime.MinValue;
 
     void RefreshStorage() {
       if ((DateTime.UtcNow - _lastStorageRefreshUtc).TotalSeconds < 10) return;

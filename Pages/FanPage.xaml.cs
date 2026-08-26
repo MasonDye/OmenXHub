@@ -312,20 +312,11 @@ namespace OmenSuperHub.Pages {
         SetFanLevel(0, 0);
         SetFanLevel(rpm / 100, rpm / 100);
       }
-      // ponytail: fan mode is part of the preset snapshot (FanControl). For built-in
-      // presets we persist only the manual-RPM choice (mode==4 → "NN NN RPM" form) to the
-      // Presets\<key> subkey, so a user's manual RPM survives preset switch/restart —
-      // PresetManager.SwitchPreset reads it back to override GetBuiltInDefaults' "auto".
-      // Non-manual modes (silent/cool/balanced/smart) are NOT persist-restored on built-in
-      // presets: FanTable is the preset's semantic default (Extreme=cool/GpuPriority=balanced/
-      // LightUse=silent) and should rebound to that default on re-entry. Persisting them
-      // would let a stale legacy subkey (e.g. old SavePresetFanState wrote FanTable=cool onto
-      // GpuPriority) permanently shadow the preset's real semantic.
-      // Custom preset path always writes via SaveCustomPreset (writes JSON + registry).
+      // ponytail: 内置预设的风扇档(含手动/固定 RPM)是临时绑定,不持久化到预设子键——
+      // 切走/重启回到预设 FanTable 默认(Extreme=cool/GpuPriority=balanced/LightUse=silent)。
+      // 只有自定义预设才完整绑定并保存风扇配置(SaveCustomPreset 写 JSON)。
       if (PresetManager.IsCustom(ConfigService.Preset)) {
         PresetManager.SaveCustomPreset(ConfigService.Preset);
-      } else if (mode == 4) {
-        ConfigService.SavePresetFanState(ConfigService.Preset);
       }
     }
 
@@ -409,15 +400,10 @@ namespace OmenSuperHub.Pages {
       SetFanLevel(rpm / 100, rpm / 100);
       ConfigService.FanControl = rpm + " RPM";
       ConfigService.Save("FanControl");
-      // ponytail: per-mode-value writeback. Custom preset → JSON/registry via
-      // SaveCustomPreset; built-in preset → only the FanControl/FanTable keys
-      // under Presets\<key> so the user's RPM survives preset switch/restart
-      // (see PresetManager.SwitchPreset reading those keys back to override
-      // the hardcoded GetBuiltInDefaults FanControl="auto").
+      // ponytail: 内置预设的手动 RPM 不持久化到预设子键(临时绑定,切走/重启回 FanTable 默认);
+      // 仅自定义预设完整绑定风扇配置。
       if (PresetManager.IsCustom(ConfigService.Preset)) {
         PresetManager.SaveCustomPreset(ConfigService.Preset);
-      } else {
-        ConfigService.SavePresetFanState(ConfigService.Preset);
       }
       _loading = false;
     }
@@ -435,11 +421,9 @@ namespace OmenSuperHub.Pages {
       ConfigService.FanControl = rpm + " RPM";
       ConfigService.Save("FanControl");
       SelectComboItem(FanRpmCombo, rpm + " RPM");
-      // ponytail: per-mode-value writeback — mirrors FanRpmCombo_SelectionChanged.
+      // ponytail: 与 FanRpmCombo_SelectionChanged 一致 —— 内置预设手动不持久化,仅自定义预设绑定。
       if (PresetManager.IsCustom(ConfigService.Preset)) {
         PresetManager.SaveCustomPreset(ConfigService.Preset);
-      } else {
-        ConfigService.SavePresetFanState(ConfigService.Preset);
       }
       _loading = false;
     }

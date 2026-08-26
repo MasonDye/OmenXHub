@@ -407,32 +407,11 @@ namespace OmenSuperHub.Services {
 
       if (data == null) return;
 
-      // ponytail: 内置预设出厂默认把 FanControl 写死成 "auto"。但用户在该预设下手改过
-      // RPM（如 Extreme→4500 RPM）后，ApplyPresetData 会用硬编码默认覆盖回 auto，造成
-      // "上次手动转速没保存"。这里读回 Presets\<preset> 子键里已存的 FanControl（见
-      // ConfigService.SavePresetFanControl 由 FanPage 拖动 RPM 时写入），用用户值覆盖硬编码默认。
-      // 关键: 只覆盖 FanControl，**不覆盖 FanTable**。FanTable 是预设语义的固有映射
-      // (Extreme=cool / GpuPriority=balanced / LightUse=silent)，跨预设切换应回归预设默认，
-      // 旧版本残留的子键 FanTable=cool 也会让 GpuPriority 默认 balanced 被错误覆盖回 cool。
-      // 用户主动切档（silent/cool/balanced）的偏好通过全局 FanTable 注册表键保留 — 不持久化到预设子键。
-      // 子键不存在 (新机器或未改过风扇) → 保持硬编码默认，行为不变。
-      try {
-        using (var key = Registry.CurrentUser.OpenSubKey(PresetSubKey(preset))) {
-          if (key != null) {
-            var savedFc = key.GetValue("FanControl") as string;
-            // ponytail: 仅保留用户手改的 RPM 形态（"4000 RPM"/"60%"），不保留 "smart"/"auto"/""
-            // —— 后者会被 ApplyPresetData 用预设默认重置，但若用户在某预设下切到 smart 模式且
-            // 走 fan mode 切换路径会被 SaveCustomPreset 处理（仅自定义预设）。Built-in 预设下的
-            // smart 选择仅在当前会话有效（FC 字符串=smart 走 ApplyPresetHardware smart 分支），
-            // 不应跨会话覆盖预设语义 "auto" → 跳过。
-            if (!string.IsNullOrEmpty(savedFc)
-                && (savedFc.Contains(" RPM") || savedFc.EndsWith("%"))) {
-              data.FanControl = savedFc;
-            }
-          }
-        }
-      } catch { }
-
+      // ponytail: 内置预设的风扇档(含手动/固定 RPM)是「临时绑定」——切走即丢、重启回到
+      // 预设的 FanTable 语义默认(Extreme=cool / GpuPriority=balanced / LightUse=silent)。
+      // 不再从 Presets\<preset> 子键读回任何 FanControl 覆盖硬编码 "auto"(旧逻辑会把用户
+      // 手动选的 "4000 RPM" 跨切换/重启复活,导致"改其他档后仍回手动")。
+      // 自定义预设的完整风扇绑定(含手动)走 LoadCustomPreset 的 JSON 恢复,不在此处。
       // 1. 写入 ConfigService (1.1 始终写入，1.2 仅自定义)
       ApplyPresetData(data);
 

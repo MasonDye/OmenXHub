@@ -184,7 +184,9 @@ namespace OmenSuperHub.Services.SystemOptimization {
     /// <summary>启用/禁用启动项。Registry 项在 Run↔RunDisabled / RunOnce↔RunOnceDisabled 间搬迁；Folder 项在 Startup↔Startup\Disabled 间搬迁。</summary>
     public static bool SetEnabled(StartupItem item, bool enabled) {
       if (item == null || string.IsNullOrEmpty(item.Id)) return false;
-      if (item.IsEnabled == enabled) return true;
+      // ponytail: 不能用 item.IsEnabled == enabled 短路 — UI 的 IsChecked 是 Mode=TwoWay 绑定,
+      // 用户切 Toggle 时绑定先在事件触发前把 item.IsEnabled 写成目标值,这里会误判"无需操作"
+      // 而直接 return,导致"关闭启动项失效"。幂等交给 RegDisable/RegEnable 依据源键真实存在性判断。
       if (item.ItemType == StartupItemType.Folder) return SetFolderEnabled(item, enabled);
       if (!TryParseId(item.Id, out RunLocation loc, out string name) ||
           !string.Equals(name, item.Name, StringComparison.OrdinalIgnoreCase)) return false;
@@ -196,9 +198,14 @@ namespace OmenSuperHub.Services.SystemOptimization {
       try {
         using (var baseKey = RegistryKey.OpenBaseKey(loc.Hive, loc.View))
         using (var src = baseKey.OpenSubKey(loc.SubKey, true)) {
-          if (src == null) return false;
+          // ponytail: 源键不存在 → 没有可禁用的活动项,视为已禁用(幂等成功),不再 return false。
+          if (src == null) return true;
           var current = ReadRunValue(src, loc, item.Name);
-          if (current == null || current.Command != item.Command || current.IsEnabled != item.IsEnabled) return false;
+          // ponytail: current==null 表示 Run 键里已无此值(已搬到 Disabled 或本就不在) → 禁用已达成。
+          // 仅当源键还持有该值但命令不匹配(错配)时才失败;不再比较 current.IsEnabled,
+          // 那从活动键读恒为 true,且 item.IsEnabled 已被 TwoWay 绑定污染,比较不稳定。
+          if (current == null) return true;
+          if (current.Command != item.Command) return false;
           RegistryValueKind kind = src.GetValueKind(item.Name);
           object raw = src.GetValue(item.Name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
 
@@ -218,10 +225,11 @@ namespace OmenSuperHub.Services.SystemOptimization {
         string disSub = DisabledSubKey(loc.SubKey);
         using (var baseKey = RegistryKey.OpenBaseKey(loc.Hive, loc.View))
         using (var dis = baseKey.OpenSubKey(disSub, true)) {
-          if (dis == null) return false;
+          // ponytail: 禁用键不存在 → 没有待启用的项,视为已启用(幂等成功)。
+          if (dis == null) return true;
           // 找回原始值与类型
           string real = dis.GetValueNames().FirstOrDefault(n => string.Equals(n, item.Name, StringComparison.OrdinalIgnoreCase));
-          if (real == null) return false;
+          if (real == null) return true;   // 禁用键里无此值 → 已启用,幂等
           RegistryValueKind kind = dis.GetValueKind(real);
           object raw = dis.GetValue(real, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
 

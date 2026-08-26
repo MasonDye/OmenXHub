@@ -13,21 +13,12 @@ namespace OmenSuperHub.Pages {
   public partial class AutomationPage : Page {
     public AutomationPage() {
       InitializeComponent();
-      Action<string> execHandler = null;
       Loaded += (s, e) => {
         bool enabled = ConfigService.AutomationEnabled;
         AutoEnableToggle.IsChecked = enabled;
         AutoAddPipelineBtn.IsEnabled = enabled;
         AutoAddQuickActionBtn.IsEnabled = enabled;
         RefreshList();
-        execHandler = (name) => Dispatcher.InvokeAsync(() => RefreshList());
-        AutomationProcessor.ExecutionStatusChanged += execHandler;
-      };
-      Unloaded += (s, e) => {
-        if (execHandler != null) {
-          AutomationProcessor.ExecutionStatusChanged -= execHandler;
-          execHandler = null;
-        }
       };
     }
 

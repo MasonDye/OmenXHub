@@ -7,6 +7,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using Microsoft.Win32;
 
 namespace OmenSuperHub.Services {
   internal static class OccStubService {
@@ -92,6 +93,26 @@ namespace OmenSuperHub.Services {
         }
       }
       return st;
+    }
+
+    /// <summary>开发者模式是否已开启(AllowDevelopmentWithoutDevLicense)。</summary>
+    public static bool IsDeveloperModeEnabled() {
+      try {
+        using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock"))
+          return key != null && Convert.ToInt32(key.GetValue("AllowDevelopmentWithoutDevLicense", 0)) == 1;
+      } catch { return false; }
+    }
+
+    /// <summary>开启开发者模式(写 HKLM,需管理员).false=写入失败。</summary>
+    public static bool EnableDeveloperMode() {
+      try {
+        using (var key = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock")) {
+          if (key == null) return false;
+          key.SetValue("AllowDevelopmentWithoutDevLicense", 1, RegistryValueKind.DWord);
+          key.SetValue("AllowAllTrustedApps", 1, RegistryValueKind.DWord);
+        }
+        return IsDeveloperModeEnabled();
+      } catch { return false; }
     }
 
     /// <summary>注册存根(需开发者模式)。返回 null=成功,否则为错误文本。</summary>
