@@ -17,6 +17,8 @@ namespace OmenSuperHub.Views {
       if (_window == null) {
         _window = new StorageCleanWindow();
         _window.Closed += (_, __) => _window = null;
+        // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+        Utils.WindowHelper.DetachOwnerOnClose(_window);
       }
       if (owner != null && owner.IsLoaded) _window.Owner = owner;
       _window.Show();

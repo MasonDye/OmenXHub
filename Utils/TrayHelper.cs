@@ -214,6 +214,28 @@ namespace OmenSuperHub.Utils {
       langMenu.Items.Add(CreateLangMenuItem("繁體中文", AppLanguage.TraditionalChinese));
       langMenu.Items.Add(CreateLangMenuItem("English", AppLanguage.English));
       _contextMenu.Items.Add(langMenu);
+      // ponytail: 性能预设快捷选择 —— 结构镜像上方语言子菜单:父级 + 互斥勾选。
+      // 内置三档 + 自定义(同 FanPage 预设下拉),勾选态以 ConfigService.Preset 为准;
+      // 切换后 SwitchPreset 写配置、ApplyPresetHardware 下发硬件,重建菜单刷新勾选。
+      var presetMenu = new System.Windows.Controls.MenuItem {
+        Header = Strings.SysPresetsHeading,
+        Icon = new SymbolIcon { Symbol = SymbolRegular.Gauge24 }
+      };
+      foreach (var (display, key) in PresetManager.EnumerateAllPresets()) {
+        string k = key;   // 闭包捕获,避免 foreach 变量共享
+        var pItem = new System.Windows.Controls.MenuItem {
+          Header = display, IsCheckable = true, IsChecked = ConfigService.Preset == k
+        };
+        pItem.Click += (s, e) => {
+          _contextMenu.IsOpen = false;
+          PresetManager.SwitchPreset(k);
+          if (System.Windows.Application.Current?.MainWindow is Views.MainWindow mw)
+            mw.ApplyPresetHardware();
+          BuildContextMenu();
+        };
+        presetMenu.Items.Add(pItem);
+      }
+      _contextMenu.Items.Add(presetMenu);
       AddMenuItem(Strings.Help, () => Views.HelpWindow.ShowInstance(), SymbolRegular.QuestionCircle24);
       _contextMenu.Items.Add(new System.Windows.Controls.Separator());
       AddMenuItem(Strings.Exit, () => TrayService.Exit(), SymbolRegular.SignOut24);

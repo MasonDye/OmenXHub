@@ -517,7 +517,7 @@ namespace OmenSuperHub.Services {
         // ponytail: App.xaml.cs 启动时调的 SetFanMode(0x31) 可能在 EC/WMI 就绪前就跑，
         // 失败后没有重试；而 CPU 功率限制依赖 EC 处于 unleash mode 才会真正生效。
         // 在这里再补一刀，确保功率限不会被 EC 忽略。
-        try { OmenHardware.SetFanMode((byte)0x31); } catch { }
+        try { OmenHardware.SetFanModeCompat(0x31); } catch { }
         // ── 1.1 全局绑定参数 ──
         try { TrayService.SetGPUClockLimit(gpuClock); } catch { }
         try {
@@ -564,8 +564,8 @@ namespace OmenSuperHub.Services {
             byte speed = (byte)(rpm / 100);
             if (speed < 0) speed = 0; if (speed > 100) speed = 100;
             OmenHardware.SetMaxFanSpeedOff();
-            OmenHardware.SetFanLevel(0, 0);
-            OmenHardware.SetFanLevel(speed, speed);
+            OmenHardware.SetFanLevel(0, 0, fan3: OmenHardware.IsThreeFan());
+            OmenHardware.SetFanLevel(speed, speed, fan3: OmenHardware.IsThreeFan());
             TrayService.fanControlTimer?.Change(Timeout.Infinite, Timeout.Infinite);
           } else {
             // ponytail: 按 FanTable 选用全局曲线文件 —— cool/silent/balanced 三档平级。

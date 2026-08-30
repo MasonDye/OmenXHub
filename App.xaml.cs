@@ -153,7 +153,11 @@ namespace OmenSuperHub {
         HardwareService.MonitorQuery();
 
         // Set unleash mode — required before CPU power limit takes effect
-        try { SetFanMode((byte)0x31); } catch { }
+        // ponytail: SetFanModeCompat 按机型 ThermalPolicy 版本映射(V1→L7, V0 黑名单→安全档)
+        try {
+          Logger.Info($"[ThermalPolicy] Version={OmenHardware.GetThermalPolicyVersion()} SystemID={HP.Omen.Core.Model.Device.Models.DeviceModel.ThisSystemID}");
+          SetFanModeCompat(0x31);
+        } catch { }
 
         // Version-based read code
         Version version = Assembly.GetExecutingAssembly().GetName().Version;

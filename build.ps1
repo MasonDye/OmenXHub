@@ -6,7 +6,8 @@
 param(
     [string]$Configuration = "Release",
     [string]$Project = "OmenSuperHub.csproj",
-    [switch]$NoRun
+    [switch]$NoRun,
+    [switch]$Package
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,7 +35,7 @@ Write-Host ""
 
 # Build
 Write-Host "[BUILD] Starting build..." -ForegroundColor Yellow
-$buildArgs = @("build", $Project, "-c", $Configuration, "--nologo")
+$buildArgs = @("build", $Project, "-c", $Configuration, "-p:Platform=x64", "--nologo")
 Write-Host "[BUILD] dotnet $($buildArgs -join ' ')"
 Write-Host ""
 
@@ -50,7 +51,7 @@ if ($exitCode -ne 0) {
 Write-Host "[OK] Build succeeded." -ForegroundColor Green
 
 # Show output location
-$outDir = Join-Path $root "bin\$Configuration\net481\"
+$outDir = Join-Path $root "bin\x64\$Configuration\net481\"
 $exe = Join-Path $outDir "OmenXHub.exe"
 if (Test-Path $exe) {
     Write-Host ""
@@ -58,8 +59,37 @@ if (Test-Path $exe) {
     Write-Host "         Size: $((Get-Item $exe).Length / 1KB) KB"
 } else {
     Write-Host "[WARN] Expected output not found: $exe" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "Done." -ForegroundColor Green
+    exit 1
+}
+
+if ($Package) {
+    $required = @(
+        "OmenXHub.exe", "OmenXHub.exe.config", "LibreHardwareMonitorLib.dll",
+        "HP.Omen.Core.Common.dll", "HP.Omen.Core.Model.Device.dll",
+        "HP.Omen.Core.Api.dll", "PerformanceControl.dll",
+        "System.Threading.Tasks.Extensions.dll", "SMBiosSDK.dll", "Utf8Json.dll"
+    )
+    $missing = $required | Where-Object { -not (Test-Path (Join-Path $outDir $_)) }
+    if ($missing) {
+        Write-Host "[FAILED] Missing package files: $($missing -join ', ')" -ForegroundColor Red
+        exit 1
+    }
+
+    $iscc = @(
+        (Get-Command ISCC.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+    ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+    if (-not $iscc) {
+        Write-Host "[WARN] ISCC.exe not found. Install Inno Setup 6 to build the installer." -ForegroundColor Yellow
+        exit 0
+    }
+
+    $iss = Join-Path $root "installer\OmenXHub.iss"
+    Write-Host "[PACKAGE] Compiling installer..." -ForegroundColor Yellow
+    & $iscc $iss
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Write-Host "[OK] Installer created in $root\dist" -ForegroundColor Green
     exit 0
 }
 

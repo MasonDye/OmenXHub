@@ -142,6 +142,9 @@ namespace OmenSuperHub.Utils {
       w.Content = root;
       w.Owner = owner;
       w.Title = title;
+      // ponytail: 关闭前断开 Owner — 模态弹窗(ShowDialog)关闭时 WPF 对 owner 的恢复/激活
+      // 与托盘/其他 owned window 焦点链交错会把主窗口误最小化(issue: 关闭弹窗后主界面最小化)。
+      WindowHelper.DetachOwnerOnClose(w);
       w.PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { result = 0; w.Close(); } };
       // Wire buttons to close
       foreach (var child in FindVisualChildren<System.Windows.Controls.Button>(root))

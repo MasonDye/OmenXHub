@@ -45,9 +45,20 @@ namespace OmenSuperHub.Services {
     static int _smartLastAppliedRpmGpu;
     static uint _smartLastTick;
     static float _smartAlpha = 0.3f;
+    // ponytail: 官方 EWMA 升快降慢 —— EWMA.Update 按 cpuTemp>=Value ? _lambdaIncrease : _lambdaDecrease
+    // 选系数(docs/OMEN_OFFICIAL_FAN_ALGORITHM.md §4)。本项目补一个更小的降温系数,让转速平滑回落,
+    // 避免温度在阈值附近来回抽动;取升温系数一半为默认。
+    static float _smartAlphaDown = 0.15f;
 
     public static void InitSmartFanState(float alpha) {
       _smartAlpha = alpha;
+      _smartAlphaDown = alpha * 0.5f;   // 降温更平滑,升快降慢
+#if DEBUG
+      // ponytail: 升快降慢的系数方向被改反/改等都会让降温抽动回归 —— 这是 smart 曲线
+      // 行为的一部分,留一个可运行断言兜底(与下方 CheckCurveInvariants 同款模式)。
+      System.Diagnostics.Debug.Assert(_smartAlpha > _smartAlphaDown,
+        "升温系数应大于降温系数(升快降慢),否则降温时转速会急促回落");
+#endif
       _smartEmaCpuTemp = -1f;
       _smartEmaGpuTemp = -1f;
       _smartLastAppliedRpmCpu = 0;
@@ -59,25 +70,43 @@ namespace OmenSuperHub.Services {
       lock (_fanLock) {
         // ponytail: FanSync 开启时,两把风扇共用 max(CPU,GPU) 作为参考温度,
         // 两条 EMA 同步收敛到同一源,避免 GPU 高温时风扇被低估。
-        float rawTemp = ConfigService.FanSync && HardwareService.MonitorGPU
-          ? Math.Max(HardwareService.CPUTemp, HardwareService.GPUTemp)
-          : (fanIndex == 0) ? HardwareService.CPUTemp : HardwareService.GPUTemp;
+        // UseIrForFanCurve 开启时加入 IR(红外)路 — 官方三路算法 max(cpu,gpu,ir)
+        // (docs/OMEN_OFFICIAL_FAN_ALGORITHM.md);IR 未读到(负值)被 max 忽略。
+        float rawTemp;
+        // ponytail: 自定义/smart 模式吃原始温度(不叠加温度层 RespondSpeed EMA)——
+        // smart 层自己已有升快降慢 EMA + 迟滞 + 限速,双重平滑会让响应过肉。
+        // 预设档仍走 HardwareService.CPUTemp/GPUTemp 平滑值(GetFanSpeedForTemperature)。
+        if (ConfigService.FanSync && HardwareService.MonitorGPU) {
+          float t = Math.Max(HardwareService.RawCpuTemp, HardwareService.RawGpuTemp);
+          if (ConfigService.UseIrForFanCurve) t = Math.Max(t, HardwareService.RawIrTemp);
+          rawTemp = t;
+        } else {
+          rawTemp = (fanIndex == 0) ? HardwareService.RawCpuTemp : HardwareService.RawGpuTemp;
+          if (ConfigService.UseIrForFanCurve) rawTemp = Math.Max(rawTemp, HardwareService.RawIrTemp);
+        }
         if (rawTemp <= 0) rawTemp = OmenHardware.GetFittingTemperature();
         if (rawTemp <= 0) return _smartLastAppliedRpmCpu > 0 ? _smartLastAppliedRpmCpu : 2000;
 
         if (_smartEmaCpuTemp < 0) {
-          _smartEmaCpuTemp = HardwareService.CPUTemp;
-          _smartEmaGpuTemp = HardwareService.GPUTemp;
+          // ponytail: EMA 种子与温度源同为 raw,否则首拍从平滑值起跳会闪一下。
+          _smartEmaCpuTemp = HardwareService.RawCpuTemp;
+          _smartEmaGpuTemp = HardwareService.RawGpuTemp;
           _smartLastTick = (uint)Environment.TickCount;
         }
         float prevEma = (fanIndex == 0) ? _smartEmaCpuTemp : _smartEmaGpuTemp;
+        // ponytail: 升快降慢 —— 温度上行用大系数(_smartAlpha)追得快,下行用 _smartAlphaDown
+        // 平滑回落,对齐官方 EWMA.Update 的 _lambdaIncrease/_lambdaDecrease 分离。
+        float emaAlpha = rawTemp >= prevEma ? _smartAlpha : _smartAlphaDown;
+        // ponytail: 空闲强制 λ=0.1(官方 EWMA 语义,开关可关)—— CPU/GPU 占用都低时
+        // 压平 smart 层系数,待机转速更稳更安静。判定复用 IsFanIdle()(预设档 IDLE_AUTO 同源)。
+        if (ConfigService.SmartFanIdleLambda && IsFanIdle()) emaAlpha = 0.1f;
         if (ConfigService.FanSync && HardwareService.MonitorGPU) {
-          _smartEmaCpuTemp = _smartAlpha * rawTemp + (1f - _smartAlpha) * _smartEmaCpuTemp;
+          _smartEmaCpuTemp = emaAlpha * rawTemp + (1f - emaAlpha) * _smartEmaCpuTemp;
           _smartEmaGpuTemp = _smartEmaCpuTemp;
         } else if (fanIndex == 0)
-          _smartEmaCpuTemp = _smartAlpha * rawTemp + (1f - _smartAlpha) * _smartEmaCpuTemp;
+          _smartEmaCpuTemp = emaAlpha * rawTemp + (1f - emaAlpha) * _smartEmaCpuTemp;
         else
-          _smartEmaGpuTemp = _smartAlpha * rawTemp + (1f - _smartAlpha) * _smartEmaGpuTemp;
+          _smartEmaGpuTemp = emaAlpha * rawTemp + (1f - emaAlpha) * _smartEmaGpuTemp;
         float emaTemp = (fanIndex == 0) ? _smartEmaCpuTemp : _smartEmaGpuTemp;
 
         float hysteresis = ConfigService.SmartFanHysteresis;
@@ -103,6 +132,15 @@ namespace OmenSuperHub.Services {
         return rawSpeed;
       }
     }
+    // ponytail: 空闲判定共享辅助 —— 预设档(IDLE_AUTO 最低档)与自定义档(空闲压平 λ)
+    // 用同一套口径:CPU/GPU 占用都低于 10%(GPU 未监控时只按 CPU 判)。10% 是启发式阈值,
+    // 真机待机负载若更高会不触发,可提为配置。
+    static bool IsFanIdle() {
+      bool cpuIdle = HardwareService.CPUUsage < 10f;
+      bool gpuIdle = !HardwareService.MonitorGPU || HardwareService.GPUUsage < 10f;
+      return cpuIdle && gpuIdle;
+    }
+
     // ═══════════════════════════════════════════════════════
     // Temperature-Fan Speed Mappings
     // ═══════════════════════════════════════════════════════
@@ -253,6 +291,16 @@ namespace OmenSuperHub.Services {
       lock (_fanLock) {
         if (CPUTempFanMap.Count == 0 || GPUTempFanMap.Count == 0) return 0;
 
+        // ponytail: 预设档空闲固定最低档(官方 IDLE_AUTO 语义,与自定义档 IsFanIdle 同源)。
+        // 受 SmartFanIdleLambda 开关统一控制(与自定义档空闲压平 λ 同一开关):开启且空闲且
+        // 温度未过热(<60°C)时直接回曲线最低档,待机更安静。60°C 是启发式上限:
+        // 更低贴地安静,更高说明"负载刚降、余温仍在",仍交给曲线正常散热,避免贴地烤机。
+        if (ConfigService.SmartFanIdleLambda && IsFanIdle()
+            && Math.Max(HardwareService.CPUTemp, HardwareService.GPUTemp) < 60f) {
+          float minT = CPUTempFanMap.Keys.Min();
+          return CPUTempFanMap[minT][fanIndex];
+        }
+
         if (HardwareService.MonitorCPU && !HardwareService.MonitorGPU
             && HardwareService.CPUPower < 0.01f && HardwareService.IsAmbientSensorSupported) {
           float fitted = OmenHardware.GetFittingTemperature();
@@ -261,8 +309,10 @@ namespace OmenSuperHub.Services {
 
         // ponytail: FanSync 开启且有 GPU 时,两把风扇以 max(CPU,GPU) 对同一曲线插值,
         // 从源头保证 RPM 一致。MonitorGPU==false 时落到下方"仅 CPU"分支。
+        // UseIrForFanCurve 开启时加入 IR 路(官方三路 max(cpu,gpu,ir))。
         if (ConfigService.FanSync && HardwareService.MonitorGPU) {
           float maxT = Math.Max(HardwareService.CPUTemp, HardwareService.GPUTemp);
+          if (ConfigService.UseIrForFanCurve) maxT = Math.Max(maxT, HardwareService.IrTemp);
           return GetFanSpeedForSpecificTemperature(maxT, CPUTempFanMap, fanIndex);
         }
 
@@ -418,20 +468,55 @@ namespace OmenSuperHub.Services {
       return result;
     }
 
-    public static string PresetCurvePath(string presetKey, bool gpu) =>
-        Path.Combine(FanCurvesDir, $"custom_{presetKey}{(gpu ? "_gpu" : "")}.txt");
+    public static string PresetCurvePath(string presetKey, bool gpu, bool fan3 = false) {
+      if (fan3) return Path.Combine(FanCurvesDir, $"custom_{presetKey}_fan3.txt");
+      return Path.Combine(FanCurvesDir, $"custom_{presetKey}{(gpu ? "_gpu" : "")}.txt");
+    }
 
-    public static void SavePresetCurve(string presetKey, List<(float temp, int rpm)> points, bool gpu) {
+    // ponytail: 独立第三扇曲线(仅三扇机型消费) —— 文件 custom_<preset>_fan3.txt,
+    // 复用 CPU 表的存取格式(经 PresetCurvePath(fan3:true))。文件不存在 → 计算层回退均值跟随。
+    public static Dictionary<float, List<int>> Fan3TempFanMap = new Dictionary<float, List<int>>();
+
+    /// <summary>加载第三扇曲线到内存查表;文件不存在时清空(计算层回退均值跟随)。</summary>
+    public static void LoadFan3CurveIntoMap(string presetKey) {
+      lock (_fanLock) {
+        Fan3TempFanMap.Clear();
+        foreach (var kv in LoadPresetCurve(presetKey, gpu: false, fan3: true)) {
+          if (!Fan3TempFanMap.ContainsKey(kv.temp)) Fan3TempFanMap[kv.temp] = new List<int>();
+          Fan3TempFanMap[kv.temp].Add(kv.rpm);
+        }
+      }
+    }
+
+    /// <summary>
+    /// 独立第三扇转速:三扇机且该 preset 配了 fan3 曲线 → 按温度源查独立表;
+    /// 否则返回 -1,调用方回退均值跟随(SetFanLevel 均值语义)。
+    /// 温度源取 max(CPU,GPU)(第三扇多为 VRM/排气,跟随机内主要热源)。
+    /// </summary>
+    public static int GetFan3Speed() {
+      lock (_fanLock) {
+        if (Fan3TempFanMap.Count == 0) return -1;
+        // ponytail: fan3 曲线与 GetSmartFanSpeed 同源 —— 自定义曲线统一吃 raw 温度,
+        // 不叠温度层 RespondSpeed EMA(预设档走 GetFanSpeedForTemperature 仍是平滑值)。
+        float t = Math.Max(HardwareService.RawCpuTemp, HardwareService.RawGpuTemp);
+        if (ConfigService.UseIrForFanCurve) t = Math.Max(t, HardwareService.RawIrTemp);
+        return GetFanSpeedForSpecificTemperature(t, Fan3TempFanMap, 0);
+      }
+    }
+
+    public static void SavePresetCurve(string presetKey, List<(float temp, int rpm)> points, bool gpu, bool fan3 = false) {
       if (points == null || points.Count == 0) return;
-      string path = PresetCurvePath(presetKey, gpu);
-      if (gpu)
+      string path = PresetCurvePath(presetKey, gpu, fan3);
+      if (fan3)
+        SaveCurveToFile(path, "Fan_Table_CPU_Temperature_List", "Fan_Table_CPU_Fan_Speed_List", points);
+      else if (gpu)
         SaveCurveToFile(path, "Fan_Table_GPU_Temperature_List", "Fan_Table_GPU_Fan_Speed_List", points);
       else
         SaveCurveToFile(path, "Fan_Table_CPU_Temperature_List", "Fan_Table_CPU_Fan_Speed_List", points);
     }
 
-    public static List<(float temp, int rpm)> LoadPresetCurve(string presetKey, bool gpu) {
-      string path = PresetCurvePath(presetKey, gpu);
+    public static List<(float temp, int rpm)> LoadPresetCurve(string presetKey, bool gpu, bool fan3 = false) {
+      string path = PresetCurvePath(presetKey, gpu, fan3);
       return LoadCurveFromFile(path);
     }
 
@@ -549,6 +634,11 @@ namespace OmenSuperHub.Services {
         GPUTempFanMap.Clear();
         foreach (var pt in cpuPoints) CPUTempFanMap[pt.temp] = new List<int> { pt.rpm, pt.rpm };
         foreach (var pt in gpuPoints) GPUTempFanMap[pt.temp] = new List<int> { pt.rpm, pt.rpm };
+        // ponytail: 第三扇曲线随预设切换加载(文件不存在则清空 → 计算层回退均值跟随)。
+        Fan3TempFanMap.Clear();
+        foreach (var pt in LoadPresetCurve(presetKey, gpu: false, fan3: true)) {
+          Fan3TempFanMap[pt.temp] = new List<int> { pt.rpm };
+        }
       }
 
       return (cpuPoints, gpuPoints);

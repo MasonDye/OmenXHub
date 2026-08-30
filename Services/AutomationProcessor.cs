@@ -368,7 +368,7 @@ namespace OmenSuperHub.Services {
         if (pct >= 0 && pct <= 100) {
           ConfigService.FanControl = pct + "%";
           SetMaxFanSpeedOff();
-          OmenHardware.SetFanLevel(pct, pct);
+          OmenHardware.SetFanLevel(pct, pct, fan3: OmenHardware.IsThreeFan());
           Views.OsdWindow.ShowFanModeOsd(pct + "%");
           TrayService.fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
         }

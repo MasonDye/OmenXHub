@@ -39,6 +39,8 @@ namespace OmenSuperHub.Views {
     public PipelineEditorWindow(AutomationPipeline existing, Window owner, bool isQuickAction = false) {
       InitializeComponent();
       Owner = owner;
+      // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+      Utils.WindowHelper.DetachOwnerOnClose(this);
       _isNew = existing == null;
       _isQuickAction = isQuickAction || (!_isNew && existing.Triggers.Count == 1 && existing.Triggers[0].Type == "QuickAction");
       _pipeline = _isNew ? new AutomationPipeline { Name = Strings.NewPipelineDefaultName, Steps = new List<AutomationStep>() } : existing;
@@ -235,6 +237,8 @@ namespace OmenSuperHub.Views {
         ExtendsContentIntoTitleBar = true,
         Background = System.Windows.Media.Brushes.Transparent
       };
+      // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+      Utils.WindowHelper.DetachOwnerOnClose(dialog);
 
       var rootGrid = new Grid();
       rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -685,6 +689,8 @@ namespace OmenSuperHub.Views {
         ExtendsContentIntoTitleBar = true,
         Background = System.Windows.Media.Brushes.Transparent
       };
+      // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+      Utils.WindowHelper.DetachOwnerOnClose(dialog);
 
       var rootGrid = new Grid();
       rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });

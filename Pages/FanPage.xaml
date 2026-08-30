@@ -41,8 +41,7 @@
         </ui:CardControl.Header>
       </ui:CardControl>
 
-      <ui:CardExpander x:Name="ManualControlCard" Margin="{StaticResource CardMargin}" Visibility="Collapsed"
-                        Icon="ArrowSync24">
+      <ui:CardExpander x:Name="ManualControlCard" Margin="{StaticResource CardMargin}" Visibility="Collapsed">
         <ui:CardExpander.Header>
           <Grid>
             <Grid.ColumnDefinitions>
@@ -54,18 +53,25 @@
                       SelectionChanged="FanRpmCombo_SelectionChanged"/>
           </Grid>
         </ui:CardExpander.Header>
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="150"/>
-            <ColumnDefinition Width="*"/>
-          </Grid.ColumnDefinitions>
-          <ui:NumberBox x:Name="FanRpmNum" Minimum="500" Maximum="6000" SmallChange="100"
-                        MaxDecimalPlaces="0" ValueChanged="FanRpmNum_ValueChanged"
-                        Value="{Binding ElementName=FanRpmSlider, Path=Value, Mode=TwoWay}"/>
-          <Slider x:Name="FanRpmSlider" Grid.Column="1" Minimum="500" Maximum="6000"
-                  TickFrequency="100" IsSnapToTickEnabled="True" Margin="12,0,0,0"
-                  VerticalAlignment="Center"/>
-        </Grid>
+        <!-- ponytail: 第三扇(仅三扇机型可见) —— 第 3 扇由固件按 (CPU+GPU)/2 均值跟随,
+             无独立曲线;此行只读展示其当前 level×100 换算转速。 -->
+        <StackPanel>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="150"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <ui:NumberBox x:Name="FanRpmNum" Minimum="500" Maximum="6000" SmallChange="100"
+                          MaxDecimalPlaces="0" ValueChanged="FanRpmNum_ValueChanged"
+                          Value="{Binding ElementName=FanRpmSlider, Path=Value, Mode=TwoWay}"/>
+            <Slider x:Name="FanRpmSlider" Grid.Column="1" Minimum="500" Maximum="6000"
+                    TickFrequency="100" IsSnapToTickEnabled="True" Margin="12,0,0,0"
+                    VerticalAlignment="Center"/>
+          </Grid>
+          <TextBlock x:Name="Fan3RpmText" Text="" FontSize="{DynamicResource FontSizeCaption}"
+                     Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,8,0,0"
+                     Visibility="Collapsed"/>
+        </StackPanel>
       </ui:CardExpander>
 
 
@@ -76,23 +82,28 @@
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Orientation="Horizontal">
                 <ui:SymbolIcon Symbol="Edit24" Margin="0,0,8,0"/>
                 <TextBlock Text="{x:Static app:Strings.FanCurveHeading}" Tag="SelfDefineCurve" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
-              <ComboBox x:Name="FanCurveSel" Grid.Column="1" MinWidth="120"
+              <ComboBox x:Name="FanCurveSel" Grid.Column="1" MinWidth="120" Margin="0,0,8,0"
                         SelectedIndex="0" SelectionChanged="FanCurveSel_Changed">
                 <ComboBoxItem Content="{x:Static app:Strings.FanCurveCPULabel}"/>
                 <ComboBoxItem Content="{x:Static app:Strings.FanCurveGPULabel}"/>
+                <!-- ponytail: 第三扇独立曲线 tab —— 仅三扇机型在代码里置 Visible(本机双扇保持 Collapsed) -->
+                <ComboBoxItem Content="{x:Static app:Strings.FanCurveFan3Label}" Visibility="Collapsed"/>
               </ComboBox>
+              <!-- ponytail: 立即应用 —— smart 模式的 EMA/迟滞会锁住旧转速(温度未变时)，
+                   新曲线保存后需重置智能状态并立即触发一拍心跳才能生效 -->
+              <ui:Button x:Name="FanCurveApplyBtn" Grid.Column="2" Content="{x:Static app:Strings.FanCurveApplyBtn}"
+                         Height="30" MinWidth="64" Click="FanCurveApply_Click" Appearance="Primary"/>
             </Grid>
             <StackPanel Margin="0,12,0,12">
               <TextBlock x:Name="FanCurveTipText" Text="{x:Static app:Strings.FanCurveTip}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}"/>
 	              <TextBlock FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Text="{x:Static app:Strings.FanDragHint}"/>
-		              <TextBlock FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"
-		                         Text="{x:Static app:Strings.FanModeChangeHint}"/>
-            </StackPanel>
+	            </StackPanel>
                <Grid>
                  <Grid.ColumnDefinitions>
                    <ColumnDefinition Width="45"/>
@@ -235,6 +246,32 @@
               </StackPanel>
               <ui:ToggleSwitch x:Name="FanSyncToggle" Grid.Column="1"
                               Checked="FanSyncToggle_Changed" Unchecked="FanSyncToggle_Changed"/>
+            </Grid>
+            <Grid Margin="0,6,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.UseIrForFanCurve}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.UseIrForFanCurveDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="IrFanCurveToggle" Grid.Column="1"
+                              Checked="IrFanCurveToggle_Changed" Unchecked="IrFanCurveToggle_Changed"/>
+            </Grid>
+            <Grid Margin="0,6,0,6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="{x:Static app:Strings.FanSmartIdleLambda}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.FanSmartIdleLambdaHint}" FontSize="{DynamicResource FontSizeCaption}"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="SmartIdleLambdaToggle" Grid.Column="1"
+                              Checked="SmartIdleLambdaToggle_Changed" Unchecked="SmartIdleLambdaToggle_Changed"/>
             </Grid>
             <Grid x:Name="CleanCreekCard" Visibility="Collapsed">
               <Grid.ColumnDefinitions>
