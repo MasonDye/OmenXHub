@@ -160,7 +160,9 @@ namespace OmenSuperHub {
       try {
         var result = ExecuteCommand("nvidia-smi -q -d TEMPERATURE");
         if (result.ExitCode == 0) {
-          string targetPattern = @"GPU Target Temperature\s+:\s+(\d+)\s+C";
+          // ponytail: 新驱动(RTX 50 系)字段改名为 "GPU Target Temperature Specification",
+          // 旧驱动无 Specification 后缀——后缀做可选匹配,两代驱动通吃。
+          string targetPattern = @"GPU Target Temperature(?: Specification)?\s+:\s+(\d+)\s+C";
           var targetMatch = Regex.Match(result.Output, targetPattern);
           if (targetMatch.Success) limit = int.Parse(targetMatch.Groups[1].Value);
         }

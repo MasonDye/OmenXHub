@@ -1,0 +1,7 @@
+OK write SOFTWARE\HP\HP App\SysControl\BatteryExtenderMode
+OK write SOFTWARE\HP\HP App\Battery
+OK write SOFTWARE\HP\HP App\BatteryManager\ScheduleBatteryCharge
+VERIFY SOFTWARE\HP\HP App\SysControl\BatteryExtenderMode: Enabled=1
+VERIFY SOFTWARE\HP\HP App\Battery: Enabled=
+VERIFY SOFTWARE\HP\HP App\BatteryManager\ScheduleBatteryCharge: Enabled=1
+=== done ===

@@ -117,7 +117,7 @@
       </Grid>
 
       <!-- ══════ 1. 主开关 + CPU 拓扑可视化 ══════ -->
-      <ui:CardExpander Margin="0,0,0,8" Icon="AppsList24" IsExpanded="True">
+      <ui:CardExpander Margin="0,0,0,8" IsExpanded="True">
         <ui:CardExpander.Header>
           <Grid>
             <Grid.ColumnDefinitions>
@@ -182,10 +182,13 @@
       </ui:CardExpander>
 
       <!-- ══════ 2. 进程列表（右键快速操作） ══════ -->
-      <ui:CardExpander Margin="0,0,0,8" Icon="List24" IsExpanded="True">
+      <ui:CardExpander Margin="0,0,0,8" IsExpanded="True">
         <ui:CardExpander.Header>
           <StackPanel>
-            <TextBlock Text="{x:Static app:Strings.CoreKeepProcessListHeading}" FontWeight="SemiBold"/>
+            <StackPanel Orientation="Horizontal">
+              <ui:SymbolIcon Symbol="List24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.CoreKeepProcessListHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
             <TextBlock Text="{x:Static app:Strings.CoreKeepProcessListDesc}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
           </StackPanel>
@@ -343,10 +346,13 @@
       </ui:CardExpander>
 
       <!-- ══════ 3. 规则列表（卡片式） + 添加 ══════ -->
-      <ui:CardExpander Margin="0,0,0,8" Icon="List24" IsExpanded="True">
+      <ui:CardExpander Margin="0,0,0,8" IsExpanded="True">
         <ui:CardExpander.Header>
           <StackPanel>
-            <TextBlock Text="{x:Static app:Strings.CoreKeepHeading}" FontWeight="SemiBold"/>
+            <StackPanel Orientation="Horizontal">
+              <ui:SymbolIcon Symbol="List24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.CoreKeepHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
             <TextBlock Text="{x:Static app:Strings.PerfCoreKeepDesc}" FontSize="{DynamicResource FontSizeBody}"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
           </StackPanel>
@@ -454,10 +460,13 @@
       </ui:CardExpander>
 
       <!-- ══════ 4. 规则配置（完整编辑） ══════ -->
-      <ui:CardExpander Margin="0,0,0,8" Icon="SettingsAdjustments24" IsExpanded="True">
+      <ui:CardExpander Margin="0,0,0,8" IsExpanded="True">
         <ui:CardExpander.Header>
           <StackPanel>
-            <TextBlock Text="{x:Static app:Strings.CoreKeepRuleConfigHeading}" FontWeight="SemiBold"/>
+            <StackPanel Orientation="Horizontal">
+              <ui:SymbolIcon Symbol="Settings24" FontSize="{DynamicResource FontSizeHeader}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+              <TextBlock Text="{x:Static app:Strings.CoreKeepRuleConfigHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
             <TextBlock Text="{x:Static app:Strings.CoreKeepEnforcementLevelHint}" FontSize="{DynamicResource FontSizeCaption}"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
           </StackPanel>
@@ -621,7 +630,7 @@
       </ui:CardExpander>
 
       <!-- ══════ 5. 系统保留 CPU 核心集（ReservedCpuSets 注册表，重启生效） ══════ -->
-      <ui:CardExpander Margin="0,0,0,8" Icon="Shield24" IsExpanded="False">
+      <ui:CardExpander Margin="0,0,0,8" IsExpanded="False">
         <ui:CardExpander.Header>
           <Grid>
             <Grid.ColumnDefinitions>

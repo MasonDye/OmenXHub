@@ -101,6 +101,8 @@ namespace OmenSuperHub.Views {
 
     public SystemOptimizeWindow() {
       InitializeComponent();
+      // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+      OmenSuperHub.Utils.WindowHelper.DetachOwnerOnClose(this);
       Loaded += (s, e) => ReloadServices();
       KeyDown += (s, e) => { if (e.Key == Key.Escape) Close(); };
     }

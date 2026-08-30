@@ -1,0 +1,12 @@
+=== Probe v10: cmdType 76 mode 2 test ===
+hpqBIntM: OK
+--- battery before ---
+--- write mode 2 ---
+  cmd=2 t=4C rc=0x0 data=00 00 00 00
+--- read back ---
+  cmd=1 t=4C rc=0x0 data=02 00 00 00
+--- write mode 1 (restore) ---
+  cmd=2 t=4C rc=0x0 data=00 00 00 00
+--- read back ---
+  cmd=1 t=4C rc=0x0 data=01 00 00 00
+=== done ===

@@ -1,0 +1,6 @@
+OK SOFTWARE\HP\HP App\Battery Enabled=1
+OK SOFTWARE\HP\HP App\SysControl\BatteryExtenderMode Enabled=1
+OK SOFTWARE\HP\HP App\BatteryManager\ScheduleBatteryCharge Enabled=1
+OK SOFTWARE\HP\HP App\BatteryManager\ChargingOption Enabled=1
+OK removed BatteryDisabled
+=== done ===

@@ -350,7 +350,10 @@
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.AutoStartHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"/>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Rocket24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.AutoStartHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
               <TextBlock Text="{x:Static app:Strings.AutoStartDesc}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
@@ -514,7 +517,10 @@
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel>
-              <TextBlock Text="{x:Static app:Strings.DataLocalizeHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"/>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Map24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.DataLocalizeHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
               <TextBlock Text="{x:Static app:Strings.DataLocalizeDesc}" FontSize="{DynamicResource FontSizeCaption}"
                          Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
             </StackPanel>
@@ -535,7 +541,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.DebugLogHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Bug24" FontSize="{DynamicResource FontSizeSubtitle}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                  <TextBlock Text="{x:Static app:Strings.DebugLogHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock x:Name="DebugLogDesc" Text="{x:Static app:Strings.DebugLogDesc}" FontSize="{DynamicResource FontSizeCaption}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>

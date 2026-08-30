@@ -1,0 +1,17 @@
+=== Probe v5: battery threshold (t=56) ===
+hpqBIntM: OK
+--- read t=0x38 (56) with cmd=1 ---
+  cmd=1 t=38 rc=0x0 data=00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+--- write test t=0x38 (READ-ONLY check: write 0) ---
+  cmd=2 t=38 rc=0x6 data=00 00 00 00
+--- t=0x4C (76) thermal read ---
+  cmd=1 t=4C rc=0x0 data=01 00 00 00
+--- scan cmd=2 (write) on battery-ish types, harmless: just check rc ---
+  cmd=2 t=36 rc=0x5 data=00 00 00 00
+  cmd=2 t=37 rc=0x5 data=00 00 00 00
+  cmd=2 t=38 rc=0x6 data=00 00 00 00
+  cmd=2 t=39 rc=0x4 data=00 00 00 00
+  cmd=2 t=3A rc=0x4 data=00 00 00 00
+  cmd=2 t=3B rc=0x4 data=00 00 00 00
+  cmd=2 t=3C rc=0x4 data=00 00 00 00
+=== done ===

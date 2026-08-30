@@ -210,6 +210,15 @@ namespace OmenSuperHub {
       return types.Count > 2 && types[2] != FanType.Unsupported;
     }
 
+    // ponytail: 三风扇缓存判定 —— IsThreeFanSupported() 每次发 WMI(0x2C)，心跳每秒调用
+    // 会多一次 BIOS 往返。风扇数量是机器固定属性,进程内探测一次缓存。
+    static bool _is3FanCached;
+    static bool _is3Fan;
+    public static bool IsThreeFan() {
+      if (!_is3FanCached) { _is3Fan = IsThreeFanSupported(); _is3FanCached = true; }
+      return _is3Fan;
+    }
+
     public static bool IsCleanCreekSupported() {
       GetFanType(out var fanTypes, out var capabilities);
       if (capabilities.Count > fanTypes.Count)
@@ -244,6 +253,17 @@ namespace OmenSuperHub {
     }
 
     public static void SetFanLevel(int fanSpeed1, int fanSpeed2, bool fan3 = false, bool fanClean = false) {
+      SetFanLevelInternal(fanSpeed1, fanSpeed2, null, fanClean, fan3);
+    }
+
+    // ponytail: 独立第三扇 —— 第 3 字节写独立值而非均值。OSH 参考实现只用均值(无第三扇
+    // 温度源时的保守策略),但 byte 槽本身接受任意 0-255,独立曲线经此重载下发。
+    // fanSpeed3 为 null 时回退均值语义(与三参重载一致)。
+    public static void SetFanLevel(int fanSpeed1, int fanSpeed2, int? fanSpeed3) {
+      SetFanLevelInternal(fanSpeed1, fanSpeed2, fanSpeed3, false, fanSpeed3.HasValue);
+    }
+
+    static void SetFanLevelInternal(int fanSpeed1, int fanSpeed2, int? fanSpeed3, bool fanClean, bool fan3) {
       byte[] data = new byte[fan3 ? 3 : 2];
       if (fanClean) {
         GetFanType(out var types, out var capabilities);
@@ -251,12 +271,16 @@ namespace OmenSuperHub {
         data[0] = (byte)(caps[0] ? fanSpeed1 + 128 : fanSpeed1);
         data[1] = (byte)(caps[1] ? fanSpeed2 + 128 : fanSpeed2);
         if (fan3) {
-          data[2] = (byte)(caps[2] ? (fanSpeed1 + fanSpeed2) / 2 + 128 : (fanSpeed1 + fanSpeed2) / 2);
+          int v = fanSpeed3 ?? (fanSpeed1 + fanSpeed2) / 2;
+          data[2] = (byte)(caps[2] ? v + 128 : v);
         }
       } else {
         data[0] = (byte)fanSpeed1;
         data[1] = (byte)fanSpeed2;
-        if (fan3) data[2] = (byte)((fanSpeed1 + fanSpeed2) / 2);
+        if (fan3) {
+          int v = fanSpeed3 ?? (fanSpeed1 + fanSpeed2) / 2;
+          data[2] = (byte)v;
+        }
       }
       // ponytail: 暗影精灵 6 等老机型 WMI BIOS 可能失败,失败时降级到 EC 直接读写
       // (需 PawnIO 驱动; 参考 OmenMon 项目的 EC 寄存器表)
@@ -305,25 +329,6 @@ namespace OmenSuperHub {
     }
 
     public enum ThermalPolicyVersion { V0 = 0, V1 = 1 }
-
-    // ─── Diagnostics ──────────────────────────────────────────────────
-    public static void PrintSystemDesignData() {
-      byte[] data = GetSystemDesignData();
-      if (data == null || data.Length < 12) { Logger.Error("[ERROR] SystemDesignData 获取失败或长度不足"); return; }
-      Console.WriteLine("========== System Design Data ==========");
-      Console.WriteLine($"完整数据: {BitConverter.ToString(data)}");
-      int adapterPower = data[0] | (data[1] << 8);
-      Console.WriteLine($"[0]-[1] 适配器功率 = {adapterPower} W");
-      Console.WriteLine($"[3] ThermalPolicyVersion = {data[3]}");
-      byte b4 = data[4];
-      Console.WriteLine($"[4] 平台特性 = 0x{b4:X2}  Bit0(SwFanControl)={(b4 & 0x01) != 0} Bit1(TurboMode)={(b4 & 0x02) != 0}");
-      Console.WriteLine($"[5] PL4_Default = {data[5]}W");
-      Console.WriteLine($"[8] DefaultConcurrentTdp = {data[8]}");
-      byte b9 = data[9];
-      Console.WriteLine($"[9] LoadLine 支持级别={b9 & 0x0F} 默认级别={(b9 >> 4) & 0x0F}");
-      byte b10 = data[10];
-      Console.WriteLine($"[10] 传感器: IR={(b10 & 0x01) != 0} Ambient={(b10 & 0x02) != 0} PCH={(b10 & 0x04) != 0} VR={(b10 & 0x08) != 0}");
-    }
 
     public static ThermalPolicyVersion GetThermalPolicyVersion() {
       byte[] data = GetSystemDesignData();
@@ -404,6 +409,26 @@ namespace OmenSuperHub {
     // Raw byte overload for backward compatibility (0x31=performance, 0x30=default)
     public static void SetFanMode(byte ecCommand) {
       SendOmenBiosWmi(0x1A, new byte[] { 0xFF, ecCommand }, 0);
+    }
+
+    // ponytail: V0/V1 兼容映射 —— 项目历史沿用裸字节 0x31(Unleash)/0x30(Default)，但这两值
+    // 的语义按 ThermalPolicy 版本而异(OSH 已验证表)：V1 下 0x31=L7=Performance/Unleash；
+    // V0 映射表无 L7 条目，黑名单老机(8607/8746/8747/8749/874A/8748)盲发 0x31 是未定义行为。
+    // 统一经本辅助按机型版本映射成安全 EC 值；V1 机映射结果与原字节一致(零回归)，
+    // 仅 V0 黑名单机被矫正到 V0 表的安全档。
+    public static byte GetEcPerformanceCommand(byte legacyCommand) {
+      // 0x31(Unleash/Performance) 与 0x30(Default/平衡) 是仅有的两个历史值
+      bool unleash = legacyCommand == 0x31;
+      ThermalPolicyVersion version = GetThermalPolicyVersion();
+      if (version == ThermalPolicyVersion.V1)
+        return unleash ? (byte)PerformanceMode.L7 : (byte)PerformanceMode.L2;
+      // V0: OSH 表 —— Eco/Default 语义档直接用枚举值; Unleash 在 V0 无对应档,回退 Default。
+      return unleash ? (byte)PerformanceMode.Default : (byte)PerformanceMode.Default;
+    }
+
+    /// <summary>按机型 ThermalPolicy 版本矫正后的风扇模式写入(全工程 SetFanMode((byte)) 调用应改走此入口)。</summary>
+    public static void SetFanModeCompat(byte legacyCommand) {
+      SendOmenBiosWmi(0x1A, new byte[] { 0xFF, GetEcPerformanceCommand(legacyCommand) }, 0);
     }
 
     // ─── CPU Power ────────────────────────────────────────────────────
@@ -606,6 +631,37 @@ namespace OmenSuperHub {
         }
       }
       return "v" + ver + " (Unknown)";
+    }
+
+    // ─── PawnIO 驱动安装 ────────────────────────────────────────────────
+    /// <summary>
+    /// 自带安装：从嵌入资源提取 PawnIO 安装程序到临时目录，以 -install 静默安装。
+    /// 应用已 requireAdministrator 提权，安装进程继承管理员权限，无需二次 RunAs。
+    /// 已安装则直接返回成功；安装后等待注册表落盘并回读确认结果，临时文件始终清理。
+    /// </summary>
+    public static bool InstallPawnIO() {
+      if (IsPawnIOInstalled()) return true;
+      string tempExe = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "OmenSuperHub_PawnIO_setup.exe");
+      try {
+        var rs = Assembly.GetExecutingAssembly().GetManifestResourceStream("OmenSuperHub.Resources.PawnIO_setup.exe");
+        if (rs == null) { Logger.Error("[PawnIO] 内嵌安装资源缺失，无法安装"); return false; }
+        using (rs)
+        using (var fs = new System.IO.FileStream(tempExe, System.IO.FileMode.Create, System.IO.FileAccess.Write)) {
+          rs.CopyTo(fs);
+        }
+        // ponytail: -install 静默安装；UseShellExecute=false 直接执行以继承本进程管理员权限。
+        using (var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tempExe, "-install") { UseShellExecute = false })) {
+          p?.WaitForExit();
+        }
+        // 给驱动注册表写入留出落盘窗口（同安装器自身的异步收尾），再回读确认。
+        System.Threading.Thread.Sleep(2000);
+        return IsPawnIOInstalled();
+      } catch (Exception ex) {
+        Logger.Error("[PawnIO] 安装失败: " + ex.Message);
+        return false;
+      } finally {
+        try { if (System.IO.File.Exists(tempExe)) System.IO.File.Delete(tempExe); } catch { }
+      }
     }
 
     // ─── Keyboard Backlight (Basic WMI) ───────────────────────────────
@@ -980,6 +1036,10 @@ namespace OmenSuperHub {
     // ponytail: mirrors OSH InitMaxTemp — reads BIOS-set temperature throttling
     // limit from HP SDK PlatformSettings instead of hardware MSR TjMax.
     public static int GetCpuTempLimit() {
+      // ponytail: SDK 路径天花板 — PerformanceControl.dll 按 4.1.1.0 强名请求 System.Threading.Tasks.Extensions，
+      // 字节加载程序集不吃 app.config 重定向；而按 Costura 约定嵌入该程序集会让解析器在启动时
+      // 递归栈溢出(c00000fd,已实测两种嵌入方式复现)。故 SDK 读取在真机必然失败 → 稳定走回退值 100。
+      // 对 Raptor Lake HX(本机)TjMax 恰为 100,显示正确;换机型若不准,先解决上述程序集链。
       try {
         string sku = PerformanceControlHelper.GetPlatformSku(isInit: true);
         string devType = DeviceModel.OmenPlatform.Name.ToString();
@@ -987,10 +1047,11 @@ namespace OmenSuperHub {
         var ps = PerformanceControlHelper.GetPlatformSettings(devType, sku);
         Logger.Info($"[GetCpuTempLimit] platformSettings={(ps == null ? "null" : "not null")}" +
             (ps != null ? $", tempThrottle={ps.temperatureThrottlingPerformance}" : ""));
-        if (ps != null && ps.temperatureThrottlingPerformance > 0)
+        // ponytail: 合理范围外(垃圾/未初始化值)按未读到处理,回退默认 100
+        if (ps != null && ps.temperatureThrottlingPerformance > 0 && ps.temperatureThrottlingPerformance < 200)
           return ps.temperatureThrottlingPerformance;
       } catch (Exception ex) {
-        Logger.Error($"[GetCpuTempLimit] EXCEPTION: {ex}");
+        Logger.Verbose($"[GetCpuTempLimit] SDK read unavailable (known): {ex.Message}");
       }
       return 100;
     }

@@ -375,7 +375,7 @@ namespace OmenSuperHub.Services {
         if (param.speed1 < 0 || param.speed1 > 100 || param.speed2 < 0 || param.speed2 > 100)
           return (400, MakeError("speed1 and speed2 must be between 0 and 100"));
 
-        OmenHardware.SetFanLevel(param.speed1, param.speed2);
+        OmenHardware.SetFanLevel(param.speed1, param.speed2, fan3: OmenHardware.IsThreeFan());
         Logger.Info($"API: SetFanLevel({param.speed1}, {param.speed2})");
         return (200, "{\"success\":true,\"message\":\"Fan speed updated\"}");
       } catch (Exception ex) {

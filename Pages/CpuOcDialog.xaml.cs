@@ -18,6 +18,8 @@ namespace OmenSuperHub.Pages
         public CpuOcDialog()
         {
             InitializeComponent();
+            // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+            OmenSuperHub.Utils.WindowHelper.DetachOwnerOnClose(this);
             _xtuService = new XtuService();
             _coreRatioItems = new ObservableCollection<CoreRatioItem>();
             CoreRatioItems.ItemsSource = _coreRatioItems;

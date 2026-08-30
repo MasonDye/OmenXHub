@@ -161,6 +161,10 @@ WMI: SendOmenBiosWmi(11, data, 0, 131081)
 2. 本项目作者从机器 WMI 响应或手册中拼出来的一份完整猜测。
 3. 部分 Bit 也许是正确的（CmdType=11 确实是 `SetLightBarColors`，且[data[0]=target] 与静态布局可衔接），但 effectId/speed/direction/theme 的位分配是**逆向推断值**，不可信。
 
+> **2026-08-26 更新：Dojo 动画已在真机实测通过**（effectId 1..9、speed/direction/theme 位字段验证有效）。
+> 以实测为 ground truth，不再视为"逆向推断值/不可信"。保留现有 `SetZoneAnimation` Dojo 分支，
+> 后续仅按方案 A 补齐 UI 控件（Direction/Theme 下拉）即可。
+
 ### 2.4 BasicFourZone 动画字节支持的"2 个 effect"
 
 本项目 `SetZoneAnimation` 的 BasicFourZone 分支（行 292-319）：

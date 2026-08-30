@@ -135,6 +135,9 @@ namespace OmenSuperHub.Services {
         Views.MainWindow.NavigateToPage("Other");
       }, false, Wpf.Ui.Controls.SymbolRegular.MoreHorizontal24));
 
+      // ── 性能预设 ──
+      AddPresetMenu();
+
       // ── Language ──
       AddLanguageMenu();
 
@@ -176,6 +179,23 @@ namespace OmenSuperHub.Services {
         applyAll();
       }, Strings.Current == AppLanguage.English, Wpf.Ui.Controls.SymbolRegular.Globe24));
       wpfContextMenu.Items.Add(langMenu);
+    }
+
+    // ponytail: 性能预设快捷选择 —— 结构镜像 AddLanguageMenu:父级子菜单 + 分组互斥勾选。
+    // 内置三档 + 自定义预设一并列出(同 FanPage 预设下拉),勾选态以 ConfigService.Preset 为准;
+    // 切换后 SwitchPreset 写配置、ApplyPresetHardware 下发硬件,RebuildMenu 刷新勾选。
+    static void AddPresetMenu() {
+      var presetMenu = CreateParentMenuItem(Strings.SysPresetsHeading);
+      foreach (var (display, key) in PresetManager.EnumerateAllPresets()) {
+        string k = key;   // 闭包捕获,避免 foreach 变量共享
+        presetMenu.Items.Add(CreateMenuItem(display, "presetGroup", () => {
+          PresetManager.SwitchPreset(k);
+          if (System.Windows.Application.Current?.MainWindow is Views.MainWindow mw)
+            mw.ApplyPresetHardware();
+          RebuildMenu();
+        }, ConfigService.Preset == k, Wpf.Ui.Controls.SymbolRegular.Gauge24));
+      }
+      wpfContextMenu.Items.Add(presetMenu);
     }
 
     internal static void RegisterTrayHelper(Utils.TrayHelper helper) {
@@ -411,7 +431,7 @@ namespace OmenSuperHub.Services {
               ? int.Parse(_savedFanControl.TrimEnd('%'))
               : FanService.ParseFanRpm(_savedFanControl) / 100;
             SetMaxFanSpeedOff();
-            OmenHardware.SetFanLevel(pct, pct);
+            OmenHardware.SetFanLevel(pct, pct, fan3: OmenHardware.IsThreeFan());
             fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
           }
           _savedFanControl = null;
@@ -445,7 +465,7 @@ namespace OmenSuperHub.Services {
             ConfigService.Save("DBVersion");
             UpdateCheckedState("DBGroup", "普通版本");
           } else {
-            SetFanMode((byte)0x31);
+            SetFanModeCompat(0x31);
             SetMaxGpuPower();
             SetCpuPowerLimit((byte)CPULimitDB);
             countDB = countDBInit;
@@ -458,9 +478,9 @@ namespace OmenSuperHub.Services {
         }
         if (tryTimes == 0) {
           if (ConfigService.FanMode.Contains("performance")) {
-            SetFanMode((byte)0x31);
+            SetFanModeCompat(0x31);
           } else if (ConfigService.FanMode.Contains("default")) {
-            SetFanMode((byte)0x30);
+            SetFanModeCompat(0x30);
           }
           RestoreCPUPower();
         }
@@ -545,9 +565,12 @@ namespace OmenSuperHub.Services {
         // 后面 SetFanLevel(0x2E) 设目标转速。去掉 speed guard ——
         // 无条件每 1s 写入一次，确保 AMD EC 不超时回退。
         SetMaxFanSpeedOff();
-        SetFanLevel(fanSpeed1, fanSpeed2);
+        // ponytail: 三扇机优先独立第三扇曲线(GetFan3Speed 返回 -1 = 未配曲线,
+        // 传 null 回退 OSH 均值跟随);双风机 IsThreeFan()=false,载荷仍 2 字节。
+        int? fan3Speed = OmenHardware.IsThreeFan() ? FanService.GetFan3Speed() : null;
+        SetFanLevel(fanSpeed1, fanSpeed2, fan3Speed);
         if (!HardwareService.MonitorFan)
-          HardwareService.UpdateFanSpeed(new[] { fanSpeed1, fanSpeed2, 0 });
+          HardwareService.UpdateFanSpeed(new[] { fanSpeed1, fanSpeed2, fan3Speed ?? fanSpeed1 });
       }, null, 100, 1000);
 
       // Optimise timer (replaces WinForms Timer)
@@ -566,17 +589,19 @@ namespace OmenSuperHub.Services {
     static void OptimiseSchedule() {
       // ponytail: AMD EC 可能在低温跨温度阈值时自动退出 performance 热策略，
       // 每 30 秒重申一次，确保 EC 保持在软件风扇控制模式。
-      if (OmenHardware.HasAmdCpu()) try { SetFanMode((byte)0x31); } catch { }
+      if (OmenHardware.HasAmdCpu()) try { SetFanModeCompat(0x31); } catch { }
       if (flagStart < 5) {
         flagStart++;
+        // ponytail: 启动唤醒重发(OSH 验证序列) —— 三扇机传 fan3 使第 3 字节进载荷。
+        bool is3Fan = OmenHardware.IsThreeFan();
         if (ConfigService.FanControl.EndsWith("%")) {
           SetMaxFanSpeedOff();
           int pct = 100;
           int.TryParse(ConfigService.FanControl.TrimEnd('%'), out pct);
-          SetFanLevel(pct, pct);
+          SetFanLevel(pct, pct, fan3: is3Fan);
         } else if (ConfigService.FanControl.Contains("max")) {
           SetMaxFanSpeedOff();
-          SetFanLevel(100, 100);
+          SetFanLevel(100, 100, fan3: is3Fan);
         } else if (ConfigService.FanControl == "" || ConfigService.FanControl == "auto") {
           SetMaxFanSpeedOff();
         } else if (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom") {
@@ -588,7 +613,7 @@ namespace OmenSuperHub.Services {
         } else if (ConfigService.FanControl.Contains(" RPM")) {
           SetMaxFanSpeedOff();
           int rpmValue = FanService.ParseFanRpm(ConfigService.FanControl);
-          SetFanLevel(rpmValue / 100, rpmValue / 100);
+          SetFanLevel(rpmValue / 100, rpmValue / 100, fan3: is3Fan);
         }
       }
       GetFanCount();
@@ -659,10 +684,10 @@ namespace OmenSuperHub.Services {
 
       // Fan mode
       if (ConfigService.FanMode.Contains("performance")) {
-        SetFanMode((byte)0x31);
+        SetFanModeCompat(0x31);
         UpdateCheckedState("fanModeGroup", "狂暴模式");
       } else if (ConfigService.FanMode.Contains("default")) {
-        SetFanMode((byte)0x30);
+        SetFanModeCompat(0x30);
         UpdateCheckedState("fanModeGroup", "平衡模式");
       }
 
@@ -688,18 +713,18 @@ namespace OmenSuperHub.Services {
         SetMaxFanSpeedOff();
         if (fanControlTimer != null) fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
         int pct = int.Parse(ConfigService.FanControl.TrimEnd('%'));
-        SetFanLevel(pct, pct);
+        SetFanLevel(pct, pct, fan3: OmenHardware.IsThreeFan());
         UpdateCheckedState("fanControlGroup", ConfigService.FanControl);
       } else if (ConfigService.FanControl.Contains("max")) {
         SetMaxFanSpeedOff();
-        SetFanLevel(100, 100);
+        SetFanLevel(100, 100, fan3: OmenHardware.IsThreeFan());
         if (fanControlTimer != null) fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
         UpdateCheckedState("fanControlGroup", "手动: 100%");
       } else if (ConfigService.FanControl.Contains(" RPM")) {
         SetMaxFanSpeedOff();
         if (fanControlTimer != null) fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
         int rpmValue = FanService.ParseFanRpm(ConfigService.FanControl);
-        SetFanLevel(rpmValue / 100, rpmValue / 100);
+        SetFanLevel(rpmValue / 100, rpmValue / 100, fan3: OmenHardware.IsThreeFan());
         UpdateCheckedState("fanControlGroup", ConfigService.FanControl);
       }
     }
@@ -782,7 +807,7 @@ namespace OmenSuperHub.Services {
     static void RestoreDbVersion() {
       switch (ConfigService.DBVersion) {
         case 1:
-          SetFanMode((byte)0x31);
+          SetFanModeCompat(0x31);
           SetMaxGpuPower();
           SetCpuPowerLimit((byte)CPULimitDB);
           countDB = countDBInit;
@@ -981,7 +1006,7 @@ namespace OmenSuperHub.Services {
     // Restore Power Config (re-applies on AC plug-in)
     // ══════════════════════════════════════════════════════
     public static void RestorePowerConfig() {
-      SetFanMode((byte)0x31); // Unleash mode
+      SetFanModeCompat(0x31); // Unleash mode
       System.Threading.Tasks.Task.Delay(1000).ContinueWith(_ => {
         RestoreCPUPower();
         // ponytail: TPP 必须早于 SetGpuPowerState，否则 PPAB 读到的总预算

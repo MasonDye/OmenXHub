@@ -1,0 +1,5 @@
+=== RPC probe: PowerManagerService MBH scan ===
+OpenConnection: 5
+retrying immediately...
+OpenConnection retry: 5
+CONN FAIL

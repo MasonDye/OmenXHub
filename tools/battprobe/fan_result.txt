@@ -1,0 +1,11 @@
+=== Fan probe: GetFanType cmdType 44 + fan commands ===
+hpqBIntM: OK
+--- 0x20008 t=0x2C (44) ---
+  cmd=131080 t=2C rc=0x0 data=21 00 00 00 00 00 00 00 00 00 00 00 00 0
+--- cmd=1 t=0x2C ---
+  cmd=1 t=2C rc=0x0 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+--- cmd=1 t=0x2E read ---
+  cmd=1 t=2E rc=0x4 data=00 00 00 00
+--- cmd=1 t=0x27 read ---
+  cmd=1 t=27 rc=0x4 data=00 00 00 00
+=== done ===

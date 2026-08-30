@@ -35,10 +35,9 @@
 
   <!-- NuGet Packages -->
   <ItemGroup>
-    <PackageReference Include="Fody" Version="6.5.5" PrivateAssets="all" />
-    <PackageReference Include="Costura.Fody" Version="5.7.0" PrivateAssets="all" />
     <PackageReference Include="HidSharp" Version="2.1.0" />
     <PackageReference Include="Microsoft.Windows.WDK.x64" Version="10.0.28000.1839" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NvAPIWrapper.Net" Version="0.8.1.101" />
     <!-- ponytail: removed unused Microsoft.Extensions.ObjectPool 6.0.4 -->
@@ -65,12 +64,14 @@
       <HintPath>Resources\McuSDK2.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <!-- ponytail: SMBiosSDK/Utf8Json restored — runtime deps of HP.Omen.Core.Model.Device.dll
-         (SMBIOS table read + JSON deserialization), loaded via Costura AssemblyResolve.
-         Static "zero C# refs" analysis was wrong: DeviceModel.ThisSystemID/GetPlatformSku
-         throw without them → board product shows 未知, CPU temp wall falls back to 100. -->
-    <EmbeddedResource Include="Resources\SMBiosSDK.dll" />
-    <EmbeddedResource Include="Resources\Utf8Json.dll" />
+    <Reference Include="SMBiosSDK">
+      <HintPath>Resources\SMBiosSDK.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Utf8Json">
+      <HintPath>Resources\Utf8Json.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
     <!-- PerformanceControl: HP firmware control helper, required for DeviceModel.IsHP etc. -->
     <Reference Include="PerformanceControl">
       <HintPath>Resources\PerformanceControl.dll</HintPath>
@@ -100,6 +101,10 @@
       <HintPath>Resources\Logging.dll</HintPath>
       <Private>true</Private>
     </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.4.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>Resources\System.Threading.Tasks.Extensions.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
     <EmbeddedResource Include="Resources\NativeRpcClient.dll" />
   </ItemGroup>
 
@@ -123,7 +128,17 @@
   <ItemGroup>
     <Compile Remove="packages\**" />
     <Compile Remove="backup\**" />
+    <!-- ponytail: OverlayDemo 是独立 overlay 演示工程(SelectorWindow/OverlayWidgetWindow),
+         与 tools\ 同理不得并入主程序编译;Compile+Page 双重排除(SDK 风格 WPF 隐式 glob
+         会分别把 .cs 与 .xaml 编进来,只除 Compile 会留半编译状态)。 -->
+    <Compile Remove="OverlayDemo\**" />
+    <Page Remove="OverlayDemo\**" />
     <Compile Remove="LibreHardwareMonitor-pawnio-squashed\**" />
+    <!-- ponytail: tools\ 是独立探针/工具工程(battprobe 等),不得并入主程序编译;
+         自身 obj/bin 生成物(AssemblyInfo.cs 等)也排除,否则 CS0579 重复特性。 -->
+    <Compile Remove="tools\**" />
+    <Compile Remove="bin\**" />
+    <Compile Remove="obj\**" />
     <EmbeddedResource Remove="packages\**" />
     <None Remove="packages\**" />
   </ItemGroup>
@@ -136,22 +151,10 @@
     <EmbeddedResource Include="Resources\nvpcf_cat.CAT" />
     <EmbeddedResource Include="Resources\nvpcf_sys.sys" />
     <EmbeddedResource Include="Resources\nvpcf_inf.inf" />
+    <!-- PawnIO 驱动安装程序 —— 总览页「安装」按钮用,运行时提取到临时目录以 -install 静默安装。
+         应用已 requireAdministrator 提权,安装进程继承权限,无需二次 RunAs。 -->
+    <EmbeddedResource Include="Resources\PawnIO_setup.exe" />
     <EmbeddedResource Include="Resources\NvidiaApi.dll" />
-    <EmbeddedResource Include="Resources\McuSDK2.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Common.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Model.Device.dll" />
-    <!-- ponytail: HP.Omen.Core.Api/Model.DataStructure/Utilities/Logger/Logger.APIs/Logger
-         restored — runtime deps of HP.Omen.Core.Model.Device.dll + PerformanceControl.dll,
-         loaded via Costura AssemblyResolve. -->
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Api.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Model.DataStructure.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Utilities.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Core.Logger.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Logger.dll" />
-    <EmbeddedResource Include="Resources\HP.Omen.Logger.APIs.dll" />
-    <EmbeddedResource Include="Resources\System.Threading.Tasks.Extensions.dll" />
-    <EmbeddedResource Include="Resources\PerformanceControl.dll" />
-    <EmbeddedResource Include="Resources\OmenFourZoneLighting.dll" />
     <EmbeddedResource Include="Resources\OmenLightingSDK.dll" />
     <EmbeddedResource Include="Resources\SingBox\sing-box.exe.gz" />
     <EmbeddedResource Include="Resources\SingBox\wintun.dll.gz" />
@@ -179,8 +182,9 @@
     <!-- ponytail: WDK 10.0.28000.1839 wants SDK.CPP.x64 exactly 10.0.28000 but only 10.0.28000.1721 is available;
          patch-level difference is harmless for build. Suppress the fall-back warning.
          Also suppress MSB3245/MSB3246 — Mono.Posix only loaded via reflection on Linux path;
-         never executed on Windows-only OmenSuperHub build. -->
-    <NoWarn>$(NoWarn);NU1603;MSB3245;MSB3246</NoWarn>
+         never executed on Windows-only OmenSuperHub build. MSB3277 — Unsafe 6.0.0 vs HP 链 6.0.3.0
+         的参考解析冲突已由 app.config 重定向 6.0.3.0→6.0.0.0 消解,仅剩编译期提示。 -->
+    <NoWarn>$(NoWarn);NU1603;MSB3245;MSB3246;MSB3277</NoWarn>
   </PropertyGroup>
 
 </Project>

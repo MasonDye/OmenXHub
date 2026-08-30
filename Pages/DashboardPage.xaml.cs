@@ -128,6 +128,22 @@ namespace OmenSuperHub.Pages {
       string presetKey = ConfigService.Preset;
       string fc = ConfigService.FanControl;
       string ft = ConfigService.FanTable;
+      // ponytail: 电池健康 — 30s 节流,后台 WMI 查询(不阻塞 UI),失败显示 "-"。
+      if ((DateTime.UtcNow - _lastBatteryHealthUtc).TotalSeconds >= 30) {
+        _lastBatteryHealthUtc = DateTime.UtcNow;
+        Task.Run(() => {
+          var bh = Services.BatteryHealthService.Query();
+          Logger.Info($"[BatteryHealth] Present={bh.Present} Charge={bh.ChargePercent}% Wear={bh.WearPercent}% Charging={bh.Charging}");
+          Dispatcher.BeginInvoke(new Action(() => {
+            if (BatteryHealthText == null) return;
+            if (!bh.Present) { BatteryHealthText.Text = "-"; return; }
+            string charge = bh.ChargePercent >= 0 ? bh.ChargePercent + "%" : "-";
+            // ponytail: 磨损度需 Design/Full 容量都有效;缺失(部分机器 Win32_Battery 不填)显示 "-"。
+            string wear = bh.WearPercent >= 0 ? bh.WearPercent + "%" : "-";
+            BatteryHealthText.Text = $"{charge} | 健康 {wear}";
+          }), DispatcherPriority.Background);
+        });
+      }
       Task.Run(() => {
         var mem = memOn ? GetMemoryStatus() : default;
         int cpuTemp = cpuOn ? (int)HardwareService.GetDisplayCpuTemp() : 0;
@@ -140,7 +156,7 @@ namespace OmenSuperHub.Pages {
         double gpuFan = gpuOn ? HardwareService.FanSpeedNow[1] * 100 : 0;
         double gpuPower = gpuOn ? HardwareService.GPUPower : 0;
         double gpuClock = gpuOn ? HardwareService.GPUClock : 0;
-        int ir = GetSensorTemperature(0);
+        int ir = (int)HardwareService.GetDisplayIrTemp();
         int amb = GetSensorTemperature(1);
         int pch = GetSensorTemperature(2);
         int vr = GetSensorTemperature(3);
@@ -174,9 +190,9 @@ namespace OmenSuperHub.Pages {
         CpuFanBar.Foreground = GetGradientBrush(HardwareService.FanSpeedNow[0] * 100, 6400);
         AnimateBar(CpuFanBar, HardwareService.FanSpeedNow[0] * 100);
         
-        CpuPowerText.Text = HardwareService.CPUPower.ToString("F1") + " W";
-        CpuPowerBar.Foreground = GetGradientBrush(HardwareService.CPUPower, 150);
-        AnimateBar(CpuPowerBar, HardwareService.CPUPower);
+        CpuPowerText.Text = HardwareService.GetDisplayCpuPower().ToString("F1") + " W";
+        CpuPowerBar.Foreground = GetGradientBrush(HardwareService.GetDisplayCpuPower(), 150);
+        AnimateBar(CpuPowerBar, HardwareService.GetDisplayCpuPower());
 
         // ponytail: CPUClock is the max core clock (MHz); 6000 covers modern boost bins.
         double cpuClock = HardwareService.CPUClock;
@@ -202,8 +218,8 @@ namespace OmenSuperHub.Pages {
         GpuFanBar.Foreground = GetGradientBrush(HardwareService.FanSpeedNow[1] * 100, 6400);
         AnimateBar(GpuFanBar, HardwareService.FanSpeedNow[1] * 100);
         
-        GpuPowerText.Text = HardwareService.GPUPower.ToString("F1") + " W";
-        GpuPowerBar.Foreground = GetGradientBrush(HardwareService.GPUPower, 170);
+        GpuPowerText.Text = HardwareService.GetDisplayGpuPower().ToString("F1") + " W";
+        GpuPowerBar.Foreground = GetGradientBrush(HardwareService.GetDisplayGpuPower(), 170);
         AnimateBar(GpuPowerBar, HardwareService.GPUPower);
 
         // ponytail: GPUClock is the core clock (MHz); 3000 covers typical boost bins.
@@ -285,9 +301,9 @@ namespace OmenSuperHub.Pages {
         CpuFanText.Text = cpuFan.ToString("F0") + " RPM";
         CpuFanBar.Foreground = GetGradientBrush(cpuFan, 6400);
         AnimateBar(CpuFanBar, cpuFan);
-        CpuPowerText.Text = cpuPower.ToString("F1") + " W";
-        CpuPowerBar.Foreground = GetGradientBrush(cpuPower, 150);
-        AnimateBar(CpuPowerBar, cpuPower);
+        CpuPowerText.Text = HardwareService.GetDisplayCpuPower().ToString("F1") + " W";
+        CpuPowerBar.Foreground = GetGradientBrush(HardwareService.GetDisplayCpuPower(), 150);
+        AnimateBar(CpuPowerBar, HardwareService.GetDisplayCpuPower());
         CpuClockText.Text = cpuClock.ToString("F0") + " MHz";
         CpuClockBar.Foreground = GetGradientBrush(cpuClock, 6000);
         AnimateBar(CpuClockBar, cpuClock);
@@ -304,9 +320,9 @@ namespace OmenSuperHub.Pages {
         GpuFanText.Text = gpuFan.ToString("F0") + " RPM";
         GpuFanBar.Foreground = GetGradientBrush(gpuFan, 6400);
         AnimateBar(GpuFanBar, gpuFan);
-        GpuPowerText.Text = gpuPower.ToString("F1") + " W";
-        GpuPowerBar.Foreground = GetGradientBrush(gpuPower, 170);
-        AnimateBar(GpuPowerBar, gpuPower);
+        GpuPowerText.Text = HardwareService.GetDisplayGpuPower().ToString("F1") + " W";
+        GpuPowerBar.Foreground = GetGradientBrush(HardwareService.GetDisplayGpuPower(), 170);
+        AnimateBar(GpuPowerBar, HardwareService.GetDisplayGpuPower());
         GpuClockText.Text = gpuClock.ToString("F0") + " MHz";
         GpuClockBar.Foreground = GetGradientBrush(gpuClock, 3000);
         AnimateBar(GpuClockBar, gpuClock);
@@ -363,7 +379,8 @@ namespace OmenSuperHub.Pages {
     }
 
     // ═══ 额外温度传感器(GPU Hot Spot / CPU CCD1 / M.2 SSD / 主板)— 勾选态 + 读值收敛在单 helper ═══
-    // ponytail: 读不到值显 "-",不隐藏整行(Visibility 只由 IsExtraEnabled 决定)避免遥测丢失时 UI 抖动。
+    // ponytail: 临时丢读显 "-" 不隐藏(避免遥测抖动);但机型根本没有的传感器(笔记本 SuperIO
+    // 主板温度)从未读到过,行直接隐藏——HasExtraTemp 只在有效读到时为真。
     static bool IsExtraEnabled(string id) {
       string saved = ConfigService.ExtraTempSensors ?? "";
       // 空键 = 首启全勾(与设置页 BuildExtraTempSensorOptions / BuildScreenOptions 同口径)
@@ -394,7 +411,7 @@ namespace OmenSuperHub.Pages {
 
     void UpdateExtraTempRow(System.Windows.Controls.TextBlock tb, string id) {
       if (tb == null) return;
-      bool on = IsExtraEnabled(id);
+      bool on = IsExtraEnabled(id) && Services.HardwareService.HasExtraTemp(id);
       tb.Visibility = on ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
       int v = (int)Services.HardwareService.GetDisplayExtraTemp(id);
       tb.Text = (on && v > 0) ? ExtraTempLabel(id) + ": " + v + " °C" : ExtraTempLabel(id) + ": -";
@@ -415,6 +432,9 @@ namespace OmenSuperHub.Pages {
     // 页面销毁重建(隐藏到托盘再恢复/切页返回)后的新空 Canvas 会被上次实例的节流窗口跳过,
     // 导致柱状图不显示(issue: 储存柱状图消失)。
     DateTime _lastStorageRefreshUtc = DateTime.MinValue;
+    // ponytail: 电池健康查询节流 — WMI 查询有开销,30s 足够(磨损度/电量变化慢)。
+    // 实例字段:页面重建后新实例重新查询一次,避免隐藏时旧节流跨实例跳过。
+    DateTime _lastBatteryHealthUtc = DateTime.MinValue;
 
     void RefreshStorage() {
       if ((DateTime.UtcNow - _lastStorageRefreshUtc).TotalSeconds < 10) return;
@@ -941,6 +961,8 @@ namespace OmenSuperHub.Pages {
         ExtendsContentIntoTitleBar = true,
         Background = Brushes.Transparent
       };
+      // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+      OmenSuperHub.Utils.WindowHelper.DetachOwnerOnClose(dialog);
 
       var root = new Grid();
       root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -1023,6 +1045,8 @@ namespace OmenSuperHub.Pages {
             ExtendsContentIntoTitleBar = true,
             Background = Brushes.Transparent
           };
+          // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+          OmenSuperHub.Utils.WindowHelper.DetachOwnerOnClose(errDialog);
           var errRoot = new Grid();
           errRoot.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
           errRoot.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -1179,6 +1203,9 @@ namespace OmenSuperHub.Pages {
       TempDispCombo.SelectedIndex = ConfigService.DisplayMode == "raw" ? 1 : 0;
     }
 
+    // ponytail: 每进程只做一次 sysinfo 完整后台刷新(见 RefreshSysInfo 内注释)
+    static bool _sysInfoFreshenedOnce;
+
     void RefreshSysInfo() {
       // ponytail: stale-cache detection — if the cached product name is
       // empty/unknown the initial query (possibly before PerformanceControl.dll
@@ -1215,14 +1242,20 @@ SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyb
 	              ? Strings.SysPawnInstalled + " (" + OmenHardware.GetPawnIOState() + ")"
 	              : Strings.SysPawnMissing;
 	          SysPawnIoText.Text = pawnIoNow;
+	          // ponytail: 安装按钮仅在未安装时显示;已安装隐藏(驱动由安装器常驻,无需重复装)。
+	          PawnIoInstallBtn.Visibility = OmenHardware.IsPawnIOInstalled() ? Visibility.Collapsed : Visibility.Visible;
 		          if (ConfigService.SysPawnIoText != pawnIoNow) {
 		            ConfigService.SysPawnIoText = pawnIoNow;
 		            ConfigService.Save("SysPawnIoText");
 		          }
 		        } catch { }
-	        return;
+	        // ponytail: 温度墙等缓存字段只在"缓存整体失效"时才会重新读取——真机上缓存永远命中,
+	        // GetCpuTjmax() 永不执行,温度墙永远显示注册表旧值(日志 0 次 [GetCpuTempLimit] 可证)。
+	        // 每进程首个 Dashboard 加载即使缓存命中也后台完整刷新一次,平衡 WMI 成本与新鲜度。
+	        if (_sysInfoFreshenedOnce) return;
+	        _sysInfoFreshenedOnce = true;
       }
-	      Task.Run(() => {
+      Task.Run(() => {
         string mfr = null, model = null, bios = null, cpu = null, gpu = null;
         int adapterW = 0;
         string pn = null, board = null;
@@ -1554,6 +1587,10 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
         ResizeMode = ResizeMode.CanResize, MinWidth = 420, MinHeight = 340
       };
       _gpuAppWindow.Closed += (s, _) => { _gpuAppWindow = null; GpuAppList = null; };
+      // ponytail: 关闭前断开 Owner — WPF 的 owned window 关闭时会尝试把焦点/激活还给 owner,
+      // 当 owner 与模态弹窗(DialogHelper)焦点链交错时可能把主窗口误最小化(实测)。
+      // 断开 Owner 后关闭成为独立窗口关闭,不影响主窗口状态。
+      _gpuAppWindow.Closing += (s, _) => { if (_gpuAppWindow != null) _gpuAppWindow.Owner = null; };
       RefreshGpuAppList();
       _gpuAppWindow.Show();
     }
@@ -1573,29 +1610,35 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
         return;
       bool ok = false;
       try {
-        // ponytail: try PID first, then fall back to image name (same as manual taskkill /F /IM)
-        var psi = new ProcessStartInfo("taskkill", $"/F /PID {app.ProcessId}") {
-          UseShellExecute = false, CreateNoWindow = true
-        };
-        using (var p = Process.Start(psi)) {
-          if (p != null) { p.WaitForExit(2000); ok = p.ExitCode == 0; }
-        }
-        if (!ok && !string.IsNullOrEmpty(app.ProcessName)) {
-          string imageName = System.IO.Path.GetFileName(app.ProcessName);
-          psi = new ProcessStartInfo("taskkill", $"/F /IM {imageName}") {
+        // ponytail: 优先按映像名杀进程树 (/F /T /IM) —— nvidia-smi 报告的 PID 常是 GPU 子进程
+        // (QQ/Chrome 等多进程应用),只杀单个 PID 会立即被父进程重启,表现为"没结束"。
+        // /T 连带杀整棵进程树,覆盖多进程应用的守护/渲染子进程。imageName 拿不到再回退 /PID。
+        string imageName = string.IsNullOrEmpty(app.ProcessName)
+          ? null
+          : System.IO.Path.GetFileName(app.ProcessName);
+        if (!string.IsNullOrEmpty(imageName)) {
+          var psi = new ProcessStartInfo("taskkill", $"/F /T /IM {imageName}") {
             UseShellExecute = false, CreateNoWindow = true
           };
           using (var p = Process.Start(psi)) {
             if (p != null) { p.WaitForExit(2000); ok = p.ExitCode == 0; }
           }
         }
-	        if (ok)
-	          DialogHelper.Info(Strings.DashboardProcessKilled(app.ProcessName), Strings.Hint);
-	        else
-	          DialogHelper.Warn(Strings.DashboardProcessKillFailed(app.ProcessName), Strings.Hint);
-	      } catch (Exception ex) {
-	        DialogHelper.Error(Strings.DashboardProcessKillError(ex.Message), Strings.Hint);
-	        Logger.Error(Strings.DashboardProcessKillError(ex.Message));
+        if (!ok && app.ProcessId > 0) {
+          var psi = new ProcessStartInfo("taskkill", $"/F /PID {app.ProcessId}") {
+            UseShellExecute = false, CreateNoWindow = true
+          };
+          using (var p = Process.Start(psi)) {
+            if (p != null) { p.WaitForExit(2000); ok = p.ExitCode == 0; }
+          }
+        }
+        if (ok)
+          DialogHelper.Info(Strings.DashboardProcessKilled(app.ProcessName), Strings.Hint);
+        else
+          DialogHelper.Warn(Strings.DashboardProcessKillFailed(app.ProcessName), Strings.Hint);
+      } catch (Exception ex) {
+        DialogHelper.Error(Strings.DashboardProcessKillError(ex.Message), Strings.Hint);
+        Logger.Error(Strings.DashboardProcessKillError(ex.Message));
       }
       RefreshGpuAppList();
     }
@@ -1657,6 +1700,28 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
 
     void HpDriverSearch_Click(object sender, RoutedEventArgs e) {
       try { Process.Start(new ProcessStartInfo("https://support.hp.com/cn-zh/product/detect?source=swd") { UseShellExecute = true })?.Dispose(); } catch { }
+    }
+
+    async void InstallPawnIo_Click(object sender, RoutedEventArgs e) {
+      if (OmenHardware.IsPawnIOInstalled()) return;   // 已安装不重复装
+      PawnIoInstallBtn.IsEnabled = false;
+      PawnIoInstallBtn.Content = Strings.SysPawnInstalling;
+      try {
+        // ponytail: 安装含资源提取 + 安装进程等待,放后台线程以免卡 UI;完成后回读状态刷新按钮/文字。
+        bool ok = await Task.Run(() => OmenHardware.InstallPawnIO());
+        PawnIoInstallBtn.Visibility = ok ? Visibility.Collapsed : Visibility.Visible;
+        if (ok) {
+          SysPawnIoText.Text = Strings.SysPawnInstalled + " (" + OmenHardware.GetPawnIOState() + ")";
+          DialogHelper.Info(Strings.SysPawnInstallSuccess, Strings.Hint);
+        } else {
+          DialogHelper.Error(Strings.SysPawnInstallFailed, Strings.Hint);
+        }
+      } catch (Exception ex) {
+        DialogHelper.Error(Strings.SysPawnInstallFailed + "\n" + ex.Message, Strings.Hint);
+      } finally {
+        PawnIoInstallBtn.IsEnabled = true;
+        PawnIoInstallBtn.Content = Strings.SysPawnInstallBtn;
+      }
     }
   }
 }

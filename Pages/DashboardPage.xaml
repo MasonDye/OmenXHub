@@ -412,7 +412,7 @@
                   <TextBlock x:Name="CurrentFanText" Grid.Column="1" Foreground="{DynamicResource AccentOmenBrush}"
                              FontWeight="SemiBold" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
                 </Grid>
-                <Grid>
+                <Grid Margin="{StaticResource CardMargin}">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -421,6 +421,16 @@
                              VerticalAlignment="Center"/>
                   <TextBlock x:Name="PowerStatusText" Grid.Column="1" Foreground="{DynamicResource AccentGreenBrush}"
                              FontWeight="SemiBold" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid Margin="{StaticResource CardMargin}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{x:Static app:Strings.BatteryHealthLabel}" FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                             VerticalAlignment="Center"/>
+                  <TextBlock x:Name="BatteryHealthText" Grid.Column="1" Foreground="{DynamicResource AccentGreenBrush}"
+                             FontWeight="SemiBold" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center" Text="-"/>
                 </Grid>
               </StackPanel>
               <Grid Grid.Column="2" Width="112" Height="112" Margin="14,0,0,0" VerticalAlignment="Center">
@@ -583,6 +593,8 @@
                   <TextBlock Text="{x:Static app:Strings.SysPawnTitle}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock x:Name="SysPawnIoText" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                <Button x:Name="PawnIoInstallBtn" Content="{x:Static app:Strings.SysPawnInstallBtn}"
+                        Margin="0,8,0,0" MinWidth="84" Click="InstallPawnIo_Click" Visibility="Collapsed"/>
               </StackPanel>
             </ui:CardControl.Header>
           </ui:CardControl>

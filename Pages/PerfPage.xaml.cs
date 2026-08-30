@@ -601,6 +601,8 @@ namespace OmenSuperHub.Pages {
         WindowStartupLocation = WindowStartupLocation.CenterOwner,
         Owner = Window.GetWindow(this)
       };
+      // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+      OmenSuperHub.Utils.WindowHelper.DetachOwnerOnClose(dlg);
       var sp = new StackPanel { Margin = new Thickness(10) };
       var tb = new TextBox { Text = current, AcceptsReturn = true,
         TextWrapping = TextWrapping.Wrap, Height = 200,
@@ -1702,6 +1704,8 @@ namespace OmenSuperHub.Pages {
         ResizeMode = ResizeMode.CanResize,
         MinWidth = 520, MinHeight = 600
       };
+      // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+      OmenSuperHub.Utils.WindowHelper.DetachOwnerOnClose(dlg);
       var outer = new Grid();
       outer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // 标题栏
       outer.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // 内容卡片

@@ -45,8 +45,7 @@
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ui:CardExpander Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdCpuPowerCard" Visibility="Collapsed"
-                         Icon="Power24">
+        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdCpuPowerCard" Visibility="Collapsed">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -54,7 +53,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.AmdCpuPowerHeading}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.AmdCpuPowerHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.AmdCpuPowerDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
@@ -79,8 +81,7 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="CpuPowerCard"
-                         Icon="DeveloperBoard24">
+        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="CpuPowerCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -139,8 +140,7 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="IccMaxCard"
-                         Icon="Gauge24">
+        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="IccMaxCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -148,7 +148,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.IccMaxHeading}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Flash24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.IccMaxHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
 	                <TextBlock Text="{x:Static app:Strings.IccMaxDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
@@ -170,8 +173,7 @@
                     Margin="12,0,0,0" VerticalAlignment="Center"/>
           </Grid>
         </ui:CardExpander>
-        <ui:CardExpander Grid.Row="0" Grid.Column="2" Margin="4,0,0,8" x:Name="CpuOcCard" Visibility="Collapsed"
-                         Icon="Rocket24">
+        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="2" Margin="4,0,0,8" x:Name="CpuOcCard" Visibility="Collapsed">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -179,7 +181,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="CPU 超频" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Rocket24" Margin="0,0,6,0"/>
+                  <TextBlock Text="CPU 超频" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="每核频率 / 电压偏移" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
@@ -193,7 +198,7 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardControl Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="AcLoadLineCard">
+        <ui:CardControl MinHeight="84" Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="AcLoadLineCard">
           <ui:CardControl.Header>
             <StackPanel>
               <Grid>
@@ -214,7 +219,7 @@
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardControl Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardControl MinHeight="84" Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardControl.Header>
             <StackPanel>
               <StackPanel Orientation="Horizontal">
@@ -229,7 +234,7 @@
                     SelectionChanged="PowerMode_SelectionChanged"/>
         </ui:CardControl>
 
-        <ui:CardExpander Grid.Row="2" Grid.Column="0" Margin="0,0,4,8" Icon="Power24">
+        <ui:CardExpander MinHeight="84" Grid.Row="2" Grid.Column="0" Margin="0,0,4,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -394,8 +399,7 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander Grid.Row="2" Grid.Column="1" Margin="4,0,0,8" x:Name="EcoQosCard"
-                         Icon="LeafOne24">
+        <ui:CardExpander MinHeight="84" Grid.Row="2" Grid.Column="1" Margin="4,0,0,8" x:Name="EcoQosCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -446,8 +450,7 @@
         </ui:CardExpander>
 
         <!-- 异构调度 (AMD 双CCD 模拟大小核) -->
-        <ui:CardExpander Grid.Row="3" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="HeteroCpuCard"
-                         Icon="DeviceEq24">
+        <ui:CardExpander MinHeight="84" Grid.Row="3" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="HeteroCpuCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -581,7 +584,7 @@
 
         <!-- ponytail: AMD Curve Optimizer 全核降压。仅 EnableEcAccess + PawnIO + 受支持家族时可见。
              复用 AmdUndervoltService 走 SMU 邮箱写 PCI 配置空间,不经过 WMI。 -->
-        <ui:CardExpander Grid.Row="4" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdUndervoltCard" Visibility="Collapsed">
+        <ui:CardExpander MinHeight="84" Grid.Row="4" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdUndervoltCard" Visibility="Collapsed">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -616,7 +619,7 @@
         </ui:CardExpander>
 
         <!-- ponytail: CoreKeep 已迁移到独立 CoreKeepPage 二级菜单，此处仅保留跳转入口 -->
-        <ui:CardControl Grid.Row="10" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}">
+        <ui:CardControl MinHeight="84" Grid.Row="10" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -668,8 +671,7 @@
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ui:CardExpander Grid.Row="0" Grid.Column="0" Margin="0,0,4,8"
-                         Icon="Clock24">
+        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="0" Margin="0,0,4,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -698,8 +700,7 @@
           </Grid>
         </ui:CardExpander>
 
-        <ui:CardExpander Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="GpuCoreOCCard"
-                         Icon="TopSpeed24">
+        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="GpuCoreOCCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -732,8 +733,7 @@
           </Grid>
         </ui:CardExpander>
 
-        <ui:CardExpander Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="GpuMemoryOCCard"
-                         Icon="Clock24">
+        <ui:CardExpander MinHeight="84" Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="GpuMemoryOCCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -742,7 +742,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Clock24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="DataBarVertical24" Margin="0,0,6,0"/>
                   <TextBlock Text="{x:Static app:Strings.GpuMemoryOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.GpuMemOcDesc}" FontSize="{DynamicResource FontSizeBody}"
@@ -766,7 +766,7 @@
           </Grid>
         </ui:CardExpander>
 
-        <ui:CardControl Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardControl MinHeight="84" Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardControl.Header>
             <StackPanel>
               <Grid>
@@ -792,7 +792,7 @@
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardControl Grid.Row="2" Grid.Column="0" Margin="0,0,4,8" x:Name="HotSwitchCard" Visibility="Collapsed">
+        <ui:CardControl MinHeight="84" Grid.Row="2" Grid.Column="0" Margin="0,0,4,8" x:Name="HotSwitchCard" Visibility="Collapsed">
           <ui:CardControl.Header>
             <StackPanel>
               <Grid>
@@ -814,7 +814,7 @@
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardControl Grid.Row="2" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardControl MinHeight="84" Grid.Row="2" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardControl.Header>
             <StackPanel>
               <Grid>
@@ -838,8 +838,7 @@
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardExpander Grid.Row="3" Grid.Column="0" Margin="0,0,4,8"
-                         Icon="Power24">
+        <ui:CardExpander MinHeight="84" Grid.Row="3" Grid.Column="0" Margin="0,0,4,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -847,8 +846,11 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-	                <TextBlock Text="{x:Static app:Strings.TgpHardwareLabel}" FontWeight="SemiBold"/>
-		                <TextBlock Text="{x:Static app:Strings.TgpDesc}" FontSize="{DynamicResource FontSizeBody}"
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="DataUsage24" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.TgpHardwareLabel}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.TgpDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
               <ComboBox Grid.Column="1" x:Name="CtgpCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
@@ -912,8 +914,7 @@
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardExpander Grid.Row="4" Grid.Column="1" Margin="4,0,0,8"
-                         Icon="Fps6024">
+        <ui:CardExpander Grid.Row="4" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -921,7 +922,10 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel>
-                <TextBlock Text="{x:Static app:Strings.MaxFrameRateHeading}" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Fps6024" Margin="0,0,6,0"/>
+                  <TextBlock Text="{x:Static app:Strings.MaxFrameRateHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfMaxFpsDesc}" FontSize="{DynamicResource FontSizeBody}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
               </StackPanel>
@@ -946,8 +950,7 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander Grid.Row="3" Grid.Column="1" Margin="4,0,0,8"
-                         Icon="Fps6024">
+        <ui:CardExpander MinHeight="84" Grid.Row="3" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -985,7 +988,7 @@
         </ui:CardExpander>
 
         <!-- Resolution -->
-        <ui:CardControl Grid.Row="5" Grid.Column="0" Margin="0,0,4,8">
+        <ui:CardControl MinHeight="84" Grid.Row="5" Grid.Column="0" Margin="0,0,4,8">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -1007,7 +1010,7 @@
         </ui:CardControl>
 
         <!-- DPI Scale -->
-        <ui:CardControl Grid.Row="5" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardControl MinHeight="84" Grid.Row="5" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -1029,7 +1032,7 @@
         </ui:CardControl>
 
         <!-- HDR -->
-        <ui:CardControl Grid.Row="6" Grid.Column="0" Margin="0,0,4,8" x:Name="HdrCard">
+        <ui:CardControl MinHeight="84" Grid.Row="6" Grid.Column="0" Margin="0,0,4,8" x:Name="HdrCard">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -1051,7 +1054,7 @@
         </ui:CardControl>
 
         <!-- Turn Off Display -->
-        <ui:CardControl Grid.Row="6" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardControl MinHeight="84" Grid.Row="6" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>

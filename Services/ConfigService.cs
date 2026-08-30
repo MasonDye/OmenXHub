@@ -29,6 +29,13 @@ namespace OmenSuperHub.Services {
     public static string FanTable = "silent";
     public static string FanMode = "performance";
     public static string FanControl = "auto";
+    // ponytail: IR 参与风扇曲线 max(cpu,gpu,ir) — 官方三路算法(docs/OMEN_OFFICIAL_FAN_ALGORITHM.md)。
+    // 默认关:IR 是红外辐射温度,读数口径与 CPU/GPU 核心温不同,显式开启才改变现有风扇行为。
+    public static bool UseIrForFanCurve = false;
+    // ponytail: 空闲压低风扇(官方 IDLE_AUTO / EWMA idle 语义,默认关)—— CPU/GPU 占用低时:
+    // 预设档(GetFanSpeedForTemperature)直接降至曲线最低档;自定义/smart(GetSmartFanSpeed)
+    // 压平 smart 层 EMA 系数到 0.1。一个开关统管两条路径,用户显式开启才改变现有行为。
+    public static bool SmartFanIdleLambda = false;
     public static string TempSensitivity = "medium";
     public static string CpuPower = "max";
     public static string GpuPower = "max";
@@ -73,7 +80,6 @@ namespace OmenSuperHub.Services {
     // ponytail: 高级硬件访问(EC/SMU 直写) — 默认关闭,需用户主动开启。
     // 写错 EC/SMU 寄存器可能系统不稳定,故不自动启用,仅用户在设置页知情后开启。
     public static bool EnableEcAccess = false;
-    public static string LightingColor = "Red";
     public static string LightingAnimation = "None";
     // ponytail: Direction/Theme only meaningful under Dojo anim — see docs/lighting-reverse-findings.md
     public static string LightingDirection = "Left";
@@ -260,6 +266,8 @@ namespace OmenSuperHub.Services {
             case "FanTable": key.SetValue("FanTable", FanTable); break;
             case "FanMode": key.SetValue("FanMode", FanMode); break;
             case "FanControl": key.SetValue("FanControl", FanControl); break;
+            case "UseIrForFanCurve": key.SetValue("UseIrForFanCurve", UseIrForFanCurve ? 1 : 0); break;
+            case "SmartFanIdleLambda": key.SetValue("SmartFanIdleLambda", SmartFanIdleLambda ? 1 : 0); break;
             case "TempSensitivity": key.SetValue("TempSensitivity", TempSensitivity); break;
             case "CpuPower": key.SetValue("CpuPower", CpuPower); break;
             case "GpuPower": key.SetValue("GpuPower", GpuPower); break;
@@ -295,7 +303,6 @@ namespace OmenSuperHub.Services {
             case "LightingTempMode": key.SetValue("LightingTempMode", LightingTempMode ? 1 : 0); break;
             case "LightingUseOfficial": key.SetValue("LightingUseOfficial", LightingUseOfficial ? 1 : 0); break;
             case "EnableEcAccess": key.SetValue("EnableEcAccess", EnableEcAccess ? 1 : 0); break;
-            case "LightingColor": key.SetValue("LightingColor", LightingColor); break;
             case "LightingAnimation": key.SetValue("LightingAnimation", LightingAnimation); break;
             case "LightingDirection": key.SetValue("LightingDirection", LightingDirection); break;
             case "LightingTheme": key.SetValue("LightingTheme", LightingTheme); break;
@@ -443,7 +450,6 @@ namespace OmenSuperHub.Services {
           LightingBrightness = (byte)(int)key.GetValue("LightingBrightness", LightingBrightness);
           LightingTempMode = (int)key.GetValue("LightingTempMode", 0) == 1;
           // ponytail: EnableEcAccess 是全局设置,不从预设子键加载 — 否则切换到无此键的预设会重置为 false。
-          LightingColor = (string)key.GetValue("LightingColor", LightingColor);
           LightingAnimation = (string)key.GetValue("LightingAnimation", LightingAnimation);
           LightingDirection = (string)key.GetValue("LightingDirection", LightingDirection);
           LightingTheme = (string)key.GetValue("LightingTheme", LightingTheme);
@@ -513,7 +519,6 @@ namespace OmenSuperHub.Services {
           key.SetValue("LightingDevice", LightingDevice);
           key.SetValue("LightingInterface", LightingInterface);
           key.SetValue("LightingBrightness", LightingBrightness);
-          key.SetValue("LightingColor", LightingColor);
           key.SetValue("LightingAnimation", LightingAnimation);
           key.SetValue("LightingDirection", LightingDirection);
           key.SetValue("LightingTheme", LightingTheme);
@@ -558,6 +563,8 @@ namespace OmenSuperHub.Services {
           FanTable = RegStr(key, "FanTable", "silent");
           FanMode = RegStr(key, "FanMode", "performance");
           FanControl = RegStr(key, "FanControl", "auto");
+          UseIrForFanCurve = RegInt(key, "UseIrForFanCurve", 0) != 0;
+          SmartFanIdleLambda = RegInt(key, "SmartFanIdleLambda", 0) != 0;
           TempSensitivity = RegStr(key, "TempSensitivity", "medium");
           CpuPower = RegStr(key, "CpuPower", "max");
           GpuPower = RegStr(key, "GpuPower", "max");
@@ -589,7 +596,6 @@ namespace OmenSuperHub.Services {
           LightingDevice = RegStr(key, "LightingDevice", "keyboard");
           LightingInterface = RegStr(key, "LightingInterface", "BasicFourZone");
           LightingBrightness = RegByte(key, "LightingBrightness", 100);
-          LightingColor = RegStr(key, "LightingColor", "Red");
           LightingAnimation = RegStr(key, "LightingAnimation", "None");
           LightingDirection = RegStr(key, "LightingDirection", "Left");
           LightingTheme = RegStr(key, "LightingTheme", "Custom");

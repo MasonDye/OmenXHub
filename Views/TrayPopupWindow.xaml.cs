@@ -42,7 +42,7 @@ namespace OmenSuperHub.Views {
       CpuValueText.Visibility = showCpu ? Visibility.Visible : Visibility.Collapsed;
       if (showCpu) {
         CpuValueText.Text = HardwareService.CPUTemp > 0.01f
-          ? $"{HardwareService.CPUTemp:F1}°C  {HardwareService.CPUPower:F1}W"
+          ? $"{HardwareService.CPUTemp:F1}°C  {HardwareService.GetDisplayCpuPower():F1}W"
           : "--";
       }
 
@@ -52,8 +52,8 @@ namespace OmenSuperHub.Views {
       GpuLabel.Visibility = showGpu ? Visibility.Visible : Visibility.Collapsed;
       GpuValueText.Visibility = showGpu ? Visibility.Visible : Visibility.Collapsed;
       if (showGpu) {
-        GpuValueText.Text = HardwareService.GPUPower >= 0.01f
-          ? $"{HardwareService.GPUTemp:F1}°C  {HardwareService.GPUPower:F1}W"
+        GpuValueText.Text = HardwareService.GetDisplayGpuPower() >= 0.01f
+          ? $"{HardwareService.GPUTemp:F1}°C  {HardwareService.GetDisplayGpuPower():F1}W"
           : "--";
       }
 

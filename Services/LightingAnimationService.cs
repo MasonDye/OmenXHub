@@ -42,6 +42,8 @@ namespace OmenSuperHub.Services {
       _device = device; _effect = effect; _iface = iface; _brightness = brightness;
       for (int i = 0; i < 4; i++) _base[i] = i < baseColors.Length ? baseColors[i] : baseColors[0];
       _start = DateTime.UtcNow;
+      // ponytail: 音乐律动(AudioPulse)激活时启系统音频采集,否则不常驻后台线程。
+      if (effect == "AudioPulse") AudioCaptureService.Start();
       _timer = new Timer(Tick, null, TimeSpan.Zero, FrameInterval);
       return true;
     }
@@ -49,6 +51,7 @@ namespace OmenSuperHub.Services {
     public static void Stop() {
       var t = _timer; _timer = null; _effect = null;
       t?.Dispose();
+      AudioCaptureService.Stop();   // 幂等,非 AudioPulse 时是 no-op
     }
 
     static void Tick(object state) {
@@ -99,11 +102,25 @@ namespace OmenSuperHub.Services {
     }
 
     static Color[] Ripple(Color[] b, double t) {
-      // 亮度波沿 4 段行进,波峰偏白
+      // ponytail: 真音频律动 — 能量来自 AudioCaptureService(系统输出环回)。能量驱动波峰亮度,
+      // 停顿(能量≈0)回落到暗底;采集不可用(无声卡/失败)时回退旧时间波,保证效果不僵死。
+      double energy = AudioCaptureService.CurrentEnergy;
+      if (energy <= 0.01) {
+        // 回退:时间波(原有行为),避免无音频时静止
+        var c0 = new Color[4];
+        for (int i = 0; i < 4; i++) {
+          double k = 0.5 + 0.5 * Math.Sin(2 * Math.PI * (t / 1.2 - i / 4.0));
+          c0[i] = Lerp(Scale(b[i], 0.25), Lerp(b[i], Colors.White, 0.35), k);
+        }
+        return c0;
+      }
+      // 音频能量:整体亮度 = 基色 × 能量(带最低可见),波峰段额外冲白
       var c = new Color[4];
       for (int i = 0; i < 4; i++) {
-        double k = 0.5 + 0.5 * Math.Sin(2 * Math.PI * (t / 1.2 - i / 4.0));
-        c[i] = Lerp(Scale(b[i], 0.25), Lerp(b[i], Colors.White, 0.35), k);
+        double k = 0.35 + 0.65 * energy;                       // 亮度随能量
+        double peak = 0.5 + 0.5 * Math.Sin(2 * Math.PI * (t / 1.2 - i / 4.0));  // 段相位
+        double mix = Math.Min(1, energy * (0.6 + 0.8 * peak));  // 波峰段更亮/更白
+        c[i] = Lerp(Scale(b[i], k), Lerp(b[i], Colors.White, 0.5), mix);
       }
       return c;
     }

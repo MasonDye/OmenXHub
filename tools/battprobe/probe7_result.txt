@@ -1,0 +1,10 @@
+=== Probe v7: cmdType 56 安全读写验证 ===
+hpqBIntM: OK
+--- 1. read t=56 ---
+  cmd=1 t=38 rc=0x0 data=00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+--- 2. write-back same value (safe test) ---
+  cmd=1 t=38 rc=0x0 data=00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  cmd=2 t=38 rc=0x6 data=00 00 00 00
+--- 3. read t=56 after write-back ---
+  cmd=1 t=38 rc=0x0 data=00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=== done ===

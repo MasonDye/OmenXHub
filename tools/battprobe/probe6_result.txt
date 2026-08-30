@@ -1,0 +1,47 @@
+=== Probe v6: SystemControl cmdType 76 深挖 ===
+hpqBIntM: OK
+--- cmd=1 读 cmdType 0x4C..0x60 ---
+  cmd=1 t=4C rc=0x0 data=01 00 00 00
+  cmd=1 t=4D rc=0x4 data=00 00 00 00
+  cmd=1 t=4E rc=0x4 data=00 00 00 00
+  cmd=1 t=4F rc=0x4 data=00 00 00 00
+  cmd=1 t=50 rc=0x4 data=00 00 00 00
+  cmd=1 t=51 rc=0x4 data=00 00 00 00
+  cmd=1 t=52 rc=0x0 data=02 00 00 00
+  cmd=1 t=53 rc=0x4 data=00 00 00 00
+  cmd=1 t=54 rc=0x4 data=00 00 00 00
+  cmd=1 t=55 rc=0x4 data=00 00 00 00
+  cmd=1 t=56 rc=0x5 data=00 00 00 00
+  cmd=1 t=57 rc=0x4 data=00 00 00 00
+  ERR: 常规故障 
+  cmd=1 t=59 rc=0x4 data=00 00 00 00
+  ERR: 常规故障 
+  cmd=1 t=5B rc=0x4 data=00 00 00 00
+  cmd=1 t=5C rc=0x4 data=00 00 00 00
+  cmd=1 t=5D rc=0x4 data=00 00 00 00
+  cmd=1 t=5E rc=0x4 data=00 00 00 00
+  cmd=1 t=5F rc=0x4 data=00 00 00 00
+  cmd=1 t=60 rc=0x4 data=00 00 00 00
+--- cmd=1 读 cmdType 0x4C..0x60 (128B) ---
+  cmd=1 t=4C rc=0x0 data=01 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=4D rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=4E rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=4F rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=50 rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=51 rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=52 rc=0x0 data=02 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=53 rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=54 rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=55 rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=56 rc=0x0 data=32 00 55 00 01 10 00 00 75 05 8C 10 8C 1
+  cmd=1 t=57 rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  ERR: 常规故障 
+  cmd=1 t=59 rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  ERR: 常规故障 
+  cmd=1 t=5B rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=5C rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=5D rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=5E rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=5F rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+  cmd=1 t=60 rc=0x4 data=00 00 00 00 00 00 00 00 00 00 00 00 00 0
+=== done ===

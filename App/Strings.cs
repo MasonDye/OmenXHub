@@ -295,6 +295,10 @@ namespace OmenSuperHub {
     public static string SysPawnInstalled => T("PawnIO 驱动已安装", "PawnIO 驅動已安裝", "PawnIO Driver Installed");
     public static string SysPawnMissing => T("PawnIO 驱动未安装", "PawnIO 驅動未安裝", "PawnIO Driver Not Installed");
     public static string SysPawnTitle => T("PawnIO 驱动", "PawnIO 驅動", "PawnIO Driver");
+    public static string SysPawnInstallBtn => T("安装驱动", "安裝驅動", "Install Driver");
+    public static string SysPawnInstalling => T("安装中…", "安裝中…", "Installing…");
+    public static string SysPawnInstallSuccess => T("PawnIO 驱动安装成功，EC 风扇控制已可用。", "PawnIO 驅動安裝成功，EC 風扇控制已可用。", "PawnIO driver installed. EC fan control is now available.");
+    public static string SysPawnInstallFailed => T("PawnIO 驱动安装失败，请以管理员身份重试或手动安装。", "PawnIO 驅動安裝失敗，請以管理員身份重試或手動安裝。", "PawnIO driver install failed. Retry as admin or install manually.");
     public static string SysKbType => T("键盘灯光类型", "鍵盤燈光類型", "KB Light Type");
     public static string SysModelValidation => T("机型支持情况", "機型支持情況", "Product Validation");
     public static string ValidationGamingProduct => T("完全支持", "完全支持", "Fully supported");
@@ -332,6 +336,7 @@ namespace OmenSuperHub {
     // Power status
     public static string PowerStatusAC => T("交流电源", "交流電源", "AC Power");
     public static string PowerStatusDC => T("电池", "電池", "Battery");
+    public static string BatteryHealthLabel => T("电池健康", "電池健康", "Battery Health");
 
     // Fan page headings & labels
     public static string FanConfigHeading => T("风扇配置", "風扇配置", "Fan Config");
@@ -340,6 +345,7 @@ namespace OmenSuperHub {
     public static string CleanCreekHeading => T("风扇除尘", "風扇除塵", "Fan Dust Removal");
     public static string FanCurveCPULabel => T("CPU 曲线", "CPU 曲線", "CPU Curve");
     public static string FanCurveGPULabel => T("GPU 曲线", "GPU 曲線", "GPU Curve");
+    public static string FanCurveFan3Label => T("第三扇曲线", "第三扇曲線", "3rd Fan Curve");
     public static string FanCurveTip => T("拖拽控制点调整不同温度下的风扇转速", "拖拽控制點調整不同溫度下的風扇轉速", "Drag points to adjust fan speed at different temperatures");
     public static string FanCurveImport => T("导入", "匯入", "Import");
     public static string FanCurveExport => T("导出", "匯出", "Export");
@@ -355,14 +361,20 @@ namespace OmenSuperHub {
     public static string FanCurveShareGuide => T("将分享码发送给朋友，对方可通过「导入」→粘贴分享码来加载曲线", "將分享碼發送給朋友，對方可透過「匯入」→貼上分享碼來載入曲線", "Send the code to a friend. They can load it via Import → paste share code");
     public static string DustCleanDesc => T("反转风扇清除内部灰尘", "反轉風扇清除內部灰塵", "Reverse fans to clean internal dust");
     public static string CleanCreekStartBtn => T("开始除尘 (30秒)", "開始除塵 (30秒)", "Start Cleaning (30s)");
+    public static string DustCleanFan3Note => T("（含第三风扇）", "（含第三風扇）", "(including 3rd fan)");
+    public static string DustCleanRunning(int remain) => T($"风扇逆转中… 剩余 {remain} 秒", $"風扇逆轉中… 剩餘 {remain} 秒", $"Reversing fans… {remain}s left");
     public static string AutoFanProtectDesc => T("CPU温度>95°C且固定转速时强制切换为降温曲线", "CPU溫度>95°C且固定轉速時強制切換為降溫曲線", "Forces cool curve when CPU >95°C with fixed fan speed");
     public static string FanSync => T("风扇一致性", "風扇一致性", "Fan Consistency");
     public static string FanSyncDesc => T("所有风扇转速随 CPU/GPU 中较高温度同步", "所有風扇轉速隨 CPU/GPU 中較高溫度同步", "All fans track the higher of CPU/GPU temperature");
+    public static string UseIrForFanCurve => T("IR 参与风扇曲线", "IR 參與風扇曲線", "IR in Fan Curve");
+    public static string UseIrForFanCurveDesc => T("风扇转速随 CPU/GPU/IR 三者最高温度同步（官方三路算法，需机器有 IR 传感器）", "風扇轉速隨 CPU/GPU/IR 三者最高溫度同步（官方三路演算法，需機器有 IR 感測器）", "Fans track the highest of CPU/GPU/IR temperature (official 3-way algorithm, requires IR sensor)");
     public static string FanSmartSettings => T("曲线温度设置", "曲線溫度設置", "Curve Temperature Settings");
     public static string FanSmartEmaAlpha => T("温度平滑系数", "溫度平滑係數", "Temp Smoothing (EMA)");
     public static string FanSmartStepDown => T("降速保护 (RPM/s)", "降速保護 (RPM/s)", "Step-Down Rate (RPM/s)");
     public static string FanSmartHysteresis => T("滞后死区 (°C)", "滯後死區 (°C)", "Hysteresis (°C)");
     public static string FanSmartEmaHint => T("值越小响应越灵敏", "值越小響應越靈敏", "Smaller = smoother but slower");
+    public static string FanSmartIdleLambda => T("空闲时压低风扇", "空閒時壓低風扇", "Settle fans when idle");
+    public static string FanSmartIdleLambdaHint => T("CPU/GPU 占用低时：预设档降至最低档、自定义曲线压平平滑系数 λ=0.1，待机更稳更安静（官方 IDLE_AUTO / EWMA 语义）", "CPU/GPU 佔用低時：預設檔降至最低檔、自訂曲線壓平平滑係數 λ=0.1，待機更穩更安靜（官方 IDLE_AUTO / EWMA 語義）", "When idle: presets drop to lowest level, custom curves flatten EMA to λ=0.1 (official IDLE_AUTO/EWMA semantics)");
     public static string FanSmartStepDownHint => T("每秒最多下降 RPM", "每秒最多下降 RPM", "Max RPM drop per second");
     public static string FanSmartHysteresisHint => T("温度变化阈值(°C)", "溫度變化閾值(°C)", "Temperature threshold (°C)");
 
@@ -804,6 +816,9 @@ namespace OmenSuperHub {
 
     // Fan page
     public static string FanSpeedRPM => T("转速控制(RPM)", "轉速控制(RPM)", "Fan Speed (RPM)");
+    public static string FanCurveApplyBtn => T("应用", "套用", "Apply");
+    public static string Fan3FollowLabel => T("第三风扇（跟随 CPU/GPU 均速）", "第三風扇（跟隨 CPU/GPU 均速）", "3rd fan (follows CPU/GPU average)");
+    public static string Fan3FollowRpm(string rpm) => T($"第三风扇（跟随均速）: {rpm} RPM", $"第三風扇（跟隨均速）: {rpm} RPM", $"3rd fan (avg follow): {rpm} RPM");
     public static string FanSettings => T("风扇设置", "風扇設定", "Fan Settings");
     public static string TempCelsius => T("温度 (°C)", "溫度 (°C)", "Temperature (°C)");
 

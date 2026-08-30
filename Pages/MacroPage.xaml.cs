@@ -183,6 +183,8 @@ namespace OmenSuperHub.Pages {
         ShowInTaskbar = false, WindowBackdropType = WindowBackdropType.Mica,
         ExtendsContentIntoTitleBar = true, Background = System.Windows.Media.Brushes.Transparent
       };
+      // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+      OmenSuperHub.Utils.WindowHelper.DetachOwnerOnClose(win);
       var root = new Grid();
       root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
       root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });

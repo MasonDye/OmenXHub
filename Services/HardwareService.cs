@@ -23,6 +23,10 @@ namespace OmenSuperHub.Services {
     // ═══════════════════════════════════════════════════════
     static float _cpuTemp = 50;
     public static float CPUTemp { get { lock (_lock) return _cpuTemp; } set { lock (_lock) _cpuTemp = value; } }
+    // ponytail: IR(红外)温度 — 经 OMEN WMI 0x23 通道读,参与官方三路风扇 max(cpu,gpu,ir)。
+    // 负值=未读到(该机型无 IR 传感器),风扇侧 max 时天然被忽略,行为与未支持机型一致。
+    static float _irTemp = -1;
+    public static float IrTemp { get { lock (_lock) return _irTemp; } set { lock (_lock) _irTemp = value; } }
     static float _gpuTemp = 40;
     public static float GPUTemp { get { lock (_lock) return _gpuTemp; } set { lock (_lock) _gpuTemp = value; } }
     static float _cpuPower = 0;
@@ -44,12 +48,17 @@ namespace OmenSuperHub.Services {
     public static bool IsConnectedToNVIDIA = true;
     static bool _powerOnline = true;
     public static bool PowerOnline { get { lock (_lock) return _powerOnline; } set { lock (_lock) _powerOnline = value; } }
-    // ponytail: -1 确保首次风扇定时器 tick 必定执行写入, 不与真实速度值冲突
-    static readonly int[] _fanSpeedNow = new int[2] { -1, -1 };
+    // ponytail: -1 确保首次风扇定时器 tick 必定执行写入, 不与真实速度值冲突。
+    // 3 维: [0]=CPU [1]=GPU [2]=第三扇(仅三扇机型;双风机恒为 -1,UI 按 IsThreeFan 决定是否显示)。
+    static readonly int[] _fanSpeedNow = new int[3] { -1, -1, -1 };
     public static IReadOnlyList<int> FanSpeedNow => _fanSpeedNow;  // direct ref, no allocation per access
     public static void UpdateFanSpeed(IReadOnlyList<int> values) {
       if (values == null || values.Count < 2) return;
-      lock (_lock) { _fanSpeedNow[0] = values[0]; _fanSpeedNow[1] = values[1]; }
+      lock (_lock) {
+        _fanSpeedNow[0] = values[0];
+        _fanSpeedNow[1] = values[1];
+        if (values.Count >= 3) _fanSpeedNow[2] = values[2];
+      }
     }
     public static bool IsAmbientSensorSupported;
     public static string PawnIOState = "";
@@ -77,8 +86,12 @@ namespace OmenSuperHub.Services {
     // ponytail: 读不到值返回负数,UI 借此显 "-"。1~120°C 钳位与 CPU/GPU 同口径。
     public static float GetDisplayExtraTemp(string id) {
       if (!_extraRaw.TryGetValue(id, out float raw) || raw < 1f || raw > 120f) return -1;
-      return _displayRaw ? raw : (_extraSmoothed.TryGetValue(id, out float s) ? s : raw);
+      return _extraSmoothed.TryGetValue(id, out float sm) ? sm : raw;
     }
+
+    // ponytail: 机型是否真有该传感器——_extraRaw 仅在有效读到时写入,ContainsKey 即"曾读到"。
+    // UI 借此隐藏本机不存在的行(如笔记本的 SuperIO 主板温度);临时丢读不隐藏(值仍保留)。
+    public static bool HasExtraTemp(string id) => _extraRaw.ContainsKey(id);
 
     // ═══ GPU 选择 — 用户在设置页选指定 GPU 显示其温度/利用率/功耗/时钟 ═══
     // ponytail: 空 SelectedGpu = 独显优先(只读 GpuNvidia/GpuAmd, 跳过 GpuIntel),否则只匹配 IHardware.Name。
@@ -204,7 +217,14 @@ namespace OmenSuperHub.Services {
                 if (v >= 1 && v <= 120) {
                   if (sensor.Name == "Core Max")         { _extraRaw["CPU_COREMAX"] = v; _extraSeenThisTick["CPU_COREMAX"] = true; }
                   if (sensor.Name == "Core Average")    { _extraRaw["CPU_COREAVG"] = v; _extraSeenThisTick["CPU_COREAVG"] = true; }
-                  if (sensor.Name == "Distance to TjMax") { _extraRaw["CPU_TJMAX_DISTANCE"] = v; _extraSeenThisTick["CPU_TJMAX_DISTANCE"] = true; }
+                  // ponytail: LHM 的距离传感器是每核一条 "Core #N Distance to TjMax"(IntelCpu.cs:395)，
+                  // 精确名永远匹配不到导致 UI 恒为 "-"。距离 = TjMax − 温度，取最小 = 最热核，
+                  // 与"CPU 核心最高"同语义；每 tick 首见直接覆写，避免跨 tick 粘滞旧值。
+                  if (sensor.Name.EndsWith("Distance to TjMax")) {
+                    _extraRaw["CPU_TJMAX_DISTANCE"] = _extraSeenThisTick["CPU_TJMAX_DISTANCE"]
+                        ? Math.Min(_extraRaw["CPU_TJMAX_DISTANCE"], v) : v;
+                    _extraSeenThisTick["CPU_TJMAX_DISTANCE"] = true;
+                  }
                 }
               }
               if (sensor.SensorType == LibreSensorType.Power && sensor.Name.Contains("Package")) {
@@ -321,6 +341,17 @@ namespace OmenSuperHub.Services {
         CPUPower = librePowerCPU;
 
       afterLibre:
+      // ponytail: IR(红外)温度 — 经 OMEN WMI 0x23 通道读(sensorIndex 0),1~120°C 钳位 + EMA 平滑
+      // (同 CPU/GPU 口径)。读不到(无 IR 传感器)保持负值,风扇 max 忽略。HWiNFO 路径也走这里,
+      // 保证 IR 数据始终可供 UI 缓存与风扇曲线使用。
+      {
+        int ir = OmenHardware.GetSensorTemperature(0);
+        if (ir >= 1 && ir <= 120) {
+          _rawIrTemp = ir;
+          float prev = IrTemp;
+          IrTemp = (prev < 0) ? ir : ir * RespondSpeed + prev * (1.0f - RespondSpeed);
+        }
+      }
       // Auto GPU monitoring logic
       if (countQuery <= 5 && MonitorGPU)
         countQuery++;
@@ -406,7 +437,34 @@ namespace OmenSuperHub.Services {
     /// <summary>Return display temperature: raw or EMA-smoothed based on DisplayMode.</summary>
     public static float GetDisplayCpuTemp() => _displayRaw ? _rawCpuTemp : CPUTemp;
     public static float GetDisplayGpuTemp() => _displayRaw ? _rawGpuTemp : GPUTemp;
-    static float _rawCpuTemp, _rawGpuTemp;
+    // ponytail: IR 温度无 raw 快照(直接 WMI 读),统一返回 EMA 平滑值;负值=未读到。
+    public static float GetDisplayIrTemp() => IrTemp;
+
+    // ponytail: fan 计算路径专用 raw 温度 —— 自定义曲线/smart 模式走 GetSmartFanSpeed 时
+    // 用原始读数(不叠加 RespondSpeed 温度层 EMA,避免双重平滑响应过肉);预设档仍走 CPUTemp/
+    // GPUTemp 平滑值。GPU raw 访问时做范围校验,防止传感器毛刺直接进查表(写侧 GPUTemp 已 clamp,
+    // 这里对未 clamp 的 raw 补一刀)。
+    public static float RawCpuTemp => _rawCpuTemp;
+    public static float RawGpuTemp => (_rawGpuTemp >= 15 && _rawGpuTemp <= 120) ? _rawGpuTemp : GPUTemp;
+    public static float RawIrTemp => _rawIrTemp;
+
+    // ponytail: CPU 功耗显示上限 300W —— 传感器偶发读到荒谬值(如 5000W)会误导用户。
+    // 仅约束显示,不影响 CPUPower 内部逻辑(风扇/GPU 自动启停仍用原始值)。
+    const float CpuPowerDisplayMaxW = 300f;
+    public static float GetDisplayCpuPower() => CPUPower >= 0 ? Math.Min(CPUPower, CpuPowerDisplayMaxW) : 0f;
+
+    // ponytail: GPU 功耗平滑 + 显示上限 400W —— 原始 GPUPower 直接跟随 LHM 读数,独显
+    // 轻载/瞬时活动切换时在 20W~100W 量级跳(无平滑,对比 GPU 温度有 EMA),UI 表现"徘徊"。
+    // 平滑用 RespondSpeed(与 GPU 温度同口径);clamp 只约束显示,不碰内部 GPUPower 逻辑。
+    static float _gpuPowerDisplay = 0;
+    const float GpuPowerDisplayMaxW = 400f;
+    public static float GetDisplayGpuPower() {
+      float raw = GPUPower;
+      if (raw < 0) return 0;
+      _gpuPowerDisplay = raw * RespondSpeed + _gpuPowerDisplay * (1.0f - RespondSpeed);
+      return Math.Min(_gpuPowerDisplay, GpuPowerDisplayMaxW);
+    }
+    static float _rawCpuTemp, _rawGpuTemp, _rawIrTemp = -1;
 
     public static void Close() {
       LibreComputer.Close();

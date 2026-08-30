@@ -242,7 +242,7 @@ namespace OmenSuperHub.Views {
         int idx = (int)Math.Max(0, Math.Min(100, cpuTemp));
         if (idx != w._lastCpuTempIdx) { w.CpuTempText.Foreground = TempBrushes[idx]; w._lastCpuTempIdx = idx; }
         SetIfChanged(w.CpuTempText, ref w._lastCpuTemp, $"{cpuTemp:F1}°C");
-        SetIfChanged(w.CpuPowerText, ref w._lastCpuPower, $"{HardwareService.CPUPower:F1}W");
+        SetIfChanged(w.CpuPowerText, ref w._lastCpuPower, $"{HardwareService.GetDisplayCpuPower():F1}W");
         SetIfChanged(w.CpuUsageText, ref w._lastCpuUsage, $"{HardwareService.CPUUsage:F0}%");
         SetIfChanged(w.CpuFreqText, ref w._lastCpuFreq, $"{HardwareService.CPUClock:F0}M");
       } else {
@@ -255,7 +255,7 @@ namespace OmenSuperHub.Views {
         int idx = (int)Math.Max(0, Math.Min(100, gpuTemp));
         if (idx != w._lastGpuTempIdx) { w.GpuTempText.Foreground = TempBrushes[idx]; w._lastGpuTempIdx = idx; }
         SetIfChanged(w.GpuTempText, ref w._lastGpuTemp, $"{gpuTemp:F1}°C");
-        SetIfChanged(w.GpuPowerText, ref w._lastGpuPower, $"{HardwareService.GPUPower:F1}W");
+        SetIfChanged(w.GpuPowerText, ref w._lastGpuPower, $"{HardwareService.GetDisplayGpuPower():F1}W");
         SetIfChanged(w.GpuUsageText, ref w._lastGpuUsage, $"{HardwareService.GPUUsage:F0}%");
         SetIfChanged(w.GpuFreqText, ref w._lastGpuFreq, $"{HardwareService.GPUClock:F0}M");
       } else {

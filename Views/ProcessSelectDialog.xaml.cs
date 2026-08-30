@@ -15,6 +15,8 @@ namespace OmenSuperHub.Views {
     public ProcessSelectDialog(Window owner) {
       InitializeComponent();
       Owner = owner;
+      // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
+      Utils.WindowHelper.DetachOwnerOnClose(this);
       Loaded += (s, e) => LoadProcesses();
     }
 
