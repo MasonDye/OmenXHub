@@ -22,11 +22,22 @@
       </DockPanel>
 
       <StackPanel Orientation="Horizontal" Margin="0,8,0,12">
-        <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="{StaticResource CardHeaderIconMargin}"/>
         <TextBlock Text="{x:Static app:Strings.PerfGroupCpu}" FontSize="{DynamicResource FontSizeSubheader}" FontWeight="SemiBold" VerticalAlignment="Center"/>
       </StackPanel>
 
       <Grid x:Name="CpuPerfGrid">
+        <Grid.Resources>
+          <!-- ponytail: CardControl 会把"只有 Header 的卡片"内容垂直居中(中心 42),
+               而 CardExpander 头部是贴顶的(中心 36), 同排并置时右侧控件错开 6px。
+               这里让 CardControl 也贴顶对齐。有 Content 的卡不受影响(其头部本就贴顶)。 -->
+          <Style TargetType="ui:CardControl" BasedOn="{StaticResource {x:Type ui:CardControl}}">
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+          </Style>
+          <!-- ponytail: 71.3 = 折叠态 CardExpander 的可见外框高(边框1+padding16+头部36+padding16+边框1=70)。
+               卡片 MinHeight 取此值, CardControl 才与折叠 CardExpander 等高; 用 84 会高约 1/4。
+               低于 70 不再生效(内容物理下限)。 -->
+        </Grid.Resources>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="*"/>
@@ -45,7 +56,7 @@
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdCpuPowerCard" Visibility="Collapsed">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="0" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdCpuPowerCard" Visibility="Collapsed">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -54,14 +65,14 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Power24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.AmdCpuPowerHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.AmdCpuPowerDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                <ComboBox x:Name="AmdPptCombo" MinWidth="100" Margin="0,0,8,0"
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <ComboBox x:Name="AmdPptCombo" MinWidth="100" Margin="{StaticResource CardAccessoryMargin}"
                           SelectionChanged="AmdPptCombo_SelectionChanged"/>
               </StackPanel>
             </Grid>
@@ -71,17 +82,17 @@
             <StackPanel Margin="0,0,0,8">
 	              <TextBlock Text="{x:Static app:Strings.AmdPptLabel}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <ui:NumberBox x:Name="AmdCpuPptNum" Minimum="8" Maximum="300" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdCpuPptNum_ValueChanged"
+                <Grid.ColumnDefinitions><ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="AmdCpuPptNum" Minimum="8" Maximum="300" SmallChange="1" Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="AmdCpuPptNum_ValueChanged"
                               Value="{Binding ElementName=AmdCpuPptSlider, Path=Value, Mode=TwoWay}"/>
-                <Slider x:Name="AmdCpuPptSlider" Grid.Column="1" Minimum="8" Maximum="300" TickFrequency="10" IsSnapToTickEnabled="True" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                <Slider x:Name="AmdCpuPptSlider" Grid.Column="1" Minimum="8" Maximum="300" TickFrequency="10" IsSnapToTickEnabled="True" Style="{StaticResource PerfValueSliderStyle}"/>
               </Grid>
             </StackPanel>
             <TextBlock x:Name="AmdCpuPowerStatus" FontSize="{DynamicResource FontSizeCaption}" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="CpuPowerCard">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="CpuPowerCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -90,14 +101,14 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="DeveloperBoard24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="DeveloperBoard24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.CpuPowerHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfAdjustCpuPower}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                <ComboBox x:Name="CpuPowerCombo" MinWidth="100" Margin="0,0,8,0"
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <ComboBox x:Name="CpuPowerCombo" MinWidth="100" Margin="{StaticResource CardAccessoryMargin}"
                            SelectionChanged="CpuPower_SelectionChanged"/>
               </StackPanel>
             </Grid>
@@ -109,15 +120,14 @@
               </TextBlock>
               <Grid>
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="150"/>
+                  <ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/>
                   <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <ui:NumberBox x:Name="CpuPowerPL1Num" Minimum="1" Maximum="254" SmallChange="1"
-                              MaxDecimalPlaces="0" ValueChanged="CpuPowerPL1Num_ValueChanged"
+                              Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="CpuPowerPL1Num_ValueChanged"
                               Value="{Binding ElementName=CpuPowerPL1Slider, Path=Value, Mode=TwoWay}"/>
                 <Slider x:Name="CpuPowerPL1Slider" Grid.Column="1" Minimum="1" Maximum="254"
-                        TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0"
-                        VerticalAlignment="Center"/>
+                        TickFrequency="1" IsSnapToTickEnabled="True" Style="{StaticResource PerfValueSliderStyle}"/>
               </Grid>
             </StackPanel>
             <StackPanel>
@@ -126,21 +136,20 @@
               </TextBlock>
               <Grid>
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="150"/>
+                  <ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/>
                   <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <ui:NumberBox x:Name="CpuPowerPL2Num" Minimum="1" Maximum="254" SmallChange="1"
-                              MaxDecimalPlaces="0" ValueChanged="CpuPowerPL2Num_ValueChanged"
+                              Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="CpuPowerPL2Num_ValueChanged"
                               Value="{Binding ElementName=CpuPowerPL2Slider, Path=Value, Mode=TwoWay}"/>
                 <Slider x:Name="CpuPowerPL2Slider" Grid.Column="1" Minimum="1" Maximum="254"
-                        TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0"
-                        VerticalAlignment="Center"/>
+                        TickFrequency="1" IsSnapToTickEnabled="True" Style="{StaticResource PerfValueSliderStyle}"/>
               </Grid>
             </StackPanel>
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="IccMaxCard">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="IccMaxCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -149,31 +158,31 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Flash24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Flash24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.IccMaxHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
 	                <TextBlock Text="{x:Static app:Strings.IccMaxDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="IccMaxCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="IccMaxCombo" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="IccMax_Changed"/>
             </Grid>
           </ui:CardExpander.Header>
           <Grid>
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="150"/>
+              <ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/>
               <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <ui:NumberBox x:Name="IccMaxNum" Minimum="0" Maximum="255" SmallChange="5"
-                          MaxDecimalPlaces="0" ValueChanged="IccMaxNum_ValueChanged"
+                          Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="IccMaxNum_ValueChanged"
                           Value="{Binding ElementName=IccMaxSlider, Path=Value, Mode=TwoWay}"/>
             <Slider x:Name="IccMaxSlider" Grid.Column="1" Minimum="0" Maximum="255"
                     IsSnapToTickEnabled="True" TickPlacement="BottomRight"
                     Ticks="0,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240,245,250,255"
-                    Margin="12,0,0,0" VerticalAlignment="Center"/>
+                    Style="{StaticResource PerfValueSliderStyle}"/>
           </Grid>
         </ui:CardExpander>
-        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="2" Margin="4,0,0,8" x:Name="CpuOcCard" Visibility="Collapsed">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="0" Grid.Column="2" Margin="4,0,0,8" x:Name="CpuOcCard" Visibility="Collapsed">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -182,13 +191,13 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Rocket24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Rocket24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="CPU 超频" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="每核频率 / 电压偏移" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <Button Grid.Column="1" Content="设置" MinWidth="80" Margin="0,0,12,0"
+              <Button Grid.Column="1" Content="设置" MinWidth="80" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                       Click="CpuOcSettings_Click"/>
             </Grid>
           </ui:CardExpander.Header>
@@ -198,43 +207,49 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardControl MinHeight="84" Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="AcLoadLineCard">
+        <ui:CardControl MinHeight="71.3" Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="AcLoadLineCard">
           <ui:CardControl.Header>
-            <StackPanel>
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Gauge24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Gauge24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.AcLoadLineHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <ComboBox x:Name="AcLoadLineCombo" Grid.Column="1" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
-                        SelectionChanged="AcLoadLine_Changed"/>
-              </Grid>
-              <TextBlock Text="{x:Static app:Strings.AcLoadLineDesc}" FontSize="{DynamicResource FontSizeBody}"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
-          </ui:CardControl.Header>
-        </ui:CardControl>
-
-        <ui:CardControl MinHeight="84" Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
-          <ui:CardControl.Header>
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
-                <TextBlock Text="{x:Static app:Strings.PowerModeHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Text="{x:Static app:Strings.AcLoadLineDesc}" FontSize="{DynamicResource FontSizeBody}"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-	              <TextBlock Text="{x:Static app:Strings.PowerModeDesc}" FontSize="{DynamicResource FontSizeBody}"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+              <ComboBox x:Name="AcLoadLineCombo" Grid.Column="1" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
+                        SelectionChanged="AcLoadLine_Changed"/>
+            </Grid>
           </ui:CardControl.Header>
-          <ComboBox x:Name="PowerModeCombo"  Margin="0,8,0,0"
-                    SelectionChanged="PowerMode_SelectionChanged"/>
         </ui:CardControl>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="2" Grid.Column="0" Margin="0,0,4,8">
+        <ui:CardControl MinHeight="71.3" Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
+          <ui:CardControl.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <ui:SymbolIcon Symbol="Power24" Margin="{StaticResource CardHeaderIconMargin}"/>
+                  <TextBlock Text="{x:Static app:Strings.PowerModeHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.PowerModeDesc}" FontSize="{DynamicResource FontSizeBody}"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
+              </StackPanel>
+              <ComboBox Grid.Column="1" x:Name="PowerModeCombo" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
+                        SelectionChanged="PowerMode_SelectionChanged"/>
+            </Grid>
+          </ui:CardControl.Header>
+        </ui:CardControl>
+
+        <ui:CardExpander MinHeight="71.3" Grid.Row="2" Grid.Column="0" Margin="0,0,4,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -243,13 +258,13 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Power24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.PowerPlanHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
 	                <TextBlock Text="{x:Static app:Strings.PowerPlanDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="PowerPlanCombo" MinWidth="140" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="PowerPlanCombo" MinWidth="140" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="PowerPlan_SelectionChanged"/>
             </Grid>
           </ui:CardExpander.Header>
@@ -399,7 +414,7 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="2" Grid.Column="1" Margin="4,0,0,8" x:Name="EcoQosCard">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="2" Grid.Column="1" Margin="4,0,0,8" x:Name="EcoQosCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -408,13 +423,13 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="LeafOne24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="LeafOne24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.EcoQosHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfEcoQosDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ui:ToggleSwitch x:Name="EcoQosToggle" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0"
+              <ui:ToggleSwitch x:Name="EcoQosToggle" Grid.Column="1" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                               Checked="EcoQosToggle_Checked" Unchecked="EcoQosToggle_Unchecked"/>
             </Grid>
           </ui:CardExpander.Header>
@@ -450,7 +465,7 @@
         </ui:CardExpander>
 
         <!-- 异构调度 (AMD 双CCD 模拟大小核) -->
-        <ui:CardExpander MinHeight="84" Grid.Row="3" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="HeteroCpuCard">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="3" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}" x:Name="HeteroCpuCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -459,13 +474,13 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="DeviceEq24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="DeviceEq24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.HeteroCpuHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.HeteroCpuToggleDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ui:ToggleSwitch x:Name="HeteroCpuToggle" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0"
+              <ui:ToggleSwitch x:Name="HeteroCpuToggle" Grid.Column="1" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                               Checked="HeteroCpuToggle_Changed" Unchecked="HeteroCpuToggle_Changed"/>
             </Grid>
           </ui:CardExpander.Header>
@@ -584,7 +599,7 @@
 
         <!-- ponytail: AMD Curve Optimizer 全核降压。仅 EnableEcAccess + PawnIO + 受支持家族时可见。
              复用 AmdUndervoltService 走 SMU 邮箱写 PCI 配置空间,不经过 WMI。 -->
-        <ui:CardExpander MinHeight="84" Grid.Row="4" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdUndervoltCard" Visibility="Collapsed">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="4" Grid.Column="0" Margin="0,0,4,8" x:Name="AmdUndervoltCard" Visibility="Collapsed">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -593,11 +608,11 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="TopSpeed24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="TopSpeed24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.AmdUndervoltHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.AmdUndervoltDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
             </Grid>
           </ui:CardExpander.Header>
@@ -605,10 +620,10 @@
             <StackPanel Margin="0,0,0,8">
               <TextBlock Text="{x:Static app:Strings.AmdUndervoltLabel}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,2"/>
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <ui:NumberBox x:Name="AmdUndervoltNum" Minimum="-50" Maximum="0" SmallChange="1" MaxDecimalPlaces="0" ValueChanged="AmdUndervoltNum_ValueChanged"
+                <Grid.ColumnDefinitions><ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="AmdUndervoltNum" Minimum="-50" Maximum="0" SmallChange="1" Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="AmdUndervoltNum_ValueChanged"
                               Value="{Binding ElementName=AmdUndervoltSlider, Path=Value, Mode=TwoWay}"/>
-                <Slider x:Name="AmdUndervoltSlider" Grid.Column="1" Minimum="-50" Maximum="0" TickFrequency="5" IsSnapToTickEnabled="False" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                <Slider x:Name="AmdUndervoltSlider" Grid.Column="1" Minimum="-50" Maximum="0" TickFrequency="5" IsSnapToTickEnabled="False" Style="{StaticResource PerfValueSliderStyle}"/>
               </Grid>
             </StackPanel>
             <TextBlock x:Name="AmdUndervoltStatus" FontSize="{DynamicResource FontSizeCaption}" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
@@ -619,7 +634,7 @@
         </ui:CardExpander>
 
         <!-- ponytail: CoreKeep 已迁移到独立 CoreKeepPage 二级菜单，此处仅保留跳转入口 -->
-        <ui:CardControl MinHeight="84" Grid.Row="10" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}">
+        <ui:CardControl MinHeight="71.3" Grid.Row="10" Grid.ColumnSpan="2" Margin="{StaticResource CardMargin}">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -628,11 +643,11 @@
               </Grid.ColumnDefinitions>
               <StackPanel VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="AppsList24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="AppsList24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.CoreKeepHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfCoreKeepDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
               <ui:Button Grid.Column="1" x:Name="CoreKeepGotoBtn"
                          Content="{x:Static app:Strings.CoreKeepOpenPage}"
@@ -645,11 +660,19 @@
       </Grid>
 
       <StackPanel Orientation="Horizontal" Margin="0,8,0,12">
-        <ui:SymbolIcon Symbol="DeviceEq24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <ui:SymbolIcon Symbol="DeviceEq24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="{StaticResource CardHeaderIconMargin}"/>
         <TextBlock Text="{x:Static app:Strings.PerfGroupGpu}" FontSize="{DynamicResource FontSizeSubheader}" FontWeight="SemiBold" VerticalAlignment="Center"/>
       </StackPanel>
 
       <Grid x:Name="GpuPerfGrid">
+        <Grid.Resources>
+          <Style TargetType="ui:CardControl" BasedOn="{StaticResource {x:Type ui:CardControl}}">
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+          </Style>
+          <!-- ponytail: 71.3 = 折叠态 CardExpander 的可见外框高(边框1+padding16+头部36+padding16+边框1=70)。
+               卡片 MinHeight 取此值, CardControl 才与折叠 CardExpander 等高; 用 84 会高约 1/4。
+               低于 70 不再生效(内容物理下限)。 -->
+        </Grid.Resources>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="*"/>
@@ -671,7 +694,7 @@
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="0" Margin="0,0,4,8">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="0" Grid.Column="0" Margin="0,0,4,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -679,28 +702,27 @@
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Clock24" Margin="0,0,6,0"/>
+                <ui:SymbolIcon Symbol="Clock24" Margin="{StaticResource CardHeaderIconMargin}"/>
                 <TextBlock Text="{x:Static app:Strings.GpuClockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="GpuClockCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="GpuClockCombo" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="GpuClock_SelectionChanged"/>
             </Grid>
           </ui:CardExpander.Header>
           <Grid>
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="150"/>
+              <ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/>
               <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <ui:NumberBox x:Name="GpuClockNum" Minimum="0" Maximum="2500" SmallChange="50"
-                          MaxDecimalPlaces="0" ValueChanged="GpuClockNum_ValueChanged"
+                          Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="GpuClockNum_ValueChanged"
                           Value="{Binding ElementName=GpuClockSlider, Path=Value, Mode=TwoWay}"/>
             <Slider x:Name="GpuClockSlider" Grid.Column="1" Minimum="0" Maximum="2500"
-                    TickFrequency="50" IsSnapToTickEnabled="True" Margin="12,0,0,0"
-                    VerticalAlignment="Center"/>
+                    TickFrequency="50" IsSnapToTickEnabled="True" Style="{StaticResource PerfValueSliderStyle}"/>
           </Grid>
         </ui:CardExpander>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="GpuCoreOCCard">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="0" Grid.Column="1" Margin="4,0,0,8" x:Name="GpuCoreOCCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -709,31 +731,30 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="TopSpeed24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="TopSpeed24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.GpuCoreOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.GpuCoreOcDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="GpuCoreOCCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="GpuCoreOCCombo" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="GpuCoreOC_SelectionChanged"/>
             </Grid>
           </ui:CardExpander.Header>
           <Grid>
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="150"/>
+              <ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/>
               <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <ui:NumberBox x:Name="GpuCoreOCNum" Minimum="-270" Maximum="270" SmallChange="15"
-                          MaxDecimalPlaces="0" ValueChanged="GpuCoreOCNum_ValueChanged"
+                          Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="GpuCoreOCNum_ValueChanged"
                           Value="{Binding ElementName=GpuCoreOCSlider, Path=Value, Mode=TwoWay}"/>
             <Slider x:Name="GpuCoreOCSlider" Grid.Column="1" Minimum="-270" Maximum="270"
-                    TickFrequency="15" IsSnapToTickEnabled="True" Margin="12,0,0,0"
-                    VerticalAlignment="Center"/>
+                    TickFrequency="15" IsSnapToTickEnabled="True" Style="{StaticResource PerfValueSliderStyle}"/>
           </Grid>
         </ui:CardExpander>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="GpuMemoryOCCard">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="1" Grid.Column="0" Margin="0,0,4,8" x:Name="GpuMemoryOCCard">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -742,103 +763,102 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="DataBarVertical24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="DataBarVertical24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.GpuMemoryOverclockHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.GpuMemOcDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="GpuMemoryOCCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="GpuMemoryOCCombo" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="GpuMemoryOC_SelectionChanged"/>
             </Grid>
           </ui:CardExpander.Header>
           <Grid>
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="150"/>
+              <ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/>
               <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <ui:NumberBox x:Name="GpuMemoryOCNum" Minimum="0" Maximum="2000" SmallChange="100"
-                          MaxDecimalPlaces="0" ValueChanged="GpuMemoryOCNum_ValueChanged"
+                          Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="GpuMemoryOCNum_ValueChanged"
                           Value="{Binding ElementName=GpuMemoryOCSlider, Path=Value, Mode=TwoWay}"/>
             <Slider x:Name="GpuMemoryOCSlider" Grid.Column="1" Minimum="0" Maximum="2000"
-                    TickFrequency="100" IsSnapToTickEnabled="True" Margin="12,0,0,0"
-                    VerticalAlignment="Center"/>
+                    TickFrequency="100" IsSnapToTickEnabled="True" Style="{StaticResource PerfValueSliderStyle}"/>
           </Grid>
         </ui:CardExpander>
 
-        <ui:CardControl MinHeight="84" Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardControl MinHeight="71.3" Grid.Row="1" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardControl.Header>
-            <StackPanel>
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="DesktopPulse24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="DesktopPulse24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.GraphicsMode}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <ComboBox x:Name="GfxModeCombo" Grid.Column="1" MinWidth="140"
-                          SelectionChanged="GfxMode_SelectionChanged">
+                <TextBlock Text="{x:Static app:Strings.PerfGfxReboot}" FontSize="{DynamicResource FontSizeBody}"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
+              </StackPanel>
+              <ComboBox x:Name="GfxModeCombo" Grid.Column="1" MinWidth="140" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
+                        SelectionChanged="GfxMode_SelectionChanged">
 	                  <ComboBoxItem Content="{x:Static app:Strings.GfxAdvOptimus}"/>
-                  <ComboBoxItem Content="{x:Static app:Strings.GfxDiscreteMode}"/>
-                  <ComboBoxItem Content="{x:Static app:Strings.GfxHybridMode}"/>
-                  <ComboBoxItem Content="{x:Static app:Strings.GfxUMALabel}"/>
-                </ComboBox>
-              </Grid>
-              <TextBlock Text="{x:Static app:Strings.PerfGfxReboot}" FontSize="{DynamicResource FontSizeBody}"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+                <ComboBoxItem Content="{x:Static app:Strings.GfxDiscreteMode}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.GfxHybridMode}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.GfxUMALabel}"/>
+              </ComboBox>
+            </Grid>
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardControl MinHeight="84" Grid.Row="2" Grid.Column="0" Margin="0,0,4,8" x:Name="HotSwitchCard" Visibility="Collapsed">
+        <ui:CardControl MinHeight="71.3" Grid.Row="2" Grid.Column="0" Margin="0,0,4,8" x:Name="HotSwitchCard" Visibility="Collapsed">
           <ui:CardControl.Header>
-            <StackPanel>
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="ArrowSync24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="ArrowSync24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.HotSwitchHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <ui:Button x:Name="HotSwitchBtn" Grid.Column="1" Width="32" Height="34" Padding="0" VerticalAlignment="Top" Margin="0,0,12,0" Appearance="Transparent" Click="HotSwitch_Click">
-                  <ui:SymbolIcon Symbol="ArrowSync24" FontSize="{DynamicResource FontSizeTitle}"/>
-                </ui:Button>
-              </Grid>
-              <TextBlock Text="{x:Static app:Strings.HotSwitchDesc}" FontSize="{DynamicResource FontSizeBody}"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
-            </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.HotSwitchDesc}" FontSize="{DynamicResource FontSizeBody}"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
+              </StackPanel>
+              <ui:Button x:Name="HotSwitchBtn" Grid.Column="1" Width="32" Height="34" Padding="0" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}" Appearance="Transparent" Click="HotSwitch_Click">
+                <ui:SymbolIcon Symbol="ArrowSync24" FontSize="{DynamicResource FontSizeTitle}"/>
+              </ui:Button>
+            </Grid>
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardControl MinHeight="84" Grid.Row="2" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardControl MinHeight="71.3" Grid.Row="2" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardControl.Header>
-            <StackPanel>
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Settings24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Settings24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.DbVersionHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <ComboBox x:Name="DbVersionCombo" Grid.Column="1" MinWidth="140"
-                          SelectionChanged="DbVersion_SelectionChanged">
-                  <ComboBoxItem Content="{x:Static app:Strings.PerfDbUnlockLabel}"/>
-                  <ComboBoxItem Content="{x:Static app:Strings.PerfDbNormalLabel}"/>
-                </ComboBox>
-              </Grid>
-              <TextBlock Text="{x:Static app:Strings.PerfPpabDesc}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,6,0,0"
-                         Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-            </StackPanel>
+                <TextBlock Text="{x:Static app:Strings.PerfPpabDesc}" FontSize="{DynamicResource FontSizeBody}"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
+              </StackPanel>
+              <ComboBox x:Name="DbVersionCombo" Grid.Column="1" MinWidth="140" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
+                        SelectionChanged="DbVersion_SelectionChanged">
+                <ComboBoxItem Content="{x:Static app:Strings.PerfDbUnlockLabel}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.PerfDbNormalLabel}"/>
+              </ComboBox>
+            </Grid>
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="3" Grid.Column="0" Margin="0,0,4,8">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="3" Grid.Column="0" Margin="0,0,4,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -847,13 +867,13 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="DataUsage24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="DataUsage24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.TgpHardwareLabel}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.TgpDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="CtgpCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="CtgpCombo" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="CtgpCombo_SelectionChanged"/>
             </Grid>
           </ui:CardExpander.Header>
@@ -877,44 +897,43 @@
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
             <Grid Margin="0,0,0,4">
               <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/>
                 <ColumnDefinition Width="*"/>
               </Grid.ColumnDefinitions>
               <ui:NumberBox x:Name="TppNum" Minimum="0" Maximum="254" SmallChange="1"
-                            MaxDecimalPlaces="0" ValueChanged="TppNum_ValueChanged"
+                            Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="TppNum_ValueChanged"
                             Value="{Binding ElementName=TppExtraSlider, Path=Value, Mode=TwoWay}"/>
               <Slider x:Name="TppExtraSlider" Grid.Column="1" Minimum="0" Maximum="254"
-                      TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0"
-                      VerticalAlignment="Center"/>
+                      TickFrequency="1" IsSnapToTickEnabled="True" Style="{StaticResource PerfValueSliderStyle}"/>
             </Grid>
             <TextBlock x:Name="TgpStatus" FontSize="{DynamicResource FontSizeCaption}" Margin="0,4,0,0"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardControl Grid.Row="4" Grid.Column="0" Margin="0,0,4,8">
+        <ui:CardControl MinHeight="71.3" Grid.Row="4" Grid.Column="0" Margin="0,0,4,8">
           <ui:CardControl.Header>
-            <StackPanel>
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="BatterySaver24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="BatterySaver24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.DStateHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
-                <ComboBox x:Name="DStateCombo" Grid.Column="1" MinWidth="140"
-                          SelectionChanged="DState_SelectionChanged">
-                  <ComboBoxItem Content="{x:Static app:Strings.Normal}"/>
-                  <ComboBoxItem Content="{x:Static app:Strings.LowPower}"/>
-                </ComboBox>
-              </Grid>
-            </StackPanel>
+              </StackPanel>
+              <ComboBox x:Name="DStateCombo" Grid.Column="1" MinWidth="140" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
+                        SelectionChanged="DState_SelectionChanged">
+                <ComboBoxItem Content="{x:Static app:Strings.Normal}"/>
+                <ComboBoxItem Content="{x:Static app:Strings.LowPower}"/>
+              </ComboBox>
+            </Grid>
           </ui:CardControl.Header>
         </ui:CardControl>
 
-        <ui:CardExpander Grid.Row="4" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="4" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -923,34 +942,34 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Fps6024" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Fps6024" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.MaxFrameRateHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfMaxFpsDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="FpsCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="FpsCombo" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="Fps_SelectionChanged"/>
             </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <Grid>
               <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/>
                 <ColumnDefinition Width="*"/>
               </Grid.ColumnDefinitions>
               <ui:NumberBox x:Name="FpsNum" Minimum="0" Maximum="1000" SmallChange="1"
-                            MaxDecimalPlaces="0" ValueChanged="FpsNum_ValueChanged"
+                            Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="FpsNum_ValueChanged"
                             Value="{Binding ElementName=FpsSlider, Path=Value, Mode=TwoWay}"/>
               <Slider x:Name="FpsSlider" Grid.Column="1" Minimum="0" Maximum="1000"
-                      TickFrequency="1" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                      TickFrequency="1" Style="{StaticResource PerfValueSliderStyle}"/>
             </Grid>
             <TextBlock Text="{x:Static app:Strings.MaxFrameRateNote}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,4,0,0"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
           </StackPanel>
         </ui:CardExpander>
 
-        <ui:CardExpander MinHeight="84" Grid.Row="3" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardExpander MinHeight="71.3" Grid.Row="3" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardExpander.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -959,28 +978,27 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="DesktopPulse24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="DesktopPulse24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.RefreshRateHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfRefreshRateDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="RefreshRateCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="RefreshRateCombo" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="RefreshRate_SelectionChanged"/>
             </Grid>
           </ui:CardExpander.Header>
           <StackPanel>
             <Grid>
               <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="{StaticResource ValueRowNumberWidth}"/>
                 <ColumnDefinition Width="*"/>
               </Grid.ColumnDefinitions>
               <ui:NumberBox x:Name="RefreshRateNum" Minimum="30" Maximum="360" SmallChange="1"
-                            MaxDecimalPlaces="0" ValueChanged="RefreshRateNum_ValueChanged"
+                            Style="{StaticResource PerfNumberBoxStyle}" ValueChanged="RefreshRateNum_ValueChanged"
                             Value="{Binding ElementName=RefreshRateSlider, Path=Value, Mode=TwoWay}"/>
               <Slider x:Name="RefreshRateSlider" Grid.Column="1" Minimum="30" Maximum="360"
-                      TickFrequency="1" IsSnapToTickEnabled="True" Margin="12,0,0,0"
-                      VerticalAlignment="Center"/>
+                      TickFrequency="1" IsSnapToTickEnabled="True" Style="{StaticResource PerfValueSliderStyle}"/>
             </Grid>
             <TextBlock Text="{x:Static app:Strings.RefreshRateNote}" FontSize="{DynamicResource FontSizeCaption}" Margin="0,4,0,0"
                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
@@ -988,7 +1006,7 @@
         </ui:CardExpander>
 
         <!-- Resolution -->
-        <ui:CardControl MinHeight="84" Grid.Row="5" Grid.Column="0" Margin="0,0,4,8">
+        <ui:CardControl MinHeight="71.3" Grid.Row="5" Grid.Column="0" Margin="0,0,4,8">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -997,20 +1015,20 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="FullScreenMaximize24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="FullScreenMaximize24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.ResolutionHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfResolutionDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="ResolutionCombo" MinWidth="130" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="ResolutionCombo" MinWidth="130" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="Resolution_SelectionChanged"/>
             </Grid>
           </ui:CardControl.Header>
         </ui:CardControl>
 
         <!-- DPI Scale -->
-        <ui:CardControl MinHeight="84" Grid.Row="5" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardControl MinHeight="71.3" Grid.Row="5" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -1019,20 +1037,20 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Scales24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Scales24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.DpiScaleHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfDpiDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ComboBox Grid.Column="1" x:Name="DpiCombo" MinWidth="100" VerticalAlignment="Top" Margin="0,0,12,0"
+              <ComboBox Grid.Column="1" x:Name="DpiCombo" MinWidth="100" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                         SelectionChanged="DpiCombo_SelectionChanged"/>
             </Grid>
           </ui:CardControl.Header>
         </ui:CardControl>
 
         <!-- HDR -->
-        <ui:CardControl MinHeight="84" Grid.Row="6" Grid.Column="0" Margin="0,0,4,8" x:Name="HdrCard">
+        <ui:CardControl MinHeight="71.3" Grid.Row="6" Grid.Column="0" Margin="0,0,4,8" x:Name="HdrCard">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -1041,20 +1059,20 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Hdr24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Hdr24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.HdrHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfHdrDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
-              <ui:ToggleSwitch Grid.Column="1" x:Name="HdrToggle" VerticalAlignment="Center" Margin="0,0,12,0"
+              <ui:ToggleSwitch Grid.Column="1" x:Name="HdrToggle" VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                                Click="HdrToggle_Click"/>
             </Grid>
           </ui:CardControl.Header>
         </ui:CardControl>
 
         <!-- Turn Off Display -->
-        <ui:CardControl MinHeight="84" Grid.Row="6" Grid.Column="1" Margin="4,0,0,8">
+        <ui:CardControl MinHeight="71.3" Grid.Row="6" Grid.Column="1" Margin="4,0,0,8">
           <ui:CardControl.Header>
             <Grid>
               <Grid.ColumnDefinitions>
@@ -1063,14 +1081,14 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Power24" Margin="0,0,6,0"/>
+                  <ui:SymbolIcon Symbol="Power24" Margin="{StaticResource CardHeaderIconMargin}"/>
                   <TextBlock Text="{x:Static app:Strings.TurnOffDisplayHeading}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Text="{x:Static app:Strings.PerfTurnOffDisplayDesc}" FontSize="{DynamicResource FontSizeBody}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,2,0,0"/>
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="{StaticResource CardHeaderDescMargin}"/>
               </StackPanel>
               <ui:Button Grid.Column="1" Content="{x:Static app:Strings.TurnOffDisplayBtn}" MinWidth="80"
-                         VerticalAlignment="Center" Margin="0,0,12,0"
+                         VerticalAlignment="Center" Margin="{StaticResource CardAccessoryMargin}"
                          Appearance="Secondary" Click="TurnOffDisplay_Click"/>
             </Grid>
           </ui:CardControl.Header>
