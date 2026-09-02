@@ -862,11 +862,16 @@ namespace OmenSuperHub.Services {
     }
 
     static void RestoreAutoStart() {
-      if (ConfigService.AutoStart == "on") {
-        AutoStartEnable();
-        UpdateCheckedState("autoStartGroup", "开启");
-      } else {
-        UpdateCheckedState("autoStartGroup", "关闭");
+      try {
+        if (ConfigService.AutoStart == "on") {
+          AutoStartEnable();
+          UpdateCheckedState("autoStartGroup", "开启");
+        } else {
+          UpdateCheckedState("autoStartGroup", "关闭");
+        }
+      } catch (Exception ex) {
+        // ponytail: 自启恢复失败绝不能打断 RestoreConfig 后续链 (RestoreIcon/OmenKey/Monitors/FloatingBar)。
+        Logger.Error($"RestoreAutoStart failed: {ex}");
       }
     }
 
@@ -1269,16 +1274,36 @@ namespace OmenSuperHub.Services {
       string file1 = @"C:\Windows\SysWOW64\silent.txt";
       string file2 = @"C:\Windows\SysWOW64\cool.txt";
 
-      if (Directory.Exists(targetFolder)) ExecuteCommand($"rd /s /q \"{targetFolder}\"");
-      if (File.Exists(file1)) ExecuteCommand($"del /f /q \"{file1}\"");
-      if (File.Exists(file2)) ExecuteCommand($"del /f /q \"{file2}\"");
+      // ponytail: rd/del 是 cmd 内建命令不是独立 exe, ExecuteCommand 走 Process.Start("rd")
+      // 必抛 Win32Exception。改用 .NET API, 且全程 try/catch 保证绝不抛 —— RestoreConfig()
+      // 无保护, RestoreAutoStart 若抛异常会打断 RestoreIcon/OmenKey/Monitors/FloatingBar
+      // 的开机恢复链。另: targetFolder 与安装默认路径 {autopf}\OmenXHub 重合, 绝不能删除
+      // 当前运行目录(否则开自启 = 删自己安装目录)。
+      string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+      try {
+        if (!string.Equals(targetFolder.TrimEnd('\\'), baseDir, StringComparison.OrdinalIgnoreCase)
+            && Directory.Exists(targetFolder))
+          Directory.Delete(targetFolder, true);
+      } catch (Exception ex) {
+        Logger.Error($"TrayService: cleanup target folder failed: {ex.Message}");
+      }
+      try { if (File.Exists(file1)) File.Delete(file1); } catch (Exception ex) { Logger.Error($"TrayService: cleanup {file1} failed: {ex.Message}"); }
+      try { if (File.Exists(file2)) File.Delete(file2); } catch (Exception ex) { Logger.Error($"TrayService: cleanup {file2} failed: {ex.Message}"); }
 
-      var taskQueryResult = ExecuteCommand($"schtasks /query /tn \"{taskName}\"");
-      if (taskQueryResult.ExitCode == 0) {
-        ExecuteCommand($"schtasks /delete /tn \"{taskName}\" /f");
+      try {
+        var taskQueryResult = ExecuteCommand($"schtasks /query /tn \"{taskName}\"");
+        if (taskQueryResult.ExitCode == 0) {
+          ExecuteCommand($"schtasks /delete /tn \"{taskName}\" /f");
+        }
+      } catch (Exception ex) {
+        Logger.Error($"TrayService: cleanup {taskName} task failed: {ex.Message}");
       }
 
-      ExecuteCommand(@"reg delete ""HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run"" /v ""OmenXHub"" /f");
+      try {
+        ExecuteCommand(@"reg delete ""HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run"" /v ""OmenXHub"" /f");
+      } catch (Exception ex) {
+        Logger.Error($"TrayService: cleanup Run value failed: {ex.Message}");
+      }
     }
 
     // ══════════════════════════════════════════════════════
