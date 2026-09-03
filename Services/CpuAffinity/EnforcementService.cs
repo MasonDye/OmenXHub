@@ -13,10 +13,10 @@ namespace OmenSuperHub.Services.CpuAffinity {
   /// 中央强制服务：根据规则 Action.Level 分派到对应机制。
   /// </summary>
   public class EnforcementService {
-    readonly CpuTopologyService _topoService;
+    readonly AffinityTopology _topoService;
     readonly JobObjectManager _jobManager;
 
-    public EnforcementService(CpuTopologyService topoService, JobObjectManager jobManager) {
+    public EnforcementService(AffinityTopology topoService, JobObjectManager jobManager) {
       _topoService = topoService;
       _jobManager = jobManager;
     }

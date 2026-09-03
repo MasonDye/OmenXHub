@@ -202,7 +202,9 @@ namespace OmenSuperHub.Services {
           ConfigService.Save("GpuCoreOverclock"); ConfigService.Save("GpuMemoryOverclock");
           ConfigService.Save("PowerPlanGuid"); ConfigService.Save("EcoQosEnabled"); ConfigService.Save("EcoQosThrottlePlugged");
         }
-      } catch { }
+      } catch (Exception ex) {
+        Logger.Warn($"[PresetManager] ApplyPresetData: preset-bound registry save failed: {ex.Message}");
+      }
     }
 
     // ═══════════════════════════════════════════════════════
@@ -275,7 +277,8 @@ namespace OmenSuperHub.Services {
         FanService.EnsurePresetCurveFile(presetKey);
       } catch (Exception ex) {
         Console.WriteLine($"Error saving custom preset to file: {ex.Message}");
-        try { SaveCustomPresetToRegistry(presetKey, d); } catch { }
+        try { SaveCustomPresetToRegistry(presetKey, d); }
+        catch (Exception ex2) { Logger.Warn($"[PresetManager] SaveCustomPreset: registry fallback for '{presetKey}' also failed: {ex2.Message}"); }
       }
     }
 
@@ -286,8 +289,11 @@ namespace OmenSuperHub.Services {
         string path = PresetFilePath(presetKey);
         if (File.Exists(path)) File.Delete(path);
         // also clean registry fallback
-        try { Registry.CurrentUser.DeleteSubKeyTree(PresetSubKey(presetKey)); } catch { }
-      } catch { }
+        try { Registry.CurrentUser.DeleteSubKeyTree(PresetSubKey(presetKey)); }
+        catch (Exception ex) { Logger.Warn($"[PresetManager] DeleteCustomPreset: registry cleanup for '{presetKey}' failed: {ex.Message}"); }
+      } catch (Exception ex) {
+        Logger.Warn($"[PresetManager] DeleteCustomPreset '{presetKey}': {ex.Message}");
+      }
     }
 
     // ponytail: LoadCustomPreset 被 Dashboard 雷达/圆环每 tick 调用 — 按 (路径, LastWriteTimeUtc)
@@ -430,7 +436,9 @@ namespace OmenSuperHub.Services {
             if (data.CoreKeepEnabled) CoreKeepService.StartAutoApply(ckData);
             else CoreKeepService.StopAutoApply();
           }
-        } catch { }
+        } catch (Exception ex) {
+          Logger.Warn($"[PresetManager] SwitchPreset '{preset}': CoreKeep state sync failed: {ex.Message}");
+        }
       }
 
       ConfigService.Preset = preset;

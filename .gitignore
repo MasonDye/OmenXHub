@@ -37,6 +37,8 @@ binReleasenet481-verify/
 stdout.txt
 stderr.txt
 battery-report.html
+# ponytail: 运行日志落盘在 tools\,不属于源码,勿入库
+tools/OmenXHub.log
 temp_*.svg
 temp_*.txt
 packages.config

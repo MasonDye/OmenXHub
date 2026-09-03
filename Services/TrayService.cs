@@ -158,7 +158,7 @@ namespace OmenSuperHub.Services {
       var langMenu = CreateParentMenuItem(Strings.LanguageMenu);
       System.Action applyAll = () => {
         RebuildMenu();
-        Views.MainWindow.ApplyLanguageToInstance();
+        // ponytail: 主窗口不实时切换 — 页面文本在重开主面板(ReleaseFrontend 清页面缓存)后生效
       };
       langMenu.Items.Add(CreateMenuItem(Strings.LangSimplified, "languageGroup", () => {
         Strings.SetLanguage(AppLanguage.SimplifiedChinese);
@@ -379,7 +379,9 @@ namespace OmenSuperHub.Services {
           _dataLocalizeDir = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
         System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "cpu_temp.txt"), $"{(int)HardwareService.CPUTemp}°C");
         System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "gpu_temp.txt"), $"{(int)HardwareService.GPUTemp}°C");
-      } catch { }
+      } catch (Exception ex) {
+        Logger.Warn($"[TrayService] WriteDataLocalize: {ex.Message}");  // Logger 30s 节流,1s 周期调用不刷屏
+      }
     }
 
     // Auto fan protect: if CPU >95°C and fans are fixed <75%, switch to auto+cool
@@ -541,24 +543,10 @@ namespace OmenSuperHub.Services {
         // 两把风扇按各自 CPU/GPU 温度独立计算。
         if (ConfigService.FanControl == "smart" || ConfigService.FanControl == "custom") {
           fanSpeed1 = FanService.GetSmartFanSpeed(0) / 100;
-          int gpuTargetSmart = FanService.GetSmartFanSpeed(1) / 100;
-          if (ConfigService.FanSync) {
-            int syncSpeed = System.Math.Max(fanSpeed1, gpuTargetSmart);
-            fanSpeed1 = syncSpeed;
-            fanSpeed2 = syncSpeed;
-          } else {
-            fanSpeed2 = gpuTargetSmart;
-          }
+          fanSpeed2 = ConfigService.FanSync ? fanSpeed1 : FanService.GetSmartFanSpeed(1) / 100;
         } else {
           fanSpeed1 = FanService.GetFanSpeedForTemperature(0) / 100;
-          int gpuTargetAuto = FanService.GetFanSpeedForTemperature(1) / 100;
-          if (ConfigService.FanSync) {
-            int syncSpeed = System.Math.Max(fanSpeed1, gpuTargetAuto);
-            fanSpeed1 = syncSpeed;
-            fanSpeed2 = syncSpeed;
-          } else {
-            fanSpeed2 = gpuTargetAuto;
-          }
+          fanSpeed2 = ConfigService.FanSync ? fanSpeed1 : FanService.GetFanSpeedForTemperature(1) / 100;
         }
         // ponytail: AMD EC 需要每 tick 保活，否则 ~3 秒后回退到 BIOS 风扇表。
         // SetMaxFanSpeedOff(0x27) 通知 EC "保持在软件控制模式"，
@@ -876,11 +864,16 @@ namespace OmenSuperHub.Services {
     }
 
     static void RestoreAutoStart() {
-      if (ConfigService.AutoStart == "on") {
-        AutoStartEnable();
-        UpdateCheckedState("autoStartGroup", "开启");
-      } else {
-        UpdateCheckedState("autoStartGroup", "关闭");
+      try {
+        if (ConfigService.AutoStart == "on") {
+          AutoStartEnable();
+          UpdateCheckedState("autoStartGroup", "开启");
+        } else {
+          UpdateCheckedState("autoStartGroup", "关闭");
+        }
+      } catch (Exception ex) {
+        // ponytail: 自启恢复失败绝不能打断 RestoreConfig 后续链 (RestoreIcon/OmenKey/Monitors/FloatingBar)。
+        Logger.Error($"RestoreAutoStart failed: {ex}");
       }
     }
 
@@ -1283,16 +1276,36 @@ namespace OmenSuperHub.Services {
       string file1 = @"C:\Windows\SysWOW64\silent.txt";
       string file2 = @"C:\Windows\SysWOW64\cool.txt";
 
-      if (Directory.Exists(targetFolder)) ExecuteCommand($"rd /s /q \"{targetFolder}\"");
-      if (File.Exists(file1)) ExecuteCommand($"del /f /q \"{file1}\"");
-      if (File.Exists(file2)) ExecuteCommand($"del /f /q \"{file2}\"");
+      // ponytail: rd/del 是 cmd 内建命令不是独立 exe, ExecuteCommand 走 Process.Start("rd")
+      // 必抛 Win32Exception。改用 .NET API, 且全程 try/catch 保证绝不抛 —— RestoreConfig()
+      // 无保护, RestoreAutoStart 若抛异常会打断 RestoreIcon/OmenKey/Monitors/FloatingBar
+      // 的开机恢复链。另: targetFolder 与安装默认路径 {autopf}\OmenXHub 重合, 绝不能删除
+      // 当前运行目录(否则开自启 = 删自己安装目录)。
+      string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+      try {
+        if (!string.Equals(targetFolder.TrimEnd('\\'), baseDir, StringComparison.OrdinalIgnoreCase)
+            && Directory.Exists(targetFolder))
+          Directory.Delete(targetFolder, true);
+      } catch (Exception ex) {
+        Logger.Error($"TrayService: cleanup target folder failed: {ex.Message}");
+      }
+      try { if (File.Exists(file1)) File.Delete(file1); } catch (Exception ex) { Logger.Error($"TrayService: cleanup {file1} failed: {ex.Message}"); }
+      try { if (File.Exists(file2)) File.Delete(file2); } catch (Exception ex) { Logger.Error($"TrayService: cleanup {file2} failed: {ex.Message}"); }
 
-      var taskQueryResult = ExecuteCommand($"schtasks /query /tn \"{taskName}\"");
-      if (taskQueryResult.ExitCode == 0) {
-        ExecuteCommand($"schtasks /delete /tn \"{taskName}\" /f");
+      try {
+        var taskQueryResult = ExecuteCommand($"schtasks /query /tn \"{taskName}\"");
+        if (taskQueryResult.ExitCode == 0) {
+          ExecuteCommand($"schtasks /delete /tn \"{taskName}\" /f");
+        }
+      } catch (Exception ex) {
+        Logger.Error($"TrayService: cleanup {taskName} task failed: {ex.Message}");
       }
 
-      ExecuteCommand(@"reg delete ""HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run"" /v ""OmenXHub"" /f");
+      try {
+        ExecuteCommand(@"reg delete ""HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run"" /v ""OmenXHub"" /f");
+      } catch (Exception ex) {
+        Logger.Error($"TrayService: cleanup Run value failed: {ex.Message}");
+      }
     }
 
     // ══════════════════════════════════════════════════════

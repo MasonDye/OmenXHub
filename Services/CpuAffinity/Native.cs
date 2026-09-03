@@ -91,7 +91,7 @@ namespace OmenSuperHub.Services.CpuAffinity {
   //  Logical Processor Information（EX API）
   //  ponytail: 用 GetLogicalProcessorInformationEx（条目自带 Size，遍历安全）。
   //  旧的非 EX API 结构体在 x64 上布局有 ULONG_PTR 对齐，曾导致字段错位；
-  //  现统一用 EX API + 固定偏移解包（见 CpuTopologyService.EnumerateEx）。
+  //  现统一用 EX API + 固定偏移解包（见 AffinityTopology.EnumerateEx）。
   // ══════════════════════════════════════
 
   public enum LOGICAL_PROCESSOR_RELATIONSHIP : uint {
@@ -105,7 +105,7 @@ namespace OmenSuperHub.Services.CpuAffinity {
     RelationAll = 0xFFFF
   }
 
-  // PROCESSOR_RELATIONSHIP / GROUP_AFFINITY 使用固定偏移解包（见 CpuTopologyService），不定义结构体。
+  // PROCESSOR_RELATIONSHIP / GROUP_AFFINITY 使用固定偏移解包（见 AffinityTopology），不定义结构体。
 
   // ══════════════════════════════════════
   //  Job Object 结构体

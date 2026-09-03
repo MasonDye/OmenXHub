@@ -1651,12 +1651,16 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
         using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
             @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\GraphicsSettings"))
           key?.SetValue(app.FilePath, value, Microsoft.Win32.RegistryValueKind.DWord);
-      } catch { }
+      } catch (Exception ex) {
+        Logger.Warn($"[DashboardPage] SetGpuPreference AppCompatFlags '{app.FilePath}': {ex.Message}");
+      }
       try {
         using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
             @"SOFTWARE\Microsoft\DirectX\UserGpuPreferences"))
           key?.SetValue(app.FilePath, value, Microsoft.Win32.RegistryValueKind.DWord);
-      } catch { }
+      } catch (Exception ex) {
+        Logger.Warn($"[DashboardPage] SetGpuPreference UserGpuPreferences '{app.FilePath}': {ex.Message}");
+      }
     }
 
     void GpuAppPrefAuto_Click(object sender, RoutedEventArgs e) { SetGpuPreference(2); }

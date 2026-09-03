@@ -1,4 +1,4 @@
-// CpuAffinity/CpuTopologyService.cs - 结构化 CPU 拓扑检测
+// CpuAffinity/AffinityTopology.cs - 结构化 CPU 拓扑检测
 // 参考 CpuAffinityManager.Cpu.CpuTopologyService
 // 用 CPU Set API 检测 P/E 核 + GetLogicalProcessorInformation 检测 SMT/CCD/Socket
 using System;
@@ -10,8 +10,9 @@ namespace OmenSuperHub.Services.CpuAffinity {
 
   /// <summary>
   /// 检测 CPU 拓扑。结果缓存（进程级不变）。
+  /// 改名原因:与根命名空间的 internal static CpuTopologyService 同短名,同文件 using 两个命名空间会歧义。
   /// </summary>
-  public class CpuTopologyService {
+  public class AffinityTopology {
     CpuTopology _cached;
     readonly object _lock = new object();
 

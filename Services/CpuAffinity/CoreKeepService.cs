@@ -1,6 +1,6 @@
 // CpuAffinity/CoreKeepService.cs - 兼容层 + 自动应用 + 守护 + 监控 + 竞速
 // 保留旧 CoreKeepEntry/CoreKeepData 兼容旧 CoreKeep.json
-// 内部用 RuleEngine + EnforcementService + CpuTopologyService 新架构
+// 内部用 RuleEngine + EnforcementService + AffinityTopology 新架构
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -88,7 +88,7 @@ namespace OmenSuperHub.Services.CpuAffinity {
     static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CoreKeep.json");
     static readonly string BenchPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CoreKeepBench.json");
 
-    static readonly CpuTopologyService _topoService = new CpuTopologyService();
+    static readonly AffinityTopology _topoService = new AffinityTopology();
     static readonly JobObjectManager _jobManager = new JobObjectManager();
     static readonly EnforcementService _enforcement = new EnforcementService(_topoService, _jobManager);
     static readonly RuleEngine _ruleEngine = new RuleEngine();
@@ -203,7 +203,8 @@ namespace OmenSuperHub.Services.CpuAffinity {
           // 规范化：确保带 .exe
           if (!exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) exe += ".exe";
           if (!handled.Add(exe.ToLowerInvariant())) continue;
-          try { WriteIfeoIoPriority(root, exe, e.IoPriority); } catch { }
+          try { WriteIfeoIoPriority(root, exe, e.IoPriority); }
+          catch (Exception ex) { Logger.Warn($"[CoreKeepService] SyncIfeoIoPriority '{exe}': {ex.Message}"); }
         }
       }
     }
