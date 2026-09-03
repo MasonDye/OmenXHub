@@ -1,0 +1,71 @@
+<Window x:Class="OverlayDemo.Windows.OverlayWidgetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="#00FFFFFF"
+        ResizeMode="NoResize" ShowInTaskbar="False" SizeToContent="WidthAndHeight"
+        ShowActivated="False" Topmost="True"
+        MouseEnter="Window_MouseEnter" MouseLeave="Window_MouseLeave" MouseMove="Window_MouseMove"
+        SourceInitialized="OnSourceInitialized">
+    <!-- 控制条在内容左侧（锁+5px 占位+菜单），控制菜单同窗 Grid Margin 0,26 -->
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+    <Grid>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+            <Grid x:Name="ControlBar" Margin="0,0,5,5" HorizontalAlignment="Left" VerticalAlignment="Top"
+                  Visibility="{Binding ControlBarVisibility}">
+                <StackPanel Background="#00FFFFFF" Orientation="Horizontal">
+                    <CheckBox Style="{StaticResource LockToggle}"
+                              IsChecked="{Binding IsLocked, Mode=TwoWay}"
+                              ToolTip="锁定 = 关闭选择器后仍常驻并保持置顶"
+                              Checked="Lock_Changed" Unchecked="Lock_Changed" />
+                    <Rectangle Width="5" Height="5" Fill="#00FFFFFF" />
+                    <Button Style="{StaticResource OverlayIconButton}" Content="&#xE700;"
+                            ToolTip="菜单" Click="LaunchMenu_Click" />
+                </StackPanel>
+            </Grid>
+            <Grid x:Name="AppContent" VerticalAlignment="Top">
+                <Border CornerRadius="8">
+                    <ContentControl x:Name="ContentRegion" Focusable="False" Margin="0,-2,0,0" />
+                </Border>
+            </Grid>
+        </StackPanel>
+
+        <Grid MinWidth="160" VerticalAlignment="Top" Margin="0,26,0,0"
+              HorizontalAlignment="{Binding ControlMenuAlignment}">
+            <Border Background="{StaticResource ControlMenuBackground}" BorderBrush="{StaticResource ControlMenuBorder}"
+                    BorderThickness="2" CornerRadius="4"
+                    Visibility="{Binding IsControlMenuVisible, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <StackPanel Height="35" HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal">
+                        <TextBlock x:Name="TitleIcon" FontFamily="{StaticResource IconFont}" FontSize="14" Text="&#xE7C3;" Margin="8,0,0,0"
+                                   VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" />
+                        <TextBlock x:Name="TitleText" MinWidth="120" Margin="8,0,10,0" VerticalAlignment="Center" FontSize="14"
+                                   FontWeight="Bold" FontFamily="{StaticResource OverlayFont}"
+                                   Foreground="{StaticResource TextBrush}" />
+                    </StackPanel>
+                    <Grid Height="1" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Background="{StaticResource DividerBrush}" />
+                    <StackPanel Height="37" HorizontalAlignment="Left" VerticalAlignment="Center" Orientation="Horizontal">
+                        <Button Margin="8,0,0,0" Style="{StaticResource MenuGlyphButton}" Content="&#xE7E8;"
+                                ToolTip="打开主程序" Click="LaunchHub_Click" />
+                        <Button Margin="8,0,0,0" Style="{StaticResource MenuGlyphButton}" Content="&#xE700;"
+                                ToolTip="打开选择器" Click="LaunchSelector_Click" />
+                        <Button Margin="8,0,0,0" Style="{StaticResource MenuGlyphButton}" Content="&#xE713;"
+                                ToolTip="设置" Click="LaunchSettings_Click" />
+                    </StackPanel>
+                    <StackPanel x:Name="VitalsSettings" Visibility="Collapsed">
+                        <Grid Height="1" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Background="{StaticResource DividerBrush}" />
+                        <ItemsControl x:Name="VitalsToggles" Margin="0,3">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Style="{StaticResource MenuCheckRow}" Content="{Binding Label}"
+                                              IsChecked="{Binding Checked, Mode=TwoWay}" Checked="VitalsToggle_Changed" Unchecked="VitalsToggle_Changed" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,107 @@
+<Window x:Class="OverlayDemo.Windows.SelectorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="#00FFFFFF"
+        ResizeMode="NoResize" ShowInTaskbar="False" SizeToContent="WidthAndHeight"
+        ShowActivated="False" Topmost="True"
+        SourceInitialized="OnSourceInitialized" Loaded="OnLoaded" MouseDown="Window_MouseDown">
+    <!-- 左下 rail：外框 66 圆角7 内框 60；4×48 开关竖排 + 分隔 + 热键/设置/关闭；设置面板两段拼接 -->
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="66" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <!-- rail -->
+        <Grid Grid.Column="0" VerticalAlignment="Bottom">
+            <Border Width="66" Background="{StaticResource WidgetBorderBrush}" BorderThickness="1" CornerRadius="7">
+                <Border Width="60" Margin="0,3" Background="{StaticResource ControlMenuBackground}" CornerRadius="7">
+                    <StackPanel Margin="0,3" VerticalAlignment="Center">
+                        <ItemsControl ItemsSource="{Binding RailItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Style="{StaticResource RailWidgetToggle}" Tag="{Binding Icon}"
+                                              IsChecked="{Binding Shown, Mode=TwoWay}"
+                                              ToolTip="{Binding Title}"
+                                              Checked="RailItem_Changed" Unchecked="RailItem_Changed" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Grid Height="1" Margin="6,12,6,4" Background="{StaticResource DividerBrush}" />
+                        <Button Style="{StaticResource HotkeyRailButton}" Content="{Binding HotkeyText}"
+                                ToolTip="热键" Click="HotkeyButton_Click" />
+                        <Button Height="20" Width="20" Margin="0,15,0,0" HorizontalAlignment="Center"
+                                Style="{StaticResource RailGlyphButton}" Content="&#xE713;" ToolTip="设置"
+                                Click="SettingsButton_Click" />
+                        <Grid Height="1" Margin="6,10,6,10" Background="{StaticResource DividerBrush}" />
+                        <Button Height="20" Width="20" Margin="0,0,0,10" HorizontalAlignment="Center"
+                                Style="{StaticResource RailGlyphButton}" Content="&#xE8BB;" ToolTip="收起"
+                                Click="CollapseButton_Click" />
+                    </StackPanel>
+                </Border>
+            </Border>
+        </Grid>
+
+        <!-- 设置面板：标题 48（圆角 7,7,0,0）+ 内容 308（0,0,7,7） -->
+        <Grid Grid.Column="1" Width="327" Margin="-2,0,0,0" VerticalAlignment="Bottom"
+              Visibility="{Binding IsSettingVisible, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <Border Width="327" Height="48" Background="{StaticResource ControlMenuBackground}"
+                        BorderBrush="{StaticResource ControlMenuBorder}" BorderThickness="1" CornerRadius="7,7,0,0">
+                    <Grid>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
+                            <TextBlock Text="设置" VerticalAlignment="Center" FontSize="14"
+                                       FontFamily="{StaticResource OverlayFont}" Foreground="{StaticResource TextBrush}" />
+                            <TextBlock FontFamily="{StaticResource IconFont}" FontSize="12" Text="&#xE713;" Margin="10,1,0,0"
+                                       VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" />
+                        </StackPanel>
+                        <Button Width="20" Height="20" HorizontalAlignment="Right" Margin="0,0,12,0"
+                                Style="{StaticResource RailGlyphButton}" Content="&#xE8BB;" Click="SettingClose_Click" />
+                    </Grid>
+                </Border>
+                <Border Width="327" Height="308" Margin="0,-1,0,0" Background="{StaticResource ControlMenuBackground}"
+                        BorderBrush="{StaticResource ControlMenuBorder}" BorderThickness="1" CornerRadius="0,0,7,7">
+                    <StackPanel>
+                        <StackPanel Margin="16,14,0,0">
+                            <TextBlock Text="热键" FontSize="14" Foreground="{StaticResource TextBrush}"
+                                       FontFamily="{StaticResource OverlayFont}" />
+                            <ComboBox x:Name="HotkeyCombo" Margin="0,6,0,0" Width="295" HorizontalAlignment="Left"
+                                      SelectionChanged="Hotkey_SelectionChanged" />
+                        </StackPanel>
+                        <StackPanel Margin="16,22,0,0">
+                            <TextBlock Text="背景不透明度" FontSize="14" Foreground="{StaticResource TextBrush}"
+                                       FontFamily="{StaticResource OverlayFont}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <TextBlock Text="0" FontSize="12" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" />
+                                <Slider x:Name="BgSlider" Width="240" Height="16" Margin="10,0" Minimum="0" Maximum="100" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" Style="{StaticResource TransparencySlider}"
+                                        ValueChanged="BgSlider_ValueChanged" VerticalAlignment="Center" />
+                                <TextBlock Text="100" FontSize="12" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Margin="16,20,0,0">
+                            <TextBlock Text="文字不透明度" FontSize="14" Foreground="{StaticResource TextBrush}"
+                                       FontFamily="{StaticResource OverlayFont}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <TextBlock Text="0" FontSize="12" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" />
+                                <Slider x:Name="TextSlider" Width="240" Height="16" Margin="10,0" Minimum="0" Maximum="100" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" Style="{StaticResource TransparencySlider}"
+                                        ValueChanged="TextSlider_ValueChanged" VerticalAlignment="Center" />
+                                <TextBlock Text="100" FontSize="12" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Margin="16,20,0,0">
+                            <TextBlock Text="文字颜色" FontSize="14" Foreground="{StaticResource TextBrush}"
+                                       FontFamily="{StaticResource OverlayFont}" />
+                            <WrapPanel x:Name="Swatches" Margin="-6,13,0,0" />
+                        </StackPanel>
+                        <Grid Height="10" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
