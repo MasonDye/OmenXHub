@@ -294,7 +294,7 @@
                   <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <TextBlock x:Name="MemRingPctText" Text="-" FontSize="22" FontWeight="Bold"
                                Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
-                    <TextBlock Text="{x:Static app:Strings.UtilizationLabel}" FontSize="10"
+                    <TextBlock Text="{x:Static app:Strings.UtilizationLabel}" FontSize="{DynamicResource FontSizeCaption}"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center"/>
                   </StackPanel>
                 </Grid>
@@ -439,7 +439,7 @@
                       StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                   <TextBlock x:Name="RingLabelText" Text="{x:Static app:Strings.DashboardTendencyLabel}"
-                             FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                             FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                              HorizontalAlignment="Center"/>
                   <TextBlock x:Name="RingPctText" Text="-" FontSize="20" FontWeight="Bold"
                              Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>

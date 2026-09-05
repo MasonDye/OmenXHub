@@ -149,12 +149,10 @@ namespace OmenSuperHub.Pages {
         int cpuTemp = cpuOn ? (int)HardwareService.GetDisplayCpuTemp() : 0;
         double cpuUtil = cpuOn ? HardwareService.CPUUsage : 0;
         double cpuFan = cpuOn ? HardwareService.FanSpeedNow[0] * 100 : 0;
-        double cpuPower = cpuOn ? HardwareService.CPUPower : 0;
         double cpuClock = cpuOn ? HardwareService.CPUClock : 0;
         int gpuTemp = gpuOn ? (int)HardwareService.GetDisplayGpuTemp() : 0;
         double gpuUtil = gpuOn ? HardwareService.GPUUsage : 0;
         double gpuFan = gpuOn ? HardwareService.FanSpeedNow[1] * 100 : 0;
-        double gpuPower = gpuOn ? HardwareService.GPUPower : 0;
         double gpuClock = gpuOn ? HardwareService.GPUClock : 0;
         int ir = (int)HardwareService.GetDisplayIrTemp();
         int amb = GetSensorTemperature(1);
@@ -162,11 +160,11 @@ namespace OmenSuperHub.Pages {
         int vr = GetSensorTemperature(3);
         // Push results back to UI thread
         Dispatcher.BeginInvoke(new Action(() =>
-          RefreshDashboardCore(cpuOn, gpuOn, memOn, mem, cpuTemp, cpuUtil, cpuFan, cpuPower, cpuClock,
-              gpuTemp, gpuUtil, gpuFan, gpuPower, gpuClock, presetKey, fc, ft)
+          RefreshDashboardCore(cpuOn, gpuOn, memOn, mem, cpuTemp, cpuUtil, cpuFan, cpuClock,
+              gpuTemp, gpuUtil, gpuFan, gpuClock, presetKey, fc, ft)
         ), DispatcherPriority.Background);
         Dispatcher.BeginInvoke(new Action(() =>
-          RefreshSensorsCore(cpuTemp, gpuOn ? gpuTemp : 0, ir, amb, pch, vr)
+          RefreshSensorsCore(cpuTemp, gpuTemp, ir, amb, pch, vr)
         ), DispatcherPriority.Background);
         // ponytail: 解耦 —— 不再在此驱动 FloatingWindow.UpdateAllText()。浮窗已有独立 1Hz 后端
         // timer(EnsureTimer)+ TrayService.UpdateTooltip 的 UpdateAllTextTicked 驱动,此处再 forceLayout
@@ -220,7 +218,7 @@ namespace OmenSuperHub.Pages {
         
         GpuPowerText.Text = HardwareService.GetDisplayGpuPower().ToString("F1") + " W";
         GpuPowerBar.Foreground = GetGradientBrush(HardwareService.GetDisplayGpuPower(), 170);
-        AnimateBar(GpuPowerBar, HardwareService.GPUPower);
+        AnimateBar(GpuPowerBar, HardwareService.GetDisplayGpuPower());
 
         // ponytail: GPUClock is the core clock (MHz); 3000 covers typical boost bins.
         double gpuClock = HardwareService.GPUClock;
@@ -288,8 +286,8 @@ namespace OmenSuperHub.Pages {
 
     /// <summary>UI-only update from pre-fetched data (called from timer background thread).</summary>
     void RefreshDashboardCore(bool cpuOn, bool gpuOn, bool memOn, MEMORYSTATUSEX mem,
-        int cpuTemp, double cpuUtil, double cpuFan, double cpuPower, double cpuClock,
-        int gpuTemp, double gpuUtil, double gpuFan, double gpuPower, double gpuClock,
+        int cpuTemp, double cpuUtil, double cpuFan, double cpuClock,
+        int gpuTemp, double gpuUtil, double gpuFan, double gpuClock,
         string presetKey, string fc, string ft) {
       if (cpuOn) {
         CpuTempText.Text = cpuTemp.ToString();
@@ -1225,7 +1223,6 @@ namespace OmenSuperHub.Pages {
         int v = ConfigService.SysValidation;
 	        SysValidationText.Text = Strings.SysModelValidation + ": " + (
 	            v == 2 ? Strings.ValidationGamingProduct :
-	            v == 1 ? Strings.ValidationUnsupported :
 	            Strings.ValidationUnsupported);
         SysBoardText.Text = Strings.SysBoardProduct + ": " + ConfigService.SysBoardProduct;
         SysCpuTjmaxText.Text = Strings.SysCpuTjMax + ": " + ConfigService.SysCpuTjmax + " °C";
@@ -1298,8 +1295,8 @@ SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyb
         int kbRaw = 0;
 try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboardType())); } catch { }
 	        try {
-          cpuTemp = Strings.SysCPUTemp + ": " + (int)HardwareService.CPUTemp + " °C";
-          gpuTemp = Strings.SysGPUTemp + ": " + (int)HardwareService.GPUTemp + " °C";
+          cpuTemp = Strings.SysCPUTemp + ": " + (int)HardwareService.GetDisplayCpuTemp() + " °C";
+          gpuTemp = Strings.SysGPUTemp + ": " + (int)HardwareService.GetDisplayGpuTemp() + " °C";
           irTemp = Strings.SysIRSensor + ": " + GetSensorTemperature(0) + " °C";
           ambTemp = Strings.SysAmbient + ": " + GetSensorTemperature(1) + " °C";
           pchTemp = Strings.SysPCH + ": " + GetSensorTemperature(2) + " °C";
@@ -1329,7 +1326,7 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
           if (ConfigService.SysProductName != (_pn ?? Strings.SysUnknown)) { ConfigService.SysProductName = _pn ?? Strings.SysUnknown; updates["SysProductName"] = _pn ?? Strings.SysUnknown; }
           SysValidationText.Text = Strings.SysModelValidation + ": " + (
               _validation >= 2 ? Strings.ValidationGamingProduct :
-              _validation == 1 ? Strings.ValidationUnsupported : Strings.ValidationUnsupported);
+              Strings.ValidationUnsupported);
           if (ConfigService.SysValidation != _validation) { ConfigService.SysValidation = _validation; updates["SysValidation"] = _validation; }
           SysBoardText.Text = Strings.SysBoardProduct + ": " + (_board ?? Strings.SysUnknown);
           if (ConfigService.SysBoardProduct != (_board ?? Strings.SysUnknown)) { ConfigService.SysBoardProduct = _board ?? Strings.SysUnknown; updates["SysBoardProduct"] = _board ?? Strings.SysUnknown; }
