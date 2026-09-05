@@ -240,9 +240,9 @@ namespace OmenSuperHub.Pages {
           double pageUsedGB = (mem.ullTotalPageFile - mem.ullAvailPageFile) / (1024.0 * 1024 * 1024);
           double pageTotalGB = mem.ullTotalPageFile / (1024.0 * 1024 * 1024);
           DrawMemoryRing(memPct);
-          RamDetailText.Text = $"{usedGB:F1} GB / {totalGB:F1} GB";
+          if (!_memCleanMsgActive) RamDetailText.Text = $"{usedGB:F1} GB / {totalGB:F1} GB";
           RamVirtualText.Text = $"{pageUsedGB:F1} GB / {pageTotalGB:F1} GB";
-          CleanMemBtn.IsEnabled = true;
+          if (!_memCleanMsgActive) CleanMemBtn.IsEnabled = true;
         } else {
           DrawMemoryRing(-1);
           RamDetailText.Text = "-";
@@ -336,15 +336,19 @@ namespace OmenSuperHub.Pages {
           double pageUsedGB = (mem.ullTotalPageFile - mem.ullAvailPageFile) / (1024.0 * 1024 * 1024);
           double pageTotalGB = mem.ullTotalPageFile / (1024.0 * 1024 * 1024);
           DrawMemoryRing(memPct);
-          RamDetailText.Text = $"{usedGB:F1} GB / {totalGB:F1} GB";
+          if (!_memCleanMsgActive) RamDetailText.Text = $"{usedGB:F1} GB / {totalGB:F1} GB";
           RamVirtualText.Text = $"{pageUsedGB:F1} GB / {pageTotalGB:F1} GB";
-          CleanMemBtn.IsEnabled = true;
+          if (!_memCleanMsgActive) CleanMemBtn.IsEnabled = true;
         } else {
           DrawMemoryRing(-1);
           RamDetailText.Text = "-";
           RamVirtualText.Text = "-";
           CleanMemBtn.IsEnabled = false;
         }
+      } catch { }
+      // Storage
+      try {
+        RefreshStorage();
       } catch { }
       CurrentModeText.Text = PresetDisplayName(presetKey);
       DrawRadar(presetKey);
@@ -365,14 +369,19 @@ namespace OmenSuperHub.Pages {
       PowerStatusText.Foreground = HardwareService.PowerOnline ? _brushAccentGreen : _brushAccentYellow;
     }
 
+    // ponytail: 传感器行文本统一"读不到显 -"。cpu/gpu 用 <=0(0=监控关/数据不新鲜),
+    // ir/amb/pch/vr 用 <0(WMI byte 读数 0 合法,-1 才是失败)。
+    static string SensorLine(string label, int v, bool zeroMeansOff) =>
+      (zeroMeansOff ? v <= 0 : v < 0) ? label + ": -" : label + ": " + v + " °C";
+
     /// <summary>UI-only sensor temperature update from pre-fetched data.</summary>
     void RefreshSensorsCore(int cpuT, int gpuT, int ir, int amb, int pch, int vr) {
-      SysCpuTempText.Text = Strings.SysCPUTemp + ": " + cpuT + " °C";
-      SysGpuTempText.Text = Strings.SysGPUTemp + ": " + gpuT + " °C";
-      SysIrSensorText.Text = Strings.SysIRSensor + ": " + ir + " °C";
-      SysAmbientText.Text = Strings.SysAmbient + ": " + amb + " °C";
-      SysPchText.Text = Strings.SysPCH + ": " + pch + " °C";
-      SysVrText.Text = Strings.SysVR + ": " + vr + " °C";
+      SysCpuTempText.Text = SensorLine(Strings.SysCPUTemp, cpuT, true);
+      SysGpuTempText.Text = SensorLine(Strings.SysGPUTemp, gpuT, true);
+      SysIrSensorText.Text = SensorLine(Strings.SysIRSensor, ir, false);
+      SysAmbientText.Text = SensorLine(Strings.SysAmbient, amb, false);
+      SysPchText.Text = SensorLine(Strings.SysPCH, pch, false);
+      SysVrText.Text = SensorLine(Strings.SysVR, vr, false);
       UpdateExtraTempRows();
     }
 
@@ -502,41 +511,44 @@ namespace OmenSuperHub.Pages {
       }
     }
 
-    void CleanMemory_Click(object sender, RoutedEventArgs e) {
+    // ponytail: _memCleanMsgActive —— 清理结果消息的 3s 展示窗内,屏蔽 timer tick 对
+    // RamDetailText/CleanMemBtn 的覆写(tick 每 250ms~2s 重写 GB 明细并重启用按钮,
+    // 不屏蔽则"已释放"消息活不过一个 tick、清理中还能被二次点击)。
+    bool _memCleanMsgActive;
+
+    async void CleanMemory_Click(object sender, RoutedEventArgs e) {
       try {
         var memBefore = GetMemoryStatus();
         ulong usedBefore = memBefore.ullTotalPhys - memBefore.ullAvailPhys;
 
+        _memCleanMsgActive = true;
         CleanMemBtn.IsEnabled = false;
-	        CleanMemBtn.Content = Strings.DashboardMemoryCleaning;
+        CleanMemBtn.Content = Strings.DashboardMemoryCleaning;
 
-        foreach (var proc in Process.GetProcesses()) {
-          try { using (proc) NativeMethods_Proc.EmptyWorkingSet(proc.Handle); } catch { }
-        }
+        // ponytail: 全进程 EmptyWorkingSet 是秒级批量操作,丢后台线程 —— 同步跑在 UI 线程
+        // 会冻结界面,"清理中"文案根本来不及渲染。
+        ulong usedAfter = await Task.Run(() => {
+          foreach (var proc in Process.GetProcesses()) {
+            try { using (proc) NativeMethods_Proc.EmptyWorkingSet(proc.Handle); } catch { }
+          }
+          var memAfter = GetMemoryStatus();
+          return memAfter.ullTotalPhys - memAfter.ullAvailPhys;
+        });
 
-        var memAfter = GetMemoryStatus();
-        ulong usedAfter = memAfter.ullTotalPhys - memAfter.ullAvailPhys;
         long freed = (long)(usedBefore - usedAfter);
         if (freed < 0) freed = 0;
 
-        string saved = RamDetailText.Text;
-	        RamDetailText.Text = freed > 0 ? Strings.DashboardMemoryFreedFormat(FormatBytes((ulong)freed)) : Strings.DashboardMemoryNoClean;
+        RamDetailText.Text = freed > 0 ? Strings.DashboardMemoryFreedFormat(FormatBytes((ulong)freed)) : Strings.DashboardMemoryNoClean;
         RamDetailText.Foreground = freed > 0 ? _brushAccentGreen : _brushAccentYellow;
-
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        timer.Tick += (s, a) => {
-          timer.Stop();
-          RamDetailText.Foreground = _brushTextPrimary;
-          CleanMemBtn.IsEnabled = true;
-          CleanMemBtn.Content = Strings.DashboardMemoryCleanBtn;
-        };
-        timer.Start();
       } catch (Exception ex) {
-	        RamDetailText.Text = Strings.DashboardMemoryCleanFailed(ex.Message);
+        RamDetailText.Text = Strings.DashboardMemoryCleanFailed(ex.Message);
         RamDetailText.Foreground = _brushAccentRed;
+      } finally {
+        // ponytail: 成功/失败共用一份 3s 恢复 timer(原先 try/catch 各一份,重复)。
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         timer.Tick += (s, a) => {
           timer.Stop();
+          _memCleanMsgActive = false;
           RamDetailText.Foreground = _brushTextPrimary;
           CleanMemBtn.IsEnabled = true;
           CleanMemBtn.Content = Strings.DashboardMemoryCleanBtn;
@@ -1295,12 +1307,12 @@ SysKbLightTypeText.Text = Strings.SysKbType + ": " + GetKeyboardTypeName((NbKeyb
         int kbRaw = 0;
 try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboardType())); } catch { }
 	        try {
-          cpuTemp = Strings.SysCPUTemp + ": " + (int)HardwareService.GetDisplayCpuTemp() + " °C";
-          gpuTemp = Strings.SysGPUTemp + ": " + (int)HardwareService.GetDisplayGpuTemp() + " °C";
-          irTemp = Strings.SysIRSensor + ": " + GetSensorTemperature(0) + " °C";
-          ambTemp = Strings.SysAmbient + ": " + GetSensorTemperature(1) + " °C";
-          pchTemp = Strings.SysPCH + ": " + GetSensorTemperature(2) + " °C";
-          vrTemp = Strings.SysVR + ": " + GetSensorTemperature(3) + " °C";
+          cpuTemp = SensorLine(Strings.SysCPUTemp, (int)HardwareService.GetDisplayCpuTemp(), true);
+          gpuTemp = SensorLine(Strings.SysGPUTemp, (int)HardwareService.GetDisplayGpuTemp(), true);
+          irTemp = SensorLine(Strings.SysIRSensor, GetSensorTemperature(0), false);
+          ambTemp = SensorLine(Strings.SysAmbient, GetSensorTemperature(1), false);
+          pchTemp = SensorLine(Strings.SysPCH, GetSensorTemperature(2), false);
+          vrTemp = SensorLine(Strings.SysVR, GetSensorTemperature(3), false);
         } catch { }
         string _pn = pn, _board = board;
         int _validation = validation, _tj = tj, _nvidiaTj = nvidiaTj, _kbRaw = kbRaw;
@@ -1363,19 +1375,9 @@ try { kb = GetKeyboardTypeName((NbKeyboardLightingType)(kbRaw = (int)GetKeyboard
     }
 
     void RefreshSensors() {
-      int cpuT = (int)HardwareService.GetDisplayCpuTemp();
-      int gpuT = (int)HardwareService.GetDisplayGpuTemp();
-      SysCpuTempText.Text = Strings.SysCPUTemp + ": " + cpuT + " °C";
-      SysGpuTempText.Text = Strings.SysGPUTemp + ": " + gpuT + " °C";
-      int ir = GetSensorTemperature(0);
-      SysIrSensorText.Text = Strings.SysIRSensor + ": " + ir + " °C";
-      int amb = GetSensorTemperature(1);
-      SysAmbientText.Text = Strings.SysAmbient + ": " + amb + " °C";
-      int pch = GetSensorTemperature(2);
-      SysPchText.Text = Strings.SysPCH + ": " + pch + " °C";
-      int vr = GetSensorTemperature(3);
-      SysVrText.Text = Strings.SysVR + ": " + vr + " °C";
-      UpdateExtraTempRows();
+      RefreshSensorsCore(
+          (int)HardwareService.GetDisplayCpuTemp(), (int)HardwareService.GetDisplayGpuTemp(),
+          GetSensorTemperature(0), GetSensorTemperature(1), GetSensorTemperature(2), GetSensorTemperature(3));
       _ = RefreshNvidiaPowerLimitAsync();
     }
 
