@@ -5,14 +5,15 @@ using System.Web.Script.Serialization;
 
 namespace OmenSuperHub.Services.NetworkBoost {
   /// <summary>
-  /// 生成 sing-box 配置：TUN 入站 (172.19.0.1/30) + 三个本地 SOCKS 出站池（2001 有线 / 2002 无线 / 2003 聚合）+ direct。
+  /// 生成 sing-box 配置：TUN 入站 (172.19.0.1/30) + 三个本地 SOCKS 出站池（端口取自
+  /// BoostService.Pool*Port，有线/无线/聚合）+ direct。
   /// 防御规则（防环/DNS/UDP）固定强插在前，用户进程分流规则在后。
   /// </summary>
   internal static class SingboxConfigGenerator {
     public const string TunGateway = "172.19.0.1";
 
     // per-process 限速端口起始（步进 2：socks=N, http=N+1）
-    const int LimitPortBase = 2010;
+    internal const int LimitPortBase = 2010;
 
     public static void Write(string path, List<RoutingRule> rules, string hostExe,
       out List<KeyValuePair<int, double>> limitedPorts) {
@@ -36,7 +37,8 @@ namespace OmenSuperHub.Services.NetworkBoost {
       };
 
       var outbounds = new List<object> {
-        Socks("nic_ethernet", 2001), Socks("nic_wifi", 2002), Socks("aggregation", 2003),
+        Socks("nic_ethernet", BoostService.PoolEthPort), Socks("nic_wifi", BoostService.PoolWifiPort),
+        Socks("aggregation", BoostService.PoolAggPort),
         new Dictionary<string, object> { { "type", "direct" }, { "tag", "direct" } }
       };
 

@@ -7,14 +7,17 @@ using OmenSuperHub;
 namespace OmenSuperHub.Services.NetworkBoost {
   /// <summary>
   /// 多网卡加速编排器。proxy 模式：本地 SOCKS5/HTTP 代理 + WinINet 系统代理；
-  /// tun 模式：三端口出站池 (2001 有线 / 2002 无线 / 2003 聚合) + sing-box TUN。
+  /// tun 模式：三端口出站池 (2001 有线 / 2003 无线 / 2005 聚合) + sing-box TUN。
   /// 网卡流量/连接数由各 ProxyEngine 写回 NicInfo，页面每秒轮询 RefreshTotals()。
   /// </summary>
   internal static class BoostService {
     public const int SocksPort = 10800;
+    // ponytail: 每个 ProxyEngine 占两个端口 (socks=N, http=N+1)，池端口必须步进 2，
+    // 否则上一引擎的 HTTP 口撞下一引擎的 SOCKS 口；且 ReuseAddress 让双绑都成功，
+    // 表现为默认出站流量随机串到别的引擎(旧值 2001/2002/2003 即此 bug)。
     public const int PoolEthPort = 2001;
-    public const int PoolWifiPort = 2002;
-    public const int PoolAggPort = 2003;
+    public const int PoolWifiPort = 2003;
+    public const int PoolAggPort = 2005;
 
     public static List<NicInfo> AllNics { get; private set; } = new List<NicInfo>();
     public static List<NicInfo> SelectedNics { get; private set; } = new List<NicInfo>();
@@ -174,5 +177,22 @@ namespace OmenSuperHub.Services.NetworkBoost {
     }
 
     static void Log(string msg) => OnLog?.Invoke(msg);
+
+    /// <summary>--selftest: 断言端口分配不变量 —— 每引擎占 {socks=N, http=N+1} 两端口,
+    /// 池端口两两不交叠、不侵入 proxy 模式口与限速端口区。断言的是分配规则而非具体值,
+    /// 以后调整步进/起始只需代码跟着过,不必改断言。</summary>
+    public static string SelfCheck() {
+      var pool = new[] { PoolEthPort, PoolWifiPort, PoolAggPort };
+      var used = new HashSet<int>();
+      foreach (var p in pool) {
+        if (!used.Add(p)) return "FAIL Boost port dup (socks): " + p;
+        if (!used.Add(p + 1)) return "FAIL Boost port http collides another socks: " + (p + 1);
+      }
+      if (used.Max() >= SingboxConfigGenerator.LimitPortBase)
+        return "FAIL Boost pool ports intrude on limit-port range";
+      if (used.Contains(SocksPort) || used.Contains(SocksPort + 1))
+        return "FAIL Boost pool collides with proxy-mode port";
+      return "PASS Boost port allocation disjoint";
+    }
   }
 }

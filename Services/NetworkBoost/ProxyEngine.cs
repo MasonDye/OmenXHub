@@ -92,8 +92,12 @@ namespace OmenSuperHub.Services.NetworkBoost {
       while (_running) {
         try {
           var c = _socks.AcceptTcpClient();
-          _clients.TryAdd(c.Client, 0);
-          var t = new Thread(() => HandleSocksClient(c)) { IsBackground = true };
+          // ponytail: 会话结束时移除跟踪项 — 旧版只在 Stop() 清空,正常完成的连接永久
+          // 留在 _clients 里(浏览器等高频场景按连接数无界增长)。socket 在 handler
+          // dispose 后再取 client.Client 会抛,accept 时先捕获引用。
+          var sock = c.Client;
+          _clients.TryAdd(sock, 0);
+          var t = new Thread(() => { try { HandleSocksClient(c); } finally { _clients.TryRemove(sock, out _); } }) { IsBackground = true };
           t.Start();
         } catch { if (!_running) break; }
       }
@@ -103,8 +107,9 @@ namespace OmenSuperHub.Services.NetworkBoost {
       while (_running) {
         try {
           var c = _http.AcceptTcpClient();
-          _clients.TryAdd(c.Client, 0);
-          var t = new Thread(() => HandleHttpClient(c)) { IsBackground = true };
+          var sock = c.Client;
+          _clients.TryAdd(sock, 0);
+          var t = new Thread(() => { try { HandleHttpClient(c); } finally { _clients.TryRemove(sock, out _); } }) { IsBackground = true };
           t.Start();
         } catch { if (!_running) break; }
       }
