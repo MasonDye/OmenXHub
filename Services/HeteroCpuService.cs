@@ -147,6 +147,10 @@ namespace OmenSuperHub.Services {
         if (ccd0Count <= 0 || ccd1Count <= 0)
           return (false, totalLp, 0, "");
 
+        // SmallProcessorMask 是 32 位 DWORD;>32 逻辑核时 1u<<i 按掩码规则回卷造出错位掩码。
+        // 双 CCD 桌面 CPU(如 >32 线程)超出本特性范围,拒绝而非生成坏掩码。
+        if (totalLp > 32) return (false, totalLp, 0, "");
+
         string mask = GenerateMask(totalLp, ccd0Count);
         return (true, totalLp, ccd0Count, mask);
       } catch (Exception ex) {
