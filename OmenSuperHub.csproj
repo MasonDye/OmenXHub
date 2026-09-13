@@ -128,6 +128,7 @@
   <ItemGroup>
     <Compile Remove="packages\**" />
     <Compile Remove="backup\**" />
+    <Compile Remove="artifacts\**" />
     <!-- ponytail: OverlayDemo 是独立 overlay 演示工程(SelectorWindow/OverlayWidgetWindow),
          与 tools\ 同理不得并入主程序编译;Compile+Page 双重排除(SDK 风格 WPF 隐式 glob
          会分别把 .cs 与 .xaml 编进来,只除 Compile 会留半编译状态)。 -->

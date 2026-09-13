@@ -118,10 +118,6 @@ namespace OmenSuperHub.Views {
       _instance.WindowState = WindowState.Normal;
     }
 
-    public static void ApplyLanguageToInstance() {
-      if (_instance == null) return;
-    }
-
     public static void NavigateToPage(string pageTag) {
       bool wasLoaded = _instance != null && _instance.IsLoaded;
       // ponytail: 告诉将来的 ResyncFrontendIfReleased "我要去 pageTag,别抢着 Navigate(Dashboard)"。
@@ -392,10 +388,12 @@ namespace OmenSuperHub.Views {
               src = System.Windows.Media.VisualTreeHelper.GetParent(src);
             }
             if (!inPage) return;
-            // Don't intercept when any ComboBox drop-down is open
-            if (HasOpenComboBox(page)) return;
+            // ponytail: 先查滚动宿主(O(depth) 祖先链) — 页面无滚动直接返回,
+            // 免掉 HasOpenComboBox 的 O(n) 全子树扫描。两检查皆纯判断,顺序交换行为等价。
             var dsv = FindScrollHost(page);
             if (dsv == null || dsv.ScrollableHeight <= 0) return;
+            // Don't intercept when any ComboBox drop-down is open
+            if (HasOpenComboBox(page)) return;
             if (ev.Delta > 0)
               dsv.ScrollToVerticalOffset(Math.Max(0, dsv.VerticalOffset - 60));
             else

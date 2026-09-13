@@ -19,9 +19,11 @@ namespace OmenSuperHub.Views {
     readonly bool _isNew;
     readonly bool _isQuickAction;
 
+    // ponytail: 无 QuickAction —— 常规流水线挂它要么(唯一触发器时)静默迁移成快捷动作要么是死触发器;
+    // 快捷动作入口是页面的「添加快捷操作」按钮。
     static readonly string[] TriggerTypes = {
       "ProcessStart", "ProcessStop", "PowerAC", "PowerDC", "Startup", "Resume",
-      "TimeSchedule", "SessionLock", "SessionUnlock", "QuickAction",
+      "TimeSchedule", "SessionLock", "SessionUnlock",
       "BatteryAbove", "BatteryBelow", "CpuTempAbove", "GpuTempAbove",
       "DisplayConnect", "DisplayDisconnect", "Hotkey"
     };
@@ -36,13 +38,38 @@ namespace OmenSuperHub.Views {
 
     Func<string> _getStepValue;
 
+    // ponytail: 热键录制会话是"窗口级"的 —— PreviewKeyDown 挂在同一窗口上,多个 Hotkey 触发器各有
+    // 录制按钮时,若不互斥,点 A 录制未完成再点 B,B 按键会同时触发 A/B 两个 handler(B 的 committed
+    // 被设值,用户以为 A 已取消)。编辑器是 ShowDialog 模态,同一时刻仅一个窗口 → 静态字段安全。
+    static Window _hkRecWin;
+    static KeyEventHandler _hkRecHandler;
+    static Action _hkRecCancel;   // 恢复被中断会话的按钮/文案
+
+    static void CancelActiveHotkeyRecording() {
+      if (_hkRecWin != null && _hkRecHandler != null) {
+        try { _hkRecWin.PreviewKeyDown -= _hkRecHandler; } catch { }
+      }
+      var cancel = _hkRecCancel;
+      _hkRecWin = null; _hkRecHandler = null; _hkRecCancel = null;
+      if (cancel != null) { try { cancel(); } catch { } }
+    }
+
+    // R15/BUG-24b: 录制进行中直接关闭编辑器时,静态 _hkRecWin/_hkRecHandler/_hkRecCancel 会钉住
+    // 已关闭窗口(含其控件闭包)直到下一次录制开始才释放 —— 内存泄漏 + 幽灵回调(对已关闭窗口
+    // 控件写 Text/IsEnabled)。关闭时若本窗口正是当前录制会话,就地取消。
+    protected override void OnClosed(EventArgs e) {
+      if (ReferenceEquals(_hkRecWin, this)) CancelActiveHotkeyRecording();
+      base.OnClosed(e);
+    }
+
     public PipelineEditorWindow(AutomationPipeline existing, Window owner, bool isQuickAction = false) {
       InitializeComponent();
       Owner = owner;
       // ponytail: 关闭前断开 Owner,避免 owned window 关闭把主窗口误最小化(通用弹窗 bug)
       Utils.WindowHelper.DetachOwnerOnClose(this);
       _isNew = existing == null;
-      _isQuickAction = isQuickAction || (!_isNew && existing.Triggers.Count == 1 && existing.Triggers[0].Type == "QuickAction");
+      // ponytail: 复用 IsQuickAction getter (自带 EnsureTriggers,老配置 Triggers 缺失也不 NRE) —— 与页面判定同源
+      _isQuickAction = isQuickAction || (!_isNew && existing.IsQuickAction);
       _pipeline = _isNew ? new AutomationPipeline { Name = Strings.NewPipelineDefaultName, Steps = new List<AutomationStep>() } : existing;
       _pipeline.EnsureTriggers();
 
@@ -158,16 +185,28 @@ namespace OmenSuperHub.Views {
         case "Hotkey": {
           var sp = new StackPanel { Orientation = Orientation.Horizontal };
           var tb = new TextBox { Height = 36, FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center, Width = 160, IsReadOnly = true };
-          tb.Text = "";
-          tb.Tag = "点击录制...";
-          var btn = new Button { Content = "录制", Height = 36, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
+          // ponytail: 提交值走 committed 而非嗅探 tb.Text 哨兵 —— 提示文案/取消恢复都写 tb,字符串比对必漏;
+          // committed 录制成功时赋值、Escape 取消时还原,getValue 只读它。
+          string committed = "";
+          var btn = new Button { Content = Strings.AutoHotkeyRecord, Height = 36, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
           btn.Click += (s, a) => {
-            tb.Text = "按下快捷键...";
             var win = Window.GetWindow((DependencyObject)s);
             if (win == null) return;
+            // ponytail: 先取消可能存在的其它录制会话(跨触发器互斥),再启动本次。
+            CancelActiveHotkeyRecording();
+            tb.Text = Strings.MacroCaptureKey;
+            btn.IsEnabled = false;   // 录制中禁用,防连点叠加多个 handler
             KeyEventHandler handler = null;
             handler = (ks, ke) => {
-              if (ke.Key == Key.Enter || ke.Key == Key.Escape || ke.Key == Key.Tab) return;
+              if (ke.Key == Key.Escape) {
+                tb.Text = committed;
+                win.PreviewKeyDown -= handler;
+                if (ReferenceEquals(_hkRecHandler, handler)) { _hkRecWin = null; _hkRecHandler = null; _hkRecCancel = null; }
+                btn.IsEnabled = true;
+                ke.Handled = true;
+                return;
+              }
+              if (ke.Key == Key.Enter || ke.Key == Key.Tab) return;
               // ponytail: skip modifier-only keys, keep listening for the actual key
               if (ke.Key == Key.LeftCtrl || ke.Key == Key.RightCtrl || ke.Key == Key.LeftShift || ke.Key == Key.RightShift ||
                   ke.Key == Key.LeftAlt || ke.Key == Key.RightAlt || ke.Key == Key.LWin || ke.Key == Key.RWin) return;
@@ -177,14 +216,24 @@ namespace OmenSuperHub.Views {
               if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0) mods.Add("Alt");
               if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0) mods.Add("Win");
               mods.Add(KeyToFriendlyName(ke.Key));
-              tb.Text = string.Join("+", mods);
-              win.PreviewKeyDown -= handler;
               ke.Handled = true;
+              // ponytail: 裸键会被后端 RefreshHotkeys 的 parts.Length<2 守卫静默丢弃,录制端就地要求修饰键
+              if (mods.Count < 2) {
+                tb.Text = Strings.AutoHotkeyNeedModifier;
+                return;   // handler 保持,继续等带修饰键的组合
+              }
+              committed = string.Join("+", mods);
+              tb.Text = committed;
+              win.PreviewKeyDown -= handler;
+              if (ReferenceEquals(_hkRecHandler, handler)) { _hkRecWin = null; _hkRecHandler = null; _hkRecCancel = null; }
+              btn.IsEnabled = true;
             };
             win.PreviewKeyDown += handler;
+            _hkRecWin = win; _hkRecHandler = handler;
+            _hkRecCancel = () => { tb.Text = committed; btn.IsEnabled = true; };
           };
           sp.Children.Add(tb); sp.Children.Add(btn);
-          getValue = () => (tb.Text == "按下快捷键..." || string.IsNullOrEmpty(tb.Text)) ? "" : tb.Text;
+          getValue = () => committed;
           return sp;
         }
         case "BatteryAbove":
@@ -214,6 +263,14 @@ namespace OmenSuperHub.Views {
           };
           sp.Children.Add(tb);
           sp.Children.Add(browseBtn);
+          // 文件浏览覆盖"选未运行的程序";运行中的进程走现成选择器 (RoutingRulesPage 同款)
+          var pickBtn = new Button { Content = Strings.BoostRulesSelectProcess, Height = 36, Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 0, 8, 0) };
+          pickBtn.Click += (s, a) => {
+            var dlg = new ProcessSelectDialog(Window.GetWindow((DependencyObject)s));
+            if (dlg.ShowDialog() == true && !string.IsNullOrEmpty(dlg.SelectedProcess))
+              tb.Text = dlg.SelectedProcess;
+          };
+          sp.Children.Add(pickBtn);
           getValue = () => tb.Text;
           return sp;
         }
@@ -329,7 +386,20 @@ namespace OmenSuperHub.Views {
       addBtn.Click += (s, a) => {
         var item = typeCombo.SelectedItem as ComboBoxItem;
         if (item == null) return;
-        _pipeline.Triggers.Add(new AutomationTrigger((string)item.Tag, getTriggerValue?.Invoke() ?? ""));
+        string tt = (string)item.Tag;
+        string val = getTriggerValue?.Invoke() ?? "";
+        // ponytail: 需要值的触发器类型落空值/乱码 → 后端匹配永远失败 (CollectWatchedProcNames 过滤空值、
+        // MatchTriggerValue TryParse 失败),静默成死触发器 —— 添加时就地拦截。
+        bool needsValue = Array.IndexOf(ValueTriggerTypes, tt) >= 0 || Array.IndexOf(ThresholdTriggerTypes, tt) >= 0;
+        if (needsValue && string.IsNullOrWhiteSpace(val)) {
+          DialogHelper.Warn(Strings.AutoTriggerValueInvalid);
+          return;
+        }
+        if (Array.IndexOf(ThresholdTriggerTypes, tt) >= 0 && !int.TryParse(val, out _)) {
+          DialogHelper.Warn(Strings.AutoTriggerValueInvalid);
+          return;
+        }
+        _pipeline.Triggers.Add(new AutomationTrigger(tt, val));
         RefreshTriggersUI();
         dialog.Close();
       };
@@ -404,7 +474,12 @@ namespace OmenSuperHub.Views {
         }
 
         string label = AutomationStepTypes.GetLabel(step.Type);
-        if (!string.IsNullOrEmpty(step.Value)) label += ": " + step.Value;
+        if (!string.IsNullOrEmpty(step.Value)) {
+          // ponytail: SetFanMode 导入曲线把整段 JSON 塞进 Value,原样拼标签是几百字符单行 —— 显示截断,存储不动
+          var v = step.Value;
+          if (v.Length > 48) v = v.Substring(0, 48) + "…";
+          label += ": " + v;
+        }
         if (step.DelayMs > 0) label += " (+" + step.DelayMs + "ms)";
         header.Children.Add(new TextBlock {
           Text = label,
@@ -822,11 +897,35 @@ namespace OmenSuperHub.Views {
 	    void SaveBtn_Click(object sender, RoutedEventArgs e) {
 	      _pipeline.Name = NameBox.Text;
 	      _pipeline.EnsureTriggers();
+	      // ponytail: 后端对空触发器 (MatchesTrigger 恒 false) / 空步骤 (ExecutePipeline 直接 return)
+	      // 都是静默忽略 —— 保存时显式拦截,别让用户存进永不执行的死条目。
+	      if (!_isQuickAction && !HasEnabledTrigger(_pipeline)) {
+	        DialogHelper.Warn(Strings.AutoNoTriggersWarn);
+	        return;
+	      }
+	      if (_pipeline.Steps.Count == 0) {
+	        DialogHelper.Warn(Strings.AutoNoStepsWarn);
+	        return;
+	      }
+	      // 冲突检查含同流水线内重复; 仅启用时检查 —— 禁用管道不注册热键无冲突可言,MacroPage 同款门控
+	      if (_pipeline.Enabled) {
+	        var conflict = AutomationProcessor.FindHotkeyConflict(_pipeline, AutomationService.Pipelines);
+	        if (conflict != null) {
+	          DialogHelper.Warn(Strings.AutoHotkeyConflict(conflict.Name));
+	          return;
+	        }
+	      }
 	      if (_isNew) AutomationService.AddPipeline(_pipeline);
 	      else AutomationService.UpdatePipeline(_pipeline);
 	      DialogResult = true;
 	      Close();
 	    }
+
+    static bool HasEnabledTrigger(AutomationPipeline p) {
+      foreach (var t in p.Triggers)
+        if (t.Enabled) return true;
+      return false;
+    }
 
     void CancelBtn_Click(object sender, RoutedEventArgs e) {
       DialogResult = false;

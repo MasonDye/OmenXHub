@@ -512,8 +512,11 @@ namespace OmenSuperHub.Services.SystemOptimization {
       RegistryView view = e.View == RegViewKind.Registry64 ? RegistryView.Registry64
                         : e.View == RegViewKind.Registry32 ? RegistryView.Registry32
                         : RegistryView.Default;
-      var baseKey = RegistryKey.OpenBaseKey(hive, view);
-      return writable ? baseKey.CreateSubKey(e.SubKey, true) : baseKey.OpenSubKey(e.SubKey, false);
+      // ponytail: baseKey 是 IDisposable,未释放会泄漏注册表句柄 —— 项目其它 5 处
+      // OpenBaseKey(CoreKeepService/StartupItemOptimizer)均 using;返回的子键持有独立句柄,
+      // baseKey 用后可安全释放。
+      using (var baseKey = RegistryKey.OpenBaseKey(hive, view))
+        return writable ? baseKey.CreateSubKey(e.SubKey, true) : baseKey.OpenSubKey(e.SubKey, false);
     }
   }
 }

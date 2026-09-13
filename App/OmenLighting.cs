@@ -138,8 +138,12 @@ namespace OmenSuperHub {
 
     private const int WMI_COMMAND_ID = 131081;
 
-    private static readonly Dictionary<LightingDevice, List<System.Windows.Media.Color>> _lastDeviceColors =
-        new Dictionary<LightingDevice, List<System.Windows.Media.Color>>();
+    // R15/BUG-R15-3: 静态字典被 UI 线程(Apply/亮度)、动画定时器线程池、温度联动定时器、
+    // HardwareApiService HTTP 线程并发读写 —— 无锁 Dictionary 并发写+读是经典结构损坏
+    // (InvalidOperationException / 死循环)。写侧本就存防御性副本、读侧只 TryGetValue,
+    // 换 ConcurrentDictionary 即线程安全。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<LightingDevice, List<System.Windows.Media.Color>> _lastDeviceColors =
+        new System.Collections.Concurrent.ConcurrentDictionary<LightingDevice, List<System.Windows.Media.Color>>();
 
     public static int OpenHidDevice(int pid, int vid, string interfaceString = "") {
       try {

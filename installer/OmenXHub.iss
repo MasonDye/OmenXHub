@@ -2,11 +2,12 @@
 #define MyAppPublisher "OmenXHub"
 #define MyAppExeName "OmenXHub.exe"
 #define BuildDir "..\bin\x64\Release\net481"
+#define MyAppVersion GetFileVersion(AddBackslash(BuildDir) + "OmenXHub.exe")
 
 [Setup]
 AppId={{7F4B6A40-2E6A-4F7E-9D5E-040040040040}
 AppName={#MyAppName}
-AppVersion=4.0.0
+AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\OmenXHub
 DefaultGroupName=OmenXHub
@@ -35,7 +36,7 @@ chinesesimplified.Subscribe=订阅本项目（打开 GitHub 仓库）
 chinesetraditional.Subscribe=訂閱本項目（開啟 GitHub 儲存庫）
 
 [Files]
-Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "OmenXHub.log,*.log,selftest_result.txt,cpu_temp.txt,gpu_temp.txt,custom.ico,CoreKeep.json,preset_names.txt,*.pdb"
+Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "OmenXHub.log,*.log,selftest_result.txt,cpu_temp.txt,gpu_temp.txt,custom.ico,CoreKeep.json,preset_names.txt,*.pdb,nul,FanCurves\*"
 Source: "License.zh-Hans.txt"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "License.zh-Hant.txt"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "License.en.txt"; DestDir: "{tmp}"; Flags: dontcopy

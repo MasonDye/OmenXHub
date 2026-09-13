@@ -88,6 +88,10 @@ namespace OmenSuperHub.Services {
       return list;
     }
 
+    /// <summary>自定义预设目录当前是否存在 —— 不存在时 EnumerateCustomPresets 返回空表
+    /// 是"暂不可读"而非"全部已删除",调用方(设置页剪除死键)不得据此清用户配置。</summary>
+    public static bool CustomPresetsDirExists() => Directory.Exists(PresetsDir);
+
     // ponytail: convenience — ordered list (built-ins first, then customs) for combo building
     public static List<(string DisplayName, string Key)> EnumerateAllPresets() {
       var all = new List<(string, string)> {
@@ -272,7 +276,14 @@ namespace OmenSuperHub.Services {
       d.CustomPresetName = customPresetName ?? presetKey;
       try {
         Directory.CreateDirectory(PresetsDir);
-        File.WriteAllText(PresetFilePath(presetKey), SerializePreset(d), Encoding.UTF8);
+        // ponytail: temp + Replace 原子换入(同 MacroService.Save / CoreKeepService.Save) ——
+        // net481 无 File.Move(overwrite);直接 WriteAllText 若崩溃/断电于写一半,留下截断
+        // JSON,下次 LoadCustomPreset 解析失败回退注册表,用户改动静默丢失。
+        string path = PresetFilePath(presetKey);
+        string tmp = path + ".tmp";
+        File.WriteAllText(tmp, SerializePreset(d), Encoding.UTF8);
+        if (File.Exists(path)) File.Replace(tmp, path, null);
+        else File.Move(tmp, path);
         // ponytail: 配套落盘按预设风扇曲线文件，避免首次重启回退到默认平衡曲线
         FanService.EnsurePresetCurveFile(presetKey);
       } catch (Exception ex) {
@@ -320,7 +331,7 @@ namespace OmenSuperHub.Services {
         }
       }
       if (d == null) {
-        try { d = LoadCustomPresetFromRegistry(presetKey); } catch { }
+        try { d = LoadCustomPresetFromRegistry(presetKey); } catch (Exception ex) { Logger.Warn($"[PresetManager] LoadCustomPresetFromRegistry({presetKey}) failed: {ex.Message}"); }
       }
       if (d == null) return null;
       d.IsFromCustomSubkey = true;
@@ -369,28 +380,28 @@ namespace OmenSuperHub.Services {
       using (RegistryKey key = Registry.CurrentUser.OpenSubKey(PresetSubKey(presetKey))) {
         if (key == null) return null;
         // 1.1
-        d.CpuPower = (string)key.GetValue("CpuPower", d.CpuPower);
-        d.CpuPowerPl1 = (int)key.GetValue("CpuPowerPl1", d.CpuPowerPl1);
-        d.CpuPowerPl2 = (int)key.GetValue("CpuPowerPl2", d.CpuPowerPl2);
-        d.FanTable = (string)key.GetValue("FanTable", d.FanTable);
-        d.FanControl = (string)key.GetValue("FanControl", d.FanControl);
-        d.PowerMode = (int)key.GetValue("PowerMode", d.PowerMode);
-        d.GpuClock = (int)key.GetValue("GpuClock", d.GpuClock);
-        d.TgpEnabled = Convert.ToInt32(key.GetValue("TgpEnabled", d.TgpEnabled ? 1 : 0)) == 1;
-        d.PpabEnabled = Convert.ToInt32(key.GetValue("PpabEnabled", d.PpabEnabled ? 1 : 0)) == 1;
-        d.Tpp = (int)key.GetValue("Tpp", d.Tpp);
+        d.CpuPower = ConfigService.RegStr(key, "CpuPower", d.CpuPower);
+        d.CpuPowerPl1 = ConfigService.RegInt(key, "CpuPowerPl1", d.CpuPowerPl1);
+        d.CpuPowerPl2 = ConfigService.RegInt(key, "CpuPowerPl2", d.CpuPowerPl2);
+        d.FanTable = ConfigService.RegStr(key, "FanTable", d.FanTable);
+        d.FanControl = ConfigService.RegStr(key, "FanControl", d.FanControl);
+        d.PowerMode = ConfigService.RegInt(key, "PowerMode", d.PowerMode);
+        d.GpuClock = ConfigService.RegInt(key, "GpuClock", d.GpuClock);
+        d.TgpEnabled = ConfigService.RegBool(key, "TgpEnabled", d.TgpEnabled);
+        d.PpabEnabled = ConfigService.RegBool(key, "PpabEnabled", d.PpabEnabled);
+        d.Tpp = ConfigService.RegInt(key, "Tpp", d.Tpp);
         // 1.2
-        d.DState = (int)key.GetValue("DState", d.DState);
-        d.MaxFrameRate = (int)key.GetValue("MaxFrameRate", d.MaxFrameRate);
-        d.RefreshRate = (int)key.GetValue("RefreshRate", d.RefreshRate);
-        d.GpuCoreOverclock = (int)key.GetValue("GpuCoreOverclock", d.GpuCoreOverclock);
-        d.GpuMemoryOverclock = (int)key.GetValue("GpuMemoryOverclock", d.GpuMemoryOverclock);
-        d.PowerPlanGuid = (string)key.GetValue("PowerPlanGuid", d.PowerPlanGuid);
-        d.CoreKeepEnabled = Convert.ToInt32(key.GetValue("CoreKeepEnabled", 0)) == 1;
-        d.EcoQosEnabled = Convert.ToInt32(key.GetValue("EcoQosEnabled", 0)) == 1;
-        d.EcoQosThrottlePlugged = Convert.ToInt32(key.GetValue("EcoQosThrottlePlugged", 0)) == 1;
+        d.DState = ConfigService.RegInt(key, "DState", d.DState);
+        d.MaxFrameRate = ConfigService.RegInt(key, "MaxFrameRate", d.MaxFrameRate);
+        d.RefreshRate = ConfigService.RegInt(key, "RefreshRate", d.RefreshRate);
+        d.GpuCoreOverclock = ConfigService.RegInt(key, "GpuCoreOverclock", d.GpuCoreOverclock);
+        d.GpuMemoryOverclock = ConfigService.RegInt(key, "GpuMemoryOverclock", d.GpuMemoryOverclock);
+        d.PowerPlanGuid = ConfigService.RegStr(key, "PowerPlanGuid", d.PowerPlanGuid);
+        d.CoreKeepEnabled = ConfigService.RegBool(key, "CoreKeepEnabled", false);
+        d.EcoQosEnabled = ConfigService.RegBool(key, "EcoQosEnabled", false);
+        d.EcoQosThrottlePlugged = ConfigService.RegBool(key, "EcoQosThrottlePlugged", false);
         // ponytail: AMD CPU tuning — match SaveCustomPresetToRegistry. (TDC/EDC/Tctl removed.)
-        d.AmdCpuPpt = (int)key.GetValue("AmdCpuPpt", d.AmdCpuPpt);
+        d.AmdCpuPpt = ConfigService.RegInt(key, "AmdCpuPpt", d.AmdCpuPpt);
       }
       return d;
     }
@@ -472,35 +483,56 @@ namespace OmenSuperHub.Services {
     }
 
     // ── 电源模式覆盖 (Power Mode overlay) ──
-    static void ApplyPowerModeOverlay(int powerMode) {
+    // ponytail: 返回 null=成功,否则失败原因 —— 供 AwaitableApplyPresetHardware 聚合。
+    // 原实现吞异常/返回码只写 Verbose,预设切换时 overlay 失败完全静默。
+    static string ApplyPowerModeOverlay(int powerMode) {
       try {
         Guid g;
         if (powerMode == 0) g = NativeMethods_Power.BEST_POWER_EFFICIENCY;
         else if (powerMode == 2) g = NativeMethods_Power.BEST_PERFORMANCE;
         else g = Guid.Empty;  // 1=平衡 → 默认
-        NativeMethods_Power.PowerSetActiveOverlayScheme(g);
-      } catch (Exception ex) { Logger.Verbose("ApplyPowerModeOverlay: " + ex.Message); }
+        uint ret = NativeMethods_Power.PowerSetActiveOverlayScheme(g);
+        if (ret != 0) Logger.Verbose($"ApplyPowerModeOverlay: ret={ret}");
+        return ret != 0 ? $"PowerSetActiveOverlayScheme ret={ret}" : null;
+      } catch (Exception ex) { Logger.Verbose("ApplyPowerModeOverlay: " + ex.Message); return ex.Message; }
     }
 
     // ═══════════════════════════════════════════════════════
     // ponytail: 高级调教已全数移除（机型不可用）。仅保留 AMD PPT 经 WMI 复写，
     // 作为预设切换 / PerfPage.Reload 后的状态恢复入口。
     // 上限：WMI 路径仅接受 0~255W；超过此范围的 PPT 由 PerfPage 滑条上限约束。
-    internal static void ApplyAdvanced() {
+    // ponytail: 返回失败原因列表(空=成功)。WMI bool 返回值、SMU 状态码原本被丢弃,
+    // 现在经 AwaitableApplyPresetHardware 聚合传播。本方法内部同时记一条 Error,
+    // PerfPage 等忽略返回值的调用点也因此可见失败(与注释语义对齐,不再静默)。
+    internal static System.Collections.Generic.List<string> ApplyAdvanced() {
+      var failures = new System.Collections.Generic.List<string>();
       try {
-        if (OmenHardware.HasAmdCpu() && ConfigService.AmdCpuPpt > 0 && ConfigService.AmdCpuPpt <= 255)
-          OmenHardware.SetCpuPowerLimit((byte)ConfigService.AmdCpuPpt);
-      } catch { }
+        if (OmenHardware.HasAmdCpu() && ConfigService.AmdCpuPpt > 0 && ConfigService.AmdCpuPpt <= 255
+            && !OmenHardware.SetCpuPowerLimit((byte)ConfigService.AmdCpuPpt))
+          failures.Add($"AMD PPT WMI 写入被拒 (ppt={ConfigService.AmdCpuPpt})");
+      } catch (Exception ex) { failures.Add("AMD PPT: " + ex.Message); }
       // ponytail: AMD Curve Optimizer 全核+分核降压 — SMU 写易失,每次预设切换重应用。
       // 仅需 PawnIO 驱动就绪,不依赖 EnableEcAccess 开关。
       try {
         var svc = Services.AmdUndervoltService.Instance;
         if (svc.IsAvailable) {
-          if (ConfigService.AmdCpuUndervolt != 0) svc.SetAllCoreCO(ConfigService.AmdCpuUndervolt);
+          if (ConfigService.AmdCpuUndervolt != 0) {
+            var co = svc.SetAllCoreCO(ConfigService.AmdCpuUndervolt);
+            if (co != Services.SmuStatus.Ok)
+              failures.Add($"SetAllCoreCO({ConfigService.AmdCpuUndervolt}) 返回 {co}");
+          }
           var perCore = Services.AmdUndervoltService.ParsePerCoreOffsets(ConfigService.AmdCpuPerCoreOffsets);
-          if (perCore.Count > 0) svc.ApplyPerCoreCO(perCore);
+          if (perCore.Count > 0) {
+            int okCount = svc.ApplyPerCoreCO(perCore);
+            int expected = System.Linq.Enumerable.Count(perCore, kv => kv.Value != 0);
+            if (okCount < expected)
+              failures.Add($"分核 CO 仅 {okCount}/{expected} 核成功");
+          }
         }
-      } catch { }
+      } catch (Exception ex) { failures.Add("AMD CO: " + ex.Message); }
+      if (failures.Count > 0)
+        Logger.Error($"[ApplyAdvanced] {failures.Count} 项失败: {string.Join(" | ", failures)}");
+      return failures;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -513,8 +545,13 @@ namespace OmenSuperHub.Services {
     // AutomationProcessor 里多个步骤连发时无法保证"SetPreset 先把 GPU/CPU 功率写完,
     // 再跑下一个 SetGpuPower/SetCpuPower 步骤",后写者可能反向覆盖前面写入。
     // 这里只在原 QueueUserWorkItem 外套 TaskCompletionSource, 工作体逻辑不变。
-    public static System.Threading.Tasks.Task AwaitableApplyPresetHardware() {
-      var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
+    // ponytail: 结果携带失败步骤列表(步骤名+原因)。调用方 await 后若列表非空,
+    // 必须当作"部分应用"处理:配置已持久化但硬件实态不完整,UI 不得静默显示成功。
+    // 语义边界:空列表 = "未收集到失败" —— SetFanModeCompat/SetGpuPowerState/
+    // SetMaxFanSpeedOff 等 void 包装(WMI 返回值在 OmenHardware 层被吞)与"CO 已配置
+    // 但驱动不可用而跳过"不计入;也不代表读回验证。根治需改 OmenHardware 签名。
+    public static System.Threading.Tasks.Task<string[]> AwaitableApplyPresetHardware() {
+      var tcs = new System.Threading.Tasks.TaskCompletionSource<string[]>();
       int gpuClock = ConfigService.GpuClock;
       bool tgp = ConfigService.TgpEnabled;
       bool ppab = ConfigService.PpabEnabled;
@@ -522,23 +559,33 @@ namespace OmenSuperHub.Services {
       int powerMode = ConfigService.PowerMode;
 
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+        // ponytail: 聚合失败步骤 —— 每步失败只记录不中断(步骤间大多相互独立,
+        // 中断会让后面的风扇配置整个丢失,比部分应用更糟)。
+        var failed = new System.Collections.Generic.List<string>();
+        void Step(string name, Action a) {
+          try { a(); } catch (Exception ex) { failed.Add($"{name}: {ex.Message}"); }
+        }
+        // bool 返回值的 WMI/驱动调用:不抛异常仅返回 false 的失败也要计入
+        void Ok(string name, bool r) { if (!r) failed.Add($"{name}: 驱动/BIOS 拒绝"); }
+        void Check(string name, System.Collections.Generic.List<string> items) { failed.AddRange(items); }
+        try {
         // ponytail: App.xaml.cs 启动时调的 SetFanMode(0x31) 可能在 EC/WMI 就绪前就跑，
         // 失败后没有重试；而 CPU 功率限制依赖 EC 处于 unleash mode 才会真正生效。
         // 在这里再补一刀，确保功率限不会被 EC 忽略。
-        try { OmenHardware.SetFanModeCompat(0x31); } catch { }
+        Step("SetFanMode", () => OmenHardware.SetFanModeCompat(0x31));
         // ── 1.1 全局绑定参数 ──
-        try { TrayService.SetGPUClockLimit(gpuClock); } catch { }
-        try {
+        Step("GpuClockLimit", () => TrayService.SetGPUClockLimit(gpuClock));
+        Step("CpuPowerLimit", () => {
           // ponytail: apply PL1 and PL2 independently from ConfigService.
           int pl1 = ConfigService.CpuPowerPl1;
           int pl2 = ConfigService.CpuPowerPl2;
-          if (cpuPwr == "max") OmenHardware.SetCpuPowerLimit(254, 254);
+          if (cpuPwr == "max") Ok("CpuPowerLimit", OmenHardware.SetCpuPowerLimit(254, 254));
           else if (cpuPwr == "null") { /* keep BIOS default */ }
           else if (pl1 >= 10 && pl1 <= 254 && pl2 >= 10 && pl2 <= 254)
-            OmenHardware.SetCpuPowerLimit((byte)pl1, (byte)pl2);
+            Ok("CpuPowerLimit", OmenHardware.SetCpuPowerLimit((byte)pl1, (byte)pl2));
           else if (int.TryParse(cpuPwr?.Replace(" W", ""), out int cpuVal) && cpuVal >= 10 && cpuVal <= 254)
-            OmenHardware.SetCpuPowerLimit((byte)cpuVal, (byte)cpuVal);
-        } catch { }
+            Ok("CpuPowerLimit", OmenHardware.SetCpuPowerLimit((byte)cpuVal, (byte)cpuVal));
+        });
         // ponytail: TPP (ConcurrentTDP) — total power budget for CPU+GPU combined.
         // Without this, EC uses a conservative default budget → dual-stress (CPU+GPU)
         // throttles because each component fights for a share of a capped total.
@@ -546,15 +593,15 @@ namespace OmenSuperHub.Services {
         // reads the TPP budget to decide how much power to allocate to GPU, so
         // if TPP is still the BIOS default (~155W), PPAB caps GPU power within
         // that small budget and CPU doesn't get its share.
-        try { if (ConfigService.Tpp >= 20) OmenHardware.SetConcurrentTdp((byte)ConfigService.Tpp); } catch { }
-        try { OmenHardware.SetGpuPowerState(tgp, ppab, ConfigService.DState == 2 ? 2 : 1); } catch { }
-        try { ApplyPowerModeOverlay(powerMode); } catch { }
+        Step("ConcurrentTdp", () => { if (ConfigService.Tpp >= 20) Ok("ConcurrentTdp", OmenHardware.SetConcurrentTdp((byte)ConfigService.Tpp)); });
+        Step("GpuPowerState", () => OmenHardware.SetGpuPowerState(tgp, ppab, ConfigService.DState == 2 ? 2 : 1));
+        Step("PowerModeOverlay", () => { var r = ApplyPowerModeOverlay(powerMode); if (r != null) failed.Add("PowerModeOverlay: " + r); });
 
         // ponytail: 高级调教已删除；ApplyAdvanced 现仅写 AMD PPT 经 WMI。
-        try { ApplyAdvanced(); } catch { }
+        Step("Advanced", () => Check("Advanced", ApplyAdvanced()));
 
         // ── 风扇配置 ──
-        try {
+        Step("FanConfig", () => {
           string fc = ConfigService.FanControl;
           string ft = ConfigService.FanTable;
           if (fc == "smart" || fc == "custom") {
@@ -575,6 +622,14 @@ namespace OmenSuperHub.Services {
             OmenHardware.SetFanLevel(0, 0, fan3: OmenHardware.IsThreeFan());
             OmenHardware.SetFanLevel(speed, speed, fan3: OmenHardware.IsThreeFan());
             TrayService.fanControlTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+          } else if (fc != null && fc.EndsWith("%") && int.TryParse(fc.TrimEnd('%'), out int pct)) {
+            // ponytail: 固定百分比档 —— 与 RestoreFanSettings 的 % 分支同语义(停心跳 +
+            // 直写 pct 档位)。旧版 "%" 落下方 else 被当 auto 曲线表处理,预设切换与
+            // 重启恢复行为不一致。非法 % 值仍落 else 走 auto 表(有兜底的风扇控制)。
+            pct = pct < 0 ? 0 : pct > 100 ? 100 : pct;
+            OmenHardware.SetMaxFanSpeedOff();
+            OmenHardware.SetFanLevel(pct, pct, fan3: OmenHardware.IsThreeFan());
+            TrayService.fanControlTimer?.Change(Timeout.Infinite, Timeout.Infinite);
           } else {
             // ponytail: 按 FanTable 选用全局曲线文件 —— cool/silent/balanced 三档平级。
             // balanced.txt = G-Helper Balanced (主要给 GpuPriority 预设用)。
@@ -585,44 +640,56 @@ namespace OmenSuperHub.Services {
             OmenHardware.SetMaxFanSpeedOff();
             TrayService.fanControlTimer?.Change(0, 1000);
           }
-        } catch { }
+        });
 
         // ── 1.2 自定义预设专属绑定参数 ──
         if (IsCustom(ConfigService.Preset)) {
           // GPU 超频
-          try { GpuAppManager.SetCoreClockOffset(ConfigService.GpuCoreOverclock); } catch { }
-          try { GpuAppManager.SetMemoryClockOffset(ConfigService.GpuMemoryOverclock); } catch { }
+          Step("GpuCoreOC", () => GpuAppManager.SetCoreClockOffset(ConfigService.GpuCoreOverclock));
+          Step("GpuMemOC", () => GpuAppManager.SetMemoryClockOffset(ConfigService.GpuMemoryOverclock));
           // 最大帧率
-          try {
+          Step("MaxFrameRate", () => {
             int fps = ConfigService.MaxFrameRate;
             if (fps > 0) HP.Omen.Core.Common.NVidiaApi.NvApiWrapper.NVAPI_SetMaxFrameRate(fps);
             else HP.Omen.Core.Common.NVidiaApi.NvApiWrapper.NVAPI_SetMaxFrameRate(0);
-          } catch { }
+          });
           // 电源计划
-          try {
+          Step("PowerPlan", () => {
             if (!string.IsNullOrEmpty(ConfigService.PowerPlanGuid)) {
               Guid g = Guid.Parse(ConfigService.PowerPlanGuid);
-              NativeMethods_Power.PowerSetActiveScheme(IntPtr.Zero, ref g);
+              uint r = NativeMethods_Power.PowerSetActiveScheme(IntPtr.Zero, ref g);
+              if (r != 0) failed.Add($"PowerPlan: PowerSetActiveScheme ret={r}");
             }
-          } catch { }
+          });
           // EcoQoS
-          try {
+          Step("EcoQos", () => {
             EcoQosService.SetEnabled(ConfigService.EcoQosEnabled);
             EcoQosService.SetThrottlePlugged(ConfigService.EcoQosThrottlePlugged);
-          } catch { }
+          });
           // 刷新率
-          try {
+          Step("RefreshRate", () => {
             if (ConfigService.RefreshRate > 0)
               TrayService.ApplyRefreshRate(ConfigService.RefreshRate);
-          } catch { }
+          });
           // 风扇曲线 (自定义预设专属持久化)
-          try {
-            FanService.ApplyPresetCurve(ConfigService.Preset);
-          } catch { }
+          Step("PresetFanCurve", () => FanService.ApplyPresetCurve(ConfigService.Preset));
         }
-        // ponytail: 工作体所有写入都包在各自 try/catch 里, 这里 SetResult 永远触发,
-        // 调用方 await 才能确定硬件写入已完成(就语义而言)再跑下一步骤。
-        tcs.TrySetResult(true);
+        } catch (Exception ex) {
+          // 兜底:步骤体外任何抛出(含聚合器自身)不得吞掉任务完成 —— 否则 await 方永久悬挂
+          failed.Add($"Fatal: {ex.Message}");
+          Logger.Error($"[PresetApply] 工作体未捕获异常: {ex}");
+        }
+        // ponytail: SetResult 先于 OSD 与日志 —— ShowTextOsd 内部 Dispatcher.Invoke 可抛
+        // (窗口创建失败等),若排在完成语句前会把异常吞进兜底外导致任务不完成。
+        // 失败 OSD 单点弹给所有 fire-and-forget 调用方(MainWindow/TrayService/各页面
+        // 共 11+ 处,旧行为是弹完"预设已应用"再静默吞失败)。
+        var snapshot = failed.ToArray();
+        tcs.TrySetResult(snapshot);
+        if (snapshot.Length > 0) {
+          Logger.Error($"[PresetApply] {ConfigService.Preset} 部分应用, {snapshot.Length} 步失败: {string.Join(" | ", snapshot)}");
+          try { Views.OsdWindow.ShowTextOsd($"预设部分应用:{snapshot.Length} 步失败(详见日志)", force: true); }
+          catch (Exception osdEx) { Logger.Error("[PresetApply] 失败 OSD 弹出异常: " + osdEx.Message); }
+        }
       });
       return tcs.Task;
     }

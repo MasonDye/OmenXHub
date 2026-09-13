@@ -1105,7 +1105,8 @@ namespace OmenSuperHub.Pages {
           errDialog.ShowDialog();
           return;
         }
-        ConfigService.SetCustomPresetName(preset, newName);
+        if (!ConfigService.SetCustomPresetName(preset, newName))
+          DialogHelper.Warn(Strings.PresetRenameSaveFail, Strings.Hint);
         LoadPresetState();
       }
     }

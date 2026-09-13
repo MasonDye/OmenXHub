@@ -285,6 +285,10 @@ namespace OmenSuperHub {
     public static string SysNvme => T("M.2 SSD", "M.2 SSD", "M.2 SSD");
     public static string SysMotherboard => T("主板", "主機板", "Motherboard");
     public static string ExtraTempSensorsHeading => T("额外温度传感器", "額外溫度感測器", "Extra Temperature Sensors");
+    public static string ExtraTempSensorsDesc => T(
+      "勾选要在 Dashboard 传感器温度卡显示的额外项;读不到的会显 \"-\"",
+      "勾選要在 Dashboard 感測器溫度卡顯示的額外項;讀不到的會顯 \"-\"",
+      "Pick extra items to show in the Dashboard sensor temperature card; unavailable ones show \"-\"");
     // GPU 监控目标
     public static string GpuSelectorHeading => T("GPU 监控目标", "GPU 監控目標", "GPU Monitoring Target");
     public static string GpuSelectorDesc => T(
@@ -742,6 +746,12 @@ namespace OmenSuperHub {
     public static string AutomationThresholdHint => T("阈值 (例如 80)", "閾值 (例如 80)", "Threshold value (e.g. 80)");
     public static string AutomationTimeHint => T("时间 HH:mm (例如 08:30)", "時間 HH:mm (例如 08:30)", "Time HH:mm (e.g. 08:30)");
     public static string AutomationProcessHint => T("例如 chrome.exe", "例如 chrome.exe", "e.g. chrome.exe");
+    public static string AutoHotkeyRecord => T("录制", "錄製", "Record");
+    public static string AutoHotkeyNeedModifier => T("需至少一个修饰键 (Ctrl/Shift/Alt/Win)", "需至少一個修飾鍵 (Ctrl/Shift/Alt/Win)", "Include at least one modifier (Ctrl/Shift/Alt/Win)");
+    public static string AutoHotkeyConflict(string name) => T($"热键已被流水线 \"{name}\" 占用", $"熱鍵已被流水線 \"{name}\" 佔用", $"Hotkey already used by pipeline \"{name}\"");
+    public static string AutoNoTriggersWarn => T("至少需要一个启用的触发器，否则该流水线永远不会执行", "至少需要一個啟用的觸發器，否則該流水線永遠不會執行", "At least one enabled trigger is required, otherwise the pipeline never runs");
+    public static string AutoNoStepsWarn => T("至少需要一个步骤", "至少需要一個步驟", "At least one step is required");
+    public static string AutoTriggerValueInvalid => T("请输入有效的触发器值（阈值需为数字）", "請輸入有效的觸發器值（閾值需為數字）", "Enter a valid trigger value (thresholds must be numeric)");
 
 	    // HWiNFO
 	    public static string HWiNFOHeading => T("HWiNFO64 集成", "HWiNFO64 整合", "HWiNFO64 Integration");
@@ -791,7 +801,8 @@ namespace OmenSuperHub {
     public static string LightingTempMode => T("温度联动", "溫度聯動", "Temperature Mode");
     public static string LightingTempModeDesc => T("根据 CPU/GPU 温度实时调整键盘颜色 (蓝30°C→绿50°C→黄70°C→橙85°C→红100°C)", "根據 CPU/GPU 溫度即時調整鍵盤顏色 (藍30°C→綠50°C→黃70°C→橙85°C→紅100°C)", "Adjust keyboard color based on CPU/GPU temperature (Blue→Green→Yellow→Orange→Red)");
 
-    // ponytail: 高级硬件访问开关 — 默认关闭,用户知情后主动开启(EC/SMU 直写有硬件风险)
+    // ponytail: 高级硬件访问开关 — 默认关闭,用户知情后主动开启(EC/SMU 直写有硬件风险)。
+    // 真实门控点:RaplPowerLimitService.ShouldHandlePowerLimit(功耗墙直写)。
     public static string SettingsEnableEcAccess => T("启用高级硬件访问 (EC/SMU)", "啟用進階硬體存取 (EC/SMU)", "Enable Advanced Hardware Access (EC/SMU)");
     public static string SettingsEnableEcAccessDesc => T("启用后可使用 EC 寄存器直写与 AMD CPU 降压等高级功能。需已安装 PawnIO 驱动；写错寄存器可能导致系统不稳定。", "啟用後可使用 EC 暫存器直寫與 AMD CPU 降壓等進階功能。需已安裝 PawnIO 驅動；寫錯暫存器可能導致系統不穩定。", "Enables EC register writes and AMD CPU undervolting. Requires PawnIO driver installed; incorrect writes may cause instability.");
     // 场景触发模式
@@ -974,6 +985,11 @@ namespace OmenSuperHub {
     // HTTP API status
     public static string HttpApiRunning => T("运行中", "運行中", "Running");
     public static string HttpApiStopped => T("已停止", "已停止", "Stopped");
+    // ponytail: 令牌此前全应用无任何展示/导出点,导致除 /ping 外所有端点对合法客户端
+    // 一律 403(功能不可用)。运行状态文本附带令牌,选中文本即可复制。仅 localhost 服务。
+    public static string HttpApiRunningWithToken(string token) => T($"运行中 · 令牌: {token}", $"運行中 · 令牌: {token}", $"Running · token: {token}");
+    // ponytail: 预设重命名内存生效但落盘失败(重启后名字回退)时的提示。
+    public static string PresetRenameSaveFail => T("重命名保存失败,重启后可能回退(详见日志)", "重命名保存失敗,重啟後可能回退(詳見日誌)", "Rename save failed; it may revert after restart (see log)");
 
     // Power plan names
     // File dialog
@@ -990,21 +1006,13 @@ namespace OmenSuperHub {
     public static string ButtonRefresh => T("刷新", "刷新", "Refresh");
     public static string ButtonDelete => T("删除", "刪除", "Delete");
     public static string ButtonAdd => T("添加", "添加", "Add");
-    // CPU 超频弹窗 (CpuOcDialog)
-    public static string CpuOcDialogTitle => T("CPU 超频设置", "CPU 超頻設定", "CPU Overclock Settings");
-    public static string CpuOcCoreRatioHeader => T("核心频率 (倍频)", "核心頻率 (倍頻)", "Core Ratio (Multiplier)");
-    public static string CpuOcVoltageHeader => T("电压偏移 (mV)", "電壓偏移 (mV)", "Voltage Offset (mV)");
-    public static string CpuOcCoreLabel => T("CPU 核心", "CPU 核心", "CPU Core");
-    public static string CpuOcWarning => T("⚠️ 过高的电压或频率可能导致系统不稳定或硬件损坏", "⚠️ 過高的電壓或頻率可能導致系統不穩定或硬體損壞", "⚠️ Excessive voltage or frequency may cause system instability or hardware damage");
-    public static string CpuOcStatusDetecting => T("正在检测超频支持...", "正在偵測超頻支援...", "Detecting overclock support...");
-    public static string CpuOcStatusNoService => T("❌ 无法连接到 XTU 服务,请确保已安装 Intel XTU", "❌ 無法連線到 XTU 服務,請確認已安裝 Intel XTU", "❌ Cannot connect to XTU service. Make sure Intel XTU is installed");
-    public static string CpuOcStatusNotSupported => T("⚠️ 当前平台不支持超频", "⚠️ 目前平台不支援超頻", "⚠️ Overclocking not supported on this platform");
-    public static string CpuOcStatusReadyFormat(int count) => T($"✅ 检测到 {count} 个物理核心,超频已解锁", $"✅ 偵測到 {count} 個物理核心,超頻已解鎖", $"✅ {count} physical core(s) detected, overclocking unlocked");
-    public static string CpuOcStatusInitFailedPrefix => T("❌ 初始化失败: ", "❌ 初始化失敗: ", "❌ Init failed: ");
-    public static string CpuOcStatusApplied => T("✅ 超频设置已应用", "✅ 超頻設定已套用", "✅ Overclock settings applied");
-    public static string CpuOcStatusPartialFail => T("⚠️ 部分设置失败,请查看日志", "⚠️ 部分設定失敗,請查看日誌", "⚠️ Some settings failed, check the log");
-    public static string CpuOcStatusApplyFailedPrefix => T("❌ 应用失败: ", "❌ 套用失敗: ", "❌ Apply failed: ");
-    public static string CpuOcCoreNameFormat(int i) => T($"核心 {i}", $"核心 {i}", $"Core {i}");
+    public static string PrefetcherHeading => T("CPU 预取器", "CPU 預取器", "CPU Prefetcher");
+    public static string PrefetcherDesc => T("L2/DCU 硬件预取开关（MSR 0x1A4）", "L2/DCU 硬體預取開關（MSR 0x1A4）", "L2/DCU hardware prefetch switches (MSR 0x1A4)");
+    public static string PrefetcherL2Hw => T("L2 硬件预取器", "L2 硬體預取器", "L2 hardware prefetcher");
+    public static string PrefetcherL2Adj => T("L2 邻行预取器", "L2 鄰行預取器", "L2 adjacent-line prefetcher");
+    public static string PrefetcherDcu => T("DCU 预取器 (L1)", "DCU 預取器 (L1)", "DCU prefetcher (L1)");
+    public static string PrefetcherDcuIp => T("DCU IP 预取器 (L1)", "DCU IP 預取器 (L1)", "DCU IP prefetcher (L1)");
+    public static string PrefetcherApplyFail => T("❌ 预取器写入未在所有核心上生效", "❌ 預取器寫入未在所有核心上生效", "❌ Prefetcher write did not apply on all cores");
     // Automation page
     public static string AutomationStepCount(int count) => T($"{count} 个步骤", $"{count} 個步驟", $"{count} steps");
     public static string AutomationExecuting => T(" [执行中...]", " [執行中...]", " [Executing...]");
@@ -1173,6 +1181,7 @@ namespace OmenSuperHub {
 	  public static string OccStubWorking => T("处理中…", "處理中…", "Working…");
 	  public static string OccStubRegFail => T("注册失败(需开发者模式)", "註冊失敗(需開發者模式)", "Register failed (Developer Mode required)");
 	  public static string OccStubRmFail => T("移除失败", "移除失敗", "Remove failed");
+	  public static string OccStubQueryFail => T("状态查询失败", "狀態查詢失敗", "Status query failed");
 	  public static string OccStubEnableDevModePrompt => T("注册存根需要开启「开发者模式」。是否现在自动开启？（将写入系统开发者模式开关）", "註冊存根需要開啟「開發者模式」。是否現在自動開啟？（將寫入系統開發者模式開關）", "Registering the stub requires Developer Mode. Enable it now? (This writes the system Developer Mode switch.)");
 	  public static string OccStubEnableDevModeFail => T("开启开发者模式失败，请用管理员权限运行后重试。", "開啟開發者模式失敗，請用系統管理員權限執行後重試。", "Failed to enable Developer Mode. Run as administrator and retry.");
 
@@ -1252,7 +1261,7 @@ namespace OmenSuperHub {
 	    "調節顯示卡總功耗及動態功耗分配策略。",
 	    "Adjust total GPU power and dynamic power distribution.");
 	  // Perf action button tooltips
-	  public static string PerfBtnResetDefaultsTip => T("恢复默认预设并清空自定义预设", "恢復預設預設並清空自訂預設", "Reset to defaults and clear custom presets");
+	  public static string PerfBtnResetDefaultsTip => T("撤销本次保存;无快照时恢复默认预设并清空自定义预设", "復原本次儲存;無快照時恢復預設並清空自訂預設", "Undo the last save; without a snapshot, reset to defaults and clear custom presets");
 	  public static string PerfBtnReloadTip => T("重新加载当前预设的值", "重新載入目前預設的值", "Reload current preset values");
 	  public static string PerfBtnDeleteTip => T("删除当前预设", "刪除目前預設", "Delete current preset");
 	  public static string PerfBtnSaveTip => T("保存当前设置为新预设并应用", "儲存目前設定為新預設並套用", "Save current as new preset and apply");
@@ -1278,8 +1287,8 @@ namespace OmenSuperHub {
 	  public static string PerfDeleteConfirmMsg(string name) => T(
 	    $"确认删除预设 {name}？", $"確認刪除預設 {name}？", $"Delete preset {name}?");
 	  public static string PerfDeleteConfirmTitle => T("删除预设", "刪除預設", "Delete Preset");
-	  public static string PerfUndoApplyMsg => T("将撤销本次 Apply 操作...", "將撤銷本次 Apply 操作...", "This will undo the last Apply...");
-	  public static string PerfUndoApplyTitle => T("撤销应用", "撤銷應用", "Undo Apply");
+	  public static string PerfUndoApplyMsg => T("将撤销本次保存,并把配置与硬件回写到保存前状态...", "將復原本次儲存,並把設定與硬體回寫到儲存前狀態...", "This will undo the last save and revert config and hardware to the pre-save state...");
+	  public static string PerfUndoApplyTitle => T("撤销保存", "復原儲存", "Undo Save");
 	  public static string PerfResetDefaultsMsg => T("将恢复到默认性能预设...", "將恢復到預設效能預設...", "Will restore default performance preset...");
 	  public static string PerfResetDefaultsTitle => T("恢复默认预设", "恢復預設預設", "Reset Default Preset");
 

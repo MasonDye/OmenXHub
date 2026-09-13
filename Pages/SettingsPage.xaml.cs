@@ -162,7 +162,10 @@ namespace OmenSuperHub.Pages {
         CycleCustomsHost.Children.Add(cb);
       }
       // prune dead custom keys from stored candidates (built-ins never pruned)
-      if (candidates.Any(c => !PresetManager.IsBuiltIn(c) && !liveCustomKeys.Contains(c))) {
+      // 审查修复: 目录缺失/暂不可读时枚举返回空 ≠ 全部已删除 —— 那种情况下剪除会把
+      // 用户存的 OmenKey 候选永久清掉。仅在目录确实存在时才剪。
+      if (PresetManager.CustomPresetsDirExists() &&
+          candidates.Any(c => !PresetManager.IsBuiltIn(c) && !liveCustomKeys.Contains(c))) {
         var pruned = candidates.Where(c => PresetManager.IsBuiltIn(c) || liveCustomKeys.Contains(c)).ToList();
         ConfigService.OmenKeyPresetCandidates = string.Join(";", pruned);
         ConfigService.Save("OmenKeyPresetCandidates");
@@ -187,6 +190,7 @@ namespace OmenSuperHub.Pages {
     }
 
     void AutoStartToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
       ConfigService.AutoStart = AutoStartToggle.IsChecked == true ? "on" : "off";
       ConfigService.Save("AutoStart");
       if (AutoStartToggle.IsChecked == true) TrayService.AutoStartEnable();
@@ -194,6 +198,7 @@ namespace OmenSuperHub.Pages {
     }
 
     void FloatingToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
       ConfigService.FloatingBar = FloatingToggle.IsChecked == true ? "on" : "off";
       ConfigService.Save("FloatingBar");
       if (FloatingToggle.IsChecked == true) Views.FloatingWindow.ShowInstances();
@@ -346,15 +351,28 @@ namespace OmenSuperHub.Pages {
       // 默认项:独显优先
       combo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = Strings.GpuSelectorAuto, Tag = "" });
       // 启动后 LHM Open 已枚举硬件;采 GPU 名(可能此时为空 — 跳过)
-      foreach (var (name, vendor) in Services.HardwareService.GetAvailableGpus())
-        combo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = vendor + ": " + name, Tag = name });
+      foreach (var (id, name, vendor) in Services.HardwareService.GetAvailableGpus())
+        combo.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = vendor + ": " + name, Tag = id });
       // 选中当前存值(空显默认项 → index 0)
       string cur = ConfigService.SelectedGpu ?? "";
       int idx = 0;
       for (int i = 0; i < combo.Items.Count; i++) {
         if (combo.Items[i] is System.Windows.Controls.ComboBoxItem item && (string)item.Tag == cur) { idx = i; break; }
       }
+      // ponytail: 旧版本保存的是 GPU Name；命中后一次性迁移到稳定唯一的 Identifier。
+      if (idx == 0 && !string.IsNullOrEmpty(cur)) {
+        var legacy = Services.HardwareService.GetAvailableGpus().FirstOrDefault(g => g.Name == cur);
+        if (!string.IsNullOrEmpty(legacy.Id)) {
+          cur = legacy.Id;
+          ConfigService.SelectedGpu = cur;
+          ConfigService.Save("SelectedGpu");
+          for (int i = 1; i < combo.Items.Count; i++)
+            if (combo.Items[i] is System.Windows.Controls.ComboBoxItem item && (string)item.Tag == cur) { idx = i; break; }
+        }
+      }
       combo.SelectedIndex = idx;
+      // HWiNFO VSB 当前不提供与 LHM Identifier 对等的稳定设备键，避免显示一个实际不生效的选择。
+      combo.IsEnabled = !ConfigService.HWiNFOReadEnabled;
     }
 
     void GpuSelector_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) {
@@ -364,13 +382,24 @@ namespace OmenSuperHub.Pages {
       else
         ConfigService.SelectedGpu = "";
       ConfigService.Save("SelectedGpu");
+      HardwareService.InvalidateGpuSamples();
     }
 
     // ═══ OMEN Light Studio / OGH 存根卡 ═══
     // QueryState/Register/Remove 都是 PowerShell 壳调用(1~2s) — 一律后台线程,Dispatcher 回填。
 
     async void RefreshLightStudioCard() {
-      var st = await System.Threading.Tasks.Task.Run(() => Services.OccStubService.QueryState());
+      Services.OccStubService.State st;
+      try {
+        st = await System.Threading.Tasks.Task.Run(() => Services.OccStubService.QueryState());
+      } catch (Exception ex) {
+        // ponytail: QueryState 走 PowerShell 子进程(WMI/Get-AppxPackage),可抛。原先无局部
+        // catch → 异常冒到全局 Dispatcher handler 仅记日志,UI 永停旧状态误导用户。失败写进
+        // 状态文本,让用户看到"没读到"而非"没装/装了"的错误结论。
+        Logger.Error($"RefreshLightStudioCard: {ex.Message}");
+        if (LightStudioStatusText != null) LightStudioStatusText.Text = Strings.OccStubQueryFail + "\n" + ex.Message;
+        return;
+      }
       if (LightStudioStatusText == null) return;
       string ls = st.LightStudioInstalled ? Strings.OccStubLsOk : Strings.OccStubLsMissing;
       string occ = st.OccIsStub ? Strings.OccStubOccRegOk
@@ -397,7 +426,8 @@ namespace OmenSuperHub.Pages {
       string err = await System.Threading.Tasks.Task.Run(() => Services.OccStubService.Register());
       OccStubRegBtn.IsEnabled = OccStubRmBtn.IsEnabled = true;
       if (err != null && LightStudioStatusText != null) LightStudioStatusText.Text = err;
-      RefreshLightStudioCard();
+      // ponytail: 失败时保留 err 文本 — RefreshLightStudioCard 的状态行会无条件覆盖它
+      if (err == null) RefreshLightStudioCard();
     }
 
     async void OccStubRm_Click(object sender, RoutedEventArgs e) {
@@ -406,7 +436,7 @@ namespace OmenSuperHub.Pages {
       string err = await System.Threading.Tasks.Task.Run(() => Services.OccStubService.Remove());
       OccStubRegBtn.IsEnabled = OccStubRmBtn.IsEnabled = true;
       if (err != null && LightStudioStatusText != null) LightStudioStatusText.Text = err;
-      RefreshLightStudioCard();
+      if (err == null) RefreshLightStudioCard();
     }
 
     void OccStubLaunch_Click(object sender, RoutedEventArgs e) {
@@ -471,6 +501,7 @@ namespace OmenSuperHub.Pages {
     }
 
     void TrayHoverPopup_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
       ConfigService.TrayHoverPopup = TrayHoverPopupToggle.IsChecked == true;
       ConfigService.Save("TrayHoverPopup");
     }
@@ -495,16 +526,19 @@ namespace OmenSuperHub.Pages {
     }
 
     void DataLocalizeToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
       ConfigService.DataLocalize = DataLocalizeToggle.IsChecked == true ? "on" : "off";
       ConfigService.Save("DataLocalize");
     }
 
     void DebugLogToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
       ConfigService.VerboseLogging = DebugLogToggle.IsChecked == true;
       ConfigService.Save("VerboseLogging");
     }
 
     void DebugShowAllUiToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
       ConfigService.DebugShowAllUi = DebugShowAllUiToggle.IsChecked == true;
       ConfigService.Save("DebugShowAllUi");
       // 通知性能页刷新可见性

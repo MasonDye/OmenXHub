@@ -41,8 +41,9 @@ namespace OmenSuperHub.Services.CpuAffinity {
         _ => ApplyHardAffinity(pid, mask)
       };
 
-      // 优先级类（独立于亲和性）
+      // 优先级类（独立于亲和性）— 首次应用前快照原始值，Relax 时还原
       if (!string.IsNullOrEmpty(rule.Action.CpuPriority)) {
+        SnapshotOriginalPriority(pid);
         ApplyPriority(pid, ParsePriority(rule.Action.CpuPriority));
       }
       // 内存优先级（独立于亲和性）
@@ -68,6 +69,7 @@ namespace OmenSuperHub.Services.CpuAffinity {
       bool hardUpdated = ApplyHardAffinity(pid, mask);
       // ponytail: 无快照机制，恢复统一写内存优先级默认值 Normal(5)；主线程解绑由跟踪表驱动
       ApplyMemoryPriority(pid, 5);
+      RestoreOriginalPriority(pid);
       RelaxMainThread(pid);
       return jobUpdated || hardUpdated;
     }
@@ -118,6 +120,24 @@ namespace OmenSuperHub.Services.CpuAffinity {
       if (hProc == IntPtr.Zero) return;
       try { Kernel32.SetPriorityClass(hProc, priorityClass); }
       finally { Kernel32.CloseHandle(hProc); }
+    }
+
+    // ponytail: 首次应用时快照原始优先级类，Relax 还原。应用重启后快照丢失（无法还原
+    // 上次会话改过的优先级）为已声明天花板；TryAdd 保证守护重应用不覆盖首拍。
+    static readonly ConcurrentDictionary<int, uint> _origPriority = new ConcurrentDictionary<int, uint>();
+
+    void SnapshotOriginalPriority(int pid) {
+      if (_origPriority.ContainsKey(pid)) return;
+      uint cur = QueryPriority(pid);
+      if (cur != 0) _origPriority.TryAdd(pid, cur);
+    }
+
+    static void RestoreOriginalPriority(int pid) {
+      if (!_origPriority.TryRemove(pid, out uint orig) || orig == 0) return;
+      IntPtr h = OpenProcessForWrite(pid);
+      if (h == IntPtr.Zero) return;
+      try { Kernel32.SetPriorityClass(h, orig); }
+      finally { Kernel32.CloseHandle(h); }
     }
 
     // ── 内存优先级（SetProcessInformation(ProcessMemoryPriority)） ──

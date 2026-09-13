@@ -5,6 +5,8 @@
 // 当用户在设置页打开「启用高级硬件访问 (EC/SMU)」(ConfigService.EnableEcAccess) 后，
 // Intel 平台的 PL1/PL2 改走本服务：PawnIO IntelMSR.bin 直写 0x610，读-改-写 + 回读验证。
 // 写入失败或通道不可用时自动回退到原 WMI 路径，保证零回归。
+// ponytail: 双重写入 —— 直写成功后 OmenHardware 仍延迟补发 WMI 0x29 同步 EC 侧状态
+// （光影机型 EC 侧功率墙状态需保持一致），详见 OmenHardware.QueueDualWmiSend。
 //
 // 位域参考 Intel SDM Vol.4 (IA32_PKG_POWER_LIMIT)；功率单位换算与参考实现
 // 「Intel降压定频」 msr.pyc 的 _power_unit / read_power_limits 一致：
@@ -19,7 +21,7 @@ using System.Management;
 using LibreHardwareMonitor.PawnIo;
 
 namespace OmenSuperHub.Services {
-  /// <summary>Intel RAPL 功率墙直写（取代 WMI 0x29，仅在 EnableEcAccess 开启时启用）</summary>
+  /// <summary>Intel RAPL 功率墙直写（EnableEcAccess 开启时启用；OmenHardware 会再补发 WMI 0x29 双重写入）</summary>
   internal static class RaplPowerLimitService {
     const uint MsrRaplPowerUnit = 0x606;
     const uint MsrPkgPowerLimit = 0x610;

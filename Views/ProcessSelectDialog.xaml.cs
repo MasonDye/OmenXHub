@@ -24,12 +24,22 @@ namespace OmenSuperHub.Views {
       OkBtn.IsEnabled = false;
       ProcList.ItemsSource = new[] { "..." };
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        var procs = CoreKeepService.EnumerateProcesses();
-        var names = procs.Select(p => p.Name).Distinct().OrderBy(n => n, System.StringComparer.OrdinalIgnoreCase).ToList();
-        Dispatcher.BeginInvoke(new Action(() => {
-          _allNames = names;
-          ApplyFilter();
-        }));
+        // R15/BUG-22 同款: 枚举进程抛异常在线程池裸奔会终止进程,兜底并让 UI 恢复可用。
+        try {
+          var procs = CoreKeepService.EnumerateProcesses();
+          var names = procs.Select(p => p.Name).Distinct().OrderBy(n => n, System.StringComparer.OrdinalIgnoreCase).ToList();
+          Dispatcher.BeginInvoke(new Action(() => {
+            _allNames = names;
+            ApplyFilter();
+          }));
+        } catch (Exception ex) {
+          Logger.Error("LoadProcesses: " + ex.Message);
+          Dispatcher.BeginInvoke(new Action(() => {
+            ProcList.ItemsSource = new string[0];
+            EmptyHint.Visibility = Visibility.Visible;
+            ProcList.Visibility = Visibility.Collapsed;
+          }));
+        }
       });
     }
 
@@ -43,6 +53,9 @@ namespace OmenSuperHub.Views {
       EmptyHint.Visibility = filtered.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
       ProcList.Visibility = filtered.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
       if (filtered.Count > 0) ProcList.SelectedIndex = 0;
+      // R15/BUG-23: LoadProcesses 置灰 OkBtn 后原代码从不恢复 —— "确定"永远点不动，
+      // 唯一出口是双击列表项。筛选结果非空即恢复可用。
+      OkBtn.IsEnabled = filtered.Count > 0;
     }
 
     void SearchBox_TextChanged(object s, TextChangedEventArgs e) => ApplyFilter();

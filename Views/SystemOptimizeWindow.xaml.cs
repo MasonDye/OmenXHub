@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Wpf.Ui.Controls;
 using OmenSuperHub.Services.SystemOptimization;
 using OmenSuperHub.Utils;
@@ -114,14 +115,24 @@ namespace OmenSuperHub.Views {
     void OneClickOptimize_Click(object sender, RoutedEventArgs e) {
       if (!DialogHelper.Confirm(Strings.SysOptOneClickConfirm, Strings.SysOptOneClickTitle)) return;
       OneClickOptimizeBtn.IsEnabled = false;
+      // R15/BUG-22: 线程池工作项内未捕获异常会终止进程(AppDomain handler 拦不住)。
+      // work 体整体兜底,保证按钮复位 BeginInvoke 必达。
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        var r = SystemServiceOptimizer.ApplyRecommendedPreset();
-        Dispatcher.BeginInvoke(new Action(() => {
-          OneClickOptimizeBtn.IsEnabled = true;
-          ReloadServices();
-          DialogHelper.Info(Strings.SysOptPresetResult(r.Applied, r.AlreadyOptimal, r.Skipped, r.Failed),
-                            Strings.SysOptOneClickTitle);
-        }));
+        try {
+          var r = SystemServiceOptimizer.ApplyRecommendedPreset();
+          Dispatcher.BeginInvoke(new Action(() => {
+            OneClickOptimizeBtn.IsEnabled = true;
+            ReloadServices();
+            DialogHelper.Info(Strings.SysOptPresetResult(r.Applied, r.AlreadyOptimal, r.Skipped, r.Failed),
+                              Strings.SysOptOneClickTitle);
+          }));
+        } catch (Exception ex) {
+          Logger.Error("OneClickOptimize: " + ex.Message);
+          Dispatcher.BeginInvoke(new Action(() => {
+            OneClickOptimizeBtn.IsEnabled = true;
+            DialogHelper.Warn(Strings.SysOptOneClickTitle + ": " + ex.Message);
+          }));
+        }
       });
     }
 
@@ -131,13 +142,22 @@ namespace OmenSuperHub.Views {
       if (!DialogHelper.Confirm(Strings.SysOptRestoreConfirm, Strings.SysOptRestoreTitle)) return;
       RestoreBtn.IsEnabled = false;
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        var r = SystemServiceOptimizer.ApplyDefaultPreset();
-        Dispatcher.BeginInvoke(new Action(() => {
-          RestoreBtn.IsEnabled = true;
-          ReloadServices();
-          DialogHelper.Info(Strings.SysOptPresetResult(r.Applied, r.AlreadyOptimal, r.Skipped, r.Failed),
-                            Strings.SysOptRestoreTitle);
-        }));
+        // R15/BUG-22: 同 OneClickOptimize —— 工作项体兜底,异常不再终止进程。
+        try {
+          var r = SystemServiceOptimizer.ApplyDefaultPreset();
+          Dispatcher.BeginInvoke(new Action(() => {
+            RestoreBtn.IsEnabled = true;
+            ReloadServices();
+            DialogHelper.Info(Strings.SysOptPresetResult(r.Applied, r.AlreadyOptimal, r.Skipped, r.Failed),
+                              Strings.SysOptRestoreTitle);
+          }));
+        } catch (Exception ex) {
+          Logger.Error("RestorePreset: " + ex.Message);
+          Dispatcher.BeginInvoke(new Action(() => {
+            RestoreBtn.IsEnabled = true;
+            DialogHelper.Warn(Strings.SysOptRestoreTitle + ": " + ex.Message);
+          }));
+        }
       });
     }
 
@@ -150,14 +170,20 @@ namespace OmenSuperHub.Views {
     // ── 服务 ──
 
     void ReloadServices() {
+      // R15/BUG-22: Enumerate 可能抛(注册表/SCM 异常) —— 线程池裸奔即终止进程。
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
         var items = new List<ServiceItemVm>();
-        foreach (var s in SystemServiceOptimizer.Enumerate())
-          items.Add(new ServiceItemVm { Item = s });
+        try {
+          foreach (var s in SystemServiceOptimizer.Enumerate())
+            items.Add(new ServiceItemVm { Item = s });
+        } catch (Exception ex) { Logger.Error("ReloadServices: " + ex.Message); return; }
         Dispatcher.BeginInvoke(new Action(() => {
           _loadingServices = true;
           ServiceList.ItemsSource = items;
-          _loadingServices = false;
+          // R15/BUG-20: 容器 realize 与绑定激活发生在随后的 layout 遍(Render 优先级),
+          // 同步复位守卫时事件尚未到达 → 守卫必然失效。Loaded 优先级排在 layout 之后,
+          // 把复位推迟到那里,容器激活引发的 SelectionChanged 全部落在守卫窗口内。
+          Dispatcher.BeginInvoke(new Action(() => { _loadingServices = false; }), DispatcherPriority.Loaded);
         }));
       });
     }
@@ -166,6 +192,11 @@ namespace OmenSuperHub.Views {
       if (_loadingServices || _rollingBackService || !(sender is ComboBox combo)) return;
       var vm = combo.Tag as ServiceItemVm;
       if (vm == null) return;
+      // R15/BUG-20: WPF 容器生成与绑定激活是异步的 —— ItemsSource set 后同步把 _loadingServices
+      // 置回 false，但 ComboBox 的 SelectedIndex 绑定激活要等下一拍，届时 SelectionChanged 才触发，
+      // 守卫已失效。对不可改服务(startType<2)绑定会把 index 激活为 0(自动) → 误弹"修改失败"。
+      // 用"值未变即返回"兜底：程序化激活的 index 必等于 vm.StartupTypeIndex，直接吞掉。
+      if (combo.SelectedIndex == vm.StartupTypeIndex) return;
       var target = combo.SelectedIndex == 0 ? ServiceStartupType.Automatic
                  : combo.SelectedIndex == 1 ? ServiceStartupType.Manual
                  : ServiceStartupType.Disabled;
@@ -183,13 +214,17 @@ namespace OmenSuperHub.Views {
     // ── 启动项 ──
 
     void ReloadStartup() {
+      // R15/BUG-22: StartupItemOptimizer.Enumerate 对注册键无外层 catch —— 兜底。
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        var items = StartupItemOptimizer.Enumerate();
+        List<StartupItem> items;
+        try { items = StartupItemOptimizer.Enumerate(); }
+        catch (Exception ex) { Logger.Error("ReloadStartup: " + ex.Message); return; }
         Dispatcher.BeginInvoke(new Action(() => {
           _loadingStartup = true;
           StartupList.ItemsSource = items;
           _startupLoaded = true;
-          _loadingStartup = false;
+          // R15/BUG-20: 同 ReloadServices —— 复位推迟到 layout 遍之后(见彼处注释)。
+          Dispatcher.BeginInvoke(new Action(() => { _loadingStartup = false; }), DispatcherPriority.Loaded);
         }));
       });
     }
@@ -212,19 +247,23 @@ namespace OmenSuperHub.Views {
     // ── 通用优化 ──
 
     void ReloadTweaks() {
+      // R15/BUG-22: 兜底(GetState 内部已 catch,此处防 All/枚举外异常)。
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
         var items = new List<TweakItemVm>();
-        foreach (var t in SystemTweaks.All) {
-          var state = SystemTweaks.GetState(t);
-          // ponytail: IsChecked 用 != NotApplied —— Partial(部分生效)也算"开",否则开关显示关
-          // 但 StateText 显示"部分生效",两者矛盾。用户点关即完全恢复。
-          items.Add(new TweakItemVm { Tweak = t, State = state, IsChecked = state != TweakState.NotApplied });
-        }
+        try {
+          foreach (var t in SystemTweaks.All) {
+            var state = SystemTweaks.GetState(t);
+            // ponytail: IsChecked 用 != NotApplied —— Partial(部分生效)也算"开",否则开关显示关
+            // 但 StateText 显示"部分生效",两者矛盾。用户点关即完全恢复。
+            items.Add(new TweakItemVm { Tweak = t, State = state, IsChecked = state != TweakState.NotApplied });
+          }
+        } catch (Exception ex) { Logger.Error("ReloadTweaks: " + ex.Message); return; }
         Dispatcher.BeginInvoke(new Action(() => {
           _loadingTweaks = true;
           TweakList.ItemsSource = items;
           _tweaksLoaded = true;
-          _loadingTweaks = false;
+          // R15/BUG-20: 复位推迟到 layout 遍之后(见 ReloadServices 注释)。
+          Dispatcher.BeginInvoke(new Action(() => { _loadingTweaks = false; }), DispatcherPriority.Loaded);
         }));
       });
     }
@@ -236,26 +275,32 @@ namespace OmenSuperHub.Views {
       bool on = toggle.IsChecked == true;
       toggle.IsEnabled = false;
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        bool ok;
-        try { SystemTweaks.Apply(vm.Tweak, on); ok = true; }
-        catch { ok = false; }
-        Dispatcher.BeginInvoke(new Action(() => {
-          toggle.IsEnabled = true;
-          if (!ok) {
-            _rollingBackTweak = true;   // 回滚 IsChecked 也会触发本 handler,抑制再入
-            try { toggle.IsChecked = !on; }
-            finally { _rollingBackTweak = false; }
-            // ponytail: 回滚后同步 vm.IsChecked,避免下次刷新前语义错位
-            vm.IsChecked = !on;
-            DialogHelper.Warn(Strings.SysOptTweakFailed(vm.Name));
-          } else {
-            // ponytail: 不再 ReloadTweaks() 整表重建 — 那会把所有 Tweak 的 Toggle 销毁重实例化,
-            // 视觉上全部 Toggle 闪烁(与 AutomationPage 同款 bug)。只重算当前项状态+同步 IsChecked,
-            // 让 StateText 反映"已应用/未应用",其余项不动。
-            vm.IsChecked = on;
-            vm.State = SystemTweaks.GetState(vm.Tweak);
-          }
-        }));
+        // R15/BUG-22: 原先只有 SystemTweaks.Apply 在 try 内 —— work 体内其余段若抛会终止进程。
+        try {
+          bool ok;
+          try { SystemTweaks.Apply(vm.Tweak, on); ok = true; }
+          catch { ok = false; }
+          Dispatcher.BeginInvoke(new Action(() => {
+            toggle.IsEnabled = true;
+            if (!ok) {
+              _rollingBackTweak = true;   // 回滚 IsChecked 也会触发本 handler,抑制再入
+              try { toggle.IsChecked = !on; }
+              finally { _rollingBackTweak = false; }
+              // ponytail: 回滚后同步 vm.IsChecked,避免下次刷新前语义错位
+              vm.IsChecked = !on;
+              DialogHelper.Warn(Strings.SysOptTweakFailed(vm.Name));
+            } else {
+              // ponytail: 不再 ReloadTweaks() 整表重建 — 那会把所有 Tweak 的 Toggle 销毁重实例化,
+              // 视觉上全部 Toggle 闪烁(与 AutomationPage 同款 bug)。只重算当前项状态+同步 IsChecked,
+              // 让 StateText 反映"已应用/未应用",其余项不动。
+              vm.IsChecked = on;
+              vm.State = SystemTweaks.GetState(vm.Tweak);
+            }
+          }));
+        } catch (Exception ex) {
+          Logger.Error("TweakToggle: " + ex.Message);
+          Dispatcher.BeginInvoke(new Action(() => { toggle.IsEnabled = true; }));
+        }
       });
     }
 

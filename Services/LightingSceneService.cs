@@ -400,7 +400,13 @@ namespace OmenSuperHub.Services {
         var ser = new DataContractJsonSerializer(typeof(LightingSceneFile));
         using (var ms = new MemoryStream()) {
           ser.WriteObject(ms, _file);
-          File.WriteAllBytes(ScenesJsonPath, ms.ToArray());
+          // ponytail: temp + Replace 原子换入（同 MacroService/AutomationService）——
+          // 裸 WriteAllBytes 半途截断后 Load 降级为纯内置场景,下一次任意 Save 会把
+          // 用户自建场景永久覆盖掉。
+          string tmp = ScenesJsonPath + ".tmp";
+          File.WriteAllBytes(tmp, ms.ToArray());
+          if (File.Exists(ScenesJsonPath)) File.Replace(tmp, ScenesJsonPath, null);
+          else File.Move(tmp, ScenesJsonPath);
         }
       } catch (Exception ex) { Logger.Error($"LightingSceneService.Save: {ex.Message}"); }
     }

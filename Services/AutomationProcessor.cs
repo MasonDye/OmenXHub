@@ -18,6 +18,19 @@ using OmenSuperHub.Pages;
 namespace OmenSuperHub.Services {
   internal static class AutomationProcessor {
     public static event Action<string> ExecutionStatusChanged;
+    // ponytail: 事件统一经 UI 线程分发 —— drain 跑在线程池线程,原 169 行直接 Invoke 而 184 行
+    // 却 marshal(风格不一致);当前唯一订阅者自行 InvokeAsync 故未爆,但"订阅者须自 marshal"是
+    // 隐式契约,新增假定 UI 线程的订阅者即中招。与 ConfigService.FirePresetCycled 同范本收口;
+    // BeginInvoke 异步避免嵌套死锁(触发器回调里再等 UI 的场景)。
+    static void FireExecutionStatus(string name) {
+      try {
+        var app = System.Windows.Application.Current;
+        if (app != null && app.Dispatcher != null && !app.Dispatcher.CheckAccess())
+          app.Dispatcher.BeginInvoke(new System.Action(() => ExecutionStatusChanged?.Invoke(name)));
+        else
+          ExecutionStatusChanged?.Invoke(name);
+      } catch { }
+    }
     private static bool _running;
     private static Timer _processPollTimer;
     // ponytail: 进程状态按「镜像名 → 存活 PID 集合」追踪,而非布尔值。
@@ -166,7 +179,7 @@ namespace OmenSuperHub.Services {
       try {
         while (_running && _pendingPipelines.TryDequeue(out var pipeline)) {
           lock (ExecLock) { _executing = true; _currentPipelineName = pipeline.Name; }
-          ExecutionStatusChanged?.Invoke(pipeline.Name);
+          FireExecutionStatus(pipeline.Name);
           try {
             foreach (var step in pipeline.Steps) {
               if (step.DelayMs > 0)
@@ -177,14 +190,8 @@ namespace OmenSuperHub.Services {
             Logger.Error("AutomationProcessor.ExecutePipeline error: " + ex.Message);
           } finally {
             lock (ExecLock) { _executing = false; _currentPipelineName = null; }
-            // ponytail: marshal to UI thread for anyone subscribing from XAML/code-behind
-            try {
-              var app = System.Windows.Application.Current;
-              if (app != null && app.Dispatcher != null && !app.Dispatcher.CheckAccess())
-                app.Dispatcher.Invoke(() => ExecutionStatusChanged?.Invoke(null));
-              else
-                ExecutionStatusChanged?.Invoke(null);
-            } catch { }
+            // ponytail: 统一经 FireExecutionStatus(UI 线程分发,内含 try)。
+            FireExecutionStatus(null);
           }
         }
       } finally {
@@ -307,6 +314,14 @@ namespace OmenSuperHub.Services {
       ConfigService.Save("PowerMode");
     }
 
+    // ponytail: 自动化 Value 与 ConfigService.CpuPower 同款 "N W" 显示格式，解析对齐 PresetManager
+    // 的 Replace(" W","") 惯例 —— 旧裸 int.TryParse 使编辑器 combo 存的 "65 W" 永远静默失效。
+    internal static int? ParseCpuPowerWatts(string value) {
+      if (string.IsNullOrEmpty(value)) return null;
+      string v = value.Trim().Replace(" W", "").Trim();
+      return int.TryParse(v, out int w) && w >= 10 && w <= 254 ? (int?)w : null;
+    }
+
     static void ExecuteSetCpuPower(string value) {
       if (value == "max") {
         // ponytail: 同步 ConfigService 三字段 + 持久化 —— 否则硬件短暂降频后,下次
@@ -319,7 +334,7 @@ namespace OmenSuperHub.Services {
         ConfigService.Save("CpuPowerPl2");
         OmenHardware.SetCpuPowerLimit(254);
         Views.OsdWindow.ShowCpuPowerOsd("max");
-      } else if (int.TryParse(value, out int cpuVal) && cpuVal >= 10 && cpuVal <= 254) {
+      } else if (ParseCpuPowerWatts(value) is int cpuVal) {
         ConfigService.CpuPower = cpuVal + " W";
         ConfigService.CpuPowerPl1 = cpuVal;
         ConfigService.CpuPowerPl2 = cpuVal;
@@ -451,9 +466,11 @@ namespace OmenSuperHub.Services {
       // 规范路径还覆盖 PL1/PL2 独立写入、自定义预设 1.2 参数与按预设风扇曲线。
       // ponytail: 改为 await —— 多步骤 pipeline 连发时,确保 SetPreset 把 GPU/CPU 功率
       // 真正写入完,再跑下一步的 SetGpuPower/SetCpuPower,否则后写者可能反向覆盖前者。
-      await PresetManager.AwaitableApplyPresetHardware();
-
-      Views.OsdWindow.ShowPresetOsd(preset);
+      var failedSteps = await PresetManager.AwaitableApplyPresetHardware();
+      // 部分应用时失败 OSD 已由 PresetManager 单点弹出,这里不再叠加"预设已应用"的误导
+      // 成功提示。FirePresetCycled 照常同步 UI(预设状态是切换成功才走到这步的)。
+      if (failedSteps.Length == 0)
+        Views.OsdWindow.ShowPresetOsd(preset);
       ConfigService.FirePresetCycled(preset);
     }
 
@@ -520,9 +537,12 @@ namespace OmenSuperHub.Services {
       return mods;
     }
 
-    static Key HotkeyStringToKey(string hotkey) {
+    internal static Key HotkeyStringToKey(string hotkey) {
       string[] parts = hotkey.Split('+');
       string keyName = parts[parts.Length - 1].Trim();
+      // ponytail: Enum.Parse 对纯数字串按枚举值解析 ("1"→Key.Cancel),数字键必须先走 FriendlyToKey,
+      // 否则数字热键 (Ctrl+1 等) 注册成完全错误的 VK
+      if (keyName.Length == 1 && char.IsDigit(keyName[0])) return FriendlyToKey(keyName);
       try { return (Key)Enum.Parse(typeof(Key), keyName, ignoreCase: true); } catch { }
       return FriendlyToKey(keyName);
     }
@@ -552,6 +572,8 @@ namespace OmenSuperHub.Services {
     public static void RefreshHotkeys() {
       if (!_running) return;
       InitHotkeyHwnd();
+      // ponytail: 主窗 HWND 未就绪时 InitHotkeyHwnd 会静默 return 不赋值,下面直接 .Handle 会 NRE
+      if (_hotkeyHwndSource == null) return;
       UnregisterAllHotkeys();
       if (_registeredHotkeys == null) _registeredHotkeys = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
       IntPtr hwnd = _hotkeyHwndSource.Handle;
@@ -574,6 +596,61 @@ namespace OmenSuperHub.Services {
         }
       }
       if (nextId > 1) Logger.Info($"Hotkeys: registered {_registeredHotkeys.Count} shortcut(s)");
+    }
+
+    // ponytail: 热键冲突纯函数 —— 后注册的 RegisterHotKey 失败仅留一行日志,用户无感知;
+    // 同流水线内重复同样注册不上,一并拦截。编辑器 SaveBtn_Click 调用,SelfCheck 直测。
+    internal static AutomationPipeline FindHotkeyConflict(AutomationPipeline self, IEnumerable<AutomationPipeline> others) {
+      self.EnsureTriggers();
+      for (int i = 0; i < self.Triggers.Count; i++) {
+        var t = self.Triggers[i];
+        if (!t.Enabled || t.Type != "Hotkey" || string.IsNullOrEmpty(t.Value)) continue;
+        for (int j = i + 1; j < self.Triggers.Count; j++) {
+          var t2 = self.Triggers[j];
+          if (t2.Enabled && t2.Type == "Hotkey" && string.Equals(t2.Value, t.Value, StringComparison.OrdinalIgnoreCase))
+            return self;
+        }
+        foreach (var p in others) {
+          if (p == null || ReferenceEquals(p, self) || !p.Enabled) continue;
+          p.EnsureTriggers();   // 与 MatchesTrigger 同款归一化,防手改 JSON 的 null Triggers
+          foreach (var t2 in p.Triggers) {
+            if (t2.Enabled && t2.Type == "Hotkey" && string.Equals(t2.Value, t.Value, StringComparison.OrdinalIgnoreCase))
+              return p;
+          }
+        }
+      }
+      return null;
+    }
+
+    // ── Self check (--selftest) ──
+    // ponytail: 只测纯函数,不触 AutomationService —— --selftest 路径不跑 Initialize,Pipelines 为 null。
+
+    internal static string SelfCheck() {
+      var fails = new List<string>();
+      // ParseCpuPowerWatts 契约: 自动化 Value 与 ConfigService 同款 "N W" 显示格式
+      if (ParseCpuPowerWatts("65 W") != 65) fails.Add("ParseCpuPowerWatts(\"65 W\") != 65");
+      if (ParseCpuPowerWatts("65") != 65) fails.Add("ParseCpuPowerWatts(\"65\") != 65");
+      if (ParseCpuPowerWatts("max") != null) fails.Add("ParseCpuPowerWatts(\"max\") should be null");
+      if (ParseCpuPowerWatts("abc") != null) fails.Add("ParseCpuPowerWatts(\"abc\") should be null");
+      if (ParseCpuPowerWatts("5") != null) fails.Add("ParseCpuPowerWatts(\"5\") should be null (<10)");
+      if (ParseCpuPowerWatts("300") != null) fails.Add("ParseCpuPowerWatts(\"300\") should be null (>254)");
+      // 热键字符串解析: 录制器字母表 (数字键/OEM 标点) 必须能解析,否则注册端静默丢弃
+      if (HotkeyStringToKey("Ctrl+Shift+F5") != Key.F5) fails.Add("HotkeyStringToKey(Ctrl+Shift+F5) != F5");
+      if (HotkeyStringToKey("Ctrl+1") != Key.D1) fails.Add("HotkeyStringToKey(Ctrl+1) != D1");
+      if (HotkeyStringToKey("Ctrl+.") != Key.OemPeriod) fails.Add("HotkeyStringToKey(Ctrl+.) != OemPeriod");
+      if (HotkeyStringToKey("Alt+/") != Key.OemQuestion) fails.Add("HotkeyStringToKey(Alt+/) != OemQuestion");
+      // 冲突检查: 同流水线内重复 / 跨流水线重复命中; 禁用流水线不命中
+      var dup = new AutomationPipeline { Name = "A", Triggers = { new AutomationTrigger("Hotkey", "Ctrl+F1"), new AutomationTrigger("Hotkey", "Ctrl+F1") } };
+      if (FindHotkeyConflict(dup, new List<AutomationPipeline>()) != dup)
+        fails.Add("intra-pipeline hotkey duplicate not detected");
+      var solo = new AutomationPipeline { Name = "A", Triggers = { new AutomationTrigger("Hotkey", "Ctrl+F2") } };
+      var other = new AutomationPipeline { Name = "B", Triggers = { new AutomationTrigger("Hotkey", "ctrl+f2") } };
+      if (FindHotkeyConflict(solo, new List<AutomationPipeline> { other }) != other)
+        fails.Add("cross-pipeline hotkey conflict not detected");
+      var disabled = new AutomationPipeline { Name = "C", Enabled = false, Triggers = { new AutomationTrigger("Hotkey", "Ctrl+F2") } };
+      if (FindHotkeyConflict(solo, new List<AutomationPipeline> { disabled }) != null)
+        fails.Add("disabled pipeline should not conflict");
+      return fails.Count == 0 ? "PASS AutomationSelfCheck" : "FAIL AutomationSelfCheck: " + string.Join("; ", fails);
     }
 
     // ── Trigger detection ──
@@ -737,10 +814,11 @@ namespace OmenSuperHub.Services {
       if (!_running) return;
       try {
         float cpuTemp = HardwareService.CPUTemp;
-        float gpuTemp = HardwareService.GPUTemp;
-        bool tempChanged = Math.Abs(cpuTemp - _lastCpuTemp) > 0.5f || Math.Abs(gpuTemp - _lastGpuTemp) > 0.5f;
+        bool gpuTempFresh = HardwareService.TryGetFreshGpuTemp(out float gpuTemp);
+        bool tempChanged = Math.Abs(cpuTemp - _lastCpuTemp) > 0.5f
+          || (gpuTempFresh && Math.Abs(gpuTemp - _lastGpuTemp) > 0.5f);
         _lastCpuTemp = cpuTemp;
-        _lastGpuTemp = gpuTemp;
+        if (gpuTempFresh) _lastGpuTemp = gpuTemp;
         if (tempChanged) {
           foreach (var p in AutomationService.GetEnabledPipelines()) {
             // ponytail: GetEnabledPipelines() 已对每个 pipeline 调 EnsureTriggers()，无需重复。
@@ -756,7 +834,7 @@ namespace OmenSuperHub.Services {
                 } else if (!above && cpuTemp < cpuThresh - 2) {
                   _tempTriggerFired.Remove(latchKey);
                 }
-              } else if (t.Type == "GpuTempAbove" && int.TryParse(t.Value, out int gpuThresh)) {
+              } else if (t.Type == "GpuTempAbove" && gpuTempFresh && int.TryParse(t.Value, out int gpuThresh)) {
                 bool above = gpuTemp >= gpuThresh;
                 if (above && !_tempTriggerFired.Contains(latchKey)) {
                   _tempTriggerFired.Add(latchKey);

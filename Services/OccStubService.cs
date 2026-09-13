@@ -57,10 +57,14 @@ namespace OmenSuperHub.Services {
         RedirectStandardOutput = true, RedirectStandardError = true,
       };
       using (var p = Process.Start(psi)) {
-        string output = p.StandardOutput.ReadToEnd();
-        _ = p.StandardError.ReadToEnd();  // 读空 stderr,防缓冲区填满导致子进程卡死
-        p.WaitForExit(30000);
-        return output ?? "";
+        // ponytail: 双管道并发排空 — 顺序读在 stderr 塞满时互锁;超时击杀防无限等待。
+        // stderr 结果本项目不用(Kill 后异步读会抛),必须显式 ContinueWith 丢弃 —
+        // 未观察的 Task 异常会在 GC 时触发 UnobservedTaskException。
+        var outTask = p.StandardOutput.ReadToEndAsync();
+        _ = p.StandardError.ReadToEndAsync().ContinueWith(t => { var _ = t.Exception; },
+            System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+        if (!p.WaitForExit(30000)) { try { p.Kill(); } catch { } p.WaitForExit(); }
+        return outTask.Result ?? "";
       }
     }
 

@@ -55,6 +55,7 @@ namespace OmenSuperHub.Services {
 
     // Timers
     public static System.Threading.Timer fanControlTimer;
+    static int _fanTickRunning;   // fanControlTimer 重入守卫,见 StartTimers 注释
     public static System.Timers.Timer tooltipUpdateTimer;
     public static System.Windows.Threading.DispatcherTimer checkFloatingTimer, optimiseTimer;
 
@@ -338,6 +339,19 @@ namespace OmenSuperHub.Services {
     // Tooltip Update (timer callback)
     // ══════════════════════════════════════════════════════
     static void UpdateTooltip() {
+      // ponytail: 顶层兜底 —— net481 的 System.Timers.Timer 会吞 Elapsed 异常:不崩进程,但整拍
+      // 静默中断且不留痕(BUG-2 同族,只是下限更低)。分两段各自 try:显示刷新段失败只丢一拍
+      // 展示与保护检查;倒计时段(DB 解锁/恢复状态机)必须每拍推进,不被前段异常连带跳过。
+      try { UpdateTooltipDisplay(); }
+      catch (Exception ex) { Logger.Warn($"[TrayService] UpdateTooltip display: {ex.Message}"); }
+      try {
+        HandleDbUnlockCountdown();
+        HandleRestoreCountdown();
+      } catch (Exception ex) { Logger.Error($"[TrayService] UpdateTooltip countdown: {ex.Message}"); }
+    }
+
+    // tick 显示/保护段(原 UpdateTooltip 主体,逐行原样平移;行为不变)。
+    static void UpdateTooltipDisplay() {
       HardwareService.QueryHardware();
       if (HardwareService.MonitorFan)
         HardwareService.UpdateFanSpeed(GetFanLevel());
@@ -357,8 +371,6 @@ namespace OmenSuperHub.Services {
       Views.FloatingWindow.UpdateAllTextTicked();
       if (ConfigService.CustomIcon == "dynamic")
         GenerateDynamicIcon((int)HardwareService.CPUTemp);
-      HandleDbUnlockCountdown();
-      HandleRestoreCountdown();
     }
 
     static void UpdateTooltipText() {
@@ -366,8 +378,8 @@ namespace OmenSuperHub.Services {
         var tip = "OMEN X Hub";
         if (HardwareService.MonitorCPU)
           tip += $" \u00b7 CPU {(int)HardwareService.CPUTemp}\u00b0C";
-        if (ConfigService.MonitorGPU)
-          tip += $" \u00b7 GPU {(int)HardwareService.GPUTemp}\u00b0C";
+        if (HardwareService.TryGetFreshGpuTemp(out float gpuTemp))
+          tip += $" \u00b7 GPU {(int)gpuTemp}\u00b0C";
         _trayHelperRef?.SetTooltip(tip);
       } catch { }
     }
@@ -378,7 +390,8 @@ namespace OmenSuperHub.Services {
         if (_dataLocalizeDir == null)
           _dataLocalizeDir = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
         System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "cpu_temp.txt"), $"{(int)HardwareService.CPUTemp}°C");
-        System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "gpu_temp.txt"), $"{(int)HardwareService.GPUTemp}°C");
+        string gpuTempText = HardwareService.TryGetFreshGpuTemp(out float gpuTemp) ? $"{(int)gpuTemp}°C" : "-";
+        System.IO.File.WriteAllText(System.IO.Path.Combine(_dataLocalizeDir, "gpu_temp.txt"), gpuTempText);
       } catch (Exception ex) {
         Logger.Warn($"[TrayService] WriteDataLocalize: {ex.Message}");  // Logger 30s 节流,1s 周期调用不刷屏
       }
@@ -429,9 +442,11 @@ namespace OmenSuperHub.Services {
             SetMaxFanSpeedOff();
             fanControlTimer.Change(0, 1000);
           } else if (_savedFanControl.EndsWith("%") || _savedFanControl.EndsWith(" RPM")) {
-            int pct = _savedFanControl.EndsWith("%")
-              ? int.Parse(_savedFanControl.TrimEnd('%'))
-              : FanService.ParseFanRpm(_savedFanControl) / 100;
+            int pct;
+            if (_savedFanControl.EndsWith("%"))
+              int.TryParse(_savedFanControl.TrimEnd('%'), out pct);
+            else
+              pct = FanService.ParseFanRpm(_savedFanControl) / 100;
             SetMaxFanSpeedOff();
             OmenHardware.SetFanLevel(pct, pct, fan3: OmenHardware.IsThreeFan());
             fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -441,6 +456,19 @@ namespace OmenSuperHub.Services {
           Logger.Info("Auto fan protect: CPU cooled to <80°C (or protection disabled), restored fan config");
         }
       }
+    }
+
+    // ponytail: tick 线程池 → UI 线程弹窗桥。UpdateTooltip 在 System.Timers.Timer 的线程池
+    // 线程上跑,DialogHelper 会 new WPF 窗口(需 STA)。用 BeginInvoke 异步分发,不阻塞 tick;
+    // 与 ConfigService.FirePresetCycled / PresetManager 的 Dispatcher 惯例一致。
+    static void DispatchWarn(string message) {
+      try {
+        var app = System.Windows.Application.Current;
+        if (app != null && app.Dispatcher != null && !app.Dispatcher.CheckAccess())
+          app.Dispatcher.BeginInvoke(new System.Action(() => DialogHelper.Warn(message, "提示")));
+        else
+          DialogHelper.Warn(message, "提示");
+      } catch (Exception ex) { Logger.Warn($"[TrayService] DispatchWarn: {ex.Message}"); }
     }
 
     static void HandleDbUnlockCountdown() {
@@ -456,10 +484,12 @@ namespace OmenSuperHub.Services {
           tryTimes++;
           if (tryTimes == 2) {
             tryTimes = 0;
-            if (HardwareService.CPUPower > CPULimitDB + 10)
-              DialogHelper.Warn("请在CPU低负载下解锁", "提示");
-            else
-              DialogHelper.Warn($"功耗异常，解锁失败，请重新尝试！\n当前显卡功耗限制为：{powerLimits:F2} W！", "提示");
+            // ponytail: tick 在线程池线程执行,弹窗(创建 WPF 窗口)必须回 UI 线程,
+            // 否则 new DialogResultWindow() 抛 InvalidOperationException(非 STA)且被 Timer 吞掉。
+            string warnMsg = HardwareService.CPUPower > CPULimitDB + 10
+              ? "请在CPU低负载下解锁"
+              : $"功耗异常，解锁失败，请重新尝试！\n当前显卡功耗限制为：{powerLimits:F2} W！";
+            DispatchWarn(warnMsg);
             command = $"pnputil /enable-device {deviceId}";
             ExecuteCommand(command);
             ConfigService.DBVersion = 2;
@@ -475,7 +505,7 @@ namespace OmenSuperHub.Services {
         } else {
           tryTimes = 0;
           if (ConfigService.AutoStart == "off") {
-            DialogHelper.Warn("解锁成功！但当前未设置开机自启，解锁后若重启电脑会导致功耗异常，需要重新解锁！", "提示");
+            DispatchWarn("解锁成功！但当前未设置开机自启，解锁后若重启电脑会导致功耗异常，需要重新解锁！");
           }
         }
         if (tryTimes == 0) {
@@ -535,7 +565,14 @@ namespace OmenSuperHub.Services {
       HardwareService.DetectAmbientSensor();
       HardwareService.RefreshPawnIOState();
       // Fan control timer
+      // ponytail: 重入守卫 —— WMI 偶发 >1s 时回调在线程池上叠加,两轮
+      // SetMaxFanSpeedOff→SetFanLevel 序列交错可能让 EC 收到乱序写入;EMA 状态也被跳步。
+      // 叠加时直接跳过本轮。注意:这不保证 3s EC 保活 —— 若当前 tick 长时间阻塞
+      // (WMI 挂死等),后续 tick 持续跳过,保活可能超时回退 BIOS 风扇表;守卫接受该
+      // 取舍(阻塞期间重复写入本身也是风险)。
       fanControlTimer = new System.Threading.Timer((e) => {
+        if (System.Threading.Interlocked.Exchange(ref _fanTickRunning, 1) != 0) return;
+        try {
         int fanSpeed1, fanSpeed2;
         // ponytail: FanSync 开启时,两条路径内部已用 max(CPU,GPU) 算出同源 RPM。
         // 这里再 fanSpeed2 = fanSpeed1 是一次 EC 写入前的防御性兜底,防止
@@ -559,6 +596,12 @@ namespace OmenSuperHub.Services {
         SetFanLevel(fanSpeed1, fanSpeed2, fan3Speed);
         if (!HardwareService.MonitorFan)
           HardwareService.UpdateFanSpeed(new[] { fanSpeed1, fanSpeed2, fan3Speed ?? fanSpeed1 });
+        } catch (Exception ex) {
+          // ponytail: Threading.Timer 回调未捕获异常会终止进程 —— 此回调每 1s 跑,
+          // 内含 WMI/EC 写入与配置读取,任一处抛异常都不能让整机控制中心崩掉。
+          // 与 LightingTemperatureService.Tick 同款 catch 惯例;Logger 有 30s 去重不刷屏。
+          Logger.Error($"[TrayService] fanControlTimer tick: {ex.Message}");
+        } finally { System.Threading.Interlocked.Exchange(ref _fanTickRunning, 0); }
       }, null, 100, 1000);
 
       // Optimise timer (replaces WinForms Timer)
@@ -606,6 +649,11 @@ namespace OmenSuperHub.Services {
       }
       GetFanCount();
       HardwareService.MonitorQuery();
+      // ponytail: 环境传感器探测在 StartTimers 只跑一次,WMI 冷启动未就绪时假阴性会锁死
+      // 整个会话(FanService 预设档的 ambient 回退永不触发)。未确认支持前每 30s 重探
+      // (两次 0x23 读),确认后此分支零开销;本就无传感器的机型代价是每 30s 两次 WMI。
+      if (!HardwareService.IsAmbientSensorSupported)
+        HardwareService.DetectAmbientSensor();
     }
 
     // ══════════════════════════════════════════════════════
@@ -700,9 +748,15 @@ namespace OmenSuperHub.Services {
       } else if (ConfigService.FanControl.EndsWith("%")) {
         SetMaxFanSpeedOff();
         if (fanControlTimer != null) fanControlTimer.Change(Timeout.Infinite, Timeout.Infinite);
-        int pct = int.Parse(ConfigService.FanControl.TrimEnd('%'));
-        SetFanLevel(pct, pct, fan3: OmenHardware.IsThreeFan());
-        UpdateCheckedState("fanControlGroup", ConfigService.FanControl);
+        // ponytail: 注册表值可为任意字符串(旧残留/手工改坏),Parse 会抛 FormatException
+        // 打断启动后续初始化。TryParse 失败则不写硬件(该分支内的 timer/MAX-off 已执行,
+        // 跳到链尾由方法后续统一收尾);成功才下发转速。
+        if (int.TryParse(ConfigService.FanControl.TrimEnd('%'), out int pct)) {
+          SetFanLevel(pct, pct, fan3: OmenHardware.IsThreeFan());
+          UpdateCheckedState("fanControlGroup", ConfigService.FanControl);
+        } else {
+          Logger.Warn($"[TrayService] RestoreFanSettings: 非法的 FanControl 百分比值 \"{ConfigService.FanControl}\", 跳过转速下发");
+        }
       } else if (ConfigService.FanControl.Contains("max")) {
         SetMaxFanSpeedOff();
         SetFanLevel(100, 100, fan3: OmenHardware.IsThreeFan());
@@ -739,8 +793,8 @@ namespace OmenSuperHub.Services {
         if (pl1 >= 10 && pl1 <= 254 && pl2 >= 10 && pl2 <= 254) {
           SetCpuPowerLimit((byte)pl1, (byte)pl2);
         } else {
-          int value = int.Parse(ConfigService.CpuPower.Replace(" W", "").Trim());
-          if (value >= 10 && value <= 254) SetCpuPowerLimit((byte)value, (byte)value);
+          if (int.TryParse(ConfigService.CpuPower.Replace(" W", "").Trim(), out int value)
+              && value >= 10 && value <= 254) SetCpuPowerLimit((byte)value, (byte)value);
         }
         UpdateCheckedState("cpuPowerGroup", ConfigService.CpuPower);
       }
@@ -925,16 +979,9 @@ namespace OmenSuperHub.Services {
       HardwareService.MonitorCPU = ConfigService.MonitorCPU;
       HardwareService.LibreComputer.IsCpuEnabled = ConfigService.MonitorCPU;
 
-      // GPU monitor
-      if (ConfigService.MonitorGPU) {
-        HardwareService.LibreComputer.IsGpuEnabled = true;
-        HardwareService.MonitorGPU = true;
-        UpdateCheckedState("monitorGPUGroup", "开启GPU监控");
-      } else {
-        HardwareService.LibreComputer.IsGpuEnabled = false;
-        HardwareService.MonitorGPU = false;
-        UpdateCheckedState("monitorGPUGroup", "关闭GPU监控");
-      }
+      // GPU monitor — 统一恢复运行态及自动启停标志，避免保存的“关闭”被自动重新开启。
+      HardwareService.RestoreMonitorGPU(ConfigService.MonitorGPU);
+      UpdateCheckedState("monitorGPUGroup", ConfigService.MonitorGPU ? "开启GPU监控" : "关闭GPU监控");
 
       // Fan monitor
       HardwareService.MonitorFan = ConfigService.MonitorFan;
@@ -983,13 +1030,17 @@ namespace OmenSuperHub.Services {
 
       if (e.Mode == Microsoft.Win32.PowerModes.StatusChange) {
         var powerStatus = SystemInformation.PowerStatus;
-        bool wasOffline = !HardwareService.PowerOnline;
+        // ponytail: 条件反转 bug — 原 `wasOffline != PowerOnline` 拿"旧状态取反"与新状态比,
+        // 真切换(AC↔DC)时恒为 false(漏弹),同状态重复通知(AC→AC/DC→DC)时恒为 true(误弹)。
+        // 改存 wasOnline 直接比较新旧;:986 的插电恢复判断同步改为 !wasOnline && PowerOnline,
+        // 与原逻辑等价(原式 wasOffline && PowerOnline 恰好在真 DC→AC 上为真,未受影响)。
+        bool wasOnline = HardwareService.PowerOnline;
         HardwareService.PowerOnline = powerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
-        if (wasOffline != HardwareService.PowerOnline) {
+        if (wasOnline != HardwareService.PowerOnline) {
           Views.OsdWindow.ShowPowerOsd(HardwareService.PowerOnline);
         }
         // Master: restore power config when AC adapter is plugged back in
-        if (wasOffline && HardwareService.PowerOnline) {
+        if (!wasOnline && HardwareService.PowerOnline) {
           RestorePowerConfig();
         }
       }
@@ -1035,8 +1086,8 @@ namespace OmenSuperHub.Services {
         if (pl1 >= 10 && pl1 <= 254 && pl2 >= 10 && pl2 <= 254) {
           SetCpuPowerLimit((byte)pl1, (byte)pl2);
         } else {
-          int value = int.Parse(ConfigService.CpuPower.Replace(" W", "").Trim());
-          if (value >= 10 && value <= 254) SetCpuPowerLimit((byte)value, (byte)value);
+          if (int.TryParse(ConfigService.CpuPower.Replace(" W", "").Trim(), out int value)
+              && value >= 10 && value <= 254) SetCpuPowerLimit((byte)value, (byte)value);
         }
       }
     }
@@ -1357,10 +1408,11 @@ namespace OmenSuperHub.Services {
         };
         using (var process = new Process { StartInfo = psi }) {
           process.Start();
-          string output = process.StandardOutput.ReadToEnd();
-          string error = process.StandardError.ReadToEnd();
+          // ponytail: 双管道并发排空 — 顺序 ReadToEnd 在子进程塞满 stderr 缓冲(4KB)时互锁
+          var outTask = process.StandardOutput.ReadToEndAsync();
+          var errTask = process.StandardError.ReadToEndAsync();
           process.WaitForExit();
-          return new ProcessResult { Output = output, Error = error, ExitCode = process.ExitCode };
+          return new ProcessResult { Output = outTask.Result, Error = errTask.Result, ExitCode = process.ExitCode };
         }
       }
       var psi2 = new ProcessStartInfo {
@@ -1373,10 +1425,11 @@ namespace OmenSuperHub.Services {
       };
       using (var process = new Process { StartInfo = psi2 }) {
         process.Start();
-        string output = process.StandardOutput.ReadToEnd();
-        string error = process.StandardError.ReadToEnd();
+        // 同上:双管道并发排空防互锁
+        var outTask = process.StandardOutput.ReadToEndAsync();
+        var errTask = process.StandardError.ReadToEndAsync();
         process.WaitForExit();
-        return new ProcessResult { Output = output, Error = error, ExitCode = process.ExitCode };
+        return new ProcessResult { Output = outTask.Result, Error = errTask.Result, ExitCode = process.ExitCode };
       }
     }
 
@@ -1391,13 +1444,39 @@ namespace OmenSuperHub.Services {
       System.Threading.Tasks.Task.Run(async () => {
         while (!token.IsCancellationRequested) {
           try {
-            using (var pipeServer = new System.IO.Pipes.NamedPipeServerStream("OmenXHubPipe", System.IO.Pipes.PipeDirection.In)) {
-              pipeServer.WaitForConnection();
+            // PipeOptions.Asynchronous 必加:默认构造的 WaitForConnectionAsync 会退化为
+            // 同步阻塞包装,token 只在排队前生效 —— 连接前 cancel 唤不醒线程。
+            using (var pipeServer = new System.IO.Pipes.NamedPipeServerStream("OmenXHubPipe",
+                System.IO.Pipes.PipeDirection.In, 1, System.IO.Pipes.PipeTransmissionMode.Byte,
+                System.IO.Pipes.PipeOptions.Asynchronous)) {
+              // ponytail: 原 WaitForConnection()/ReadToEnd() 均无限阻塞 —— 连上不发数据的
+              // 客户端永久占住本处理循环。等待用 token 取消;读用"异步读 + WhenAny 超时"。
+              // NamedPipeStream 不支持 ReadTimeout(CanTimeout=False,赋值即抛)。
+              // 范围说明:取消覆盖连接等待;读阶段有 5s 期限;分发前与 UI 委托内各重查
+              // 一次 token —— 后者封"后台检查通过后 UI 线程才退出"的竞态(已排队的
+              // Invoke 委托执行时再查一次,宁可丢一次按键)。不是"即时取消读取"。
+              await pipeServer.WaitForConnectionAsync(token);
+              string message;
               using (var reader = new StreamReader(pipeServer)) {
-                string message = reader.ReadToEnd();
+                var readTask = reader.ReadToEndAsync();
+                if (await System.Threading.Tasks.Task.WhenAny(readTask,
+                    System.Threading.Tasks.Task.Delay(5000)) != readTask) {
+                  // 遗留 readTask 挂个观察器:退出 using 关流不负责观察 Task 异常,若不观察,
+                  // 其 faulted 终态会在终结器时机触发 UnobservedTaskException。_ = 显式丢弃。
+                  _ = readTask.ContinueWith(t => { var obs = t.Exception; },
+                      System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                  Logger.Error("OmenKey pipe: 客户端 5s 内未完成发送,丢弃本轮连接");
+                  continue;
+                }
+                message = await readTask;
+              }
+              if (token.IsCancellationRequested) break;
                 if (message.Contains("OmenKeyTriggered")) {
                   if (ConfigService.OmenKey == "showMain") {
-                    System.Windows.Application.Current?.Dispatcher.Invoke(() => Views.MainWindow.ShowInstance());
+                    System.Windows.Application.Current?.Dispatcher.Invoke(() => {
+                      if (token.IsCancellationRequested) return;   // 排队期间应用已开始退出
+                      Views.MainWindow.ShowInstance();
+                    });
                   } else if (ConfigService.OmenKey == "cyclePresets") {
                     var candidates = ConfigService.OmenKeyPresetCandidates
                       .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -1407,6 +1486,7 @@ namespace OmenSuperHub.Services {
                     _cyclePresetIndex = (idx + 1) % candidates.Count;
                     string preset = candidates[_cyclePresetIndex];
                     System.Windows.Application.Current?.Dispatcher.Invoke(() => {
+                      if (token.IsCancellationRequested) return;   // 排队期间应用已开始退出
                       PresetManager.SwitchPreset(preset);
                       if (System.Windows.Application.Current.MainWindow is Views.MainWindow mw)
                         mw.ApplyPresetHardware();
@@ -1420,8 +1500,11 @@ namespace OmenSuperHub.Services {
                   }
                   // "none" does nothing
                 }
-              }
             }
+          } catch (System.OperationCanceledException) {
+            // shutdown 的 cts.Cancel() 唤醒 WaitForConnectionAsync —— 正常退出,不记错误
+            if (token.IsCancellationRequested) break;
+            Logger.Error("OmenKey pipe wait cancelled");
           } catch (Exception ex) {
             Logger.Error("OmenKey pipe error: " + ex.Message);
             await System.Threading.Tasks.Task.Delay(1000);

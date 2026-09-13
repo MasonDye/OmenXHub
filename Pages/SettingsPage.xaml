@@ -221,7 +221,7 @@
               <ui:SymbolIcon Symbol="Temperature24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
               <TextBlock Text="{x:Static app:Strings.ExtraTempSensorsHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
             </StackPanel>
-            <TextBlock Text='勾选要在 Dashboard 传感器温度卡显示的额外项;读不到的会显 "-"'
+            <TextBlock Text="{x:Static app:Strings.ExtraTempSensorsDesc}"
                        FontSize="{DynamicResource FontSizeCaption}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
             <WrapPanel x:Name="ExtraTempSensorPanel" Margin="0,8,0,0"/>

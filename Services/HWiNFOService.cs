@@ -49,19 +49,22 @@ namespace OmenSuperHub.Services {
         SetSensorValues();
         while (!token.IsCancellationRequested) {
           await Task.Delay(_refreshInterval, token).ConfigureAwait(false);
-          SetSensorValues();
+          // ponytail: catch 在循环内 — 某轮注册表写入抛异常(如清理工具删键)只损失该轮;
+          // 原实现包住整个 while,一次异常后写入循环静默死亡,HWiNFO 显示冻结到下次开关切换。
+          try { SetSensorValues(); }
+          catch (Exception ex) { Logger.Warn($"HWiNFOService: {ex.Message}"); }
         }
       } catch (OperationCanceledException) { }
-      catch { }
     }
 
     private static void SetSensorValues() {
-      int cpuFan = HardwareService.FanSpeedNow.Count > 0 ? HardwareService.FanSpeedNow[0] * 100 : 0;
-      int gpuFan = HardwareService.FanSpeedNow.Count > 1 ? HardwareService.FanSpeedNow[1] * 100 : 0;
+      // 风扇档位在首次 EC 读取前为 -1 哨兵(HardwareService.cs:52),外发前钳 0,避免写 "-100"。
+      int cpuFan = HardwareService.FanSpeedNow.Count > 0 ? Math.Max(0, HardwareService.FanSpeedNow[0]) * 100 : 0;
+      int gpuFan = HardwareService.FanSpeedNow.Count > 1 ? Math.Max(0, HardwareService.FanSpeedNow[1]) * 100 : 0;
       float cpuTemp = HardwareService.CPUTemp;
-      float gpuTemp = HardwareService.GPUTemp;
+      float gpuTemp = HardwareService.TryGetFreshGpuTemp(out float freshGpuTemp) ? freshGpuTemp : 0;
       float cpuPower = HardwareService.CPUPower;
-      float gpuPower = HardwareService.GPUPower;
+      float gpuPower = HardwareService.GpuPowerFresh ? HardwareService.GPUPower : 0;
 
       var nfi = new NumberFormatInfo { NumberDecimalSeparator = "." };
 

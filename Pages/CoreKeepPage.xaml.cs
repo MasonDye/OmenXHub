@@ -682,7 +682,7 @@ namespace OmenSuperHub.Pages {
         string procName = raw.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? raw : raw + ".exe";
         if (data.Entries.Exists(x => x.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase))) return;
         entry = CoreKeepService.CaptureFromProcess(procName);
-        if (entry.AffinityMask == 0 && entry.PriorityClass == 0) return;
+        // ponytail: 名称捕获本就不带 mask/priority，旧的双 0 守卫在此恒真，名称添加永远静默失败
       }
       entry.Enabled = true;
       entry.CoreMode = "all-cores";
@@ -792,9 +792,11 @@ namespace OmenSuperHub.Pages {
       if (_currentSelectedEntry == null) return;
       string name = CoreKeepRuleNameInput.Text?.Trim();
       if (string.IsNullOrEmpty(name) || _currentSelectedEntry.ProcessName == name) return;
-      // ponytail: 规则名称修改同步到 ProcessName（CoreKeep 模型以 ProcessName 为标识）
+      // ponytail: 规则名称修改同步到 ProcessName（CoreKeep 模型以 ProcessName 为标识）；
+      // 先存旧标识再改 — PersistEntryChange 按旧名才能找到存量条目
+      string oldName = _currentSelectedEntry.ProcessName;
       _currentSelectedEntry.ProcessName = name;
-      PersistEntryChange();
+      PersistEntryChange(oldName);
       RefreshCoreKeepList(CoreKeepService.Load());
     }
 
@@ -813,8 +815,9 @@ namespace OmenSuperHub.Pages {
       if (_currentSelectedEntry == null) return;
       string pattern = CoreKeepProcessPatternInput.Text?.Trim();
       if (_currentSelectedEntry.ProcessName == pattern) return;
+      string oldName = _currentSelectedEntry.ProcessName; // 改标识前存旧名，否则存量条目找不到
       _currentSelectedEntry.ProcessName = string.IsNullOrEmpty(pattern) ? "" : pattern;
-      PersistEntryChange();
+      PersistEntryChange(oldName);
       RefreshCoreKeepList(CoreKeepService.Load());
     }
 
@@ -854,7 +857,15 @@ namespace OmenSuperHub.Pages {
       // ponytail: 支持 0xFF、FF、0XFF 多种格式
       string hex = raw.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? raw.Substring(2) : raw;
       if (long.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out long mask)) {
-        _currentSelectedEntry.AffinityMask = mask;
+        // 钳到有效逻辑核位;mask=0 对 SetProcessAffinityMask 非法(规则会静默死掉),拒绝
+        // 并把输入框回显为条目现值,用户可感知。截断成功时把钳后值回写,显示即下发。
+        int total = CoreKeepService.GetTopologyInfo().TotalLogical;
+        if (!CoreKeepService.TryClampAffinityMask(mask, total, out long clamped)) {
+          CoreKeepCustomMaskInput.Text = "0x" + _currentSelectedEntry.AffinityMask.ToString("X");
+          return false;
+        }
+        _currentSelectedEntry.AffinityMask = clamped;
+        if (clamped != mask) CoreKeepCustomMaskInput.Text = "0x" + clamped.ToString("X");
         return true;
       }
       return false;
@@ -881,11 +892,12 @@ namespace OmenSuperHub.Pages {
 
     // ── 持久化辅助 ──
 
-    void PersistEntryChange() {
+    /// <summary>nameKey：调用方已改过 ProcessName 标识时传旧名，否则按当前名查找。</summary>
+    void PersistEntryChange(string nameKey = null) {
       var data = CoreKeepService.Load();
       var existing = _currentSelectedEntry.ProcessId > 0
         ? data.Entries.Find(x => x.ProcessId == _currentSelectedEntry.ProcessId)
-        : data.Entries.Find(x => x.ProcessName == _currentSelectedEntry.ProcessName);
+        : data.Entries.Find(x => x.ProcessName == (nameKey ?? _currentSelectedEntry.ProcessName));
       if (existing != null) {
         existing.CoreMode = _currentSelectedEntry.CoreMode;
         existing.AffinityMask = _currentSelectedEntry.AffinityMask;
@@ -930,25 +942,21 @@ namespace OmenSuperHub.Pages {
       bool on = CoreKeepGuardToggle.IsChecked == true;
       CoreKeepGuardInterval.IsEnabled = on;
       var data = CoreKeepService.Load();
-      data.GuardIntervalMs = on ? (int)(CoreKeepGuardInterval.Value * 1000) : -1;
+      // R15/BUG-R15-5: NumberBox.Value 是 double? —— 用户清空输入框后 (int)(null*1000) 抛
+      // InvalidOperationException(Nullable object must have a value)。FanPage 同款控件已有
+      // null 守卫,此处对齐:空值回退默认 2s。
+      data.GuardIntervalMs = on ? (int)((CoreKeepGuardInterval.Value ?? 2) * 1000) : -1;
       CoreKeepService.Save(data);
-      if (on) {
-        CoreKeepService.UpdateGuardInterval(data.GuardIntervalMs);
-        foreach (var entry in data.Entries) entry.GuardEnabled = true;
-        CoreKeepService.Save(data);
-      } else {
-        foreach (var entry in data.Entries) entry.GuardEnabled = false;
-        CoreKeepService.Save(data);
-        CoreKeepService.StopAutoApply();
-        if (CoreKeepMasterToggle.IsChecked == true)
-          CoreKeepService.StartAutoApply(data);
-      }
+      // ponytail: 关守护只停定时器 — 旧实现 Stop/Start AutoApply 触发全量 Relax+重应用，
+      // 两个线程池任务顺序无保证可能互相覆盖；-1 由 UpdateGuardInterval 解释为停定时器。
+      CoreKeepService.UpdateGuardInterval(data.GuardIntervalMs);
     }
 
     void CoreKeepGuardInterval_Changed(object s, RoutedEventArgs e) {
       if (_loading || CoreKeepGuardInterval == null) return;
       var data = CoreKeepService.Load();
-      data.GuardIntervalMs = (int)(CoreKeepGuardInterval.Value * 1000);
+      // R15/BUG-R15-5: 同上 —— Value 可空,清空输入框时回退默认 2s,不再抛。
+      data.GuardIntervalMs = (int)((CoreKeepGuardInterval.Value ?? 2) * 1000);
       CoreKeepService.Save(data);
       CoreKeepService.UpdateGuardInterval(data.GuardIntervalMs);
     }

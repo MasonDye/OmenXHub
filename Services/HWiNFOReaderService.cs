@@ -76,6 +76,7 @@ namespace OmenSuperHub.Services {
       _sensorIndex.Clear();
       _lastValueCount = 0;
       _firstRun = true;
+      HardwareService.InvalidateGpuSamples();
     }
 
     /// <summary>返回当前可用的注册表路径，无 key 表示 HWiNFO 未运行/未启用 Gadget。</summary>
@@ -88,14 +89,13 @@ namespace OmenSuperHub.Services {
     }
 
     private static async Task RefreshLoopAsync(CancellationToken token) {
-      try {
-        while (!token.IsCancellationRequested) {
-          RefreshSensors();
-          await Task.Delay(_refreshInterval, token).ConfigureAwait(false);
-        }
-      } catch (OperationCanceledException) { }
-      catch (Exception ex) {
-        Logger.Warn($"HWiNFOReader: {ex.Message}");
+      // ponytail: catch 在循环内 — 读一轮失败只跳过本轮;原实现包住整个 while,
+      // 一次异常后整个读取循环死亡(HWiNFOReadEnabled 时 CPU 温度冻结 → 风扇曲线吃旧值)。
+      while (!token.IsCancellationRequested) {
+        try { RefreshSensors(); }
+        catch (Exception ex) { Logger.Warn($"HWiNFOReader: {ex.Message}"); }
+        try { await Task.Delay(_refreshInterval, token).ConfigureAwait(false); }
+        catch (OperationCanceledException) { break; }
       }
     }
 
@@ -140,15 +140,14 @@ namespace OmenSuperHub.Services {
       foreach (var sn in sensorNames) {
         if (!int.TryParse(sn.Replace(SENSOR, ""), out int i)) continue;
 
-        string label = (key.GetValue(LABEL + i) as string) ?? "";
-        string sensorName = (key.GetValue(SENSOR + i) as string) ?? "";
+        // HWiNFO VSB: SensorN is the device/group, LabelN is the metric name.
+        string sensorGroup = (key.GetValue(SENSOR + i) as string) ?? "";
+        string metricName = (key.GetValue(LABEL + i) as string) ?? "";
         string valStr = key.GetValue(VALUE + i) as string ?? "";
-        string unit = valStr.Trim().Split(' ').Skip(1).FirstOrDefault() ?? "";
 
-        // 按 Label 分类 — HWiNFO 的 Label 就是 "CPU", "GPU", "Mainboard" 等
-        var cat = ClassifyLabel(label);
-        if (cat == "cpu") cpuCandidates.Add((i, sensorName, valStr));
-        else if (cat == "gpu") gpuCandidates.Add((i, sensorName, valStr));
+        var cat = ClassifyLabel(sensorGroup);
+        if (cat == "cpu") cpuCandidates.Add((i, metricName, valStr));
+        else if (cat == "gpu") gpuCandidates.Add((i, metricName, valStr));
       }
 
       var idx = new Dictionary<string, int>();
@@ -164,39 +163,39 @@ namespace OmenSuperHub.Services {
     /// <summary>根据 Label 值判断归属 CPU/GPU/其他。</summary>
     private static string ClassifyLabel(string label) {
       var l = label.ToUpperInvariant();
+      // Specific GPU markers must win over broad CPU words such as CORE/PACKAGE.
+      if (l.Contains("GPU") || l == "D3D")
+        return "gpu";
       // CPU 类目: "CPU", "Package", "Core #1", "DIE avg" 等
       if (l.Contains("CPU") || l.Contains("DIE") || l.Contains("CORE") || l.Contains("PACKAGE") || l.Contains("CLOCK"))
         return "cpu";
-      // GPU 类目
-      if (l.Contains("GPU") || l == "D3D")
-        return "gpu";
       return "other";
     }
 
-    /// <summary>从一组候选传感器中匹配温度/功耗索引。</summary>
+    /// <summary>从一组候选传感器中挑唯一的核心温度和总功耗，避免误选热点/显存/供电轨。</summary>
     private static void MatchGroup(List<(int i, string name, string valStr)> candidates, string prefix, Dictionary<string, int> idx) {
-      string p = prefix.ToLowerInvariant(); // "cpu" / "gpu"
+      string p = prefix.ToLowerInvariant();
+      int bestTempRank = int.MaxValue, bestPowerRank = int.MaxValue;
 
       foreach (var (i, name, valStr) in candidates) {
         string unit = valStr.Trim().Split(' ').Skip(1).FirstOrDefault() ?? "";
         string n = name.ToUpperInvariant();
 
-        // 温度 — 用单位判断，匹配第一个即可
-        if (unit == "°C" || unit == "℃" || unit == "°F" || unit == "℉") {
-          // 优选 "Package" 温度（CPU Package / GPU Temperature）
-          if (n.Contains("PACKAGE") || n.Contains("TEMPERATURE")) {
-            if (!idx.ContainsKey(p + "Temp") || n.Contains("PACKAGE"))
-              idx[p + "Temp"] = i;
-          } else if (!idx.ContainsKey(p + "Temp")) {
-            idx[p + "Temp"] = i;
-          }
-        }
-        // 功耗
-        else if (unit == "W" || unit == "mW") {
-          if (!idx.ContainsKey(p + "Power"))
-            idx[p + "Power"] = i;
-          else if (n.Contains("PACKAGE"))
-            idx[p + "Power"] = i;
+        // ponytail: ValueRaw 没有单位元数据可供换算；非摄氏/非瓦特时宁可不匹配，也不把 °F/mW 当 °C/W。
+        if (unit == "°C" || unit == "℃") {
+          int rank = p == "gpu"
+            ? (n == "GPU TEMPERATURE" ? 0 : n == "GPU CORE" ? 1
+              : n.Contains("TEMPERATURE") && !n.Contains("HOT") && !n.Contains("MEMORY") ? 2 : int.MaxValue)
+            : (n.Contains("CPU PACKAGE") || n == "PACKAGE" ? 0
+              : n.Contains("TCTL/TDIE") || n.Contains("TDIE") ? 1 : int.MaxValue);
+          if (rank < bestTempRank) { bestTempRank = rank; idx[p + "Temp"] = i; }
+        } else if (unit == "W") {
+          int rank = p == "gpu"
+            ? (n.Contains("TOTAL GPU POWER") ? 0 : n == "GPU POWER" ? 1
+              : n.Contains("GPU PACKAGE") ? 2 : n.Contains("BOARD POWER") ? 3 : int.MaxValue)
+            : (n.Contains("CPU PACKAGE POWER") || n == "PACKAGE POWER" ? 0
+              : n.Contains("CPU TOTAL POWER") ? 1 : int.MaxValue);
+          if (rank < bestPowerRank) { bestPowerRank = rank; idx[p + "Power"] = i; }
         }
       }
     }
@@ -208,13 +207,13 @@ namespace OmenSuperHub.Services {
           HardwareService.CPUTemp = val * HardwareService.RespondSpeed + HardwareService.CPUTemp * (1.0f - HardwareService.RespondSpeed);
           break;
         case "gpuTemp":
-          HardwareService.GPUTemp = val * HardwareService.RespondSpeed + HardwareService.GPUTemp * (1.0f - HardwareService.RespondSpeed);
+          HardwareService.UpdateGpuTempSample(val, HardwareService.GpuTemperatureSource.HWiNFO);
           break;
         case "cpuPower":
           HardwareService.CPUPower = val;
           break;
         case "gpuPower":
-          HardwareService.GPUPower = val;
+          HardwareService.UpdateGpuPowerSample(val);
           break;
       }
     }

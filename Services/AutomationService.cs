@@ -141,7 +141,12 @@ namespace OmenSuperHub.Services {
         try {
           using (var ms = new MemoryStream()) {
             _serializer.WriteObject(ms, Pipelines);
-            File.WriteAllBytes(FilePath, ms.ToArray());
+            // ponytail: temp + Replace 原子换入（同 MacroService）—— 裸 WriteAllBytes
+            // 半途截断后 Load 降级空列表,下一次 Save 会把用户管道永久覆盖为空。
+            string tmp = FilePath + ".tmp";
+            File.WriteAllBytes(tmp, ms.ToArray());
+            if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
+            else File.Move(tmp, FilePath);
           }
         } catch (Exception ex) {
           Logger.Error("AutomationService.Save failed: " + ex.Message);

@@ -144,7 +144,8 @@
                 <TextBlock x:Name="HttpApiHeadingText" Text="{x:Static app:Strings.OtherHttpApiHeading}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource AccentOmenBrush}" VerticalAlignment="Center"/>
               </StackPanel>
               <TextBlock x:Name="HttpApiDescText" Text="{x:Static app:Strings.OtherHttpApiDesc}" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
-              <TextBlock x:Name="HttpApiStatusText" Text="" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" FontWeight="SemiBold"/>
+              <!-- ponytail: WPF TextBlock 无文本选择能力,只读 TextBox 伪装成标签让令牌可选中复制 -->
+              <TextBox x:Name="HttpApiStatusText" Text="" FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" FontWeight="SemiBold" TextWrapping="Wrap" IsReadOnly="True" BorderThickness="0" Background="Transparent" IsTabStop="False"/>
             </StackPanel>
             <ui:ToggleSwitch x:Name="HttpApiToggle" Grid.Column="1" 
                           Checked="HttpApiToggle_Changed" Unchecked="HttpApiToggle_Changed"/>

@@ -31,13 +31,39 @@ namespace OmenSuperHub {
       RenderOptions.ProcessRenderMode = RenderMode.Default;
       base.OnStartup(e);
 
+      // ponytail: --intelmsr 只读转储 Intel 调校相关 MSR + CPU 拓扑，用于确认本机 E 核倍率寄存器布局。
+      // 不写任何硬件寄存器。用法（管理员）：OmenXHub.exe --intelmsr
+      if (e.Args.Length > 0 && e.Args[0] == "--intelmsr") {
+        string dump;
+        try { dump = OmenSuperHub.Services.XtuService.DumpDiagnostics(); }
+        catch (Exception ex) { dump = "DUMP FAILED: " + ex; }
+        Console.WriteLine(dump);
+        try {
+          System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "intel_msr_dump.txt"), dump);
+        } catch { }
+        Shutdown();
+        return;
+      }
+
       // ponytail: --selftest 运行新逻辑自检断言后退出，不启动 UI。用法：OmenXHub.exe --selftest
       if (e.Args.Length > 0 && e.Args[0] == "--selftest") {
         string result = OmenSuperHub.Services.CpuAffinity.SelfCheck.Run()
           + "\n" + OmenSuperHub.Services.LightingSceneService.SelfCheck()
           + "\n" + OmenSuperHub.Pages.LightingPage.LightBarAnimsSelfCheck()
+          + "\n" + OmenSuperHub.Pages.LightingPage.LayoutStateSelfCheck()
           + "\n" + OmenSuperHub.Services.LightingAnimationService.SelfCheck()
-          + "\n" + OmenSuperHub.Services.DiskCleaner.SelfCheck();
+          + "\n" + OmenSuperHub.Services.DiskCleaner.SelfCheck()
+          + "\n" + OmenSuperHub.Services.HardwareService.SelfCheck()
+          + "\n" + IntelTuneSelfCheck()
+          + "\n" + OmenSuperHub.Services.AutomationProcessor.SelfCheck()
+          + "\n" + OmenSuperHub.Services.MacroController.SelfCheck()
+          + "\n" + OmenSuperHub.Services.MacroService.SelfCheck()
+          + "\n" + OmenSuperHub.Services.RaplPowerLimitService.SelfCheck()
+          + "\n" + OmenSuperHub.OmenHardware.SelfCheck()
+          + "\n" + OmenSuperHub.Services.NetworkBoost.BoostService.SelfCheck()
+          + "\n" + OmenSuperHub.Services.NetworkBoost.RateLimiter.SelfCheck()
+          + "\n" + OmenSuperHub.Services.FanService.SelfCheck();
         // ponytail: 关面板释放前端内存的自检 —— 跑完静态自检后启动一次主窗 → 导航 Dashboard
         // (热缓存 +订阅 OnPresetCycled) → Hide 触发 IsVisibleChanged→ReleaseFrontend → 反射断言
         // 三条:页面缓存清空 / PerfPage.Instance 断开 / OnPresetCycled 订阅归零。任一不成立写 FAIL。
@@ -57,6 +83,13 @@ namespace OmenSuperHub {
       this.DispatcherUnhandledException += (s, args) => {
         Logger.Error($"Dispatcher exception: {args.Exception}");
         args.Handled = true;
+      };
+
+      // R15/BUG-R15-8b: 项目多处 Task.Run/async 火-忘(App.xaml.cs:139、FanPage 除尘等),
+      // 未观察异常默认静默 —— 崩溃现场丢失。补日志级 handler(不 Handled,维持默认不崩策略)。
+      System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, args) => {
+        Logger.Error($"Unobserved task exception: {args.Exception}");
+        args.SetObserved();
       };
 
       try {
@@ -162,7 +195,9 @@ namespace OmenSuperHub {
         // Version-based read code
         Version version = Assembly.GetExecutingAssembly().GetName().Version;
         string versionString = version.ToString().Replace(".", "");
-        alreadyReadCode = new Random(int.Parse(versionString)).Next(1000, 10000);
+        // R15/BUG-R15-10: 未来版本号位数增长会使拼接串超 int 范围,裸 Parse 抛
+        // OverflowException 中断启动 try 块 —— TryParse 回退固定种子。
+        alreadyReadCode = new Random(int.TryParse(versionString, out int vSeed) ? vSeed : 0).Next(1000, 10000);
 
         // Initialize tray icon (WinForms NotifyIcon + WPF ContextMenu)
         TrayService.InitTrayIcon();
@@ -180,6 +215,8 @@ namespace OmenSuperHub {
 
         // Init hardware and timers in background — window already visible
         System.Threading.ThreadPool.QueueUserWorkItem(_ => {
+          // ponytail: 崩溃遗留快照自愈(有文件才碰硬件;放在 LHM Open 前后皆可,趁早还原)
+          RaplPowerLimitService.StartupHealIfNeeded();
           HardwareService.LibreComputer.Open();
           System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => {
             TrayService.StartTimers();
@@ -219,6 +256,7 @@ namespace OmenSuperHub {
           // 已 Start 时再调是 no-op。
           if (ConfigService.MacroEnabled) MacroController.Start();
           Views.OsdWindow.StartLockKeyMonitor();
+          ApplyIntelPrefetcherStartup();
         }), System.Windows.Threading.DispatcherPriority.Background);
 
         // Floating window in separate BeginInvoke so it runs even if RestoreConfig throws
@@ -241,16 +279,21 @@ namespace OmenSuperHub {
 
     static void ShowExistingWindow() {
       using (var self = Process.GetCurrentProcess()) {
+        // R15/BUG-R15-7: GetProcessesByName 返回的 Process 未 Dispose(句柄泄漏);
+        // WaitForInputIdle 对无消息循环的同名进程(更新器/僵尸)按文档抛
+        // InvalidOperationException —— 冒泡后第二实例的 Shutdown() 被跳过,残留半初始化进程。
         foreach (var p in Process.GetProcessesByName(self.ProcessName)) {
-          if (p.Id == self.Id) continue;
-          p.WaitForInputIdle(3000);
-          p.Refresh();
-          IntPtr hWnd = p.MainWindowHandle;
-          if (hWnd == IntPtr.Zero)
-            hWnd = FindWindowForProcess(p.Id);
-          if (hWnd != IntPtr.Zero) {
-            PostMessage(hWnd, WM_SHOW_MAIN, IntPtr.Zero, IntPtr.Zero);
-            return;
+          using (p) {
+            if (p.Id == self.Id) continue;
+            try { p.WaitForInputIdle(3000); } catch (Exception ex) { Logger.Verbose($"WaitForInputIdle: {ex.Message}"); }
+            p.Refresh();
+            IntPtr hWnd = p.MainWindowHandle;
+            if (hWnd == IntPtr.Zero)
+              hWnd = FindWindowForProcess(p.Id);
+            if (hWnd != IntPtr.Zero) {
+              PostMessage(hWnd, WM_SHOW_MAIN, IntPtr.Zero, IntPtr.Zero);
+              return;
+            }
           }
         }
       }
@@ -331,11 +374,17 @@ namespace OmenSuperHub {
       // ponytail: CoreKeep 现状是惰性启动 (默认 false、进 CoreKeepPage 才 StartAutoApply),
       // 但以前没在 OnExit 统一 Cleanup → 用户开过后再退出程序,ManagementEventWatcher 与
       // Timer 由 GC 兜底。StopAutoApply 已是幂等(null 守卫),退出时没启也 ran-nothing。
-      SafeShutdown(OmenSuperHub.Services.CpuAffinity.CoreKeepService.StopAutoApply);
+      // waitForRelax:true — 进程终止会掐断线程池任务,恢复必须同步走完。
+      SafeShutdown(() => OmenSuperHub.Services.CpuAffinity.CoreKeepService.StopAutoApply(true));
       SafeShutdown(AutomationProcessor.Stop);
       SafeShutdown(LightingSceneService.StopScheduler);
+      // ponytail: RAPL 直写(0x610)的崩溃自愈走"下次启动 boot-scoped 快照回写";
+      // 正常退出只清快照,不回写 —— 保持全工程"设置生效直到重启"的既有契约。
+      SafeShutdown(RaplPowerLimitService.ClearSnapshotOnExit);
       SafeShutdown(() => SystemEvents.PowerModeChanged -= TrayService.OnPowerChange);
       SafeShutdown(HardwareService.Close);
+      // ponytail: EC 句柄(PawnIO LpcAcpiEc)此前不在关闭清单 — Close 幂等(空守卫),没启过也无副作用。
+      SafeShutdown(Services.EcFanService.Close);
       SafeShutdown(() => { if (_ownsMutex) _mutex?.ReleaseMutex(); });
       SafeShutdown(() => _mutex?.Dispose());
       base.OnExit(e);
@@ -343,8 +392,22 @@ namespace OmenSuperHub {
 
     static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e) {
       Exception ex = e.ExceptionObject as Exception;
-      DialogHelper.Error("Unhandled Exception: " + ex?.Message + "\n\n" + ex?.StackTrace,
-        "OmenSuperHub Error");
+      // R15/BUG-R15-8: 本处理器运行在崩溃线程(常为非 UI 线程)。DialogHelper._Show 会遍历
+      // Application.Current.Windows 并 new FluentWindow —— 非 UI 线程直接调用自抛
+      // InvalidOperationException,原始异常信息反而丢失;且原先完全不落盘。
+      // 先 Logger 保底,再 marshal 回 UI 线程弹窗,弹窗自身再兜底。
+      try { Logger.Error($"UnhandledException: {ex}"); } catch { }
+      try {
+        var app = Application.Current;
+        if (app?.Dispatcher != null) {
+          app.Dispatcher.BeginInvoke(new Action(() => {
+            try {
+              DialogHelper.Error("Unhandled Exception: " + ex?.Message + "\n\n" + ex?.StackTrace,
+                "OmenSuperHub Error");
+            } catch { }
+          }));
+        }
+      } catch { }
     }
 
     // ponytail: 关主面板释放前端内存的自检。直接驱动 Services.CachedPageService + 各页 Unloaded,
@@ -354,6 +417,35 @@ namespace OmenSuperHub {
     //   Patch 3 — CachedPageService.Clear() 清空 _cache（hasClass field 反射验证）
     //   Patch 1 — PerfPage.Unloaded 把 static Instance 置 null
     //   Patch 2 — DashboardPage.Unloaded 解订阅 ConfigService.OnPresetCycled
+    // Intel 调校的纯逻辑自检：不初始化 PawnIO、不读写 MSR，任意机型均可跑。
+    static string IntelTuneSelfCheck() {
+      try {
+        OmenSuperHub.Services.XtuService.SelfCheck(out string message);
+        return message;
+      } catch (Exception ex) {
+        return "FAIL XtuService: " + ex.Message;
+      }
+    }
+
+    // ponytail: 预取器掩码启动重应用 — BIOS 冷启动会把 0x1A4 恢复为全开默认,
+    // 用户设置过非零掩码(禁用某预取器)时须写回。掩码为 0 时直接跳过,零开销。
+    static void ApplyIntelPrefetcherStartup() {
+      try {
+        if (ConfigService.IntelPrefetcherMask == 0) return;
+        if (!OmenHardware.HasIntelCpu()) return;
+        var svc = new OmenSuperHub.Services.XtuService();
+        System.Threading.Tasks.Task.Run(async () => {
+          try {
+            if (await svc.InitializeAsync() && svc.HasPrefetcher
+                && svc.TryGetPrefetcherMask() != ConfigService.IntelPrefetcherMask) {
+              bool ok = svc.TrySetPrefetcherMask(ConfigService.IntelPrefetcherMask);
+              Logger.Info($"[PrefetcherStartup] 重应用掩码 0x{ConfigService.IntelPrefetcherMask:X} => {ok}");
+            }
+          } finally { svc.Dispose(); }
+        });
+      } catch (Exception ex) { Logger.Verbose($"[PrefetcherStartup] {ex.Message}"); }
+    }
+
     static string RunFrontendReleaseSelfCheck() {
       var fails = new System.Collections.Generic.List<string>();
       var Npub = System.Reflection.BindingFlags.NonPublic;
@@ -420,6 +512,39 @@ namespace OmenSuperHub {
           }
         }
       } catch (System.Exception ex) { fails.Add($"Patch2 threw: {ex.GetType().Name}: {ex.Message}"); }
+
+      // ── FanService 分享码: 合法往返 + 畸形拒绝(剪贴板信任边界,与 JSON 导入同款校验) ──
+      try {
+        var curve = new System.Collections.Generic.List<(float, int)> { (40f, 1500), (60f, 2200), (80f, 3400) };
+        var ok = Services.FanService.ParseShareCode(Services.FanService.GenerateShareCode(curve, "selftest"));
+        if (ok == null || ok.Value.points.Count != 3) fails.Add("share code round-trip failed");
+        var dup = Services.FanService.ParseShareCode(Services.FanService.GenerateShareCode(
+          new System.Collections.Generic.List<(float, int)> { (40f, 1500), (40f, 2200) }, "dup"));
+        if (dup != null) fails.Add("share code with duplicate temps accepted");
+        var neg = Services.FanService.ParseShareCode(Services.FanService.GenerateShareCode(
+          new System.Collections.Generic.List<(float, int)> { (40f, -500), (60f, 2200) }, "neg"));
+        if (neg != null) fails.Add("share code with negative rpm accepted");
+      } catch (System.Exception ex) { fails.Add($"ShareCode threw: {ex.GetType().Name}: {ex.Message}"); }
+
+      // ── 预取器卡可见后重排无同格叠加(异步显示回归:可见卡序列变化必须重排) ──
+      try {
+        var page2 = new Pages.PerfPage();
+        var pfCard = (System.Windows.FrameworkElement)typeof(Pages.PerfPage)
+          .GetField("PrefetcherCard", Npub | Inst).GetValue(page2);
+        pfCard.Visibility = System.Windows.Visibility.Visible;
+        var cpuGrid = (System.Windows.Controls.Grid)typeof(Pages.PerfPage)
+          .GetField("CpuPerfGrid", Npub | Inst).GetValue(page2);
+        typeof(Pages.PerfPage).GetMethod("LayoutPerfGrid", Npub | Inst)
+          .Invoke(page2, new object[] { cpuGrid, true });
+        var cells = new System.Collections.Generic.HashSet<string>();
+        foreach (var child in cpuGrid.Children) {
+          var fe = child as System.Windows.FrameworkElement;
+          if (fe == null || fe.Visibility != System.Windows.Visibility.Visible) continue;
+          string cell = System.Windows.Controls.Grid.GetRow(fe) + "," + System.Windows.Controls.Grid.GetColumn(fe);
+          if (!cells.Add(cell)) fails.Add("预取器卡可见后重排仍有同格叠加: " + cell);
+        }
+      } catch (System.Exception ex) { fails.Add($"PrefetcherLayout threw: {ex.GetType().Name}: {ex.Message}"); }
+
 
       return fails.Count == 0 ? "OK" : "FAIL: " + string.Join(" | ", fails);
     }

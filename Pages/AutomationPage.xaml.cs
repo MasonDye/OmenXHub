@@ -13,12 +13,26 @@ namespace OmenSuperHub.Pages {
   public partial class AutomationPage : Page {
     public AutomationPage() {
       InitializeComponent();
+      // ponytail: 执行状态事件驱动"执行中"标签刷新 —— Loaded 订/Unloaded 退订对称,与
+      // CachedPageService.Clear() 的 RaiseEvent(Unloaded) 解订阅机制匹配 (eca2667 曾误删致标签变死快照)。
+      Action<string> execHandler = null;
       Loaded += (s, e) => {
         bool enabled = ConfigService.AutomationEnabled;
         AutoEnableToggle.IsChecked = enabled;
         AutoAddPipelineBtn.IsEnabled = enabled;
         AutoAddQuickActionBtn.IsEnabled = enabled;
         RefreshList();
+        // 审查修复: Loaded 连续两次触发而中间无 Unloaded 时,旧委托成为不可退订的孤儿
+        // (页面被静态事件钉住 + 执行事件触发 N 次刷新)—— 订阅前先退订(NetworkBoostPage 同款)。
+        if (execHandler != null) AutomationProcessor.ExecutionStatusChanged -= execHandler;
+        execHandler = (name) => Dispatcher.InvokeAsync(() => RefreshList());
+        AutomationProcessor.ExecutionStatusChanged += execHandler;
+      };
+      Unloaded += (s, e) => {
+        if (execHandler != null) {
+          AutomationProcessor.ExecutionStatusChanged -= execHandler;
+          execHandler = null;
+        }
       };
     }
 

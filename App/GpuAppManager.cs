@@ -240,86 +240,135 @@ namespace OmenSuperHub {
     }
 
     public static void SetCoreClockOffset(int offsetMhz) {
-      NVIDIA.Initialize();
+      // R15/BUG-D2: NVIDIA.Initialize()/GetPerformanceStates20 在无 N 卡/驱动异常时抛
+      // NVIDIAResultException。旧实现 Initialize 在 try 之外,调用方(PerfPage 线程池回调)
+      // 又裸调,异常直达线程池 → .NET 4.8 默认策略直接终止进程。库边界统一吞并记日志,
+      // 让所有调用方(UI 线程池 / HTTP API)安全。
       try {
-        PhysicalGPU[] gpus = PhysicalGPU.GetPhysicalGPUs();
-        if (gpus.Length == 0) return;
-        PhysicalGPU gpu = gpus[0];
-        var clockDelta = new PerformanceStates20ClockEntryV1(
-            PublicClockDomain.Graphics,
-            new PerformanceStates20ParameterDelta(offsetMhz * 1000));
-        var pState = new PerformanceStates20InfoV1.PerformanceState20(
-            PerformanceStateId.P0_3DPerformance,
-            new PerformanceStates20ClockEntryV1[] { clockDelta },
-            new PerformanceStates20BaseVoltageEntryV1[0]);
-        var writeInfo = new PerformanceStates20InfoV1(
-            new PerformanceStates20InfoV1.PerformanceState20[] { pState },
-            1u, 0u);
-        GPUApi.SetPerformanceStates20(gpu.Handle, writeInfo);
-      } finally {
-        NVIDIA.Unload();
-      }
+        NVIDIA.Initialize();
+        try {
+          PhysicalGPU[] gpus = PhysicalGPU.GetPhysicalGPUs();
+          if (gpus.Length == 0) return;
+          PhysicalGPU gpu = gpus[0];
+          var clockDelta = new PerformanceStates20ClockEntryV1(
+              PublicClockDomain.Graphics,
+              new PerformanceStates20ParameterDelta(offsetMhz * 1000));
+          var pState = new PerformanceStates20InfoV1.PerformanceState20(
+              PerformanceStateId.P0_3DPerformance,
+              new PerformanceStates20ClockEntryV1[] { clockDelta },
+              new PerformanceStates20BaseVoltageEntryV1[0]);
+          var writeInfo = new PerformanceStates20InfoV1(
+              new PerformanceStates20InfoV1.PerformanceState20[] { pState },
+              1u, 0u);
+          GPUApi.SetPerformanceStates20(gpu.Handle, writeInfo);
+        } finally {
+          NVIDIA.Unload();
+        }
+      } catch (Exception ex) { Logger.Verbose($"[SetCoreClockOffset] {ex.Message}"); }
     }
 
     public static void SetMemoryClockOffset(int offsetMhz) {
-      NVIDIA.Initialize();
+      // R15/BUG-D2: 同 SetCoreClockOffset —— 库边界兜底 NVAPI 异常。
       try {
-        PhysicalGPU[] gpus = PhysicalGPU.GetPhysicalGPUs();
-        if (gpus.Length == 0) return;
-        PhysicalGPU gpu = gpus[0];
-        var clockDelta = new PerformanceStates20ClockEntryV1(
-            PublicClockDomain.Memory,
-            new PerformanceStates20ParameterDelta(offsetMhz * 1000));
-        var pState = new PerformanceStates20InfoV1.PerformanceState20(
-            PerformanceStateId.P0_3DPerformance,
-            new PerformanceStates20ClockEntryV1[] { clockDelta },
-            new PerformanceStates20BaseVoltageEntryV1[0]);
-        var writeInfo = new PerformanceStates20InfoV1(
-            new PerformanceStates20InfoV1.PerformanceState20[] { pState },
-            1u, 0u);
-        GPUApi.SetPerformanceStates20(gpu.Handle, writeInfo);
-      } finally {
-        NVIDIA.Unload();
-      }
+        NVIDIA.Initialize();
+        try {
+          PhysicalGPU[] gpus = PhysicalGPU.GetPhysicalGPUs();
+          if (gpus.Length == 0) return;
+          PhysicalGPU gpu = gpus[0];
+          var clockDelta = new PerformanceStates20ClockEntryV1(
+              PublicClockDomain.Memory,
+              new PerformanceStates20ParameterDelta(offsetMhz * 1000));
+          var pState = new PerformanceStates20InfoV1.PerformanceState20(
+              PerformanceStateId.P0_3DPerformance,
+              new PerformanceStates20ClockEntryV1[] { clockDelta },
+              new PerformanceStates20BaseVoltageEntryV1[0]);
+          var writeInfo = new PerformanceStates20InfoV1(
+              new PerformanceStates20InfoV1.PerformanceState20[] { pState },
+              1u, 0u);
+          GPUApi.SetPerformanceStates20(gpu.Handle, writeInfo);
+        } finally {
+          NVIDIA.Unload();
+        }
+      } catch (Exception ex) { Logger.Verbose($"[SetMemoryClockOffset] {ex.Message}"); }
     }
 
     public static int GetCoreClockOffset() {
-      NVIDIA.Initialize();
+      // R15/BUG-D2 衍生: 无 GPU 时 GetPhysicalGPUs()[0] 越界,Initialize 亦在 try 外。
       try {
-        PhysicalGPU gpu = PhysicalGPU.GetPhysicalGPUs()[0];
-        var pstatesInfo = GPUApi.GetPerformanceStates20(gpu.Handle);
-        if (pstatesInfo.Clocks.TryGetValue(PerformanceStateId.P0_3DPerformance, out var clockEntries)) {
-          foreach (var clock in clockEntries) {
-            if (clock.DomainId == PublicClockDomain.Graphics) {
-              return clock.FrequencyDeltaInkHz.DeltaValue / 1000;
+        NVIDIA.Initialize();
+        try {
+          PhysicalGPU[] gpus = PhysicalGPU.GetPhysicalGPUs();
+          if (gpus.Length == 0) return 0;
+          PhysicalGPU gpu = gpus[0];
+          var pstatesInfo = GPUApi.GetPerformanceStates20(gpu.Handle);
+          if (pstatesInfo.Clocks.TryGetValue(PerformanceStateId.P0_3DPerformance, out var clockEntries)) {
+            foreach (var clock in clockEntries) {
+              if (clock.DomainId == PublicClockDomain.Graphics) {
+                return clock.FrequencyDeltaInkHz.DeltaValue / 1000;
+              }
             }
           }
+          return 0;
+        } finally {
+          NVIDIA.Unload();
         }
-        return 0;
-      } finally {
-        NVIDIA.Unload();
-      }
+      } catch (Exception ex) { Logger.Verbose($"[GetCoreClockOffset] {ex.Message}"); return 0; }
     }
 
     public static int GetMemoryClockOffset() {
-      NVIDIA.Initialize();
+      // R15/BUG-D2 衍生: 同 GetCoreClockOffset —— 库边界兜底 + 空数组防护。
       try {
-        PhysicalGPU gpu = PhysicalGPU.GetPhysicalGPUs()[0];
-        var pstatesInfo = GPUApi.GetPerformanceStates20(gpu.Handle);
-        if (pstatesInfo.Clocks.TryGetValue(PerformanceStateId.P0_3DPerformance, out var clockEntries)) {
-          foreach (var clock in clockEntries) {
-            if (clock.DomainId == PublicClockDomain.Memory) {
-              return clock.FrequencyDeltaInkHz.DeltaValue / 1000;
+        NVIDIA.Initialize();
+        try {
+          PhysicalGPU[] gpus = PhysicalGPU.GetPhysicalGPUs();
+          if (gpus.Length == 0) return 0;
+          PhysicalGPU gpu = gpus[0];
+          var pstatesInfo = GPUApi.GetPerformanceStates20(gpu.Handle);
+          if (pstatesInfo.Clocks.TryGetValue(PerformanceStateId.P0_3DPerformance, out var clockEntries)) {
+            foreach (var clock in clockEntries) {
+              if (clock.DomainId == PublicClockDomain.Memory) {
+                return clock.FrequencyDeltaInkHz.DeltaValue / 1000;
+              }
             }
           }
+          return 0;
+        } finally {
+          NVIDIA.Unload();
         }
-        return 0;
-      } finally {
-        NVIDIA.Unload();
-      }
+      } catch (Exception ex) { Logger.Verbose($"[GetMemoryClockOffset] {ex.Message}"); return 0; }
     }
 
-    // ─── NVML Power Limit ───
+    // ─── NVIDIA 官方温度源 ───
+    public static bool TryGetNvApiTemperature(string preferredGpuName, out float celsius) {
+      celsius = 0;
+      try {
+        NVIDIA.Initialize();
+        foreach (PhysicalGPU gpu in PhysicalGPU.GetPhysicalGPUs()) {
+          if (!string.IsNullOrWhiteSpace(preferredGpuName)
+              && preferredGpuName.IndexOf(gpu.FullName, StringComparison.OrdinalIgnoreCase) < 0
+              && gpu.FullName.IndexOf(preferredGpuName, StringComparison.OrdinalIgnoreCase) < 0)
+            continue;
+          var sensor = gpu.ThermalInformation.ThermalSensors
+            .FirstOrDefault(s => s.Target == ThermalSettingsTarget.GPU);
+          int temp = sensor?.CurrentTemperature ?? 0;
+          if (temp >= 15 && temp <= 120) { celsius = temp; return true; }
+        }
+        return false;
+      } catch { return false; }
+      finally { try { NVIDIA.Unload(); } catch { } }
+    }
+
+    public static bool TryGetNvmlTemperature(string preferredGpuName, out float celsius) {
+      celsius = 0;
+      try {
+        if (!Nvml.TryGetGpu(preferredGpuName, out IntPtr gpu)) return false;
+        if (Nvml.nvmlDeviceGetTemperature(gpu, 0, out uint temp) != Nvml.SUCCESS || temp < 15 || temp > 120)
+          return false;
+        celsius = temp;
+        return true;
+      } catch { return false; }
+    }
+
     // Direct NVML P/Invoke (no CLI parsing, instant apply)
     public static bool SetPowerLimit(int watts) {
       try {
@@ -366,13 +415,28 @@ namespace OmenSuperHub {
         _ok = nvmlInit_v2() == SUCCESS;
         return _ok;
       }
-      public static bool TryGetGpu(out IntPtr gpu) {
+      public static bool TryGetGpu(out IntPtr gpu) => TryGetGpu(null, out gpu);
+      public static bool TryGetGpu(string preferredName, out IntPtr gpu) {
         gpu = IntPtr.Zero;
-        return EnsureInit() && nvmlDeviceGetHandleByIndex_v2(0, out gpu) == SUCCESS;
+        if (!EnsureInit() || nvmlDeviceGetCount_v2(out uint count) != SUCCESS || count == 0) return false;
+        for (uint i = 0; i < count; i++) {
+          if (nvmlDeviceGetHandleByIndex_v2(i, out IntPtr candidate) != SUCCESS) continue;
+          if (string.IsNullOrWhiteSpace(preferredName)) { gpu = candidate; return true; }
+          var name = new System.Text.StringBuilder(128);
+          if (nvmlDeviceGetName(candidate, name, (uint)name.Capacity) == SUCCESS
+              && (preferredName.IndexOf(name.ToString(), StringComparison.OrdinalIgnoreCase) >= 0
+                  || name.ToString().IndexOf(preferredName, StringComparison.OrdinalIgnoreCase) >= 0)) {
+            gpu = candidate;
+            return true;
+          }
+        }
+        return false;
       }
       [DllImport(Dll)] public static extern int nvmlInit_v2();
       [DllImport(Dll)] public static extern int nvmlShutdown();
+      [DllImport(Dll)] public static extern int nvmlDeviceGetCount_v2(out uint count);
       [DllImport(Dll)] public static extern int nvmlDeviceGetHandleByIndex_v2(uint index, out IntPtr device);
+      [DllImport(Dll)] public static extern int nvmlDeviceGetTemperature(IntPtr device, uint sensorType, out uint temp);
       [DllImport(Dll)] public static extern int nvmlDeviceGetPowerManagementLimit(IntPtr device, out uint limitMw);
       [DllImport(Dll)] public static extern int nvmlDeviceSetPowerManagementLimit(IntPtr device, uint limitMw);
       [DllImport(Dll)] public static extern int nvmlDeviceGetPowerManagementLimitConstraints(IntPtr device, out uint minMw, out uint maxMw);
@@ -422,10 +486,11 @@ namespace OmenSuperHub {
         };
         using (var process = new Process { StartInfo = processStartInfo }) {
           process.Start();
-          string output = process.StandardOutput.ReadToEnd();
-          string error = process.StandardError.ReadToEnd();
+          // ponytail: 双管道并发排空 — 顺序 ReadToEnd 在子进程塞满 stderr 缓冲(4KB)时互锁
+          var outTask = process.StandardOutput.ReadToEndAsync();
+          var errTask = process.StandardError.ReadToEndAsync();
           process.WaitForExit();
-          return new ProcessResult { ExitCode = process.ExitCode, Output = output, Error = error };
+          return new ProcessResult { ExitCode = process.ExitCode, Output = outTask.Result, Error = errTask.Result };
         }
       }
       var psi = new ProcessStartInfo {
@@ -439,10 +504,11 @@ namespace OmenSuperHub {
       };
       using (var process = new Process { StartInfo = psi }) {
         process.Start();
-        string output = process.StandardOutput.ReadToEnd();
-        string error = process.StandardError.ReadToEnd();
+        // 同上:双管道并发排空防互锁
+        var outTask = process.StandardOutput.ReadToEndAsync();
+        var errTask = process.StandardError.ReadToEndAsync();
         process.WaitForExit();
-        return new ProcessResult { ExitCode = process.ExitCode, Output = output, Error = error };
+        return new ProcessResult { ExitCode = process.ExitCode, Output = outTask.Result, Error = errTask.Result };
       }
     }
 

@@ -34,8 +34,8 @@
 | 滑杆模式 | RPM=值/100×档位+MinRpm | 见 FanPage | 🟡 |
 | 空闲自动 | IDLE_AUTO 固定最低档 | 见 FanService | 🟡 |
 | **迟滞降档** | FanTuningV1（升看高表/降看低表） | 见 FanService 注释（有单调破坏防护） | 🔵 可对照 OMEN_OFFICIAL_FAN_ALGORITHM.md 精修 |
-| **三路(CPU/GPU/IR)取最大** | max(cpu,gpu,ir) | 仅 CPU/GPU 两路 | 🔵 可加 IR 路 |
-| GPU 联动 | GPU=CPU-2 或查表 | ? | 🔵 可补 |
+| **三路(CPU/GPU/IR)取最大** | max(cpu,gpu,ir) | ✅ 已加 IR 路（`ConfigService.UseIrForFanCurve` 开关，`FanService.cs:81/316/503`） | 🟡 IR 为可选开关（非默认），可改默认开启 |
+| GPU 联动 | GPU=CPU-2 或查表 | 当前 max(cpu,gpu)，无显式 GPU=CPU-2 | 🔵 可补 |
 
 ## 3. 温度/功耗传感器
 
@@ -63,7 +63,8 @@
 | Curve Optimizer | OmenCap RPC (cmd 38/39) | 直写 SMU（UXTU 路线） | 🟡 独立自洽 |
 | 负值编码 | sShort 直传 | 0x100000-|v| | 🟡 两套别混用 |
 | PBO 开关 | cmd 37 | 无 | 🔵 可补（直写 SMU 有对应消息号） |
-| 功耗墙 PPT/EDC/TDC | cmd 46/47/48 | 无 | 🔵 可补 |
+| 功耗墙 PPT | cmd 46 | ✅ 已实现走 **WMI**（`PerfPage.xaml.cs:327/370/1703`） | 🟡 通道不同（非 SMU） |
+| 功耗墙 EDC/TDC | cmd 47/48 | **已随高级调教主动删除**（`PerfPage.xaml.cs:1427`） | ⛔ 主动裁剪，非缺失 |
 | 核位图解析 | GetCurrentCoreOrientation | 固定核号表 | 🔵 可补（部分核心禁用平台会写错核） |
 | 限值检查 | GetCPUOCBiosLimits | 无 | 🔵 可补（写前防超限） |
 | 官方共存 | 注册表 AMDCurveOptimizer | 无 | 🔵 可对齐（见 OMEN_OFFICIAL_AMD_CO_STATE_MACHINE.md） |
@@ -100,10 +101,10 @@
 ### P1 —— 低成本高价值（官方 ground truth 现成）
 3. **AMD 每核 CO 位图解析**（GetPerCoreNumber 逻辑，防写错核）
 4. **传感器交叉校验**（用官方公式独立读温度，对比 LHM/HWiNFO）
-5. **风扇三路取最大 + GPU 联动**（FanHandler 移植）
+5. **GPU 联动查表**（GPU=CPU-2；IR 第三路已于二轮复核确认落地，见上表）
 
 ### P2 —— 功能补全（需较多工作）
-6. **AMD PBO 开关 + 功耗墙**（官方 cmd 37/46-48 语义参考）
+6. **AMD PBO Scalar + EDC/TDC**（PPT 已走 WMI 落地；EDC/TDC 需先恢复被删的高级调教 UI）
 7. **官方注册表共存**（AMDCurveOptimizer 状态机对齐）
 8. **Global\Access_PCI 互斥**（与 OGH 并发安全）
 

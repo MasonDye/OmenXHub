@@ -18,7 +18,11 @@ namespace OmenSuperHub.Services {
     // "<n> RPM" → 固定转速 / "<pct>%" → 固定百分比。之前 6 处重复 ".Replace(" RPM","")",
     // 分歧处理时容易漏边界。集中在这两个 helper 一处解析。
     // 升级路径: 字典表示法 (mode→value)，去掉字符串编码。
-    /// <summary>解析 "1234 RPM" / "25%" 为 0..6000 的 RPM 整数。解析失败/越界返回 def。</summary>
+    /// <summary>解析 "1234 RPM" / "25%" 为「显示转速」(= EC 档位 ×100)。
+    /// RPM 形式钳 [500,6000]（曲线/滑条域）；% 形式钳 [0,10000]（100% = 档位100 = "max"
+    /// 档，与 RestoreFanSettings/OptimiseSchedule 的 SetFanLevel(pct) 直写口径一致）。
+    /// 旧实现把 % 也塞进 ClampRpm(×6000 上限)，"80%" 被饱和成 6000 → /100 写 EC=60，
+    /// 61-100% 全部静默变 60%。调用方统一 /100 得 EC 档位。</summary>
     public static int ParseFanRpm(string fanControl, int def = 2500) {
       if (string.IsNullOrEmpty(fanControl)) return def;
       string s = fanControl.Trim();
@@ -26,7 +30,7 @@ namespace OmenSuperHub.Services {
         if (s.EndsWith(" RPM")) {
           if (int.TryParse(s.Substring(0, s.Length - 4).Trim(), out int rpm)) return ClampRpm(rpm);
         } else if (s.EndsWith("%")) {
-          if (int.TryParse(s.TrimEnd('%'), out int pct)) return ClampRpm(pct * 100);
+          if (int.TryParse(s.TrimEnd('%'), out int pct)) return ClampPct(pct) * 100;
         }
       } catch { }
       return def;
@@ -35,6 +39,30 @@ namespace OmenSuperHub.Services {
     public static bool IsFixedRpm(string fanControl)
       => !string.IsNullOrEmpty(fanControl) && (fanControl.Contains(" RPM") || fanControl.EndsWith("%"));
     static int ClampRpm(int rpm) => rpm < 500 ? 500 : rpm > 6000 ? 6000 : rpm;
+    static int ClampPct(int pct) => pct < 0 ? 0 : pct > 100 ? 100 : pct;
+
+    /// <summary>--selftest: 双标尺往返 —— % 域不再被 RPM 钳位饱和(回归捕获点)。</summary>
+    public static string SelfCheck() {
+      void Check(string fc, int want) {
+        int got = ParseFanRpm(fc);
+        if (got != want)
+          _scFail.Add($"ParseFanRpm(\"{fc}\") = {got}, want {want}");
+      }
+      _scFail = new System.Collections.Generic.List<string>();
+      Check("80%", 8000);      // 旧 bug: 6000 (饱和到 60%)
+      Check("100%", 10000);    // = "max" 档 (SetFanLevel(100))
+      Check("0%", 0);
+      Check("-5%", 0);         // 负值钳 0,补码截断防线
+      Check("150%", 10000);    // 越上界钳 100
+      Check("4000 RPM", 4000);
+      Check("100 RPM", 500);   // RPM 下限钳不动
+      Check("9999 RPM", 6000); // RPM 上限
+      Check("garbage", 2500);  // def 兜底
+      Check("25%", 2500);      // 标尺交界: 两解析同值
+      return _scFail.Count == 0 ? "PASS FanService dual-scale parse"
+        : "FAIL:\n  " + string.Join("\n  ", _scFail);
+    }
+    static System.Collections.Generic.List<string> _scFail;
 
     // ═══════════════════════════════════════════════════════
     // Smart Fan State (EMA smoothing, step-down protection)
@@ -214,7 +242,7 @@ namespace OmenSuperHub.Services {
     // 数据源: G-Helper app/AppConfig.cs GetDefaultCurve (16 byte = 8 温度 + 8 % )，
     // RPM = 6000 × % / 100 (用户要求最大转速设为 6000 按对应百分比设置)。
     //   silent   → G-Helper Silent CPU/GPU 8 点, 前 3 点 (G-Helper 0%→0/0/180) 抬到 700
-    //               RPM floor 避开 Omen EC byte<10 (<500) 反弹风险 (OmenHardware.cs:205-208)。
+    //               RPM floor 避开 Omen EC 低速反弹风险（EC 速度字节 <10 即 <500 RPM 时可能反弹）。
     //   balanced → G-Helper Balanced CPU/GPU 分离 8 点, <58°C 回退到 700 floor。
     //   cool(default) → 参考 G-Helper 转速最高档 (Turbo CPU), CPU=GPU 共用。
     // 升级路径: 字典表示法 + PresetData 持久化曲线，去掉字符串 mode 三分支。
@@ -223,7 +251,7 @@ namespace OmenSuperHub.Services {
       if (mode == "silent") {
         // 用户定制 silent 曲线 9 点 (20~100°C), CPU/GPU 共用。前 5 个点 20~50°C 全部 600 RPM floor,
         // 60°C 起线性爬升, 100°C 峰值 3400 RPM (<6000 BIOS 上限的 57%)。给极安静轻度负载体验,
-        // 高温端也保留散热余量。600 floor 严踩 Omen EC byte<10 (500 max) 安全区下限的边界, 安全。
+        // 高温端也保留散热余量。600 floor 高于 Omen EC 低速反弹阈值（速度字节 <10），留出安全余量。
         cpuT = gpuT = new[] { 20, 30, 40, 50, 60, 70, 80, 90, 100 };
         cpuSpeeds = gpuSpeeds = new[] { 600, 600, 600, 600, 1200, 2600, 2900, 3200, 3400 };
       } else if (mode == "balanced") {
@@ -242,7 +270,7 @@ namespace OmenSuperHub.Services {
       }
 #if DEBUG
       // ponytail: 非平凡曲线生成必须留一个 runnable check。三条 assert 任意一条挂掉
-      // 都意味着曲线被后续修改改坏 —— RPM floor 破坏会让 AMD EC 反弹 (OmenHardware.cs:205-208),
+      // 都意味着曲线被后续修改改坏 —— RPM floor 破坏会让 AMD EC 低速反弹,
       // 单调破坏会让 GetFanSpeedForSpecificTemperature 插值在高温段往回跌。
       CheckCurveInvariants(mode, cpuT, cpuSpeeds);
       CheckCurveInvariants(mode, gpuT, gpuSpeeds);
@@ -296,7 +324,7 @@ namespace OmenSuperHub.Services {
         // 温度未过热(<60°C)时直接回曲线最低档,待机更安静。60°C 是启发式上限:
         // 更低贴地安静,更高说明"负载刚降、余温仍在",仍交给曲线正常散热,避免贴地烤机。
         if (ConfigService.SmartFanIdleLambda && IsFanIdle()
-            && Math.Max(HardwareService.CPUTemp, HardwareService.GPUTemp) < 60f) {
+            && Math.Max(HardwareService.CPUTemp, HardwareService.GetEffectiveGpuTemp(HardwareService.CPUTemp)) < 60f) {
           float minT = CPUTempFanMap.Keys.Min();
           return CPUTempFanMap[minT][fanIndex];
         }
@@ -310,7 +338,8 @@ namespace OmenSuperHub.Services {
         // ponytail: FanSync 开启且有 GPU 时,两把风扇以 max(CPU,GPU) 对同一曲线插值,
         // 从源头保证 RPM 一致。MonitorGPU==false 时落到下方"仅 CPU"分支。
         // UseIrForFanCurve 开启时加入 IR 路(官方三路 max(cpu,gpu,ir))。
-        if (ConfigService.FanSync && HardwareService.MonitorGPU) {
+        bool gpuTempUsable = HardwareService.MonitorGPU && HardwareService.GpuTargetAvailable && HardwareService.GpuTempFresh;
+        if (ConfigService.FanSync && gpuTempUsable) {
           float maxT = Math.Max(HardwareService.CPUTemp, HardwareService.GPUTemp);
           if (ConfigService.UseIrForFanCurve) maxT = Math.Max(maxT, HardwareService.IrTemp);
           return GetFanSpeedForSpecificTemperature(maxT, CPUTempFanMap, fanIndex);
@@ -318,7 +347,7 @@ namespace OmenSuperHub.Services {
 
         if (fanIndex == 0)
           return GetFanSpeedForSpecificTemperature(HardwareService.CPUTemp, CPUTempFanMap, fanIndex);
-        if (HardwareService.MonitorGPU)
+        if (gpuTempUsable)
           return GetFanSpeedForSpecificTemperature(HardwareService.GPUTemp, GPUTempFanMap, fanIndex);
         return GetFanSpeedForSpecificTemperature(HardwareService.CPUTemp, CPUTempFanMap, fanIndex);
       }
@@ -733,6 +762,11 @@ namespace OmenSuperHub.Services {
         string serialized = string.Join("|", parts.Skip(3)); // in case serialized contains '|'
         var points = DeserializeCurve(serialized);
         if (points == null || points.Count < 2) return null;
+        // ponytail: 与 ImportCurveFromJson 同款校验+取整 —— 分享码来自剪贴板(他人分享),
+        // 负转速/重复温度点不得进文件与查表;小数温度先取整,与落盘 F0 格式一致。
+        if (!ValidateCurve(points)) return null;
+        for (int i = 0; i < points.Count; i++)
+          points[i] = ((float)Math.Round(points[i].Item1), points[i].Item2);
         return (points, name);
       } catch { return null; }
     }

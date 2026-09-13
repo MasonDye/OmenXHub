@@ -41,8 +41,7 @@ namespace OmenSuperHub.Services {
       if (!_running) return;
       try {
         float cpuTemp = HardwareService.CPUTemp;
-        float gpuTemp = HardwareService.GPUTemp;
-        float temp = Math.Max(cpuTemp, gpuTemp);
+        float temp = Math.Max(cpuTemp, HardwareService.GetEffectiveGpuTemp(cpuTemp));
         if (temp <= 0) return; // 传感器未就绪
 
         if (Math.Abs(temp - _lastTemp) < Hysteresis) return;
