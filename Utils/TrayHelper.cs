@@ -272,7 +272,7 @@ namespace OmenSuperHub.Utils {
         ConfigService.Language = lang.ToString();
         ConfigService.Save("Language");
         BuildContextMenu();
-        Views.MainWindow.ApplyLanguageToInstance();
+        // ponytail: 主窗口不实时切换 — 页面文本在重开主面板(ReleaseFrontend 清页面缓存)后生效
       };
       return item;
     }

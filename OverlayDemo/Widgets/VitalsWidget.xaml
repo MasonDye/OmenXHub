@@ -1,0 +1,15 @@
+<UserControl x:Class="OverlayDemo.Widgets.VitalsWidget"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 系统指标卡片容器：圆角 8 外框，卡片 WrapPanel 流式排布 -->
+    <Border x:Name="RootBorder" CornerRadius="8" BorderThickness="1"
+            Background="{Binding WidgetBackground}" BorderBrush="{Binding WidgetBorderBrush}">
+        <ItemsControl Margin="0,1,0,1" ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource CardTemplate}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel HorizontalAlignment="Left" VerticalAlignment="Top" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+        </ItemsControl>
+    </Border>
+</UserControl>

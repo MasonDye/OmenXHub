@@ -10,6 +10,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Hp.Bridge.Client.SDKs.McuSDK2;
 using Hp.Bridge.Client.SDKs.McuSDK2.Common.DataStructure; // LightingSetting
 using Hp.Bridge.Client.SDKs.McuSDK2.Keyboard;  // LightingAudioEffectSetting
@@ -195,6 +196,11 @@ namespace OmenSuperHub.Pages {
       // ponytail: 场景系统初始化 — 参考 OmenCore RgbSceneService
       // 首次调用 Initialize → 迁移旧 lighting.json 或创建内置场景
       LightingSceneService.Initialize();
+      // ponytail: LoadState 会被切场景/OnSceneChanged 反复调用,先减后加防订阅累积
+      // (否则每次外部场景变更触发 N 遍 LoadState)。勿上移到构造函数订阅一次 ——
+      // Unloaded 的 -= 会把缓存页的订阅永久摘掉,场景联动随之失效。
+      LightingSceneService.SceneChanged -= OnSceneChanged;
+      LightingSceneService.ScenesListChanged -= OnScenesListChanged;
       LightingSceneService.SceneChanged += OnSceneChanged;
       LightingSceneService.ScenesListChanged += OnScenesListChanged;
       RefreshSceneCombo();
@@ -533,11 +539,15 @@ namespace OmenSuperHub.Pages {
       if (PerKeyCard != null)
         PerKeyCard.Visibility = perKey ? Visibility.Visible : Visibility.Collapsed;
       if (perKey) {
-        // 锁死 PerKey 协议/设备 — 不给"选错协议导致功能消失"的空间
+        // 锁死 PerKey 协议/设备 — 不给"选错协议导致功能消失"的空间。
+        // ponytail: _loading 必须保存/恢复而非无条件置 false —— LoadState 在门保护期内调用
+        // 本方法后还要继续恢复控件;打穿门会让后续 SelectionChanged 真触发(HID 提前打开 +
+        // 用尚未恢复的 _lbColors 落盘,lighting.json 灯带颜色被默认红覆盖)。
+        bool gate = _loading;
         _loading = true;
         if (LightProtoCombo.SelectedIndex != 3) LightProtoCombo.SelectedIndex = 3;
         if (LightDevCombo.SelectedIndex != 0) LightDevCombo.SelectedIndex = 0;
-        _loading = false;
+        _loading = gate;
         if (LightProtoCombo != null) LightProtoCombo.IsEnabled = false;
       } else if (LightProtoCombo != null && LightCard1.Visibility == Visibility.Visible) {
         LightProtoCombo.IsEnabled = true;
@@ -697,6 +707,9 @@ namespace OmenSuperHub.Pages {
     // Now user-configurable; SelectedIndex maps directly to McuSDK LedSpeed byte (0..3).
     void PerKeySpeed_SelectionChanged(object s, SelectionChangedEventArgs e) {
       if (_loading) return;
+      // R15/BUG-R15-12: SelectedIndex 可为 -1(清空/重建 ItemsSource 期间),(byte)(-1) 静默变 255
+      // 持久化并下发 MCU。同文件其它 handler 均有 item 判空,此处对齐。
+      if (PerKeySpeedCombo.SelectedIndex < 0) return;
       ConfigService.PerKeySpeed = (byte)PerKeySpeedCombo.SelectedIndex;
       ConfigService.Save("PerKeySpeed");
       SaveLightingJson();
@@ -781,7 +794,11 @@ namespace OmenSuperHub.Pages {
         // ponytail: Array.Fill 在 net481 不存在,手填两个静态 buffer 复用数组(已 clear)。
         for (int i = 0; i < _pkR.Length; i++) { _pkR[i] = r; _pkG[i] = g; _pkB[i] = b; }
         // 逐键覆盖 — 布局索引映射见 InitPerKeyPicker 的 ponytail 注释(真机校准点)
-        foreach (var kvp in _perKeyColors) {
+        // R15/BUG-R15-4: 本方法跑在线程池,直接 foreach 静态字典会与 UI 线程写入并发抛
+        // "Collection was modified"。取快照(与 UI 写互斥)后遍历副本。
+        System.Collections.Generic.KeyValuePair<string, (byte r, byte g, byte b)>[] pkSnap;
+        lock (_perKeyColorsLock) pkSnap = _perKeyColors.ToArray();
+        foreach (var kvp in pkSnap) {
           if (!_perKeyIndex.TryGetValue(kvp.Key, out int idx) || idx >= _pkR.Length) continue;
           _pkR[idx] = kvp.Value.r; _pkG[idx] = kvp.Value.g; _pkB[idx] = kvp.Value.b;
         }
@@ -890,9 +907,15 @@ namespace OmenSuperHub.Pages {
     // 键名 → buffer 索引(行主序),按钮 → 键名反向查色
     static readonly Dictionary<string, int> _perKeyIndex = new();
     static readonly Dictionary<string, (byte r, byte g, byte b)> _perKeyColors = new();
+    // R15/BUG-R15-4: _perKeyColors 是 static,UI 线程写(点色块/右键清除)与线程池枚举
+    // (PerKeyWriteStaticBg)并发 → "Collection was modified" 该次下发丢失。实例级 _perKeyLock
+    // 锁不住静态字典,补一把静态锁:写侧加锁,枚举侧取快照。
+    static readonly object _perKeyColorsLock = new();
     Button _selectedKeyBtn;
     Brush _keyBorderBrush = Brushes.Transparent;  // InitPerKeyPicker 从主题资源填充
-    static bool _pickerInited;
+    // ponytail: 实例字段而非 static —— 静态标记会让重建的 Page 实例(如主窗口重建)跳过
+    // 逐键布局构建,表现为键盘区空白。
+    bool _pickerInited;
     // ponytail: 选中键描边 — 2px 青色足够在彩色键面/暗键盘底上清晰可见
     static readonly Brush _selectedKeyBorder = FrozenBrush(System.Windows.Media.Color.FromRgb(0x00, 0xFF, 0xC8));
     const double _selectedKeyBorderThickness = 2;
@@ -1016,7 +1039,9 @@ namespace OmenSuperHub.Pages {
     // 右键已着色键 → 清除该键颜色
     void PerKeyKey_RightClickClear(object sender, System.Windows.Input.MouseButtonEventArgs e) {
       if (!_pickerInited || sender is not Button btn || btn.Tag is not string key) return;
-      if (!_perKeyColors.Remove(key)) return;
+      bool removed;
+      lock (_perKeyColorsLock) removed = _perKeyColors.Remove(key);
+      if (!removed) return;
       btn.Background = FrozenBrush(ColorFromName(ConfigService.PerKeyStaticColor));
       UpdatePerKeyColoredStatus();
       // 下发刷新
@@ -1040,7 +1065,7 @@ namespace OmenSuperHub.Pages {
       } else {
         (r, g, b) = OmenLighting.LookupColor((string)sw.Tag);
       }
-      _perKeyColors[key] = (r, g, b);
+      lock (_perKeyColorsLock) _perKeyColors[key] = (r, g, b);
       _selectedKeyBtn.Background = FrozenBrush(System.Windows.Media.Color.FromRgb(r, g, b));
       UpdatePerKeyColoredStatus();
       // 下发:基色整片 + 逐键覆盖(PerKeyWriteStaticBg 已含覆盖逻辑)
@@ -1052,7 +1077,7 @@ namespace OmenSuperHub.Pages {
     }
 
     void PerKeyClear_Click(object sender, RoutedEventArgs e) {
-      _perKeyColors.Clear();
+      lock (_perKeyColorsLock) _perKeyColors.Clear();
       ApplyPerKeyButtonBaseColor();
       UpdatePerKeyColoredStatus();
       int h = EnsurePerKeyHandle();
@@ -1131,6 +1156,107 @@ namespace OmenSuperHub.Pages {
       return fails.Count == 0 ? "PASS LightingPage: 灯带 effectId/显示名校准表有效"
         : "FAIL LightingPage: " + string.Join("; ", fails);
     }
+
+    /// <summary>--selftest 断言 — 响应式布局与 _loading 门守卫:
+    /// 1) 两级 Grid 均 7 行;2) VisualStateGroups 挂在承载元素自身且 GoToElementState 能命中
+    /// (回归防护:GoToState 只查 ControlTemplate 根,组挂元素自身永远切不动,曾致两组 VSM 死代码);
+    /// 3) Narrow/Zone1Col 关键帧落位 0/2/4/6 无同格重叠;4) ApplyCapabilityLayout 的 perKey
+    /// 分支不得打穿 _loading 门(否则 LoadState 中途真落盘,灯带颜色被默认红覆盖)。</summary>
+    internal static string LayoutStateSelfCheck() {
+      var fails = new List<string>();
+      try {
+        // ctor 只解析 BAML(_loading=true 挡住解析期事件),不进可视树、零硬件接触
+        var page = new LightingPage();
+        var pageGrid = (Grid)page.FindName("LightGrid");
+        var card3 = (FrameworkElement)page.FindName("LightCard3");
+        var zoneGrid = (Grid)page.FindName("ZoneGrid");
+        if (pageGrid == null || card3 == null || zoneGrid == null)
+          return "FAIL LightingPage.LayoutState: 找不到 LightGrid/LightCard3/ZoneGrid";
+        if (pageGrid.RowDefinitions.Count != 7) fails.Add($"LightGrid 行数 {pageGrid.RowDefinitions.Count} != 7");
+        if (zoneGrid.RowDefinitions.Count != 7) fails.Add($"ZoneGrid 行数 {zoneGrid.RowDefinitions.Count} != 7");
+
+        // 页面级 Narrow:四卡 0/2/4/6(Device→Protocol→Bright→Zone,与 Wide 阅读顺序一致)
+        var narrow = FindState(VisualStateManager.GetVisualStateGroups(pageGrid), "Narrow");
+        CheckRowKeyFrame(narrow, "LightCard1", 2, fails);
+        CheckRowKeyFrame(narrow, "LightCard2", 4, fails);
+        CheckRowKeyFrame(narrow, "LightCard3", 6, fails);
+        if (!VisualStateManager.GoToElementState(pageGrid, "Narrow", false))
+          fails.Add("GoToElementState(LightGrid, Narrow) 未命中 —— 组丢失或挂错元素");
+        VisualStateManager.GoToElementState(pageGrid, "Wide", false);
+
+        // Zone 级 Zone1Col:四区 0/2/4/6
+        var zone1 = FindState(VisualStateManager.GetVisualStateGroups(card3), "Zone1Col");
+        CheckRowKeyFrame(zone1, "Zone2Cell", 2, fails);
+        CheckRowKeyFrame(zone1, "Zone3Cell", 4, fails);
+        CheckRowKeyFrame(zone1, "Zone4Cell", 6, fails);
+        // Zone1Col 须把第 3 列也压到 Auto —— 两个 * 列会平分宽度,单列内容挤半宽
+        if (zone1 != null && zone1.Storyboard != null) {
+          bool col2Auto = false;
+          foreach (var tl in zone1.Storyboard.Children.OfType<ObjectAnimationUsingKeyFrames>()) {
+            var pp = tl.GetValue(Storyboard.TargetPropertyProperty) as PropertyPath;
+            if ((string)tl.GetValue(Storyboard.TargetNameProperty) == "ZoneCol2" &&
+                pp != null && pp.PathParameters.Count == 1 &&
+                ReferenceEquals(pp.PathParameters[0], ColumnDefinition.WidthProperty) &&
+                tl.KeyFrames.Count == 1 &&
+                ((DiscreteObjectKeyFrame)tl.KeyFrames[0]).Value is GridLength gl && gl.IsAuto)
+              col2Auto = true;
+          }
+          if (!col2Auto) fails.Add("Zone1Col 未把 ZoneCol2 列压到 Auto(单列时被 * 列平分挤半宽)");
+        }
+        if (!VisualStateManager.GoToElementState(card3, "Zone1Col", false))
+          fails.Add("GoToElementState(LightCard3, Zone1Col) 未命中");
+
+        // perKey 分支门守卫:置 PerKey 机型后调 ApplyCapabilityLayout,门状态必须原样保留
+        const System.Reflection.BindingFlags F =
+          System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var t = typeof(LightingPage);
+        var fldLoading = t.GetField("_loading", F);
+        var fldKind = t.GetField("_kbKind", F);
+        var fldDetected = t.GetField("_kbKindDetected", F);
+        var mLayout = t.GetMethod("ApplyCapabilityLayout", F);
+        fldLoading.SetValue(page, true);
+        fldKind.SetValue(page, KeyboardKind.PerKey);
+        fldDetected.SetValue(page, true);
+        try { mLayout.Invoke(page, null); }
+        catch (System.Reflection.TargetInvocationException tie) { throw tie.InnerException; }
+        if (!(bool)fldLoading.GetValue(page)) fails.Add("ApplyCapabilityLayout(perKey) 打穿了 _loading 门");
+        var protoCombo = (ComboBox)page.FindName("LightProtoCombo");
+        if (protoCombo != null && protoCombo.IsEnabled) fails.Add("PerKey 机型协议下拉未被锁定");
+      } catch (Exception ex) {
+        fails.Add("异常: " + ex.Message);
+      }
+      return fails.Count == 0
+        ? "PASS LightingPage: 布局 VSM 落位 + _loading 门守卫有效"
+        : "FAIL LightingPage: " + string.Join("; ", fails);
+    }
+
+    // net481 的 GetVisualStateGroups/VisualStateGroup.States 返回非泛型 IList
+    static VisualState FindState(System.Collections.IList groups, string stateName) {
+      foreach (VisualStateGroup g in groups)
+        foreach (VisualState s in g.States)
+          if (s.Name == stateName) return s;
+      return null;
+    }
+
+    // 断言指定态的 Storyboard 里 target 的 (Grid.Row) 关键帧值(同格重叠 = Row 写错)
+    static void CheckRowKeyFrame(VisualState state, string target, int expectRow, List<string> fails) {
+      if (state == null || state.Storyboard == null) { fails.Add($"视觉态 {stateName(state)} 不存在或无 Storyboard"); return; }
+      foreach (var tl in state.Storyboard.Children.OfType<Int32AnimationUsingKeyFrames>()) {
+        var pp = tl.GetValue(Storyboard.TargetPropertyProperty) as PropertyPath;
+        // 解析后的附加属性路径是 Path="(0)" + PathParameters[0]=Grid.RowProperty(离屏探针实证),
+        // 按字符串 "(Grid.Row)" 匹配不到
+        if ((string)tl.GetValue(Storyboard.TargetNameProperty) == target &&
+            pp != null && pp.PathParameters.Count == 1 &&
+            ReferenceEquals(pp.PathParameters[0], Grid.RowProperty)) {
+          int v = ((DiscreteInt32KeyFrame)tl.KeyFrames[0]).Value;
+          if (v != expectRow) fails.Add($"{state.Name}: {target} Row={v} 期望 {expectRow}");
+          return;
+        }
+      }
+      fails.Add($"{state.Name}: 缺 {target} 的 Grid.Row 关键帧");
+    }
+
+    static string stateName(VisualState s) => s == null ? "(null)" : s.Name;
 
     void InitLightBarPanel() {
       if (LightBarSeg1Combo == null || LightBarSeg1Combo.Items.Count > 0) return;
@@ -1294,7 +1420,7 @@ namespace OmenSuperHub.Pages {
 
     // ponytail: VSM 精确切换 — 比 WrapPanel 物理换行更可预测、临界不闪。
     // Wide(>=1100) 双列,Narrow 单列。Zone 子 Grid 阈值 480(单卡半宽内足够双列)。
-    // Loaded 后立刻 GoToState 一次,避免首次渲染态与窗口宽度不匹配。
+    // Loaded 后立刻切换一次态,避免首次渲染态与窗口宽度不匹配。
     const double LightWideWidth = 1100;
     const double ZoneWideWidth = 480;
 
@@ -1304,13 +1430,15 @@ namespace OmenSuperHub.Pages {
     }
 
     void ApplyLayoutStates(double width) {
+      if (LightGrid == null) return;
       bool wide = width >= LightWideWidth;
-      VisualStateManager.GoToState(this, wide ? "Wide" : "Narrow", true);
-      // ponytail: Zone 子 Grid 的 VSM 挂在 LightCard3(Control) 上,因为 GoToState 只接受 Control。
-      // Storyboard 内的 TargetName 按名字查,可跨层级引用 ZoneColGap/Zone2Cell/Zone4Cell。
+      // ponytail: 必须用 GoToElementState —— GoToState 只在传入元素的 ControlTemplate 根上找
+      // VisualStateGroups(Page 无模板,StateGroupsRoot 恒 null,静默返回 false;两组 VSM 曾因此
+      // 从未生效,离屏探针实证)。组挂在 LightGrid/LightCard3 自身,TargetName 按名字跨层级解析。
+      VisualStateManager.GoToElementState(LightGrid, wide ? "Wide" : "Narrow", true);
       bool zone2Col = wide || width >= ZoneWideWidth;
       if (LightCard3 != null)
-        VisualStateManager.GoToState(LightCard3, zone2Col ? "Zone2Col" : "Zone1Col", true);
+        VisualStateManager.GoToElementState(LightCard3, zone2Col ? "Zone2Col" : "Zone1Col", true);
     }
 
     // ponytail: 灯光控制总开关 — 默认关闭, 开启后启动时恢复上次灯效设置

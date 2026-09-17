@@ -89,8 +89,10 @@
                                                Storyboard.TargetProperty="(ColumnDefinition.Width)">
                   <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static GridLength.Auto}"/>
                 </ObjectAnimationUsingKeyFrames>
-                <!-- ponytail: Narrow 下把右侧 2 张卡换到 Column 0,Row 2/4(避开 0/2 的左侧卡)。
-                     Grid.Row/Grid.Column 是 attached property,DiscreteObjectKeyFrame 用 Int32 即可。 -->
+                <!-- ponytail: Narrow 下四卡纵向落位 Device(0)→Protocol(2)→Bright(4)→Zone(6),
+                     与 Wide 阅读顺序一致。LightCard1 移到 Row2 的同时必须把 LightCard2 挪到
+                     Row4,否则两卡同格重叠(后声明者盖住前者)。
+                     Grid.Row/Grid.Column 是 attached property,用 Int32 关键帧动画。 -->
                 <Int32AnimationUsingKeyFrames Storyboard.TargetName="LightCard1"
                                               Storyboard.TargetProperty="(Grid.Row)">
                   <DiscreteInt32KeyFrame KeyTime="0" Value="2"/>
@@ -98,6 +100,10 @@
                 <Int32AnimationUsingKeyFrames Storyboard.TargetName="LightCard1"
                                               Storyboard.TargetProperty="(Grid.Column)">
                   <DiscreteInt32KeyFrame KeyTime="0" Value="0"/>
+                </Int32AnimationUsingKeyFrames>
+                <Int32AnimationUsingKeyFrames Storyboard.TargetName="LightCard2"
+                                              Storyboard.TargetProperty="(Grid.Row)">
+                  <DiscreteInt32KeyFrame KeyTime="0" Value="4"/>
                 </Int32AnimationUsingKeyFrames>
                 <Int32AnimationUsingKeyFrames Storyboard.TargetName="LightCard3"
                                               Storyboard.TargetProperty="(Grid.Row)">
@@ -193,8 +199,8 @@
         </ui:CardControl>
 
         <ui:CardControl x:Name="LightCard3" Grid.Row="2" Grid.Column="2" Margin="0,0,0,8">
-          <!-- ponytail: Zone 子 Grid 的 VSM 挂在 LightCard3(Control) 上,因为 GoToState 只接受 Control。
-               Storyboard TargetName 按名字查可跨层级引用 ZoneColGap/Zone2Cell/Zone4Cell。 -->
+          <!-- ponytail: Zone 子 Grid 的 VSM 组挂在 LightCard3 上,.cs 用 GoToElementState 切换
+               (GoToState 只查 ControlTemplate 根,组挂元素自身时永远切不动——离屏探针实证)。 -->
           <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="ZoneLayoutStates">
               <VisualState x:Name="Zone2Col"/>
@@ -204,11 +210,24 @@
                                                  Storyboard.TargetProperty="(ColumnDefinition.Width)">
                     <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static GridLength.Auto}"/>
                   </ObjectAnimationUsingKeyFrames>
+                  <!-- ponytail: 第 3 列也须压到 Auto —— 两个 * 列会平分宽度,单列时四区被挤半宽 -->
+                  <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ZoneCol2"
+                                                 Storyboard.TargetProperty="(ColumnDefinition.Width)">
+                    <DiscreteObjectKeyFrame KeyTime="0" Value="{x:Static GridLength.Auto}"/>
+                  </ObjectAnimationUsingKeyFrames>
                   <Int32AnimationUsingKeyFrames Storyboard.TargetName="Zone2Cell"
                                                 Storyboard.TargetProperty="(Grid.Row)">
                     <DiscreteInt32KeyFrame KeyTime="0" Value="2"/>
                   </Int32AnimationUsingKeyFrames>
                   <Int32AnimationUsingKeyFrames Storyboard.TargetName="Zone2Cell"
+                                                Storyboard.TargetProperty="(Grid.Column)">
+                    <DiscreteInt32KeyFrame KeyTime="0" Value="0"/>
+                  </Int32AnimationUsingKeyFrames>
+                  <Int32AnimationUsingKeyFrames Storyboard.TargetName="Zone3Cell"
+                                                Storyboard.TargetProperty="(Grid.Row)">
+                    <DiscreteInt32KeyFrame KeyTime="0" Value="4"/>
+                  </Int32AnimationUsingKeyFrames>
+                  <Int32AnimationUsingKeyFrames Storyboard.TargetName="Zone3Cell"
                                                 Storyboard.TargetProperty="(Grid.Column)">
                     <DiscreteInt32KeyFrame KeyTime="0" Value="0"/>
                   </Int32AnimationUsingKeyFrames>
@@ -252,9 +271,15 @@
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="8" x:Name="ZoneColGap"/>
-                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="*" x:Name="ZoneCol2"/>
                 </Grid.ColumnDefinitions>
+                <!-- ponytail: 7 行与页面级 LightGrid 同构(内容行 0/2/4/6 + 8px 间隔行)。
+                     Zone2Col 态只用 0/2,多出的 Auto 行高度为 0;Zone1Col 单列时四区落 0/2/4/6。 -->
                 <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="8"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="8"/>
                   <RowDefinition Height="Auto"/>
                   <RowDefinition Height="8"/>
                   <RowDefinition Height="Auto"/>

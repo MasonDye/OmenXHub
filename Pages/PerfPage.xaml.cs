@@ -17,6 +17,9 @@ namespace OmenSuperHub.Pages {
     public static PerfPage Instance { get; private set; }
     bool _loading;
     bool _optionsBuilt;
+    // Intel 预取器后端 — 懒初始化(PawnIO 模块多实例安全)
+    Services.XtuService _intelTune;
+    bool _prefetcherInitStarted;
     // ponytail: 原临时写 %TEMP%/OmenXHub-PerfPage.log 的调试日志,统一收敛到全局 Logger.Verbose
     // (受 ConfigService.VerboseLogging 开关控制,默认不落盘;开 verbose 才记录)。
     static void Log(string msg) => Logger.Verbose($"[PerfPage] {msg}");
@@ -35,6 +38,10 @@ namespace OmenSuperHub.Pages {
     void PerfPage_Unloaded(object sender, RoutedEventArgs e) {
       PresetManager.OnPresetChanged -= OnPresetChanged;
       Strings.OnLanguageChanged -= RefreshHeteroLabels;
+      _intelTune?.Dispose();
+      _intelTune = null;
+      _prefetcherInitStarted = false;
+      PrefetcherCard.Visibility = Visibility.Collapsed;
       // ponytail: 断静态强引用 — CachedPageService 在 ReleaseFrontend 时会清掉本页字典引用,
       // 但 Instance 静态字段会持续钉住旧实例。Unloaded 是唯一对称的清理点；下次 ctor 重赋值。
       Instance = null;
@@ -71,13 +78,12 @@ namespace OmenSuperHub.Pages {
         _perfExpanded = ActualWidth > PerfCollapseWidth;
         if (_perfExpanded) ExpandPerfGrids();
         else CollapsePerfGrids();
+        StartPrefetcherInit();
       }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     void OnPresetChanged(string preset) {
-      _loading = true;
-      LoadStateFast();
-      try { LoadStateDeferred(); } catch { }
+      ReloadUiSuppressed();
       // ponytail: dynamic — find index by tag in combo items
       int idx = -1;
       for (int i = 0; i < cbxPerfPreset.Items.Count; i++) {
@@ -85,11 +91,6 @@ namespace OmenSuperHub.Pages {
       }
       if (idx >= 0 && cbxPerfPreset.SelectedIndex != idx)
         cbxPerfPreset.SelectedIndex = idx;
-      // ponytail: defer _loading=false to ContextIdle so stray NumberBox
-      //          ValueChanged (fired after programmatic value set) are suppressed
-      Dispatcher.BeginInvoke(new Action(() => {
-        _loading = false;
-      }), System.Windows.Threading.DispatcherPriority.ContextIdle);
     }
 
     // ══════════════════════════════════════
@@ -108,8 +109,9 @@ namespace OmenSuperHub.Pages {
 
       AmdPptCombo.Items.Clear();
       AmdPptCombo.Items.Add(new ComboBoxItem { Content = Strings.NotSet, Tag = 0 });
-      // ponytail: 1W 步进，跟 Intel 一致
-      for (int w = 8; w <= 300; w++) AmdPptCombo.Items.Add(new ComboBoxItem { Content = w + " W", Tag = w });
+      // ponytail: 1W 步进,跟 Intel 一致;上限 255 = SetCpuPowerLimit 的 WMI byte 参数上限,
+      // >255 会静默不落硬件,UI 一并收口。
+      for (int w = 8; w <= 255; w++) AmdPptCombo.Items.Add(new ComboBoxItem { Content = w + " W", Tag = w });
 	
       IccMaxCombo.Items.Clear();
       IccMaxCombo.Items.Add(new ComboBoxItem { Content = Strings.NotSet, Tag = 0 });
@@ -163,9 +165,15 @@ namespace OmenSuperHub.Pages {
       InitHdr();
     }
 
-    void LoadState() {
+    // ponytail: 统一"静默重载 UI"入口,所有失败回滚/重载路径共用。
+    // _loading 复位延迟到 ContextIdle:NumberBox 的 ValueChanged 在 LoadStateFast 之后
+    // 延迟触发,同步复位会把 Minimum 夹紧值写进 ConfigService(同 PerfPage_Loaded)。
+    void ReloadUiSuppressed() {
+      _loading = true;
       LoadStateFast();
-      LoadStateDeferred();
+      try { LoadStateDeferred(); } catch { }
+      Dispatcher.BeginInvoke(new Action(() => { _loading = false; }),
+        System.Windows.Threading.DispatcherPriority.ContextIdle);
     }
 
     void LoadStateFast() {
@@ -200,10 +208,12 @@ namespace OmenSuperHub.Pages {
         SelectCombo(AcLoadLineCombo, mOhm + " mOhm");
       } else SelectCombo(AcLoadLineCombo, Strings.NotSet);
       // ── AMD PPT Combo ──
-      if (ConfigService.AmdCpuPpt > 0) SelectComboByTag(AmdPptCombo, ConfigService.AmdCpuPpt);
+      // ponytail: 老配置可能存过 >255(byte 上限收口前),读回时钳到 255,避免滑杆静默夹紧但配置残留。
+      int amdPpt = Math.Min(255, Math.Max(0, ConfigService.AmdCpuPpt));
+      if (amdPpt > 0) SelectComboByTag(AmdPptCombo, amdPpt);
       else SelectCombo(AmdPptCombo, Strings.NotSet);
       // ── AMD 滑块同步（预设切换时通过 OnPresetChanged → LoadStateFast 带到这里） ──
-      AmdCpuPptSlider.Value = ConfigService.AmdCpuPpt > 0 ? ConfigService.AmdCpuPpt : 105;
+      AmdCpuPptSlider.Value = amdPpt > 0 ? amdPpt : 105;
       AmdCpuPptNum.Value = AmdCpuPptSlider.Value;
       // ── AMD Curve Optimizer 降压滑块同步 ──
       AmdUndervoltSlider.Value = ConfigService.AmdCpuUndervolt;
@@ -227,6 +237,13 @@ namespace OmenSuperHub.Pages {
         SelectCombo(FpsCombo, ConfigService.MaxFrameRate + " FPS");
         FpsSlider.Value = ConfigService.MaxFrameRate;
         FpsNum.Value = ConfigService.MaxFrameRate;
+      }
+      // ── 屏幕刷新率:自定义预设(1.2 字段)切换会改写 ConfigService.RefreshRate,UI 必须跟 ──
+      // ponytail: 只同步显示,不重放 ChangeDisplaySettingsEx —— 预设切换不闪屏(与旧行为一致)。
+      if (ConfigService.RefreshRate > 0) {
+        SelectComboByTag(RefreshRateCombo, ConfigService.RefreshRate);
+        RefreshRateSlider.Value = ConfigService.RefreshRate;
+        RefreshRateNum.Value = ConfigService.RefreshRate;
       }
       if (ConfigService.GpuClock <= 0) {
         SelectCombo(GpuClockCombo, Strings.GpuClockRestore);
@@ -459,10 +476,6 @@ namespace OmenSuperHub.Pages {
     }
 
     // ── 电源模式 ──
-    
-    void CpuOcSettings_Click(object sender, RoutedEventArgs e) {
-      var dialog = new CpuOcDialog { Owner = Window.GetWindow(this) }; dialog.ShowDialog();
-    }
 
     void PowerMode_SelectionChanged(object sender, SelectionChangedEventArgs e) {
       if (_loading) return;
@@ -633,80 +646,86 @@ namespace OmenSuperHub.Pages {
     void GpuClock_SelectionChanged(object sender, SelectionChangedEventArgs e) {
       if (_loading) return;
       _loading = true;
-      var item = GpuClockCombo.SelectedItem as ComboBoxItem;
-      if (item == null) { _loading = false; return; }
-      int val = (int)item.Tag;
-      ConfigService.GpuClock = val;
-      GpuClockSlider.Value = val;
-      if (val > 0) TrayService.SetGPUClockLimit(val);
-      ConfigService.Save("GpuClock");
-      _loading = false;
+      try {
+        var item = GpuClockCombo.SelectedItem as ComboBoxItem;
+        if (item == null) return;
+        int val = (int)item.Tag;
+        ConfigService.GpuClock = val;
+        GpuClockSlider.Value = val;
+        if (val > 0) TrayService.SetGPUClockLimit(val);
+        ConfigService.Save("GpuClock");
+      } finally { _loading = false; }
     }
 
     void GpuClockNum_ValueChanged(object s, RoutedEventArgs e) {
       if (_loading) return;
       _loading = true;
-      double? val = GpuClockNum.Value;
-      if (val == null || val < 0 || val > 2500) { _loading = false; return; }
-      int v = (int)val;
-      if (v > 0) TrayService.SetGPUClockLimit(v);
-      ConfigService.GpuClock = v; ConfigService.Save("GpuClock");
-      SelectCombo(GpuClockCombo, v == 0 ? Strings.GpuClockRestore : v + " MHz");
-      _loading = false;
+      try {
+        double? val = GpuClockNum.Value;
+        if (val == null || val < 0 || val > 2500) return;
+        int v = (int)val;
+        if (v > 0) TrayService.SetGPUClockLimit(v);
+        ConfigService.GpuClock = v; ConfigService.Save("GpuClock");
+        SelectCombo(GpuClockCombo, v == 0 ? Strings.GpuClockRestore : v + " MHz");
+      } finally { _loading = false; }
     }
 
     // ── GPU 核心超频 ──
     void GpuCoreOC_SelectionChanged(object sender, SelectionChangedEventArgs e) {
       if (_loading) return;
       _loading = true;
-      var item = GpuCoreOCCombo.SelectedItem as ComboBoxItem;
-      if (item == null) { _loading = false; return; }
-      int val = (int)item.Tag;
-      ConfigService.GpuCoreOverclock = val;
-      GpuCoreOCSlider.Value = val;
-      System.Threading.ThreadPool.QueueUserWorkItem(_ => GpuAppManager.SetCoreClockOffset(val));
-      ConfigService.Save("GpuCoreOverclock");
-      _loading = false;
+      try {
+        var item = GpuCoreOCCombo.SelectedItem as ComboBoxItem;
+        if (item == null) return;
+        int val = (int)item.Tag;
+        ConfigService.GpuCoreOverclock = val;
+        GpuCoreOCSlider.Value = val;
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => GpuAppManager.SetCoreClockOffset(val));
+        ConfigService.Save("GpuCoreOverclock");
+      } finally { _loading = false; }
     }
 
     void GpuCoreOCNum_ValueChanged(object s, RoutedEventArgs e) {
       if (_loading) return;
       _loading = true;
-      double? val = GpuCoreOCNum.Value;
-      if (val == null || val < -270 || val > 270) { _loading = false; return; }
-      int v = (int)val;
-      ConfigService.GpuCoreOverclock = v;
-      System.Threading.ThreadPool.QueueUserWorkItem(_ => GpuAppManager.SetCoreClockOffset(v));
-      ConfigService.Save("GpuCoreOverclock");
-      SelectCombo(GpuCoreOCCombo, (v >= 0 ? "+" : "") + v + " MHz");
-      _loading = false;
+      try {
+        double? val = GpuCoreOCNum.Value;
+        if (val == null || val < -270 || val > 270) return;
+        int v = (int)val;
+        ConfigService.GpuCoreOverclock = v;
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => GpuAppManager.SetCoreClockOffset(v));
+        ConfigService.Save("GpuCoreOverclock");
+        SelectCombo(GpuCoreOCCombo, (v >= 0 ? "+" : "") + v + " MHz");
+      } finally { _loading = false; }
     }
 
     // ── GPU 显存超频 ──
     void GpuMemoryOC_SelectionChanged(object sender, SelectionChangedEventArgs e) {
       if (_loading) return;
       _loading = true;
-      var item = GpuMemoryOCCombo.SelectedItem as ComboBoxItem;
-      if (item == null) { _loading = false; return; }
-      int val = (int)item.Tag;
-      ConfigService.GpuMemoryOverclock = val;
-      GpuMemoryOCSlider.Value = val;
-      System.Threading.ThreadPool.QueueUserWorkItem(_ => GpuAppManager.SetMemoryClockOffset(val));
-      ConfigService.Save("GpuMemoryOverclock");
-      _loading = false;
+      try {
+        var item = GpuMemoryOCCombo.SelectedItem as ComboBoxItem;
+        if (item == null) return;
+        int val = (int)item.Tag;
+        ConfigService.GpuMemoryOverclock = val;
+        GpuMemoryOCSlider.Value = val;
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => GpuAppManager.SetMemoryClockOffset(val));
+        ConfigService.Save("GpuMemoryOverclock");
+      } finally { _loading = false; }
     }
 
     void GpuMemoryOCNum_ValueChanged(object s, RoutedEventArgs e) {
       if (_loading) return;
       _loading = true;
-      double? val = GpuMemoryOCNum.Value;
-      if (val == null || val < 0 || val > 2000) { _loading = false; return; }
-      int v = (int)val;
-      ConfigService.GpuMemoryOverclock = v;
-      System.Threading.ThreadPool.QueueUserWorkItem(_ => GpuAppManager.SetMemoryClockOffset(v));
-      ConfigService.Save("GpuMemoryOverclock");
-      SelectCombo(GpuMemoryOCCombo, "+" + v + " MHz");
-      _loading = false;
+      try {
+        double? val = GpuMemoryOCNum.Value;
+        if (val == null || val < 0 || val > 2000) return;
+        int v = (int)val;
+        ConfigService.GpuMemoryOverclock = v;
+        System.Threading.ThreadPool.QueueUserWorkItem(_ => GpuAppManager.SetMemoryClockOffset(v));
+        ConfigService.Save("GpuMemoryOverclock");
+        SelectCombo(GpuMemoryOCCombo, "+" + v + " MHz");
+      } finally { _loading = false; }
     }
 
     // ── 图形模式 ──
@@ -714,7 +733,7 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       int mode = GfxModeCombo.SelectedIndex;
       if (mode == 3) {
-        if (!DialogHelper.Confirm(Strings.GfxUMAConfirm, Strings.GfxUMATitle)) { LoadState(); return; }
+        if (!DialogHelper.Confirm(Strings.GfxUMAConfirm, Strings.GfxUMATitle)) { ReloadUiSuppressed(); return; }
       }
       if (mode >= 0 && SetGfxMode(mode)) {
         GetGfxMode(out int current);
@@ -730,6 +749,9 @@ namespace OmenSuperHub.Pages {
               mode == 2 ? Strings.GfxHybridMode : Strings.GfxUMALabel) +
               "\n" + Strings.PerfGfxReboot, Strings.Hint);
         }
+      } else if (mode >= 0) {
+        // ponytail: WMI 写失败也回滚 combo,别让 UI 停在没生效的选项上
+        ReloadUiSuppressed();
       }
     }
 
@@ -752,14 +774,14 @@ namespace OmenSuperHub.Pages {
       if (_loading) return;
       if (!HardwareService.PowerOnline) {
         DialogHelper.Warn(Strings.PleaseConnectAC, Strings.Hint);
-        LoadState(); return;
+        ReloadUiSuppressed(); return;
       }
       if (DbVersionCombo.SelectedIndex == 0) {
         if (!TrayService.CheckDBVersion(1)) {
           DialogHelper.Warn(Strings.DriverNotAllow + "\n" + Strings.DriverVersionRange, Strings.Error);
-          LoadState(); return;
+          ReloadUiSuppressed(); return;
         }
-        if (!DialogHelper.Confirm(Strings.PerfDbUnlockWarning, Strings.DbUnlockTitle)) { LoadState(); return; }
+        if (!DialogHelper.Confirm(Strings.PerfDbUnlockWarning, Strings.DbUnlockTitle)) { ReloadUiSuppressed(); return; }
         ConfigService.DBVersion = 1; ConfigService.Save("DBVersion");
         TrayService.ChangeDBVersion(1);
       } else {
@@ -772,21 +794,21 @@ namespace OmenSuperHub.Pages {
     void TppNum_ValueChanged(object s, RoutedEventArgs e) {
       if (_loading) return;
       _loading = true;
-      double? val = TppNum.Value;
-      if (val == null || val < 0 || val > 254) { _loading = false; return; }
-      int v = (int)val;
-      SetConcurrentTdp((byte)v);
-      ConfigService.Tpp = v; ConfigService.Save("Tpp");
-      if (v == 0) { PpabCheck.IsChecked = false; }
-      UpdateTppEnabled();
-      UpdateTgpStatus();
-      _loading = false;
+      try {
+        double? val = TppNum.Value;
+        if (val == null || val < 0 || val > 254) return;
+        int v = (int)val;
+        SetConcurrentTdp((byte)v);
+        ConfigService.Tpp = v; ConfigService.Save("Tpp");
+        if (v == 0) { PpabCheck.IsChecked = false; }
+        UpdateTppEnabled();
+        UpdateTgpStatus();
+      } finally { _loading = false; }
     }
 
     void UpdateTppEnabled() {
       bool tgpOn = ConfigService.TgpEnabled;
       bool ppabOn = PpabCheck.IsChecked == true;
-      bool ppabAllowed = tgpOn && ConfigService.Tpp > 0;
       PpabCheck.IsEnabled = tgpOn;
       TppNum.IsEnabled = tgpOn && ppabOn;
       TppExtraSlider.IsEnabled = tgpOn && ppabOn;
@@ -1116,8 +1138,7 @@ namespace OmenSuperHub.Pages {
 
     void BuildResolutionOptions() {
       ResolutionCombo.Items.Clear();
-      // Confirm, then wipe registry/tasks/config/data and restart self.
-            var res = GetAvailableResolutions();
+      var res = GetAvailableResolutions();
       foreach (var r in res)
         ResolutionCombo.Items.Add(new ComboBoxItem { Content = $"{r.w} × {r.h}", Tag = r.w + "x" + r.h });
       if (!string.IsNullOrEmpty(ConfigService.Resolution)) {
@@ -1317,72 +1338,33 @@ namespace OmenSuperHub.Pages {
       LayoutPerfGrid(GpuPerfGrid, expand: false);
     }
 
-    // ponytail: detect full-width by runtime Grid.ColumnSpan instead of name matching.
-    // Any card with ColumnSpan >= 2 gets the full-row treatment — no name list to maintain.
-    static bool IsFullWidthCard(FrameworkElement c) =>
-      Grid.GetColumnSpan(c) >= 2;
-
-    // ponytail: set of cards whose XAML ColumnSpan is 2.  This survives layout
-    // toggling — after a collapsed→expand round-trip all runtime ColumnSpan
-    // values are 2 and we'd lose the regular/fullWidth distinction without it.
-    static readonly HashSet<string> _fwNames = new() {
-      "AmdCpuPowerCard"
-    };
-    /// <summary>Reset runtime ColumnSpan to XAML default (1) so the next
-    /// categorization round starts clean.  Only cards whose name appears in
-    /// _fwNames (true XAML full-width cards) are left alone — regular cards
-    /// that got ColumnSpan=2 during a previous collapsed layout are reset.</summary>
-    void ResetColumnSpans(Grid grid) {
-      for (int i = 0; i < grid.Children.Count; i++) {
-        if (grid.Children[i] is not FrameworkElement c) continue;
-        // ponytail: DO NOT guard on runtime Grid.GetColumnSpan(c) >= 2 here.
-        // After a collapsed pass ALL regular cards have ColumnSpan=2, so the
-        // guard would skip them and IsFullWidthCard mis-classifies everything.
-        if (c.Name != null && _fwNames.Contains(c.Name)) continue;
-        Grid.SetColumnSpan(c, 1);
-      }
-    }
-
+    // ponytail: 宽屏(expand)全部可见卡两两配对,窄屏(collapse)全部整行——
+    // 无 fullWidth 特例,两分支都显式写 Row/Column/ColumnSpan,往返不残留状态。
     void LayoutPerfGrid(Grid grid, bool expand) {
       int childCount = grid.Children.Count;
       if (childCount == 0) return;
-      // Reset regular cards to ColumnSpan=1 before categorising, so a
-      // previous collapsed→expand round-trip doesn't trick IsFullWidthCard.
-      ResetColumnSpans(grid);
       grid.ColumnDefinitions[1].Width = expand
         ? new GridLength(1, GridUnitType.Star)
         : new GridLength(0, GridUnitType.Pixel);
 
-      var fullWidth = new List<FrameworkElement>();
-      var regular = new List<FrameworkElement>();
+      var visible = new List<FrameworkElement>();
       for (int i = 0; i < childCount; i++) {
-        if (grid.Children[i] is FrameworkElement c && c.Visibility == Visibility.Visible) {
-          if (IsFullWidthCard(c)) fullWidth.Add(c);
-          else regular.Add(c);
-        }
-      }
-
-      int row = 0;
-      foreach (var c in fullWidth) {
-        Grid.SetRow(c, row); Grid.SetColumn(c, 0); Grid.SetColumnSpan(c, 2);
-        c.Margin = new Thickness(0, 0, 0, 8);
-        row++;
+        if (grid.Children[i] is FrameworkElement c && c.Visibility == Visibility.Visible)
+          visible.Add(c);
       }
 
       if (expand) {
-        for (int i = 0; i < regular.Count; i++) {
+        for (int i = 0; i < visible.Count; i++) {
           int col = i % 2;
-          var c = regular[i];
-          Grid.SetRow(c, row + i / 2); Grid.SetColumn(c, col); Grid.SetColumnSpan(c, 1);
+          var c = visible[i];
+          Grid.SetRow(c, i / 2); Grid.SetColumn(c, col); Grid.SetColumnSpan(c, 1);
           c.Margin = new Thickness(col == 1 ? 4 : 0, 0, col == 1 ? 0 : 4, 8);
         }
       } else {
-        // ponytail: collapsed — each regular card spans full width to avoid
-        // Column/ColumnSpan ambiguity. No second-column layout math to drift.
-        foreach (var c in regular) {
+        for (int row = 0; row < visible.Count; row++) {
+          var c = visible[row];
           Grid.SetRow(c, row); Grid.SetColumn(c, 0); Grid.SetColumnSpan(c, 2);
           c.Margin = new Thickness(0, 0, 0, 8);
-          row++;
         }
       }
 
@@ -1452,8 +1434,70 @@ namespace OmenSuperHub.Pages {
         try { uvCapable = Services.AmdUndervoltService.Instance.IsAvailable; } catch { uvCapable = false; }
       }
       AmdUndervoltCard.Visibility = uvCapable ? Visibility.Visible : Visibility.Collapsed;
-      // Intel XTU 超频卡 — 仅 Intel 机型可见(经 XTU3SERVICE 服务控制每核倍频/电压偏移)
-      CpuOcCard.Visibility = hasIntel ? Visibility.Visible : Visibility.Collapsed;
+      ApplyPrefetcherCardVisibility();
+    }
+
+    // 预取器卡片:仅 Intel 且 0x1A4 探测通过。后台 InitializeAsync 完成后再次调用以展开。
+    void ApplyPrefetcherCardVisibility() {
+      bool capable = ConfigService.DebugShowAllUi
+        || (_hasIntelCpu && _intelTune != null && _intelTune.HasPrefetcher);
+      PrefetcherCard.Visibility = capable ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    void StartPrefetcherInit() {
+      if (_prefetcherInitStarted) return;
+      _prefetcherInitStarted = true;
+      _ = InitPrefetcherAsync();
+    }
+
+    async System.Threading.Tasks.Task InitPrefetcherAsync() {
+      try {
+        if (!_hasIntelCpu && !ConfigService.DebugShowAllUi) return;
+        var svc = new Services.XtuService();
+        bool ok = await svc.InitializeAsync();
+        if (!ok || !svc.HasPrefetcher) { svc.Dispose(); return; }
+        // 页面可能已 Unloaded(Instance=null / _intelTune 被替换) — 丢弃过期实例
+        if (Instance != this) { svc.Dispose(); return; }
+        _intelTune?.Dispose();
+        _intelTune = svc;
+        await Dispatcher.BeginInvoke(() => {
+          ApplyPrefetcherCardVisibility();
+          LoadPrefetcherState();
+          // 预取器卡此时才变 Visible,改变了 LayoutPerfGrid 的可见卡序列 —
+          // 不重排的话本卡停留在 XAML 静态格位,与重排后的既有卡同格叠加。
+          if (_perfExpanded) ExpandPerfGrids(); else CollapsePerfGrids();
+        });
+      } catch (Exception ex) { Logger.Verbose($"[PrefetcherInit] {ex.Message}"); }
+    }
+
+    void LoadPrefetcherState() {
+      int hwMask = _intelTune?.TryGetPrefetcherMask() ?? -1;
+      int mask = hwMask >= 0 ? hwMask : ConfigService.IntelPrefetcherMask;
+      _loading = true;
+      try {
+        // 开关 IsChecked=true = 预取器启用(位=0);位 1 = 禁用
+        PrefetcherL2HwToggle.IsChecked   = (mask & (1 << 0)) == 0;
+        PrefetcherL2AdjToggle.IsChecked  = (mask & (1 << 1)) == 0;
+        PrefetcherDcuToggle.IsChecked    = (mask & (1 << 2)) == 0;
+        PrefetcherDcuIpToggle.IsChecked  = (mask & (1 << 3)) == 0;
+      } finally { _loading = false; }
+    }
+
+    void PrefetcherToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading || _intelTune == null || !_intelTune.HasPrefetcher) return;
+      int mask = Services.XtuService.EncodePrefetcherMask(
+        PrefetcherL2HwToggle.IsChecked != true,
+        PrefetcherL2AdjToggle.IsChecked != true,
+        PrefetcherDcuToggle.IsChecked != true,
+        PrefetcherDcuIpToggle.IsChecked != true);
+      bool ok;
+      try { ok = _intelTune.TrySetPrefetcherMask(mask); } catch { ok = false; }
+      if (ok) {
+        ConfigService.IntelPrefetcherMask = mask;
+        ConfigService.Save("IntelPrefetcherMask");
+      }
+      // 失败时不弹窗 — 直接按硬件真值重载开关,弹回即最直观的失败反馈
+      LoadPrefetcherState();
     }
 
     void RefreshHeteroLabels() {
@@ -1650,12 +1694,16 @@ namespace OmenSuperHub.Pages {
     // ── AMD CPU Power Limits (PPT / TDC / EDC) ──
     void AmdCpuPptNum_ValueChanged(object s, RoutedEventArgs e) {
       if (_loading) return;
-      double? v = AmdCpuPptNum.Value; if (v == null) return;
-      int watts = (int)v;
-      ConfigService.AmdCpuPpt = watts; ConfigService.Save("AmdCpuPpt");
-      // ponytail: PPT 走 WMI（SMU 兜底已随高级调教删除；本机不可用）
-      bool pptOk = watts <= 255 && SetCpuPowerLimit((byte)watts);
-      AmdCpuPowerStatus.Text = pptOk ? $"PPT={watts}W ✓" : "WMI 写入失败";
+      _loading = true;
+      try {
+        double? v = AmdCpuPptNum.Value; if (v == null) return;
+        int watts = (int)v;
+        ConfigService.AmdCpuPpt = watts; ConfigService.Save("AmdCpuPpt");
+        SelectComboByTag(AmdPptCombo, watts); // NumberBox 直改时 combo 跟随(0 会命中 NotSet)
+        // ponytail: PPT 走 WMI（SMU 兜底已随高级调教删除；本机不可用）
+        bool pptOk = watts <= 255 && SetCpuPowerLimit((byte)watts);
+        AmdCpuPowerStatus.Text = pptOk ? $"PPT={watts}W ✓" : "WMI 写入失败";
+      } finally { _loading = false; }
     }
 
     // ── AMD Curve Optimizer 全核降压 (SMU 直写) ──
@@ -1668,14 +1716,20 @@ namespace OmenSuperHub.Pages {
       ConfigService.AmdCpuUndervolt = offset; ConfigService.Save("AmdCpuUndervolt");
       AmdUndervoltStatus.Text = $"CO={offset} …";
       System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-        var svc = Services.AmdUndervoltService.Instance;
-        if (!svc.IsAvailable) {
-          Dispatcher.Invoke(() => AmdUndervoltStatus.Text = "SMU 不可用");
-          return;
-        }
-        var st = svc.SetAllCoreCO(offset);
-        Dispatcher.Invoke(() => AmdUndervoltStatus.Text = st == Services.SmuStatus.Ok
-          ? $"CO={offset} ✓" : $"CO={offset} 失败 ({st})");
+        // R15/BUG-D3: PawnIO ioctl 与 Dispatcher.Invoke(窗口关闭后)均可抛 —— 线程池裸奔
+        // 即终止进程。work 体兜底,UI 回写段再各自防"页面已卸载"。
+        try {
+          var svc = Services.AmdUndervoltService.Instance;
+          if (!svc.IsAvailable) {
+            try { Dispatcher.Invoke(() => AmdUndervoltStatus.Text = "SMU 不可用"); } catch { }
+            return;
+          }
+          var st = svc.SetAllCoreCO(offset);
+          try {
+            Dispatcher.Invoke(() => AmdUndervoltStatus.Text = st == Services.SmuStatus.Ok
+              ? $"CO={offset} ✓" : $"CO={offset} 失败 ({st})");
+          } catch { }
+        } catch (Exception ex) { Logger.Error($"AmdUndervolt apply: {ex.Message}"); }
       });
     }
 
@@ -1891,20 +1945,25 @@ namespace OmenSuperHub.Pages {
         applyBtn.IsEnabled = false; resetBtn.IsEnabled = false; batchApplyBtn.IsEnabled = false;
         // 后台线程逐核写 SMU,完成后保持弹窗打开
         System.Threading.ThreadPool.QueueUserWorkItem(_ => {
-          var svc = Services.AmdUndervoltService.Instance;
-          if (!svc.IsAvailable) {
-            Dispatcher.Invoke(() => {
-              status.Text = "SMU 不可用,配置已保存";
-              applyBtn.IsEnabled = true; resetBtn.IsEnabled = true; batchApplyBtn.IsEnabled = true;
-            });
-            return;
-          }
-          int ok = svc.ApplyPerCoreCO(offsets);
-          Dispatcher.Invoke(() => {
-            status.Text = ok == offsets.Count ? $"已应用 {ok}/{offsets.Count} 核 ✓ (可继续调整)"
-                                              : $"部分失败 {ok}/{offsets.Count} (可重试)";
-            applyBtn.IsEnabled = true; resetBtn.IsEnabled = true; batchApplyBtn.IsEnabled = true;
-          });
+          // R15/BUG-D4: 同 D3 —— PawnIO 写与弹窗关闭后的 Dispatcher.Invoke 均可抛,兜底防终止进程。
+          try {
+            var svc = Services.AmdUndervoltService.Instance;
+            if (!svc.IsAvailable) {
+              try { Dispatcher.Invoke(() => {
+                status.Text = "SMU 不可用,配置已保存";
+                applyBtn.IsEnabled = true; resetBtn.IsEnabled = true; batchApplyBtn.IsEnabled = true;
+              }); } catch { }
+              return;
+            }
+            int ok = svc.ApplyPerCoreCO(offsets);
+            try {
+              Dispatcher.Invoke(() => {
+                status.Text = ok == offsets.Count ? $"已应用 {ok}/{offsets.Count} 核 ✓ (可继续调整)"
+                                                  : $"部分失败 {ok}/{offsets.Count} (可重试)";
+                applyBtn.IsEnabled = true; resetBtn.IsEnabled = true; batchApplyBtn.IsEnabled = true;
+              });
+            } catch { }
+          } catch (Exception ex) { Logger.Error($"ApplyPerCoreCO: {ex.Message}"); }
         });
       };
 
@@ -2171,10 +2230,10 @@ namespace OmenSuperHub.Pages {
 
     // ──────── PerfPage Preset System ────────
     // ponytail: unified with Dashboard's PresetManager (Extreme/GpuPriority/LightUse/Custom1-3).
-    // Switching/ saving here calls PresetManager, which fires OnPresetChanged → OnPresetChanged → LoadStateFast.
-    // CapturePreset/ApplyPreset(PerfPreset) retained only for snapshot/undo (btnPerfUndo).
+    // Switching/ saving here calls PresetManager, which fires OnPresetChanged → ReloadUiSuppressed.
+    // 保存前的撤销快照直接复用 PresetManager 的配置级管线(CaptureCurrent/ApplyPresetData)。
 
-    Models.PerfPreset _snapshot;
+    PresetData _snapshot;
 
     // ponytail: dynamic — built-ins + enumerated custom preset files
     void RefreshPresetList() {
@@ -2192,106 +2251,6 @@ namespace OmenSuperHub.Pages {
       cbxPerfPreset.SelectedIndex = idx >= 0 ? idx : 1;
       _loading = false;
     }
-
-    Models.PerfPreset CapturePreset() {
-      return new Models.PerfPreset {
-        CpuPowerIndex = CpuPowerCombo.SelectedIndex,
-        CpuPowerPL1 = CpuPowerPL1Num.Value ?? 0,
-        CpuPowerPL2 = CpuPowerPL2Num.Value ?? 0,
-        IccMaxIndex = IccMaxCombo.SelectedIndex,
-        IccMax = IccMaxNum.Value ?? 0,
-        AcLoadLineIndex = AcLoadLineCombo.SelectedIndex,
-        PowerModeIndex = PowerModeCombo.SelectedIndex,
-        PowerPlanIndex = PowerPlanCombo.SelectedIndex,
-        PwrSourceIndex = PwrSourceCombo.SelectedIndex,
-        PwrClassIndex = PwrClassCombo.SelectedIndex,
-        EppIndex = EppCombo.SelectedIndex,
-        EppText = EppCombo.Text,
-        BoostModeIndex = BoostModeCombo.SelectedIndex,
-        MaxProcStateIndex = MaxProcStateCombo.SelectedIndex,
-        MaxProcStateText = MaxProcStateCombo.Text,
-        MinProcStateIndex = MinProcStateCombo.SelectedIndex,
-        MinProcStateText = MinProcStateCombo.Text,
-        MaxFreqIndex = MaxFreqCombo.SelectedIndex,
-        MaxFreqText = MaxFreqCombo.Text,
-        SmtPolicyIndex = SmtPolicyCombo.SelectedIndex,
-        EcoQosOn = EcoQosToggle.IsChecked ?? false,
-        EcoQosThrottlePlugged = EcoQosThrottlePluggedToggle.IsChecked ?? false,
-        GpuClockIndex = GpuClockCombo.SelectedIndex,
-        GpuClock = GpuClockNum.Value ?? 0,
-        GpuCoreOCIndex = GpuCoreOCCombo.SelectedIndex,
-        GpuCoreOC = GpuCoreOCNum.Value ?? 0,
-        GpuMemoryOCIndex = GpuMemoryOCCombo.SelectedIndex,
-        GpuMemoryOC = GpuMemoryOCNum.Value ?? 0,
-        GfxModeIndex = GfxModeCombo.SelectedIndex,
-        DbVersionIndex = DbVersionCombo.SelectedIndex,
-        CtgpIndex = CtgpCombo.SelectedIndex,
-        PpabOn = PpabCheck.IsChecked ?? false,
-        Tpp = TppNum.Value ?? 0,
-        DStateIndex = DStateCombo.SelectedIndex,
-        FpsIndex = FpsCombo.SelectedIndex,
-        Fps = FpsNum.Value ?? 0,
-        RefreshRateIndex = RefreshRateCombo.SelectedIndex,
-        RefreshRate = RefreshRateNum.Value ?? 0,
-        ResolutionIndex = ResolutionCombo.SelectedIndex,
-        DpiIndex = DpiCombo.SelectedIndex,
-        HdrOn = HdrToggle.IsChecked ?? false,
-      };
-    }
-
-    void ApplyPreset(Models.PerfPreset p) {
-      _loading = true;
-      CpuPowerCombo.SelectedIndex = Clamp(p.CpuPowerIndex, 0, CpuPowerCombo.Items.Count - 1);
-      CpuPowerPL1Num.Value = p.CpuPowerPL1;
-      CpuPowerPL2Num.Value = p.CpuPowerPL2;
-      IccMaxCombo.SelectedIndex = Clamp(p.IccMaxIndex, 0, IccMaxCombo.Items.Count - 1);
-      IccMaxNum.Value = p.IccMax;
-      IccMaxSlider.Value = p.IccMax > 0 ? p.IccMax : 0;
-      AcLoadLineCombo.SelectedIndex = Clamp(p.AcLoadLineIndex, 0, AcLoadLineCombo.Items.Count - 1);
-      PowerModeCombo.SelectedIndex = Clamp(p.PowerModeIndex, 0, PowerModeCombo.Items.Count - 1);
-      PowerPlanCombo.SelectedIndex = Clamp(p.PowerPlanIndex, 0, PowerPlanCombo.Items.Count - 1);
-      PwrSourceCombo.SelectedIndex = Clamp(p.PwrSourceIndex, 0, PwrSourceCombo.Items.Count - 1);
-      PwrClassCombo.SelectedIndex = Clamp(p.PwrClassIndex, 0, PwrClassCombo.Items.Count - 1);
-      EppCombo.SelectedIndex = Clamp(p.EppIndex, 0, EppCombo.Items.Count - 1);
-      if (!string.IsNullOrEmpty(p.EppText)) EppCombo.Text = p.EppText;
-      BoostModeCombo.SelectedIndex = Clamp(p.BoostModeIndex, 0, BoostModeCombo.Items.Count - 1);
-      MaxProcStateCombo.SelectedIndex = Clamp(p.MaxProcStateIndex, 0, MaxProcStateCombo.Items.Count - 1);
-      if (!string.IsNullOrEmpty(p.MaxProcStateText)) MaxProcStateCombo.Text = p.MaxProcStateText;
-      MinProcStateCombo.SelectedIndex = Clamp(p.MinProcStateIndex, 0, MinProcStateCombo.Items.Count - 1);
-      if (!string.IsNullOrEmpty(p.MinProcStateText)) MinProcStateCombo.Text = p.MinProcStateText;
-      MaxFreqCombo.SelectedIndex = Clamp(p.MaxFreqIndex, 0, MaxFreqCombo.Items.Count - 1);
-      if (!string.IsNullOrEmpty(p.MaxFreqText)) MaxFreqCombo.Text = p.MaxFreqText;
-      SmtPolicyCombo.SelectedIndex = Clamp(p.SmtPolicyIndex, 0, SmtPolicyCombo.Items.Count - 1);
-      if (EcoQosToggle.IsChecked != p.EcoQosOn) EcoQosToggle.IsChecked = p.EcoQosOn;
-      if (EcoQosThrottlePluggedToggle.IsChecked != p.EcoQosThrottlePlugged) EcoQosThrottlePluggedToggle.IsChecked = p.EcoQosThrottlePlugged;
-      GpuClockCombo.SelectedIndex = Clamp(p.GpuClockIndex, 0, GpuClockCombo.Items.Count - 1);
-      GpuClockNum.Value = p.GpuClock;
-      GpuClockSlider.Value = p.GpuClock > 0 ? p.GpuClock : 0;
-      GpuCoreOCCombo.SelectedIndex = Clamp(p.GpuCoreOCIndex, 0, GpuCoreOCCombo.Items.Count - 1);
-      GpuCoreOCNum.Value = p.GpuCoreOC;
-      GpuCoreOCSlider.Value = p.GpuCoreOC;
-      GpuMemoryOCCombo.SelectedIndex = Clamp(p.GpuMemoryOCIndex, 0, GpuMemoryOCCombo.Items.Count - 1);
-      GpuMemoryOCNum.Value = p.GpuMemoryOC;
-      GpuMemoryOCSlider.Value = p.GpuMemoryOC;
-      GfxModeCombo.SelectedIndex = Clamp(p.GfxModeIndex, 0, GfxModeCombo.Items.Count - 1);
-      DbVersionCombo.SelectedIndex = Clamp(p.DbVersionIndex, 0, DbVersionCombo.Items.Count - 1);
-      CtgpCombo.SelectedIndex = Clamp(p.CtgpIndex, 0, CtgpCombo.Items.Count - 1);
-      if (PpabCheck.IsChecked != p.PpabOn) PpabCheck.IsChecked = p.PpabOn;
-      TppNum.Value = p.Tpp;
-      TppExtraSlider.Value = p.Tpp > 0 ? p.Tpp : 0;
-      DStateCombo.SelectedIndex = Clamp(p.DStateIndex, 0, DStateCombo.Items.Count - 1);
-      FpsCombo.SelectedIndex = Clamp(p.FpsIndex, 0, FpsCombo.Items.Count - 1);
-      FpsNum.Value = p.Fps;
-      FpsSlider.Value = p.Fps > 0 ? p.Fps : 0;
-      RefreshRateCombo.SelectedIndex = Clamp(p.RefreshRateIndex, 0, RefreshRateCombo.Items.Count - 1);
-      RefreshRateNum.Value = p.RefreshRate;
-      ResolutionCombo.SelectedIndex = Clamp(p.ResolutionIndex, 0, ResolutionCombo.Items.Count - 1);
-      DpiCombo.SelectedIndex = Clamp(p.DpiIndex, 0, DpiCombo.Items.Count - 1);
-      if (HdrToggle.IsChecked != p.HdrOn) HdrToggle.IsChecked = p.HdrOn;
-      _loading = false;
-    }
-
-    static int Clamp(int v, int lo, int hi) => v < lo ? lo : v > hi ? hi : v;
 
     void cbxPerfPreset_SelectionChanged(object sender, SelectionChangedEventArgs e) {
       if (_loading) return;
@@ -2311,7 +2270,9 @@ namespace OmenSuperHub.Pages {
     void btnPerfSave_Click(object sender, RoutedEventArgs e) {
       // ponytail: snapshot before save so Undo can roll back to pre-save state
       // (absorbs the former btnPerfApply's snapshot duty — Apply button removed).
-      _snapshot = CapturePreset();
+      // 配置级快照走 PresetManager 现成管线;置位 IsFromCustomSubkey 让 1.2 字段也参与撤销。
+      _snapshot = PresetManager.CaptureCurrent();
+      _snapshot.IsFromCustomSubkey = true;
       // ponytail: always saveable — creates a new custom preset from current settings
       string name = tbxPerfPresetName.Text?.Trim();
       string presetKey;
@@ -2345,10 +2306,7 @@ namespace OmenSuperHub.Pages {
     }
 
     void btnPerfLoad_Click(object sender, RoutedEventArgs e) {
-      _loading = true;
-      LoadStateFast();
-      try { LoadStateDeferred(); } catch { }
-      _loading = false;
+      ReloadUiSuppressed();
       // ponytail: previously Reload only updated UI sliders while _loading=true
       // suppressed every *_ValueChanged handler → sliders moved, hardware
       // never got the new values. Reapply via PresetManager so the load button
@@ -2379,34 +2337,37 @@ namespace OmenSuperHub.Pages {
     }
 
     void btnPerfUndo_Click(object sender, RoutedEventArgs e) {
-      // 如果有 Apply 快照，优先回滚到快照；否则恢复到默认预设并清空自定义预设
+      // 有保存前快照:回滚配置并重放硬件;否则恢复到默认预设并清空自定义预设
       if (_snapshot != null) {
 	        if (!DialogHelper.OkCancel(
 	          Strings.PerfUndoApplyMsg, Strings.PerfUndoApplyTitle)) return;
-        ApplyPreset(_snapshot);
+        // ponytail: 走 PresetManager 配置级管线(CaptureCurrent/ApplyPresetData),撤销同时
+        // 回写配置与硬件;ApplyPresetHardware 内部已含 ApplyAdvanced(AMD PPT/CO)与风扇重放。
+        // ceiling: 覆盖 1.1+1.2 预设绑定字段;显示类(分辨率/DPI/HDR/GfxMode/DB)不在快照;
+        // PowerPlanGuid 只写配置不重新激活 OS 计划(与预设切换同款缺口);
+        // 当前预设为内置时 1.2 硬件重放会被门控跳过(保存即切自定义,主流程不受影响)。
+        PresetManager.ApplyPresetData(_snapshot);
+        if (Application.Current.MainWindow is Views.MainWindow mainWindow)
+          mainWindow.ApplyPresetHardware();
+        ReloadUiSuppressed();
         _snapshot = null;
-        Log("btnPerfUndo: reverted to snapshot");
+        Log("btnPerfUndo: reverted config+hardware to pre-save snapshot");
         return;
       }
 
 	      if (!DialogHelper.OkCancel(
 	        Strings.PerfResetDefaultsMsg, Strings.PerfResetDefaultsTitle)) return;
 
-      // 1. 切换到 GpuPriority 内置预设
+      // 1. 切换到 GpuPriority 内置预设(内部经 OnPresetChanged → ReloadUiSuppressed 同步 UI)
       PresetManager.SwitchPreset("GpuPriority");
       // 2. 删除所有自定义预设文件
       foreach (var (_, key) in PresetManager.EnumerateCustomPresets()) {
         PresetManager.DeleteCustomPreset(key);
       }
-      // 3. 应用硬件
-      if (Application.Current.MainWindow is Views.MainWindow mainWindow)
-        mainWindow.ApplyPresetHardware();
-      // 4. 刷新 UI
+      // 3. 应用硬件 + 刷新预设列表
+      if (Application.Current.MainWindow is Views.MainWindow mainWin)
+        mainWin.ApplyPresetHardware();
       RefreshPresetList();
-      _loading = true;
-      LoadStateFast();
-      try { LoadStateDeferred(); } catch { }
-      _loading = false;
       _snapshot = null;
       Log("btnPerfUndo: restored GpuPriority, cleared custom presets");
     }

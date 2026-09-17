@@ -7,7 +7,6 @@ public class IntelMsr
     private readonly long[] _inArray = new long[1];
     private readonly long[] _writeArray = new long[2];
     private readonly PawnIo _pawnIO = PawnIo.LoadModuleFromResource(typeof(IntelMsr).Assembly, $"{nameof(LibreHardwareMonitor)}.Resources.PawnIO.IntelMSR.bin");
-
     public bool ReadMsr(uint index, out ulong value)
     {
         _inArray[0] = index;
@@ -65,6 +64,16 @@ public class IntelMsr
         {
             return false;
         }
+    }
+
+    // Execute 会吞掉模块返回的 NTSTATUS（如白名单外写入的 ACCESS_DENIED）并静默返回，
+    // 导致写失败与写成功无法区分；此版本透传 HRESULT 供调用方判定真实写入结果。
+    public bool WriteMsrChecked(uint index, ulong value, out int hr)
+    {
+        _writeArray[0] = index;
+        _writeArray[1] = (long)value;
+        hr = _pawnIO.ExecuteHr("ioctl_write_msr", _writeArray, 2, new long[0], 0, out _);
+        return hr == 0;
     }
 
     public void Close() => _pawnIO.Close();

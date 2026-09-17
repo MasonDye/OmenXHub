@@ -47,13 +47,16 @@ namespace OmenSuperHub.Services {
       // followed by union
     }
 
+    // ponytail: winnt.h 真实布局是 Flags@0 EfficiencyClass@1 Reserved[20]@2 GroupCount(WORD)@22，
+    // GROUP_AFFINITY[] 从 @24 起。旧声明把 GroupCount 放在 @4（读到保留字节 0 → 循环零次、
+    // 本路径恒空），偏移注释见 CpuAffinity/AffinityTopology.EnumerateEx 同一族修复。
     [StructLayout(LayoutKind.Sequential)]
     struct PROCESSOR_RELATIONSHIP {
       public byte Flags; // bit 0 = SMT
       public byte EfficiencyClass;
-      public byte Reserved1;
-      public byte Reserved2;
-      public int GroupCount;
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = 20)]
+      public byte[] Reserved;
+      public ushort GroupCount;
       // followed by GROUP_AFFINITY[GroupCount]
     }
 
@@ -66,6 +69,8 @@ namespace OmenSuperHub.Services {
       public ushort Reserved3;
     }
 
+    // winnt.h: Level@0 Assoc@1 LineSize@2 CacheSize@4 Type@8 Reserved@12 GROUP_AFFINITY@16。
+    // 旧版漏声明 Reserved，SizeOf=12 让 GROUP_AFFINITY 偏移手算错 4 字节。
     [StructLayout(LayoutKind.Sequential)]
     struct CACHE_RELATIONSHIP {
       public byte Level;
@@ -73,13 +78,16 @@ namespace OmenSuperHub.Services {
       public ushort LineSize;
       public int CacheSize;
       public int Type; // CACHE_TYPE
-      // followed by GROUP_AFFINITY[GroupCount]
+      public uint Reserved;
+      public GROUP_AFFINITY GroupAffinity;
     }
 
+    // winnt.h: NodeNumber(DWORD) + GROUP_AFFINITY(@8 对齐,即偏移 8)。声明带 GroupAffinity
+    // 字段让 Marshal 自动补对齐 pad —— 旧版只声明 uint 再手算 SizeOf 会得 12,漏掉 4 字节 pad。
     [StructLayout(LayoutKind.Sequential)]
     struct NUMA_NODE_RELATIONSHIP {
       public uint NodeNumber;
-      // followed by GROUP_AFFINITY[GroupCount]
+      public GROUP_AFFINITY GroupAffinity;
     }
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -91,25 +99,39 @@ namespace OmenSuperHub.Services {
         IntPtr info, int infoLength, out int returnedLength,
         IntPtr process, uint flags);
 
-    // ponytail: FieldInitializers=`=0` silence CS0649 — fields are populated via Marshal.PtrToStructure<T>,
-    // which the compiler can't see. Layout is preserved (same blittable struct).
-    struct SYSTEM_CPU_SET_INFORMATION {
-      public uint Size = 0;
-      public short CpuSetId = 0;     // Actually ushort but we use short for alignment
-      public short Group = 0;
-      public byte LogicalProcessorIndex = 0;
-      public byte CoreIndex = 0;
-      public byte EfficiencyClass = 0;
-      public byte Reserved = 0;
-      public ulong AllFlags = 0;     // bit 0 = SMT, bit 1 = Parked, bit 2 = Allocated
-      public short RealTimeBudget = 0;
-      public short Reserved2 = 0;
-      public int Reserved3 = 0;
-      public SYSTEM_CPU_SET_INFORMATION() { }
+    // ponytail: 直接按 winnt.h 固定偏移读 (SYSTEM_CPU_SET_INFORMATION: Size@0 Type@4,
+    // union: Id@8 Group@12 LPI@14 CoreIndex@15 LLC@16 NumaNode@17 EfficiencyClass@18
+    // AllFlags@19)。旧声明字段序与原生布局错位(且注释"bit0=SMT"实为 RealTime 位),
+    // Type 又误读偏移 0 的 Size —— 本路径曾恒返回空。偏移族与 CpuAffinity/AffinityTopology
+    // .QueryCpuSetEfficiency 同一基准实现。
+    static List<(int Lpi, int Core, byte Eff)> GetSystemCpuSets() {
+      var result = new List<(int Lpi, int Core, byte Eff)>();
+      int bufSize = 0;
+      GetSystemCpuSetInformation(IntPtr.Zero, 0, out bufSize, IntPtr.Zero, 0);
+      if (bufSize <= 0) return result;
+      IntPtr buf = Marshal.AllocHGlobal(bufSize);
+      try {
+        if (!GetSystemCpuSetInformation(buf, bufSize, out bufSize, IntPtr.Zero, 0))
+          return result;
+        int offset = 0;
+        while (offset + 20 <= bufSize) {
+          uint size = (uint)Marshal.ReadInt32(buf, offset);
+          if (size == 0) break;
+          if (Marshal.ReadInt32(buf, offset + 4) == 0) {   // Type == CpuSetInformation
+            ushort group = (ushort)Marshal.ReadInt16(buf, offset + 12);
+            int lpi = Marshal.ReadByte(buf, offset + 14);
+            int core = Marshal.ReadByte(buf, offset + 15);
+            byte eff = Marshal.ReadByte(buf, offset + 18);
+            if (group == 0 && lpi < 64) result.Add((lpi, core, eff));
+          }
+          offset += (int)size;
+        }
+        result.Sort((a, b) => a.Lpi.CompareTo(b.Lpi));
+        // CPU Set 不可信/不完整时交给调用方走 EX fallback（同 AffinityTopology 守卫）
+        if (result.Count < Math.Min(Environment.ProcessorCount, 64)) result.Clear();
+      } finally { Marshal.FreeHGlobal(buf); }
+      return result;
     }
-
-    const int CpuSetInformationType = 2;
-
     /// <summary>获取完整核心拓扑。结果已缓存，首次调用约 1ms。</summary>
     public static List<CoreInfo> GetCores() {
       if (_cachedCores != null) return _cachedCores;
@@ -143,15 +165,17 @@ namespace OmenSuperHub.Services {
         // 方法1: GetSystemCpuSetInformation (Win10+, 最精确的 CPU 拓扑)
         var cpuSets = GetSystemCpuSets();
         if (cpuSets.Count > 0) {
-          // CPU set 已经包含所有信息: 组、核心索引、效率等级、SMT 状态
-          for (int i = 0; i < cpuSets.Count; i++) {
-            var cs = cpuSets[i];
+          // SMT 兄弟 = 同一 CoreIndex 出现多次;首现线程标非 SMT,后续标 SMT。
+          // (旧实现用 AllFlags bit0,那是 RealTime 位不是 SMT 位,恒 false。)
+          var seen = new HashSet<int>();
+          foreach (var cs in cpuSets) {
+            bool isSmt = !seen.Add(cs.Core);
             cores.Add(new CoreInfo {
-              LogicalIndex = i,
-              Group = cs.Group,
-              CoreIndex = cs.CoreIndex,
-              EfficiencyClass = cs.EfficiencyClass > 0 ? cs.EfficiencyClass : 0,
-              IsSmt = (cs.AllFlags & 1) != 0,
+              LogicalIndex = cs.Lpi,
+              Group = 0,
+              CoreIndex = cs.Core,
+              EfficiencyClass = cs.Eff,
+              IsSmt = isSmt,
               CcdId = -1,
               CcxId = -1,
               L3CacheId = -1,
@@ -170,7 +194,7 @@ namespace OmenSuperHub.Services {
               cores[i] = c;
             }
           }
-          return cores;
+          return NormalizeEfficiency(cores);
         }
 
         // 方法2: GetLogicalProcessorInformationEx (fallback)
@@ -183,34 +207,30 @@ namespace OmenSuperHub.Services {
         for (int i = 0; i < Environment.ProcessorCount; i++)
           cores.Add(new CoreInfo { LogicalIndex = i, CoreIndex = i, EfficiencyClass = 0, IsSmt = false });
       }
+      return NormalizeEfficiency(cores);
+    }
+
+    /// <summary>把 raw EfficiencyClass 归一为 CoreInfo 文档约定(0=P/最高级,1+=E)。
+    /// Windows 原生 class 数值方向与 CoreInfo 约定相反(本机 14650HX 实测:E 报 0、P 报最大值;
+    /// AffinityTopology 按"max=P"分类且经真机验证,SelfCheck 的 oracle 交叉比对即抓出过
+    /// 不归一导致的 P/E 计数翻转)。单一 class 时归一为恒 0(全 P),非 hybrid 语义不变。</summary>
+    static List<CoreInfo> NormalizeEfficiency(List<CoreInfo> cores) {
+      if (cores.Count == 0) return cores;
+      int max = 0;
+      foreach (var c in cores) max = Math.Max(max, c.EfficiencyClass);
+      if (max == 0) return cores;
+      for (int i = 0; i < cores.Count; i++) {
+        var c = cores[i];
+        c.EfficiencyClass = max - c.EfficiencyClass;
+        cores[i] = c;
+      }
       return cores;
     }
 
-    static List<(short Group, short CoreIndex, byte EfficiencyClass, ulong AllFlags)> GetSystemCpuSets() {
-      var result = new List<(short, short, byte, ulong)>();
-      int bufSize = 0;
-      GetSystemCpuSetInformation(IntPtr.Zero, 0, out bufSize, IntPtr.Zero, 0);
-      if (bufSize <= 0) return result;
-      IntPtr buf = Marshal.AllocHGlobal(bufSize);
-      try {
-        if (!GetSystemCpuSetInformation(buf, bufSize, out bufSize, IntPtr.Zero, 0))
-          return result;
-        int offset = 0;
-        while (offset < bufSize) {
-          var header = Marshal.PtrToStructure<SYSTEM_CPU_SET_INFORMATION>(IntPtr.Add(buf, offset));
-          if (header.Size == 0) break;
-          // CPU set type ID 在结构体开头前4字节 — 我们读 Size 前的 Type 字段
-          int type = Marshal.ReadInt32(IntPtr.Add(buf, offset));
-          if (type == CpuSetInformationType) {
-            result.Add(((short)header.Group, (short)header.CoreIndex, header.EfficiencyClass, header.AllFlags));
-          }
-          offset += (int)header.Size;
-        }
-      } finally { Marshal.FreeHGlobal(buf); }
-      return result;
-    }
-
     static List<CoreInfo> DetectFromLogicalProcessorInfo() {
+      // ponytail: 降级路径 —— 仅当 GetSystemCpuSetInformation 不可用时触发(现方法1已修好,
+      // 常态不走)。logIdx=累加器假设单处理器组且掩码位连续(笔记本恒成立);跨组机型
+      // 位号会错位,但 ThreadBindingService 也只处理 group0,故接受此边界不额外修。
       var cores = new List<CoreInfo>();
       var smtFlags = new HashSet<int>(); // 哪些逻辑索引是 SMT
       var efficiencyMap = new Dictionary<int, int>(); // 逻辑索引 → 效率等级
@@ -297,9 +317,9 @@ namespace OmenSuperHub.Services {
                 IntPtr.Add(buf, offset + Marshal.SizeOf<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>()));
             int affOffset = offset + Marshal.SizeOf<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>()
                 + Marshal.SizeOf<NUMA_NODE_RELATIONSHIP>();
-            var aff = Marshal.PtrToStructure<GROUP_AFFINITY>(IntPtr.Add(buf, affOffset));
+            var numaAff = numa.GroupAffinity;   // 结构体自带对齐 pad,不再手算偏移
             for (int bit = 0; bit < 64; bit++) {
-              if ((aff.Mask & (1UL << bit)) != 0)
+              if ((numaAff.Mask & (1UL << bit)) != 0)
                 map[bit] = (int)numa.NodeNumber;
             }
           }
@@ -330,11 +350,9 @@ namespace OmenSuperHub.Services {
             var cache = Marshal.PtrToStructure<CACHE_RELATIONSHIP>(
                 IntPtr.Add(buf, offset + Marshal.SizeOf<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>()));
             if (cache.Level == 3) {
-              int affOffset = offset + Marshal.SizeOf<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>()
-                  + Marshal.SizeOf<CACHE_RELATIONSHIP>();
-              var aff = Marshal.PtrToStructure<GROUP_AFFINITY>(IntPtr.Add(buf, affOffset));
+              var cacheAff = cache.GroupAffinity;   // 结构体自带对齐 pad,不再手算偏移
               for (int bit = 0; bit < 64; bit++) {
-                if ((aff.Mask & (1UL << bit)) != 0)
+                if ((cacheAff.Mask & (1UL << bit)) != 0)
                   map[bit] = l3Id;
               }
               l3Id++;

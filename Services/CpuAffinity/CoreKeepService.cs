@@ -1,6 +1,6 @@
 // CpuAffinity/CoreKeepService.cs - 兼容层 + 自动应用 + 守护 + 监控 + 竞速
 // 保留旧 CoreKeepEntry/CoreKeepData 兼容旧 CoreKeep.json
-// 内部用 RuleEngine + EnforcementService + CpuTopologyService 新架构
+// 内部用 RuleEngine + EnforcementService + AffinityTopology 新架构
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -88,7 +88,7 @@ namespace OmenSuperHub.Services.CpuAffinity {
     static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CoreKeep.json");
     static readonly string BenchPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CoreKeepBench.json");
 
-    static readonly CpuTopologyService _topoService = new CpuTopologyService();
+    static readonly AffinityTopology _topoService = new AffinityTopology();
     static readonly JobObjectManager _jobManager = new JobObjectManager();
     static readonly EnforcementService _enforcement = new EnforcementService(_topoService, _jobManager);
     static readonly RuleEngine _ruleEngine = new RuleEngine();
@@ -143,80 +143,131 @@ namespace OmenSuperHub.Services.CpuAffinity {
           var ser = new DataContractJsonSerializer(typeof(CoreKeepData));
           return (CoreKeepData)ser.ReadObject(fs) ?? new CoreKeepData();
         }
-      } catch { return new CoreKeepData(); }
+      } catch (Exception ex) {
+        // ponytail: 静默降级空数据是数据丢失前兆（下次 Save 会覆盖），至少留痕
+        Logger.Warn("[CoreKeepService] Load failed, fallback to empty config: " + ex.Message);
+        return new CoreKeepData();
+      }
     }
 
     public static void Save(CoreKeepData data) {
-      using (var fs = File.Create(ConfigPath)) {
+      try {
         var ser = new DataContractJsonSerializer(typeof(CoreKeepData));
-        ser.WriteObject(fs, data);
+        using (var ms = new MemoryStream()) {
+          ser.WriteObject(ms, data);
+          // ponytail: net481 无 File.Move(overwrite) —— temp + Replace 原子换入（同 MacroService.Save）；
+          // File.Create 先截断再写，半途抛异常会留半截 json，Load 降级空数据后规则被覆盖。
+          string tmp = ConfigPath + ".tmp";
+          File.WriteAllBytes(tmp, ms.ToArray());
+          if (File.Exists(ConfigPath)) File.Replace(tmp, ConfigPath, null);
+          else File.Move(tmp, ConfigPath);
+        }
+      } catch (Exception ex) {
+        Logger.Error("[CoreKeepService] Save failed: " + ex.Message);
       }
-      // ponytail: 保存后同步规则引擎
+      // ponytail: 保存后同步规则引擎（写盘失败也同步，运行时规则不受磁盘影响）
       SyncRuleEngine(data);
+    }
+
+    /// <summary>把 CoreKeepData 转换为 RuleEntry 列表。forceEnabled=true 时忽略条目启用位（RelaxAll 恢复用）。</summary>
+    static List<RuleEntry> BuildRules(CoreKeepData data, bool forceEnabled) {
+      var rules = new List<RuleEntry>();
+      if (data?.Entries == null) return rules;
+      int i = 0;
+      foreach (var e in data.Entries) {
+        if (!e.Enabled && !forceEnabled) { i++; continue; }
+        rules.Add(new RuleEntry {
+          Id = $"corekeep-{i}",
+          Name = e.ProcessName ?? "",
+          Enabled = true,
+          Match = new RuleMatch {
+            Process = e.ProcessName ?? "",
+            Path = e.PathFilter,
+            Exclude = e.ExcludePatterns
+          },
+          Action = ToRuleAction(e)
+        });
+        i++;
+      }
+      return rules;
+    }
+
+    /// <summary>CoreKeepEntry → 规则动作。Manual/custom 归一为 custom + AffinityMask 十六进制，
+    /// 否则 BuildMask 查无此模式名得掩码 0，规则在守护/立即应用全路径静默失效。</summary>
+    public static RuleAction ToRuleAction(CoreKeepEntry e) {
+      string mode = string.IsNullOrEmpty(e.CoreMode) ? "all-cores" : e.CoreMode;
+      string custom = null;
+      if (mode == "Manual" || mode == "custom") {
+        custom = "0x" + e.AffinityMask.ToString("X");
+        mode = "custom";
+      }
+      return new RuleAction {
+        Mode = mode,
+        Level = string.IsNullOrEmpty(e.EnforcementLevel) ? "hard-affinity" : e.EnforcementLevel,
+        CustomMask = custom,
+        CpuPriority = PriorityToName(e.PriorityClass),
+        MemoryPriority = MemoryPriorityToName(e.MemoryPriority),
+        MainThreadBind = e.MainThreadBind
+      };
+    }
+
+    /// <summary>把自定义亲和掩码钳到有效逻辑核位 (0..totalLogical-1)。钳后为 0
+    /// （输入 mask=0 或全越界位）拒绝——mask=0 对 SetProcessAffinityMask 是非法值,
+    /// 规则会静默死掉;越界高位截断。CoreKeepPage 的 custom mask 输入统一走此入口。</summary>
+    public static bool TryClampAffinityMask(long mask, int totalLogical, out long clamped) {
+      clamped = 0;
+      if (totalLogical < 1 || totalLogical > 64) return false;
+      long valid = totalLogical == 64 ? -1L : (1L << totalLogical) - 1;
+      long m = mask & valid;
+      if (m == 0) return false;
+      clamped = m;
+      return true;
     }
 
     /// <summary>把 CoreKeepData 转换为 RuleEntry 同步到 RuleEngine。</summary>
     static void SyncRuleEngine(CoreKeepData data) {
-      var rules = new List<RuleEntry>();
-      if (data?.Entries != null) {
-        int i = 0;
-        foreach (var e in data.Entries) {
-          if (!e.Enabled) { i++; continue; }
-          rules.Add(new RuleEntry {
-            Id = $"corekeep-{i}",
-            Name = e.ProcessName ?? "",
-            Enabled = e.Enabled,
-            Match = new RuleMatch {
-              Process = e.ProcessName ?? "",
-              Path = e.PathFilter,
-              Exclude = e.ExcludePatterns
-            },
-            Action = new RuleAction {
-              Mode = string.IsNullOrEmpty(e.CoreMode) ? "all-cores" : e.CoreMode,
-              Level = string.IsNullOrEmpty(e.EnforcementLevel) ? "hard-affinity" : e.EnforcementLevel,
-              CpuPriority = PriorityToName(e.PriorityClass),
-              MemoryPriority = MemoryPriorityToName(e.MemoryPriority),
-              MainThreadBind = e.MainThreadBind
-            }
-          });
-          i++;
-        }
-      }
-      _ruleEngine.SetRules(rules);
+      _ruleEngine.SetRules(BuildRules(data, forceEnabled: false));
       // ponytail: IFEO IO 优先级持久化到注册表，无需守护定时器重设（启动时读一次）
       SyncIfeoIoPriority(data);
     }
 
     const string IfeoRoot = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options";
 
-    /// <summary>把所有规则的 IoPriority 同步到 IFEO 注册表。已存在且值相同则跳过。</summary>
+    /// <summary>把所有规则的 IoPriority 同步到 IFEO 注册表。已存在且值相同则跳过。
+    /// master 关闭或条目禁用按 -1 清理已写值；每 exe 聚合，启用条目优先于同名禁用条目。</summary>
     static void SyncIfeoIoPriority(CoreKeepData data) {
       if (data?.Entries == null) return;
+      var perExe = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+      foreach (var e in data.Entries) {
+        if (e == null) continue;
+        string exe = (e.ProcessName ?? "").Trim();
+        if (string.IsNullOrEmpty(exe)) continue;
+        // 规范化：确保带 .exe
+        if (!exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) exe += ".exe";
+        int prio = (data.MasterEnabled && e.Enabled) ? e.IoPriority : -1;
+        if (prio >= 0 || !perExe.ContainsKey(exe)) perExe[exe] = prio;
+      }
       using (var root = Microsoft.Win32.RegistryKey.OpenBaseKey(
         Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry64)) {
-        // 第一遍：收集已处理的 exe 名，避免重复
-        var handled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var e in data.Entries) {
-          if (e == null || !e.Enabled) continue;
-          string exe = (e.ProcessName ?? "").Trim();
-          if (string.IsNullOrEmpty(exe)) continue;
-          // 规范化：确保带 .exe
-          if (!exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) exe += ".exe";
-          if (!handled.Add(exe.ToLowerInvariant())) continue;
-          try { WriteIfeoIoPriority(root, exe, e.IoPriority); } catch { }
+        foreach (var kv in perExe) {
+          try { WriteIfeoIoPriority(root, kv.Key, kv.Value); }
+          catch (Exception ex) { Logger.Warn($"[CoreKeepService] SyncIfeoIoPriority '{kv.Key}': {ex.Message}"); }
         }
       }
     }
 
     static void WriteIfeoIoPriority(Microsoft.Win32.RegistryKey root, string exe, int priority) {
-      using (var key = root.CreateSubKey(IfeoRoot + @"\" + exe, true)) {
-        if (key == null) return;
-        if (priority < 0) {
-          // -1 = 不设置：删除值，若子键空则删除子键
+      if (priority < 0) {
+        // -1 = 清理：键不存在直接返回，不因 CreateSubKey 制造空 IFEO 键
+        using (var key = root.OpenSubKey(IfeoRoot + @"\" + exe, true)) {
+          if (key == null) return;
           key.DeleteValue("IoPriority", false);
           key.Flush();
           // 不主动删子键——其他工具可能也用了这个 IFEO 键
-        } else {
+        }
+      } else {
+        using (var key = root.CreateSubKey(IfeoRoot + @"\" + exe, true)) {
+          if (key == null) return;
           var cur = key.GetValue("IoPriority", null,
             Microsoft.Win32.RegistryValueOptions.DoNotExpandEnvironmentNames);
           if (cur is int existing && existing == priority) return; // 无变化
@@ -395,13 +446,15 @@ namespace OmenSuperHub.Services.CpuAffinity {
       StartGuardTimer(data.GuardIntervalMs);
     }
 
-    public static void StopAutoApply() {
+    public static void StopAutoApply(bool waitForRelax = false) {
       StopGuardTimer();
-      // ponytail: RelaxAll 后台执行 — 恢复亲和性是 fire-and-forget，不阻塞 UI
       var data = _activeData;
       _activeData = null;
-      if (data?.Entries != null && data.Entries.Count > 0)
-        ThreadPool.QueueUserWorkItem(_ => { try { RelaxAll(data); } catch { } });
+      if (data?.Entries == null || data.Entries.Count == 0) return;
+      // ponytail: 交互路径默认仍 fire-and-forget(不阻塞 UI);退出链必须传 true —
+      // 进程终止会掐断后台线程池线程,RelaxAll 半途而废会把亲和规则残留在已绑应用上。
+      if (waitForRelax) { try { RelaxAll(data); } catch { } return; }
+      ThreadPool.QueueUserWorkItem(_ => { try { RelaxAll(data); } catch { } });
     }
 
     static void ApplyAll() {
@@ -441,31 +494,37 @@ namespace OmenSuperHub.Services.CpuAffinity {
       _enforcement.Apply(pid, rule, topo);
     }
 
+    // ponytail: 恢复必须与应用同走 RuleEngine 通配匹配 — 旧实现按名 GetProcessesByName 精确匹配,
+    // 通配符规则(game*.exe)命中的进程在关功能/退出后永远不会被恢复。
+    // 已禁用条目早前应用过的约束也要恢复,故 forceEnabled。StopAutoApply 已先停守护定时器,
+    // 快照替换窗口内无 GuardTick 并发;与在飞的初始 ApplyAll 交错属可接受窗口。
     static void RelaxAll(CoreKeepData data) {
-      if (data?.Entries == null) return;
+      if (data?.Entries == null || data.Entries.Count == 0) return;
       var topo = _topoService.Detect();
-      foreach (var e in data.Entries) {
-        try {
-          if (e.ProcessId > 0) {
-            _enforcement.Relax(e.ProcessId, topo);
-          } else if (!string.IsNullOrEmpty(e.ProcessName)) {
-            string procName = e.ProcessName.Replace(".exe", "");
-            Process[] procs;
-            try { procs = Process.GetProcessesByName(procName); } catch { continue; }
-            foreach (var p in procs) {
-              try { _enforcement.Relax(p.Id, topo); }
-              catch { }
-              finally { try { p.Dispose(); } catch { } }
-            }
-          }
-        } catch { }
-      }
+      var saved = _ruleEngine.Rules;
+      _ruleEngine.SetRules(BuildRules(data, forceEnabled: true));
+      try {
+        Process[] procs;
+        try { procs = Process.GetProcesses(); } catch { return; }
+        foreach (var p in procs) {
+          try {
+            int pid = p.Id;
+            if (pid == 0 || pid == 4) continue;
+            string name = "";
+            try { name = p.ProcessName + ".exe"; } catch { }
+            if (_ruleEngine.Match(name, GetProcessPath(pid)) != null)
+              _enforcement.Relax(pid, topo);
+          } catch { }
+          finally { try { p.Dispose(); } catch { } }
+        }
+      } finally { _ruleEngine.SetRules(saved.ToList()); }
     }
 
     // ── 守护定时器 ──
 
     static void StartGuardTimer(int intervalMs) {
       StopGuardTimer();
+      if (intervalMs <= 0) return; // 守护关闭（-1 哨兵）：只保留首轮 ApplyAll，不起周期定时器
       if (intervalMs < 500) intervalMs = 500;
       // ponytail: 首次 due 500ms — 补偿已删除的 WMI watcher,让启动瞬间的进程尽快被首轮 Apply 覆盖
       _guardTimer = new Timer(GuardTick, null, 500, intervalMs);
@@ -478,9 +537,10 @@ namespace OmenSuperHub.Services.CpuAffinity {
     }
 
     public static void UpdateGuardInterval(int ms) {
-      if (_guardTimer != null && ms >= 500) {
-        _guardTimer.Change(ms, ms);
-      }
+      if (ms <= 0) { StopGuardTimer(); return; }
+      if (ms < 500) ms = 500;
+      if (_guardTimer != null) { _guardTimer.Change(ms, ms); return; }
+      if (_activeData != null) StartGuardTimer(ms); // 关了再开：定时器已停时重建
     }
 
     static void GuardTick(object state) {
@@ -513,7 +573,12 @@ namespace OmenSuperHub.Services.CpuAffinity {
             if (expected == 0) continue;
 
             ulong current = _enforcement.QueryAffinity(pid);
-            if (current == 0 || current == expected) continue;
+            if (current == 0) {
+              // 进程已退出/查不到：回收 Job 句柄（命名 Job 跨重启可重开，回收安全）
+              _jobManager.ReleaseJob(pid);
+              continue;
+            }
+            if (current == expected) continue;
             _enforcement.Apply(pid, rule, topo);
           } catch { }
           finally { try { p.Dispose(); } catch { } }
@@ -527,9 +592,6 @@ namespace OmenSuperHub.Services.CpuAffinity {
     public static void ApplyToProcess(string processName, CoreKeepEntry entry) {
       if (entry == null || !entry.Enabled) return;
       var topo = _topoService.Detect();
-      ulong mask = entry.AffinityMask != 0
-        ? (ulong)entry.AffinityMask
-        : CpuTopology.BuildMask(topo, entry.CoreMode ?? "all-cores");
 
       Process[] procs;
       string pn = (processName ?? "").Replace(".exe", "");
@@ -541,13 +603,7 @@ namespace OmenSuperHub.Services.CpuAffinity {
             Id = $"corekeep-{p.Id}",
             Name = processName,
             Match = new RuleMatch { Process = processName ?? "" },
-            Action = new RuleAction {
-              Mode = entry.CoreMode ?? "all-cores",
-              Level = string.IsNullOrEmpty(entry.EnforcementLevel) ? "hard-affinity" : entry.EnforcementLevel,
-              CpuPriority = PriorityToName(entry.PriorityClass),
-              MemoryPriority = MemoryPriorityToName(entry.MemoryPriority),
-              MainThreadBind = entry.MainThreadBind
-            }
+            Action = ToRuleAction(entry) // ponytail: Manual/custom 在此归一；旧内联构建让 BuildMask 得 0、应用全失效
           };
           _enforcement.Apply(p.Id, rule, topo);
         } catch { }
@@ -915,6 +971,64 @@ namespace OmenSuperHub.Services.CpuAffinity {
       CheckCpu(-1, freq, freq, 4, 0.0);   // 采样失败路径
       CheckCpu(10_000_000, 0, freq, 4, 0.0); // elapsed=0 防护
 
+      // CoreKeep 模式归一往返：每个 UI 可选 CoreMode 经 ToRuleAction 后 BuildMask 必须非零
+      // （Manual/custom 不归一会得掩码 0，规则在守护/立即应用全路径静默失效 — 回归捕获点）
+      var ckTopo = CoreKeepService.GetTopology();
+      var ckModes = new List<string> { "all-cores", "p-cores", "p-cores-smt", "p-cores-no-smt",
+                                       "p-cores-first", "no-smt", "first-half", "second-half" };
+      if (ckTopo.EcoreCount > 0) ckModes.Add("e-cores");
+      if (ckTopo.Ccd0Mask != 0 && ckTopo.Ccd1Mask != 0) { ckModes.Add("ccd0"); ckModes.Add("ccd1"); }
+      foreach (var m in ckModes) {
+        var act = CoreKeepService.ToRuleAction(new CoreKeepEntry { CoreMode = m });
+        if (CpuTopology.BuildMask(ckTopo, act.Mode, act.GetCustomMask()) == 0)
+          failures.Add($"CoreKeep BuildMask('{m}') = 0");
+      }
+      var manAct = CoreKeepService.ToRuleAction(new CoreKeepEntry { CoreMode = "Manual", AffinityMask = 0x55 });
+      if (manAct.Mode != "custom" || manAct.GetCustomMask() != 0x55 ||
+          CpuTopology.BuildMask(ckTopo, manAct.Mode, manAct.GetCustomMask()) != 0x55)
+        failures.Add($"CoreKeep Manual normalize failed: mode={manAct.Mode} mask={manAct.GetCustomMask()}");
+
+      // 自定义掩码钳位：0/全越界拒绝、高位截断、64 核边界、totalLogical 非法防御
+      void CheckClamp(long mask, int total, bool wantOk, long want) {
+        bool ok = CoreKeepService.TryClampAffinityMask(mask, total, out long got);
+        if (ok != wantOk || (wantOk && got != want))
+          failures.Add($"TryClampAffinityMask(0x{mask:X},{total}) => {ok}/0x{got:X}, want {wantOk}/0x{want:X}");
+      }
+      CheckClamp(0, 8, false, 0);              // mask=0 非法,拒绝
+      CheckClamp(0xFF, 8, true, 0xFF);         // 恰填满有效位
+      CheckClamp(0x1FF, 8, true, 0xFF);        // 高位越界截断
+      CheckClamp(0x100, 8, false, 0);          // 越界后为 0 → 拒绝
+      CheckClamp(-1, 64, true, -1);            // 64 核全位
+      CheckClamp(1, 0, false, 0);              // totalLogical 非法防御
+      CheckClamp(1, 65, false, 0);
+
+      // CpuTopologyService 与 AffinityTopology(独立实现,已真机验证)交叉比对 ——
+      // 旧版 CpuTopologyService 两条原生路径全坏时靠恒等式现形(fallback 假数据:
+      // 每 LP 独占一核 → 与 oracle 的 SMT/P/E 计数必然不符)。
+      {
+        var legacy = CpuTopologyService.GetCores();
+        if (legacy.Count != Environment.ProcessorCount)
+          failures.Add($"CpuTopologyService cores={legacy.Count}, want {Environment.ProcessorCount}");
+        var lpiSet = new HashSet<int>(legacy.Select(c => c.LogicalIndex));
+        if (lpiSet.Count != legacy.Count)
+          failures.Add("CpuTopologyService LogicalIndex duplicated");
+        var oracle = CoreKeepService.GetTopology();
+        int total = Environment.ProcessorCount;
+        if (oracle.SmtEnabled != legacy.Any(c => c.IsSmt))
+          failures.Add("CpuTopologyService SMT presence disagrees with AffinityTopology");
+        if (legacy.Any(c => c.LogicalIndex < 0 || c.LogicalIndex >= total))
+          failures.Add("CpuTopologyService LogicalIndex out of range");
+        if (oracle.EcoreCount > 0) {   // hybrid: P/E 的 LP 计数两侧必须一致(oracle 存 P/E 计数为 LP 数)
+          int pLegacy = legacy.Count(c => c.EfficiencyClass == 0);
+          if (pLegacy != oracle.PcoreCount || legacy.Count - pLegacy != oracle.EcoreCount)
+            failures.Add($"CpuTopologyService P/E LP {pLegacy}/{legacy.Count - pLegacy} vs oracle {oracle.PcoreCount}/{oracle.EcoreCount}");
+        }
+      }
+      var cusAct = CoreKeepService.ToRuleAction(new CoreKeepEntry { CoreMode = "custom", AffinityMask = 0xFF });
+      if (cusAct.Mode != "custom" ||
+          CpuTopology.BuildMask(ckTopo, cusAct.Mode, cusAct.GetCustomMask()) != 0xFF)
+        failures.Add($"CoreKeep custom normalize failed: mode={cusAct.Mode}");
+
       // 启动项命令有效性：真实存在的路径 → 有效(false)；明确不存在的绝对路径 → 无效(true)
       string windir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
       void CheckCmd(string cmd, bool expectInvalid) {
@@ -1036,7 +1150,7 @@ namespace OmenSuperHub.Services.CpuAffinity {
       }
 
       if (failures.Count == 0)
-        return "PASS: memory-priority mapping + cpu-percent math + sysopt parsing";
+        return "PASS: memory-priority mapping + cpu-percent math + corekeep mode normalize + sysopt parsing";
       return "FAIL:\n  " + string.Join("\n  ", failures);
     }
   }

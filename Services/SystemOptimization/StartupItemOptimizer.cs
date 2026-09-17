@@ -63,12 +63,21 @@ namespace OmenSuperHub.Services.SystemOptimization {
       new RunLocation("hklm32Once", RegistryHive.LocalMachine, RegistryView.Registry32, RunOnceSubKey, "本机 (32 位) RunOnce"),
     };
 
-    internal static string DisabledSubKey(string subKey) =>
-      subKey.Contains("RunOnce") ? subKey.Replace("RunOnce", "RunOnceDisabled")
-           : subKey.Replace("Run", "RunDisabled");
-    internal static string EnabledSubKey(string subKey) =>
-      subKey.Contains("RunOnceDisabled") ? subKey.Replace("RunOnceDisabled", "RunOnce")
-           : subKey.Replace("RunDisabled", "Run");
+    // ponytail: BUG-13 加固 —— 旧实现全串 Replace,依赖"常量路径恰好只含一个 Run 子串"的巧合
+    // (如含 "Runtime" 段的路径会被一并改坏)。改为仅变换最后一段且精确匹配:对现有三条常量
+    // (Run/RunOnce/WOW6432Node\Run)严格等价,对任意路径语义正确。往返由 CoreKeepService.SelfCheck 看门。
+    internal static string DisabledSubKey(string subKey) {
+      int slash = subKey.LastIndexOf('\\');
+      string leaf = slash < 0 ? subKey : subKey.Substring(slash + 1);
+      string next = leaf == "Run" ? "RunDisabled" : leaf == "RunOnce" ? "RunOnceDisabled" : leaf;
+      return slash < 0 ? next : subKey.Substring(0, slash + 1) + next;
+    }
+    internal static string EnabledSubKey(string subKey) {
+      int slash = subKey.LastIndexOf('\\');
+      string leaf = slash < 0 ? subKey : subKey.Substring(slash + 1);
+      string next = leaf == "RunDisabled" ? "Run" : leaf == "RunOnceDisabled" ? "RunOnce" : leaf;
+      return slash < 0 ? next : subKey.Substring(0, slash + 1) + next;
+    }
 
     static string[] StartupFolders() {
       var list = new List<string>(2);
@@ -259,8 +268,25 @@ namespace OmenSuperHub.Services.SystemOptimization {
           ? Directory.CreateDirectory(Path.Combine(parent, "Disabled")).FullName   // 活动 → Disabled\
           : Path.GetDirectoryName(parent);                                            // Disabled\ → 上级活动目录
         string dst = Path.Combine(dstParent, srcName);
-        if (File.Exists(dst)) { try { File.Delete(dst); } catch { return false; } }
-        File.Move(src, dst);
+        // ponytail: 目标同名文件可能不是"同一启动项的残留",而是用户自行放置的(活动目录与
+        // Disabled\ 是两个独立条目,各可单独启停)。直接 Delete 会静默丢失用户文件 →
+        // 改为备份为 .bak(带序号避撞),Move 成功后再删备份,失败则原样保留可恢复。
+        string backup = null;
+        if (File.Exists(dst)) {
+          try {
+            backup = dst + ".bak";
+            int n = 1;
+            while (File.Exists(backup)) backup = dst + ".bak" + (++n);
+            File.Move(dst, backup);
+          } catch { backup = null; return false; }
+        }
+        try {
+          File.Move(src, dst);
+        } catch {
+          if (backup != null) { try { File.Move(backup, dst); } catch { } }  // 还原目标
+          return false;
+        }
+        if (backup != null) { try { File.Delete(backup); } catch { } }
         item.IsEnabled = enabled;
         return true;
       } catch { return false; }

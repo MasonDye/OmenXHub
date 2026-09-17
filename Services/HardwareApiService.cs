@@ -250,15 +250,18 @@ namespace OmenSuperHub.Services {
 
     private static string HandleGetTemperature() {
       float cpu = HardwareService.CPUTemp;
-      float gpu = HardwareService.GPUTemp;
-      return $"{{\"cpu\":{cpu:F1},\"gpu\":{gpu:F1}}}";
+      bool gpuValid = HardwareService.TryGetFreshGpuTemp(out float gpu);
+      return $"{{\"cpu\":{cpu:F1},\"gpu\":{gpu:F1},\"gpuValid\":{(gpuValid ? "true" : "false")}}}";
+    }
+
+    // 风扇档位在首次 EC 读取前为 -1 哨兵(HardwareService.cs:52),外发前钳 0。
+    static int FanLevelAt(int i) {
+      var f = HardwareService.FanSpeedNow;
+      return f != null && f.Count > i && f[i] > 0 ? f[i] : 0;
     }
 
     private static string HandleGetFanSpeed() {
-      var fans = HardwareService.FanSpeedNow;
-      int f1 = fans.Count > 0 ? fans[0] : 0;
-      int f2 = fans.Count > 1 ? fans[1] : 0;
-      return $"{{\"fan1\":{f1},\"fan2\":{f2}}}";
+      return $"{{\"fan1\":{FanLevelAt(0)},\"fan2\":{FanLevelAt(1)}}}";
     }
 
     private static string HandleGetMode() {
@@ -269,10 +272,7 @@ namespace OmenSuperHub.Services {
 
     // ── /api/fan/rpm ──
     private static string HandleGetFanRpm() {
-      var fans = HardwareService.FanSpeedNow;
-      int f1 = fans.Count > 0 ? fans[0] * 100 : 0;
-      int f2 = fans.Count > 1 ? fans[1] * 100 : 0;
-      return $"{{\"fan1\":{f1},\"fan2\":{f2}}}";
+      return $"{{\"fan1\":{FanLevelAt(0) * 100},\"fan2\":{FanLevelAt(1) * 100}}}";
     }
 
     // ── /api/cpu/load ──
@@ -298,9 +298,12 @@ namespace OmenSuperHub.Services {
     // ── /api/gpu/memory ──
     private static string HandleGetGpuMemory() {
       float used = 0, total = 0;
+      // ponytail: 不调 hw.Update() —— QueryHardware 的 800ms 大循环已在同一批 GPU 对象
+      // 上 Update 过,sensor .Value 读的是同一底层存储;HTTP 线程再 Update 会与轮询线程
+      // 并发操作无锁的 LHM 实例(读数互踩)。去掉后与 /api/gpu/load|frequency|temperature
+      // 三个姊妹端点同口径(≤800ms 陈旧但正确),新鲜度语义本就一致。
       foreach (var hw in HardwareService.LibreComputer.Hardware) {
         if (hw.HardwareType == LibreHardwareType.GpuNvidia || hw.HardwareType == LibreHardwareType.GpuAmd) {
-          hw.Update();
           foreach (var s in hw.Sensors) {
             if (s.SensorType == LibreSensorType.SmallData && s.Name == "GPU Memory Used")
               used = (float)s.Value.GetValueOrDefault();
@@ -331,7 +334,7 @@ namespace OmenSuperHub.Services {
     private static string HandleGetHardwareAll() {
       try {
         float cpuTemp = HardwareService.CPUTemp;
-        float gpuTemp = HardwareService.GPUTemp;
+        bool gpuValid = HardwareService.TryGetFreshGpuTemp(out float gpuTemp);
         float cpuPower = HardwareService.CPUPower;
         var fans = HardwareService.FanSpeedNow;
         int f1 = fans.Count > 0 ? fans[0] : 0;
@@ -347,8 +350,8 @@ namespace OmenSuperHub.Services {
         return "{" +
           $"\"cpu\":{{\"temp\":{cpuTemp:F1},\"load\":0,\"freq\":0,\"cores\":{{}}," +
           $"\"power\":{cpuPower:F1}}}," +
-          $"\"gpu\":{{\"temp\":{gpuTemp:F1},\"load\":0,\"freq\":0," +
-          $"\"power\":{HardwareService.GPUPower:F1}," +
+          $"\"gpu\":{{\"temp\":{gpuTemp:F1},\"valid\":{(gpuValid ? "true" : "false")},\"load\":0,\"freq\":0," +
+          $"\"power\":{(HardwareService.GpuPowerUsable ? HardwareService.GPUPower : 0):F1}," +
           $"\"memoryUsed\":0,\"memoryTotal\":0}}," +
           $"\"fan\":{{\"percent\":[{f1},{f2}],\"rpm\":[{f1 * 100},{f2 * 100}]}}," +
           $"\"battery\":{{\"percent\":{batPct},\"charging\":{(charging ? "true" : "false")}," +
@@ -391,8 +394,12 @@ namespace OmenSuperHub.Services {
         if (param == null)
           return (400, MakeError("Invalid JSON body"));
 
-        if (param.pl1 < 5 || param.pl1 > 254 || param.pl2 < 5 || param.pl2 > 254)
-          return (400, MakeError("pl1 and pl2 must be between 5 and 254"));
+        // 审查修复: 三处功耗域对齐产品地板/天花板 [10,254](RaplPowerLimitService.WattMin 注释
+        // "与 WMI 路径语义对齐"+RestoreCpuPower/ApplyPresetHardware 均 ≥10) —— 旧 5W 低于地板
+        // (RAPL 通道静默钳到 10,行為不一致),/api/cpu/pl1|pl2|tdp 的 [15,120] 天花板连本机
+        // 出厂默认 130W 都恢复不了。
+        if (param.pl1 < 10 || param.pl1 > 254 || param.pl2 < 10 || param.pl2 > 254)
+          return (400, MakeError("pl1 and pl2 must be between 10 and 254"));
 
         bool ok = OmenHardware.SetCpuPowerLimit((byte)param.pl1, (byte)param.pl2);
         Logger.Info($"API: SetCpuPowerLimit({param.pl1}, {param.pl2}) => {ok}");
@@ -456,8 +463,8 @@ namespace OmenSuperHub.Services {
       try {
         var param = Deserialize<IntValueParam>(ReadBody(req));
         if (param == null) return (400, MakeError("Invalid JSON body"));
-        if (param.value < 15 || param.value > 120)
-          return (400, MakeError("value must be between 15 and 120"));
+        if (param.value < 10 || param.value > 254)
+          return (400, MakeError("value must be between 10 and 254"));
         bool ok = OmenHardware.SetCpuPowerLimitPL1Only((byte)param.value);
         Logger.Info($"API: SetCpuPowerLimitPL1Only({param.value}) => {ok}");
         return (200, ok
@@ -470,8 +477,8 @@ namespace OmenSuperHub.Services {
       try {
         var param = Deserialize<IntValueParam>(ReadBody(req));
         if (param == null) return (400, MakeError("Invalid JSON body"));
-        if (param.value < 15 || param.value > 120)
-          return (400, MakeError("value must be between 15 and 120"));
+        if (param.value < 10 || param.value > 254)
+          return (400, MakeError("value must be between 10 and 254"));
         bool ok = OmenHardware.SetCpuPowerLimitPL2Only((byte)param.value);
         Logger.Info($"API: SetCpuPowerLimitPL2Only({param.value}) => {ok}");
         return (200, ok
@@ -484,8 +491,8 @@ namespace OmenSuperHub.Services {
       try {
         var param = Deserialize<IntValueParam>(ReadBody(req));
         if (param == null) return (400, MakeError("Invalid JSON body"));
-        if (param.value < 15 || param.value > 120)
-          return (400, MakeError("value must be between 15 and 120"));
+        if (param.value < 10 || param.value > 254)
+          return (400, MakeError("value must be between 10 and 254"));
         bool ok = OmenHardware.SetConcurrentTdp((byte)param.value);
         Logger.Info($"API: SetConcurrentTdp({param.value}) => {ok}");
         return (200, ok
@@ -498,8 +505,10 @@ namespace OmenSuperHub.Services {
       try {
         var param = Deserialize<IntValueParam>(ReadBody(req));
         if (param == null) return (400, MakeError("Invalid JSON body"));
-        if (param.value < 50 || param.value > 250)
-          return (400, MakeError("value must be between 50 and 250"));
+        // R15/BUG-R15-2: EC 有效域 {0} ∪ [160,255](1-159 死区致 throttling/hang,见 PerfPage
+        // IccMaxNum_ValueChanged 注释)。旧门 50-250 会把 50-159 原样下发。
+        if (param.value != 0 && (param.value < 160 || param.value > 255))
+          return (400, MakeError("value must be 0 or between 160 and 255"));
         OmenHardware.SetIccMaxByWmi((decimal)param.value);
         Logger.Info($"API: SetIccMaxByWmi({param.value})");
         return (200, "{\"success\":true,\"message\":\"IccMax updated\"}");
@@ -510,8 +519,11 @@ namespace OmenSuperHub.Services {
       try {
         var param = Deserialize<IntValueParam>(ReadBody(req));
         if (param == null) return (400, MakeError("Invalid JSON body"));
-        if (param.value < 80 || param.value > 130)
-          return (400, MakeError("value must be between 80 and 130"));
+        // R15/BUG-R15-2: SetLoadLine 参数是档位索引(0=不设置,1..15 对应 mΩ 档,见 PerfPage
+        // AcLoadLineCombo Tag)。旧门 80-130 把"mΩ 值"当档位校验 —— 拒绝一切合法档位、
+        // 放行 80-130 非法档位直写 EC。
+        if (param.value < 0 || param.value > 15)
+          return (400, MakeError("value must be between 0 and 15 (level index)"));
         OmenHardware.SetLoadLine(param.value);
         Logger.Info($"API: SetLoadLine({param.value})");
         return (200, "{\"success\":true,\"message\":\"LoadLine updated\"}");
@@ -621,8 +633,12 @@ namespace OmenSuperHub.Services {
         foreach (var p in param.points) {
           if (p.temp < 0 || p.temp > 100 || p.speed < 0 || p.speed > 100)
             return (400, MakeError("temp must be 0-100, speed must be 0-100"));
-          // Convert percentage (0-100) to RPM (0-6400)
-          points.Add(((float)p.temp, p.speed * 64));
+          // Convert percentage (0-100) to display RPM (= EC level ×100) —— 与本服务 GET
+          // /api/fan/speed 的 ×100 口径及 FanService.ParseFanRpm 对称,保证写 50% 读回 5000。
+          // ponytail: EC 满速字节是 60(cool 曲线注释"6000=BIOS 上限")、63(API 旧×64 口径)
+          // 还是 100("max"档 SetFanLevel(100))三套并存,需真机 EC 表定标后全项目统一;
+          // 此处先收往返一致性(旧 ×64 与读侧 ×100 不对称,写读一轮值就变)。
+          points.Add(((float)p.temp, p.speed * 100));
         }
 
         FanService.SaveCustomCurve(points);
@@ -648,28 +664,39 @@ namespace OmenSuperHub.Services {
 
     // ── CTS for fan clean task (prevent leak on repeated calls) ──
     static System.Threading.CancellationTokenSource _fanCleanCts;
+    static readonly object _fanCleanLock = new object();
 
     private static (int code, string body) HandleSetFanClean(HttpListenerRequest req) {
       try {
-        // Cancel and dispose any previous fan clean task
-        if (_fanCleanCts != null) {
-          _fanCleanCts.Cancel();
-          _fanCleanCts.Dispose();
+        System.Threading.CancellationToken token;
+        // ponytail: lock 串行化 CTS 换页 —— 旧实现两个并发 HTTP 线程同过 null 检查后,
+        // 后跑的对已 Dispose 实例 Cancel 抛 ObjectDisposedException(整段 500)。
+        lock (_fanCleanLock) {
+          try { _fanCleanCts?.Cancel(); } catch { }
+          _fanCleanCts?.Dispose();
+          _fanCleanCts = new System.Threading.CancellationTokenSource();
+          token = _fanCleanCts.Token;
         }
-        _fanCleanCts = new System.Threading.CancellationTokenSource();
-        var token = _fanCleanCts.Token;
         System.Threading.Tasks.Task.Run(async () => {
+          // 照 FanPage 标准路径:暂停 1s 心跳(否则每秒正常转速写覆盖 +128 逆转字节,
+          // 30s 清灰里两者打架),载荷 (0,0)+fanClean 与 UI 一致,三扇机第 3 扇参与。
+          TrayService.fanControlTimer?.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
           try {
-            OmenHardware.SetFanLevel(100, 100, false, true);
+            OmenHardware.SetFanLevel(0, 0, OmenHardware.IsThreeFan(), true);
             await System.Threading.Tasks.Task.Delay(30000, token);
           } catch (OperationCanceledException) {
             // Expected during shutdown or new fan clean request
           } catch (Exception ex) {
             Logger.Error($"FanClean error: {ex.Message}");
           } finally {
-            // Always restore fan to 0, even on error or cancellation
-            try { OmenHardware.SetFanLevel(0, 0); } catch { }
-            Logger.Info("API: Fan clean completed/restored");
+            // 被新请求取代时不恢复 —— 新任务自己的窗口不能被子节点的 {0,0}+重启心跳中止。
+            if (!token.IsCancellationRequested) {
+              try { OmenHardware.SetFanLevel(0, 0); } catch { }
+              TrayService.fanControlTimer?.Change(0, 1000);
+              Logger.Info("API: Fan clean completed/restored");
+            } else {
+              Logger.Info("API: Fan clean superseded by new request");
+            }
           }
         });
         Logger.Info("API: Fan clean started (30s)");
@@ -695,10 +722,14 @@ namespace OmenSuperHub.Services {
 
     private static string HandleGetSystemUptime() {
       try {
-        var uptime = TimeSpan.FromMilliseconds(Environment.TickCount);
-        return $"{{\"seconds\":{(int)uptime.TotalSeconds},\"formatted\":\"{uptime.Days}d {uptime.Hours}h {uptime.Minutes}m\"}}";
+        // Environment.TickCount 在 net481 是 Int32,~24.9 天回绕为负 → 曾报负秒数。
+        var uptime = TimeSpan.FromMilliseconds(GetTickCount64());
+        return $"{{\"seconds\":{(long)uptime.TotalSeconds},\"formatted\":\"{uptime.Days}d {uptime.Hours}h {uptime.Minutes}m\"}}";
       } catch (Exception ex) { return MakeError(ex.Message); }
     }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    static extern ulong GetTickCount64();
 
     private static (int code, string body) HandleSystemRestart(HttpListenerRequest req) {
       try {
@@ -772,7 +803,10 @@ namespace OmenSuperHub.Services {
         if (param == null || string.IsNullOrWhiteSpace(param.effect))
           return (400, MakeError("Missing 'effect' parameter"));
         Logger.Info($"API: SetLightingEffect(\"{param.effect}\")");
-        return (200, $"{{\"success\":true,\"message\":\"Effect '{EscapeJson(param.effect)}' applied\"}}");
+        // ponytail: 保 200 契约(端点已被 /api/help 自描述公开),但如实标 applied:false ——
+        // 固件动画下发未接,旧实现直接返回 success:true+"applied" 是假成功。
+        // 接 OmenLighting 动画映射超此端点范围,留待有消费者时再补。
+        return (200, $"{{\"success\":true,\"applied\":false,\"message\":\"Effect '{EscapeJson(param.effect)}' not applied (not implemented)\"}}");
       } catch (Exception ex) { Logger.Error($"HandleSetLightingEffect: {ex.Message}"); return (500, MakeError(ex.Message)); }
     }
 
@@ -959,6 +993,8 @@ namespace OmenSuperHub.Services {
     }
 
     private static string ReadBody(HttpListenerRequest req) {
+      // 仅 localhost+token,但仍钳 1MB 防异常大 POST 体进内存(Deserialize 也吃不下更大结构)。
+      if (req.ContentLength64 > 1_000_000) return "";
       using (var reader = new StreamReader(req.InputStream, req.ContentEncoding))
         return reader.ReadToEnd();
     }

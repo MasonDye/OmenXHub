@@ -1,0 +1,54 @@
+<UserControl x:Class="OverlayDemo.Widgets.PerfWidget"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Width="316" Height="126">
+    <!-- 性能控制：上段模式按钮 310×64（圆角 8,8,0,0）+ 下段温度 310×56（0,0,8,8），外框 2px 圆角8 -->
+    <Border BorderThickness="2" CornerRadius="8"
+            Background="{Binding WidgetBackground}" BorderBrush="{Binding WidgetBorderBrush}">
+        <StackPanel>
+            <Border Width="308" Height="64" Margin="2,2,2,0" Background="{StaticResource ControlButtonBackground}"
+                    CornerRadius="6,6,0,0">
+                <ItemsControl Margin="0,5,0,0" ItemsSource="{Binding Modes}" HorizontalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <RadioButton Style="{StaticResource ModeButton}" GroupName="perf" Margin="2"
+                                         Tag="{Binding Icon}" Content="{Binding Name}"
+                                         IsChecked="{Binding Checked, Mode=TwoWay}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+            <Border Width="308" Height="56" Margin="2,2,2,0" Background="{StaticResource ControlButtonBackground}"
+                    CornerRadius="0,0,6,6">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,0">
+                        <TextBlock Text="CPU" FontSize="13" FontWeight="Bold" FontFamily="{StaticResource OverlayFont}"
+                                   Foreground="{Binding TextBrush}" Opacity="{Binding TextOpacity}" VerticalAlignment="Center">
+                            <TextBlock.Effect><DropShadowEffect BlurRadius="4" Direction="270" Opacity="0.5" ShadowDepth="1" Color="Black" /></TextBlock.Effect>
+                        </TextBlock>
+                        <TextBlock Text="{Binding CpuText}" Margin="8,0,0,0" FontSize="13"
+                                   FontFamily="{StaticResource OverlayFont}" Foreground="{Binding CpuBrush}"
+                                   Opacity="{Binding TextOpacity}" VerticalAlignment="Center">
+                            <TextBlock.Effect><DropShadowEffect BlurRadius="4" Direction="270" Opacity="0.5" ShadowDepth="1" Color="Black" /></TextBlock.Effect>
+                        </TextBlock>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="GPU" FontSize="13" FontWeight="Bold" FontFamily="{StaticResource OverlayFont}"
+                                   Foreground="{Binding TextBrush}" Opacity="{Binding TextOpacity}" VerticalAlignment="Center">
+                            <TextBlock.Effect><DropShadowEffect BlurRadius="4" Direction="270" Opacity="0.5" ShadowDepth="1" Color="Black" /></TextBlock.Effect>
+                        </TextBlock>
+                        <TextBlock Text="{Binding GpuText}" Margin="8,0,0,0" FontSize="13"
+                                   FontFamily="{StaticResource OverlayFont}" Foreground="{Binding GpuBrush}"
+                                   Opacity="{Binding TextOpacity}" VerticalAlignment="Center">
+                            <TextBlock.Effect><DropShadowEffect BlurRadius="4" Direction="270" Opacity="0.5" ShadowDepth="1" Color="Black" /></TextBlock.Effect>
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Border>
+</UserControl>

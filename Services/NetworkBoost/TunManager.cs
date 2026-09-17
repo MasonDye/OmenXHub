@@ -20,8 +20,12 @@ namespace OmenSuperHub.Services.NetworkBoost {
         var asm = Assembly.GetExecutingAssembly();
         foreach (var name in _binaries) {
           string dest = Path.Combine(BinDir, name);
-          if (File.Exists(dest)) continue;
-          // ponytail: 资源名后缀 .gz；找不到 .gz 时回退原始未压缩资源（兼容旧构建产物）
+          // ponytail: 旧实现 `if (File.Exists(dest)) continue` 会把解压中途被杀留下的截断
+          // exe 永久粘住(之后每次启动都跳过重提取)。改为 sidecar 记录完整落盘的字节数,
+          // 尺寸不符/无 sidecar 即重新提取;提取写 temp 后原子换入,dest 路径上只可能出现
+          // 完整文件。上限: 只防截断不防篡改(资源哈希比对见 InstallPawnIO,43MB 每次全
+          // 提取代价不成比例)。
+          if (File.Exists(dest) && SizeMatches(dest)) continue;
           var rn = Array.Find(asm.GetManifestResourceNames(),
             r => r.EndsWith(name + ".gz", StringComparison.OrdinalIgnoreCase));
           bool isGz = rn != null;
@@ -30,17 +34,35 @@ namespace OmenSuperHub.Services.NetworkBoost {
               r => r.EndsWith(name, StringComparison.OrdinalIgnoreCase));
           }
           if (rn == null) continue;
-          using (var s = asm.GetManifestResourceStream(rn))
-          using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write)) {
-            if (isGz) {
-              using (var gz = new System.IO.Compression.GZipStream(s, System.IO.Compression.CompressionMode.Decompress))
-                gz.CopyTo(fs);
-            } else {
-              s.CopyTo(fs);
+          string tmp = dest + ".tmp";
+          try {
+            using (var s = asm.GetManifestResourceStream(rn))
+            using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write)) {
+              if (isGz) {
+                using (var gz = new System.IO.Compression.GZipStream(s, System.IO.Compression.CompressionMode.Decompress))
+                  gz.CopyTo(fs);
+              } else {
+                s.CopyTo(fs);
+              }
             }
+            long written = new FileInfo(tmp).Length;
+            if (File.Exists(dest)) File.Replace(tmp, dest, null);
+            else File.Move(tmp, dest);
+            // sidecar 最后写: 换入成功但 sidecar 失败时,下次启动重提取一次即可(幂等,不粘滞)
+            File.WriteAllText(dest + ".size", written.ToString());
+          } catch {
+            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+            throw;
           }
         }
-      } catch { }
+      } catch (Exception ex) { Logger.Warn("[TunManager] EnsureBinaries: " + ex.Message); }
+    }
+
+    static bool SizeMatches(string dest) {
+      try {
+        return long.TryParse(File.ReadAllText(dest + ".size"), out long sz)
+               && sz > 0 && new FileInfo(dest).Length == sz;
+      } catch { return false; }
     }
 
     public static string ConfigPath {
@@ -74,6 +96,7 @@ namespace OmenSuperHub.Services.NetworkBoost {
         Thread.Sleep(1500); // STARTUP_STABLE_DELAY
         if (_proc.HasExited) {
           error = "sing-box exited: code " + _proc.ExitCode;
+          try { _proc.Dispose(); } catch { }
           _proc = null;
           return false;
         }
@@ -91,6 +114,7 @@ namespace OmenSuperHub.Services.NetworkBoost {
           _proc.WaitForExit(3000);
         }
       } catch { }
+      try { _proc?.Dispose(); } catch { }
       _proc = null;
       try {
         var psi = new ProcessStartInfo("route.exe", "delete 0.0.0.0 mask 0.0.0.0 " + SingboxConfigGenerator.TunGateway) {

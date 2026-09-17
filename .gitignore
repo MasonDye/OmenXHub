@@ -8,6 +8,15 @@ publish/
 *.dll
 *.pdb
 *.pfx
+# 构建依赖的二进制载荷例外:csproj 内嵌的 PawnIO 驱动安装器 + 安装器引用的 PresentMon。
+# 入库否则全新 clone 无法构建/打包(曾因未跟踪丢失导致 CS1566)。
+!Resources/PawnIO_setup.exe
+!PresentMon.exe
+# HP/厂商 SDK 与内嵌原生 DLL:全部被 csproj HintPath/EmbeddedResource 直接引用,
+# 缺失则 clone 后 CS0246(Hp/HP 命名空间)成片报。整目录白名单,新 SDK 落入 Resources/
+# 即自动跟踪;运行时产物不落这个目录。
+!Resources/*.dll
+!lib/*.dll
 
 # NuGet
 packages/
@@ -37,6 +46,8 @@ binReleasenet481-verify/
 stdout.txt
 stderr.txt
 battery-report.html
+# ponytail: 运行日志落盘在 tools\,不属于源码,勿入库
+tools/OmenXHub.log
 temp_*.svg
 temp_*.txt
 packages.config

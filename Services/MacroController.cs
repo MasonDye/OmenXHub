@@ -34,9 +34,14 @@ namespace OmenSuperHub.Services {
     static bool _recording;
     static int _playing; // ponytail: 0/1 原子标志，钩子线程读、Task.Run 线程写，Interlocked 防竞态
     static MacroSequence _recordingTarget;
+    // 当前回放宏。_playing==1 期间必为本次 CAS 的宏（finally 先清后放行）；钩子线程据此实现
+    // "按键时打断回放"——查的是回放宏自己的开关，不是按键所属宏。
+    static MacroSequence _playingMacro;
     static bool _captureMouse;
     static readonly HashSet<uint> _pressedKeys = new HashSet<uint>();
     static DateTime _lastRecordedEventTime;
+    // ponytail: CTS 不 Dispose —— 没用过 CancelAfter 就没有定时器/非托管资源，GC 兜底即可，
+    // 免掉钩子线程 Cancel 与回放线程 Dispose 的 ObjectDisposedException 竞态。
     static CancellationTokenSource _playCts;
 
     public static bool IsRecording => _recording;
@@ -62,7 +67,6 @@ namespace OmenSuperHub.Services {
       if (_mouseHookId != IntPtr.Zero) { UnhookWindowsHookEx(_mouseHookId); _mouseHookId = IntPtr.Zero; }
       StopRecording();
       _playCts?.Cancel();
-      _playCts?.Dispose();
       _playCts = null;
     }
 
@@ -94,10 +98,16 @@ namespace OmenSuperHub.Services {
       if (macro == null || macro.Events.Count == 0) return;
       if (Interlocked.CompareExchange(ref _playing, 1, 0) != 0) return;
       _playCts = new CancellationTokenSource();
+      _playingMacro = macro;
       var token = _playCts.Token;
+      // ponytail: 不把 token 传给 Task.Run —— token 在委托开跑前已取消时任务直接 Canceled，
+      // finally 永不执行，_playing 永久卡 1，宏引擎死到重启。委托内的 token 检查/Task.Delay(token)
+      // 已覆盖取消，Task.Run 的 token 参数有害无益。
+      // RepeatCount 钳 [1,10] 与 UI 契约一致，防手改 macros.json 造出无法中断的巨长回放。
+      int repeat = Math.Min(10, Math.Max(1, macro.RepeatCount));
       Task.Run(async () => {
         try {
-          for (int r = 0; r < macro.RepeatCount; r++) {
+          for (int r = 0; r < repeat; r++) {
             if (token.IsCancellationRequested) break;
             await PlayEvents(macro, token);
           }
@@ -106,12 +116,13 @@ namespace OmenSuperHub.Services {
         } catch (Exception ex) {
           Logger.Error("MacroController.PlayMacro error: " + ex.Message);
         } finally {
-          var cts = _playCts;
+          // ponytail: 两个字段清空必须在 Exchange 之前 —— Exchange 是最后一笔，保证新
+          // PlayMacro 的 CAS 只能在本 finally 完全退出后成功，新回放的状态不会被这里误清。
+          _playingMacro = null;
           _playCts = null;
-          cts?.Dispose();
           Interlocked.Exchange(ref _playing, 0);
         }
-      }, token);
+      });
     }
 
     public static void CancelPlayback() {
@@ -126,8 +137,7 @@ namespace OmenSuperHub.Services {
         if (evt.Source == MacroSource.Keyboard) {
           uint scanCode = MapVirtualKey((int)evt.Key, 0);
           uint flags = 0;
-          if (evt.Key == 0xA0 || evt.Key == 0xA1 || evt.Key == 0xA2 || evt.Key == 0xA3 ||
-              evt.Key == 0x5B || evt.Key == 0x5C) {
+          if (IsExtendedKey(evt.Key)) {
             flags = KEYEVENTF_EXTENDEDKEY;
           }
           if (evt.Direction == MacroDirection.Down) {
@@ -200,8 +210,10 @@ namespace OmenSuperHub.Services {
         }
 
         if (IsPlaying) {
-          MacroSequence macro = MacroService.GetByTriggerKey(vk);
-          if (macro != null && macro.InterruptOnOtherKey) {
+          // "按键时打断回放"查的是正在回放宏的开关 —— 旧实现查按键所属宏，导致该选项
+          // 永远轮不到生效。排除触发键自身，避免重按触发键把回放误打断。
+          var pm = _playingMacro;
+          if (pm != null && pm.InterruptOnOtherKey && vk != pm.TriggerKey) {
             CancelPlayback();
           }
         }
@@ -281,12 +293,54 @@ namespace OmenSuperHub.Services {
         case 0xDE: return "'";  case 0xE2: return "\\";
         default: {
           // try ToUnicodeEx as last resort
+          // 审查修复: 转换结果写进临时 char[256] 后被丢弃,返回的是 result 个 '\0'
+          // (Trim 不去 NUL)——键名在 UI 显示为空白。缓冲提为局部再切片。
           long scan = MapVirtualKey((int)vk, 0);
-          int result = ToUnicodeEx(vk, (uint)scan, new byte[256], new char[256], 256, 0, GetKeyboardLayout(0));
-          if (result > 0) return new string(new char[256], 0, result).Trim();
+          var chars = new char[256];
+          int result = ToUnicodeEx(vk, (uint)scan, new byte[256], chars, chars.Length, 0, GetKeyboardLayout(0));
+          if (result > 0) return new string(chars, 0, result).Trim();
           return "0x" + vk.ToString("X2");
         }
       }
+    }
+
+    // E0 前缀扫描码的 VK 集合 —— keybd_event 注入这些键必须带 KEYEVENTF_EXTENDEDKEY，
+    // 否则方向键/翻页等会被 raw-input 应用当小键盘数字（MapVirtualKey 返回的是非扩展扫描码）。
+    // 按播放时的 VK 推导而非录制时存 LLKHF_EXTENDED：旧宏文件无需迁移即被修复。
+    // ponytail: Num Enter 与主 Enter 同 VK(0x0D)，录制只存 VK 无法区分，不在此列。
+    internal static bool IsExtendedKey(uint vk) {
+      switch (vk) {
+        case 0x21: case 0x22: case 0x23: case 0x24:   // PgUp PgDn End Home
+        case 0x25: case 0x26: case 0x27: case 0x28:   // ← ↑ → ↓
+        case 0x2C:                                     // PrintScreen
+        case 0x2D: case 0x2E:                          // Ins Del
+        case 0x5B: case 0x5C:                          // LWin RWin
+        case 0x6F:                                     // Num /
+        case 0xA3: case 0xA5:                          // RCtrl RAlt
+          return true;
+        default:
+          return false;
+      }
+    }
+
+    // --selftest: IsExtendedKey 真值表。只测纯函数。
+    public static string SelfCheck() {
+      var cases = new(uint vk, bool ext)[] {
+        (0x26, true),  // ↑
+        (0x41, false), // A
+        (0xA0, false), // LShift（旧实现误标扩展）
+        (0xA3, true),  // RCtrl
+        (0xA5, true),  // RAlt
+        (0x5B, true),  // LWin
+        (0x2D, true),  // Ins
+        (0x60, false), // Num 0
+        (0x74, false)  // F5
+      };
+      foreach (var c in cases) {
+        if (IsExtendedKey(c.vk) != c.ext)
+          return "[MacroController] FAIL: IsExtendedKey(0x" + c.vk.ToString("X2") + ") expected " + c.ext;
+      }
+      return "[MacroController] PASS";
     }
 
     // P/Invoke

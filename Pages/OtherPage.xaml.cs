@@ -146,7 +146,8 @@ namespace OmenSuperHub.Pages
             if (HttpApiStatusText == null) return;
             if (HardwareApiService.IsRunning)
             {
-                HttpApiStatusText.Text = Strings.HttpApiRunning;
+                // ponytail: 展示 Bearer 令牌 —— 客户端唯一的获取入口,选中即可复制
+                HttpApiStatusText.Text = Strings.HttpApiRunningWithToken(HardwareApiService.ApiToken);
                 HttpApiStatusText.Foreground = System.Windows.Media.Brushes.LimeGreen;
             }
             else

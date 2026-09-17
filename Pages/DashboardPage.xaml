@@ -294,7 +294,7 @@
                   <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <TextBlock x:Name="MemRingPctText" Text="-" FontSize="22" FontWeight="Bold"
                                Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
-                    <TextBlock Text="{x:Static app:Strings.UtilizationLabel}" FontSize="10"
+                    <TextBlock Text="{x:Static app:Strings.UtilizationLabel}" FontSize="{DynamicResource FontSizeCaption}"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center"/>
                   </StackPanel>
                 </Grid>
@@ -360,8 +360,8 @@
                 </ui:Button>
               </Grid>
               <!-- ponytail: 储存柱状图 — 每盘一根竖条,高度=已用占比,颜色按占比渐变。
-                   Canvas 固定 220×132 容纳至多 8 盘(每柱 24px + 4px 间隔);
-                   超过 8 盘降级到文字列表 RefreshStorageLegacy()。上限:单盘>99% 颜色顶 AccentRed。 -->
+                   Canvas 固定 220×132,≤7 盘柱宽 24 间隔 6,>7 盘柱宽自适应铺满;
+                   计时刷新有 10s 节流(RefreshStorage)。上限:单盘>99% 颜色顶 AccentRed。 -->
               <Canvas x:Name="StorageBarCanvas" Grid.Row="1" Width="220" Height="132"
                       Margin="0,8,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
             </Grid>
@@ -439,7 +439,7 @@
                       StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                   <TextBlock x:Name="RingLabelText" Text="{x:Static app:Strings.DashboardTendencyLabel}"
-                             FontSize="10" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                             FontSize="{DynamicResource FontSizeCaption}" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                              HorizontalAlignment="Center"/>
                   <TextBlock x:Name="RingPctText" Text="-" FontSize="20" FontWeight="Bold"
                              Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>

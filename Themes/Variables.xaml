@@ -36,6 +36,15 @@
   <Thickness x:Key="NavItemPadding">14,10</Thickness>
   <Thickness x:Key="CardMargin">0,0,0,8</Thickness>
   <Thickness x:Key="CardContentMargin">0,0,0,12</Thickness>
+  <!-- 卡片头部规范 (PerfPage 与后续卡片页共用): 右侧 Accessory 统一 12 右距+垂直居中 -->
+  <Thickness x:Key="CardAccessoryMargin">0,0,12,0</Thickness>
+  <Thickness x:Key="CardHeaderIconMargin">0,0,6,0</Thickness>
+  <Thickness x:Key="CardHeaderDescMargin">0,2,0,0</Thickness>
+  <!-- 值行 (NumberBox+Slider) 规范 -->
+  <!-- ponytail: 必须用 GridLength 而非 sys:Double——ColumnDefinition.Width 类型是 GridLength,
+     BAML 编译期不查 StaticResource 类型,Double 会在运行时抛「设置属性 Width 时引发异常」使整页打不开。 -->
+  <GridLength x:Key="ValueRowNumberWidth">150</GridLength>
+  <Thickness x:Key="ValueSliderMargin">12,0,0,0</Thickness>
 
   <!-- Border Thickness -->
   <Thickness x:Key="DefaultBorderThickness">1</Thickness>

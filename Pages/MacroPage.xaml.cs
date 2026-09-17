@@ -16,13 +16,12 @@ namespace OmenSuperHub.Pages {
     bool _capturingKey;
     Action<uint> _keyCaptureCallback;
     // ponytail: 主题刷子一次性缓存，避免每次 BuildMacroCard/ShowEditDialog 调 TryFindResource。
-    static Brush _cardBg, _textSec, _borderSubtle, _altCardBg;
+    static Brush _cardBg, _textSec, _borderSubtle;
     static bool _brushesCached;
     static void CacheBrushes(System.Windows.FrameworkElement fe) {
       if (_brushesCached) return;
       _cardBg = fe.TryFindResource("CardBackgroundFillColorDefaultBrush") as Brush
                 ?? System.Windows.Media.Brushes.White;
-      _altCardBg = _cardBg;
       _textSec = fe.TryFindResource("TextFillColorSecondaryBrush") as Brush
                  ?? System.Windows.Media.Brushes.Gray;
       _borderSubtle = fe.TryFindResource("BorderSubtleBrush") as Brush
@@ -39,7 +38,16 @@ namespace OmenSuperHub.Pages {
         AddMacroBtn.IsEnabled = ConfigService.MacroEnabled;
         RefreshList();
       };
-      Unloaded += (s, e) => { StopRecordingWatcher(); };
+      Unloaded += (s, e) => {
+        // ponytail: 录制中离开页面必须就地收尾 —— 否则钩子继续系统级吞掉所有按键（提示已随页
+        // 隐藏，只能盲按 ESC），且收尾 Save 挂在已停的 watcher 上永不执行，重启即丢录像。
+        // StopRecording 全部状态都在 UI 线程，这里调用安全。
+        if (MacroController.IsRecording) {
+          MacroController.StopRecording();
+          MacroService.Save();
+        }
+        StopRecordingWatcher();
+      };
     }
 
     void RefreshList() {
@@ -95,7 +103,19 @@ namespace OmenSuperHub.Pages {
       var toggle = new ToggleSwitch {
         IsChecked = m.Enabled, Tag = m, Margin = new Thickness(8, 0, 0, 0)
       };
-      toggle.Checked += (s, e) => { m.Enabled = true; MacroService.Save(); };
+      toggle.Checked += (s, e) => {
+        // 与编辑对话框保存时同款冲突拦截。x.TriggerKey != 0 不可省 —— 对话框路径有
+        // m.TriggerKey != 0 外层守卫，这里没有，漏了会把无触发键的启用宏误判为冲突。
+        var conflict = MacroService.Macros.Find(
+          x => x != m && x.TriggerKey != 0 && x.TriggerKey == m.TriggerKey && x.Enabled);
+        if (conflict != null) {
+          DialogHelper.Warn(Strings.MacroTriggerConflict(conflict.Name), Strings.MacroTriggerConflictTitle);
+          toggle.IsChecked = false; // 触发 Unchecked → m.Enabled=false + Save，状态自洽
+          return;
+        }
+        m.Enabled = true;
+        MacroService.Save();
+      };
       toggle.Unchecked += (s, e) => { m.Enabled = false; MacroService.Save(); };
       Grid.SetColumn(toggle, 2);
       header.Children.Add(toggle);
@@ -165,6 +185,10 @@ namespace OmenSuperHub.Pages {
 
     static void StopRecordingWatcher() {
       if (_recWatcher != null) { _recWatcher.Stop(); _recWatcher = null; }
+      // R15/BUG-R15-14: 旧实现只停 timer 不清 _watcherPage —— 录制中离开页面/关程序时,
+      // 静态引用钉住整个 MacroPage 实例直到下次录制。StartRecordingWatcher 先 Stop 再赋值,
+      // 此处置空不影响正常流程。
+      _watcherPage = null;
     }
 
     void AddMacro_Click(object sender, RoutedEventArgs e) {
@@ -364,6 +388,9 @@ namespace OmenSuperHub.Pages {
         }
       };
       win.KeyDown += handler;
+      // 审查修复: 捕获中途直接关窗(点取消/标题栏)不复位 —— 残留的 _keyCaptureCallback
+      // 指向上一个宏对象,下个对话框里按第一个键会把触发键写进上一个宏并吞掉该按键。
+      win.Closed += (s, e) => { _capturingKey = false; _keyCaptureCallback = null; };
       return win.ShowDialog();
     }
 

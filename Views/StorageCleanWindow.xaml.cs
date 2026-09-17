@@ -60,21 +60,27 @@ namespace OmenSuperHub.Views {
     async Task Rescan() {
       if (_busy) return;
       SetBusy(true, Strings.StorageCleanScanning);
-      // 重建行(首次)或刷新 ; CleanItem 是业务对象, RowVm 是 UI 投影
-      if (_rows.Count == 0) {
-        foreach (var it in DiskCleaner.BuildItems()) {
-          var vm = new RowVm { Item = it, IsSelected = false };
-          vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(RowVm.IsSelected)) RefreshTotal(); };
-          _rows.Add(vm);
+      // R15/BUG-24: await 之后的 UI 段(FmtBytes/RefreshTotal)或委托若抛,async void 处理器
+      // 异常被 DispatcherUnhandledException 吞掉,SetBusy(false) 永不执行 → 界面永久卡"忙"。
+      // try/finally 保证忙态无论成败都复位。
+      try {
+        // 重建行(首次)或刷新 ; CleanItem 是业务对象, RowVm 是 UI 投影
+        if (_rows.Count == 0) {
+          foreach (var it in DiskCleaner.BuildItems()) {
+            var vm = new RowVm { Item = it, IsSelected = false };
+            vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(RowVm.IsSelected)) RefreshTotal(); };
+            _rows.Add(vm);
+          }
+        } else {
+          foreach (var r in _rows) r.SizeText = "…";
         }
-      } else {
-        foreach (var r in _rows) r.SizeText = "…";
+        var snapshot = _rows.Select(r => r.Item).ToList();
+        await Task.Run(() => DiskCleaner.Scan(snapshot));
+        foreach (var r in _rows) r.SizeText = DiskCleaner.FmtBytes(r.Item.SizeBytes);
+        RefreshTotal();
+      } finally {
+        SetBusy(false, "");
       }
-      var snapshot = _rows.Select(r => r.Item).ToList();
-      await Task.Run(() => DiskCleaner.Scan(snapshot));
-      foreach (var r in _rows) r.SizeText = DiskCleaner.FmtBytes(r.Item.SizeBytes);
-      SetBusy(false, "");
-      RefreshTotal();
     }
 
     long TotalSelectedBytes() => _rows.Where(r => r.IsSelected).Sum(r => r.Item.SizeBytes);
@@ -103,8 +109,14 @@ namespace OmenSuperHub.Views {
       if (!DialogHelper.Confirm(string.Format(Strings.StorageCleanConfirm, DiskCleaner.FmtBytes(total)), Strings.StorageCleanTitle))
         return;
       SetBusy(true, Strings.StorageCleanCleaning);
-      long freed = await Task.Run(() => DiskCleaner.Clean(picked));
-      SetBusy(false, "");
+      long freed = 0;
+      try {
+        // 审查修复: 删除 IO 抛异常(IOException/UnauthorizedAccess 完全可预期)时不再
+        // 永久卡"忙"—— 与上方 Rescan 的 try/finally 同款(R15/BUG-24)。
+        freed = await Task.Run(() => DiskCleaner.Clean(picked));
+      } finally {
+        SetBusy(false, "");
+      }
       DialogHelper.Info(string.Format(Strings.StorageCleanFreed, DiskCleaner.FmtBytes(freed)), Strings.StorageCleanTitle);
       await Rescan();
     }

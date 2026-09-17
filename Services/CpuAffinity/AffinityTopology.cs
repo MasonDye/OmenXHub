@@ -1,4 +1,4 @@
-// CpuAffinity/CpuTopologyService.cs - 结构化 CPU 拓扑检测
+// CpuAffinity/AffinityTopology.cs - 结构化 CPU 拓扑检测
 // 参考 CpuAffinityManager.Cpu.CpuTopologyService
 // 用 CPU Set API 检测 P/E 核 + GetLogicalProcessorInformation 检测 SMT/CCD/Socket
 using System;
@@ -10,8 +10,9 @@ namespace OmenSuperHub.Services.CpuAffinity {
 
   /// <summary>
   /// 检测 CPU 拓扑。结果缓存（进程级不变）。
+  /// 改名原因:与根命名空间的 internal static CpuTopologyService 同短名,同文件 using 两个命名空间会歧义。
   /// </summary>
-  public class CpuTopologyService {
+  public class AffinityTopology {
     CpuTopology _cached;
     readonly object _lock = new object();
 
@@ -57,6 +58,10 @@ namespace OmenSuperHub.Services.CpuAffinity {
 
       // Step 2: SMT 布局
       var smt = DetectSmtLayout(totalLogical);
+      // ponytail: EX API 的 RelationProcessorCore 条目在部分 OEM 固件上 mask 为空（Smt0Mask=0），
+      // 用它折算物理核心会把逻辑数当物理数（16 线程 P 核被读成 16 个物理核）。
+      // 回退到 CPU Set API：同一 CoreIndex 的多个逻辑处理器即 SMT 兄弟。
+      if (!smt.HasValue || smt.Value.smt0Mask == 0) smt = QueryCpuSetSmtLayout(totalLogical);
       if (smt.HasValue) {
         smtEnabled = smt.Value.smtEnabled;
         smt0Mask = smt.Value.smt0Mask;
@@ -152,6 +157,42 @@ namespace OmenSuperHub.Services.CpuAffinity {
     }
 
     /// <summary>检测 SMT 布局。每物理核的 mask 含全部 SMT 兄弟，最低 bit 为 SMT0。</summary>
+    /// <summary>CPU Set 回退：按 CoreIndex 归组逻辑处理器，每组最低 bit 为 SMT0。</summary>
+    static (bool smtEnabled, ulong smt0Mask, ulong smt1Mask)? QueryCpuSetSmtLayout(int totalLogical) {
+      if (totalLogical > 64) return null;
+      Kernel32.GetSystemCpuSetInformation(IntPtr.Zero, 0, out uint retLen, IntPtr.Zero, 0);
+      if (retLen == 0) return null;
+
+      var cores = new Dictionary<byte, ulong>();
+      IntPtr buf = Marshal.AllocHGlobal((int)retLen);
+      try {
+        if (!Kernel32.GetSystemCpuSetInformation(buf, retLen, out _, IntPtr.Zero, 0)) return null;
+        uint offset = 0;
+        while (offset < retLen) {
+          var info = Marshal.PtrToStructure<SYSTEM_CPU_SET_INFORMATION>(buf + (int)offset);
+          if (info.Size == 0) break;
+          if (info.Type == CPU_SET_INFORMATION_TYPE.CpuSetInformation &&
+              info.CpuSet.Group == 0 && info.CpuSet.LogicalProcessorIndex < 64) {
+            ulong bit = 1UL << info.CpuSet.LogicalProcessorIndex;
+            byte core = info.CpuSet.CoreIndex;
+            cores[core] = cores.TryGetValue(core, out ulong existing) ? existing | bit : bit;
+          }
+          offset += info.Size;
+        }
+      } finally { Marshal.FreeHGlobal(buf); }
+      if (cores.Count == 0) return null;
+
+      ulong smtA = 0, smtB = 0;
+      bool anySmt = false;
+      foreach (ulong mask in cores.Values) {
+        ulong low = mask & (~mask + 1);
+        smtA |= low;
+        ulong rest = mask & ~low;
+        if (rest != 0) { smtB |= rest; anySmt = true; }
+      }
+      return (anySmt, smtA, smtB);
+    }
+
     static (bool smtEnabled, ulong smt0Mask, ulong smt1Mask)? DetectSmtLayout(int totalLogical) {
       if (totalLogical > 64) return null;
       ulong smt0 = 0, smt1 = 0;

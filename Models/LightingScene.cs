@@ -45,6 +45,9 @@ namespace OmenSuperHub.Models {
       c.IsDefault = false;
       if (ZoneColors != null) c.ZoneColors = (string[])ZoneColors.Clone();
       if (ScheduledDays != null) c.ScheduledDays = (int[])ScheduledDays.Clone();
+      // R15/BUG-R15-6: LightBarColors 是后加入的 string[] 字段,Clone 漏了防御性拷贝 ——
+      // 副本与源场景共享同一数组,任何原地修改互相穿透(污染内置场景)。与 ZoneColors 对齐。
+      if (LightBarColors != null) c.LightBarColors = (string[])LightBarColors.Clone();
       return c;
     }
   }

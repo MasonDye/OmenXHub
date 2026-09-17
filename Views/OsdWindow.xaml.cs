@@ -2,6 +2,7 @@
 // 预设切换、功耗变化、锁定键、刷新率等的 Toast 通知显示
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -90,7 +91,10 @@ namespace OmenSuperHub.Views {
       Application.Current?.Dispatcher.Invoke(() => {
         // ponytail: 关掉所有堆叠中的 OSD —— 旧版只关单例,关 OSD 后残留的窗口现在能一起清掉
         lock (_stackLock) {
-          foreach (var w in _instances) {
+          // R15/BUG-21: Close() 同步触发 Closed→RemoveAndRepack→_instances.Remove,
+          // 直接枚举 _instances 会在 MoveNext 处抛 InvalidOperationException 中断 Dismiss。
+          // 快照遍历,摘除交给 Closed 回调,末尾 Clear 兜底。
+          foreach (var w in _instances.ToArray()) {
             if (w._fadeTimer != null) { w._fadeTimer.Stop(); w._fadeTimer = null; }
             if (w.IsLoaded) w.Close();
           }
@@ -177,7 +181,8 @@ namespace OmenSuperHub.Views {
     }
 
     private static void ShowOsd(string text, SymbolRegular icon) {
-      Application.Current.Dispatcher.Invoke(() => {
+      // R15/存疑-C: 应用关闭竞态中 Application.Current 可能已为 null —— 与其它入口一致判空。
+      Application.Current?.Dispatcher.Invoke(() => {
         // ponytail: 每个 ShowOsd 建独立窗口并加入堆叠。旧版覆盖单例 → 多步骤只看到最后一条。
         var win = new OsdWindow();
         win.OsdText.Text = text;

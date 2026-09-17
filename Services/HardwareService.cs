@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
 using OmenSuperHub.Pages;
 using LibreComputer = LibreHardwareMonitor.Hardware.Computer;
 using LibreIHardware = LibreHardwareMonitor.Hardware.IHardware;
@@ -94,29 +93,33 @@ namespace OmenSuperHub.Services {
     public static bool HasExtraTemp(string id) => _extraRaw.ContainsKey(id);
 
     // ═══ GPU 选择 — 用户在设置页选指定 GPU 显示其温度/利用率/功耗/时钟 ═══
-    // ponytail: 空 SelectedGpu = 独显优先(只读 GpuNvidia/GpuAmd, 跳过 GpuIntel),否则只匹配 IHardware.Name。
-    // 三个 vendor 分支前置 GpuWanted(hardware) 守卫,只有选中的 GPU 才进分支写 GPUTemp/GPUUsage/GPUPower/GPUClock。
-    static bool IsDiscreteGPU(LibreHardwareType t) => t == LibreHardwareType.GpuNvidia || t == LibreHardwareType.GpuAmd;
-    static bool GpuWanted(LibreIHardware h) {
+    // ponytail: 空 SelectedGpu 按 NVIDIA → AMD → Intel 选一个；非空优先匹配稳定 Identifier。
+    static bool IsGpu(LibreIHardware h) => h.HardwareType == LibreHardwareType.GpuNvidia
+      || h.HardwareType == LibreHardwareType.GpuAmd || h.HardwareType == LibreHardwareType.GpuIntel;
+    static LibreIHardware ResolveTargetGpu(IEnumerable<LibreIHardware> hardware) {
+      var gpus = hardware.Where(IsGpu).ToList();
       string sel = ConfigService.SelectedGpu ?? "";
-      if (string.IsNullOrWhiteSpace(sel)) return IsDiscreteGPU(h.HardwareType);   // 默认独显优先
-      return h.Name == sel;   // 指定名精确匹配(IHardware.Name 是 LHM 稳定唯一字符串)
+      if (!string.IsNullOrWhiteSpace(sel))
+        return gpus.FirstOrDefault(h => h.Identifier.ToString() == sel)
+          ?? gpus.FirstOrDefault(h => h.Name == sel);
+      return gpus.FirstOrDefault(h => h.HardwareType == LibreHardwareType.GpuNvidia)
+        ?? gpus.FirstOrDefault(h => h.HardwareType == LibreHardwareType.GpuAmd)
+        ?? gpus.FirstOrDefault(h => h.HardwareType == LibreHardwareType.GpuIntel);
     }
-    // 列出可用 GPU(供设置页 ComboBox 枚举)。返回 (Name, Vendor) 列表,启动 LibreComputer.Open 后才有效。
-    public static List<(string Name, string Vendor)> GetAvailableGpus() {
-      var list = new List<(string, string)>();
+    // 列出可用 GPU(供设置页 ComboBox 枚举)。启动 LibreComputer.Open 后才有效。
+    public static List<(string Id, string Name, string Vendor)> GetAvailableGpus() {
+      var list = new List<(string, string, string)>();
       try {
         foreach (LibreIHardware h in LibreComputer.Hardware) {
           string v = h.HardwareType == LibreHardwareType.GpuNvidia ? "NVIDIA"
                    : h.HardwareType == LibreHardwareType.GpuAmd ? "AMD"
                    : h.HardwareType == LibreHardwareType.GpuIntel ? "Intel" : null;
-          if (v != null) list.Add((h.Name, v));
+          if (v != null) list.Add((h.Identifier.ToString(), h.Name, v));
         }
       } catch { }
       return list;
     }
 
-    static bool openLib = true;
     static int countQuery = 0;
     public static bool AutoStartMonitorGPU = true, AutoStopMonitorGPU = true;
 
@@ -138,23 +141,19 @@ namespace OmenSuperHub.Services {
     }
 
     public static void MonitorQuery() {
-      if (Screen.AllScreens.Length != 1)
-        return;
       var d = new NativeMethods_Display.DISPLAY_DEVICE();
       d.cb = Marshal.SizeOf(d);
       uint deviceNum = 0;
+      bool hasAttachedNvidia = false;
 
       while (NativeMethods_Display.EnumDisplayDevices(null, deviceNum, ref d, 0)) {
-        if (((DisplayDeviceStateFlags)d.StateFlags).HasFlag(DisplayDeviceStateFlags.AttachedToDesktop)) {
-          if (d.DeviceString.Contains("Intel") || d.DeviceString.Contains("AMD")) {
-            IsConnectedToNVIDIA = false;
-            return;
-          }
-        }
+        if (((DisplayDeviceStateFlags)d.StateFlags).HasFlag(DisplayDeviceStateFlags.AttachedToDesktop)
+            && d.DeviceString.IndexOf("NVIDIA", StringComparison.OrdinalIgnoreCase) >= 0)
+          hasAttachedNvidia = true;
         deviceNum++;
       }
 
-      IsConnectedToNVIDIA = true;
+      IsConnectedToNVIDIA = hasAttachedNvidia;
     }
 
     public static void DetectAmbientSensor() {
@@ -179,10 +178,59 @@ namespace OmenSuperHub.Services {
     /// Args: (bool gpuEnabled, string message)
     /// </summary>
     public static event Action<bool, string> OnGpuMonitoringChanged;
+    public enum GpuTemperatureSource { None = 0, HWiNFO = 1, NvidiaNvml = 2, LibreHardwareMonitor = 3, NvidiaNvApi = 4 }
+    static DateTime _lastGpuTempSampleUtc = DateTime.MinValue;
+    static DateTime _lastGpuPowerSampleUtc = DateTime.MinValue;
+    static GpuTemperatureSource _gpuTempSource;
+    static string _lastResolvedGpuId;
+    public static bool GpuTargetAvailable { get; private set; }
+    public static bool GpuTempFresh => DateTime.UtcNow - _lastGpuTempSampleUtc <= TimeSpan.FromSeconds(3);
+    public static bool GpuPowerFresh => DateTime.UtcNow - _lastGpuPowerSampleUtc <= TimeSpan.FromSeconds(3);
+    public static bool GpuPowerUsable => MonitorGPU && GpuTargetAvailable && GpuPowerFresh;
+
+    public static bool UpdateGpuTempSample(float value, GpuTemperatureSource source = GpuTemperatureSource.LibreHardwareMonitor) {
+      if (float.IsNaN(value) || float.IsInfinity(value) || value < 15 || value > 120) return false;
+      // 高优先级源新鲜时拒绝低优先级抢写；失效 3s 后下一级可自动接管。
+      if (source < _gpuTempSource && GpuTempFresh) return false;
+      _rawGpuTemp = value;
+      GPUTemp = value * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+      _lastGpuTempSampleUtc = DateTime.UtcNow;
+      _gpuTempSource = source;
+      return true;
+    }
+
+    public static bool UpdateGpuPowerSample(float value) {
+      if (float.IsNaN(value) || float.IsInfinity(value) || value < 0) return false;
+      GPUPower = (int)(value * 10) == 5900 ? 0 : value;
+      _gpuPowerDisplay = GPUPower * RespondSpeed + _gpuPowerDisplay * (1.0f - RespondSpeed);
+      _lastGpuPowerSampleUtc = DateTime.UtcNow;
+      return true;
+    }
+
+    public static bool TryGetFreshGpuTemp(out float value) {
+      value = GPUTemp;
+      return MonitorGPU && GpuTargetAvailable && GpuTempFresh;
+    }
+
+    public static float GetEffectiveGpuTemp(float fallback) => TryGetFreshGpuTemp(out float value) ? value : fallback;
+
+    public static void InvalidateGpuSamples() {
+      _lastGpuTempSampleUtc = DateTime.MinValue;
+      _lastGpuPowerSampleUtc = DateTime.MinValue;
+      _gpuTempSource = GpuTemperatureSource.None;
+      GpuTargetAvailable = false;
+      GPUUsage = 0;
+      GPUClock = 0;
+      _gpuPowerDisplay = 0;
+    }
 
     public static void QueryHardware() {
-      if ((DateTime.Now - _lastQueryTime) < _cacheInterval) return;
-      _lastQueryTime = DateTime.Now;
+      // ponytail: 用 UtcNow 而非 Now —— 与同文件 GpuTempFresh/GpuPowerFresh(188/189) 及
+      // TrayService 的 UtcNow 新鲜度判断一致;DateTime.Now 在夏令时切换/系统时钟回拨时
+      // 差值为负,会永久满足 < _cacheInterval 导致 QueryHardware 冻结(硬件监控停更且无日志)。
+      if ((DateTime.UtcNow - _lastQueryTime) < _cacheInterval) return;
+
+      _lastQueryTime = DateTime.UtcNow;
       // ponytail: 不每轮 Clear —— 改"读到了就覆盖,读不到保留上次值",避免 LHM 间歇读不到
       // (尤其 Intel Core Max/Distance to TjMax 启动初期读不到)导致 UI 抖动出 "-"
       foreach (var id in ExtraSensorIds) _extraSeenThisTick[id] = false;
@@ -193,9 +241,29 @@ namespace OmenSuperHub.Services {
       // ponytail: per-snapshot max so CPUClock/GPUClock reflect current clock, not historical peak.
       float snapCpuClock = 0;
       float snapGpuClock = 0;
-      bool getGPU = false;
+      LibreIHardware targetGpu = ResolveTargetGpu(LibreComputer.Hardware);
+      string targetGpuId = targetGpu?.Identifier.ToString();
+      if (!string.Equals(_lastResolvedGpuId, targetGpuId, StringComparison.Ordinal)) {
+        InvalidateGpuSamples();
+        _lastResolvedGpuId = targetGpuId;
+      }
+      GpuTargetAvailable = targetGpu != null;
+      // NVIDIA 温度源：官方 NVAPI > LHM > 官方 NVML > HWiNFO。
+      // LHM 的 GPU Core 温度虽通常也来自 NVAPI，仍作为项目既有采样层单独保留。
+      if (MonitorGPU && targetGpu?.HardwareType == LibreHardwareType.GpuNvidia) {
+        bool resolved = GpuAppManager.TryGetNvApiTemperature(targetGpu.Name, out float nvapiTemp)
+          && UpdateGpuTempSample(nvapiTemp, GpuTemperatureSource.NvidiaNvApi);
+        if (!resolved) {
+          targetGpu.Update();
+          LibreISensor coreTemp = targetGpu.Sensors.FirstOrDefault(s => s.SensorType == LibreSensorType.Temperature && s.Name == "GPU Core");
+          resolved = coreTemp?.Value != null
+            && UpdateGpuTempSample(coreTemp.Value.Value, GpuTemperatureSource.LibreHardwareMonitor);
+        }
+        if (!resolved && GpuAppManager.TryGetNvmlTemperature(targetGpu.Name, out float nvmlTemp))
+          UpdateGpuTempSample(nvmlTemp, GpuTemperatureSource.NvidiaNvml);
+      }
       if (ConfigService.HWiNFOReadEnabled) {
-        // 跳过 Libre 传感器读取 + temp/power 赋值，直接进入 GPU 启停逻辑
+        // HWiNFO 后台读取；前三层新鲜时其温度写入会被优先级守卫拒绝。
         goto afterLibre;
       }
 
@@ -237,12 +305,9 @@ namespace OmenSuperHub.Services {
                 float v = (float)sensor.Value.GetValueOrDefault();
                 if (v > snapCpuClock) snapCpuClock = v;
               }
-            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuNvidia && GpuWanted(hardware)) {
+            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuNvidia && ReferenceEquals(hardware, targetGpu)) {
               if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
-                _rawGpuTemp = (int)sensor.Value.GetValueOrDefault();
-                // ponytail: reject impossible GPU temps (<15°C or >120°C)
-                if (_rawGpuTemp >= 15 && _rawGpuTemp <= 120)
-                  GPUTemp = _rawGpuTemp * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+                UpdateGpuTempSample(sensor.Value.GetValueOrDefault());
               }
               // GPU Hot Spot(nVIDIA 命中 "GPU Hot Spot")
               if (sensor.SensorType == LibreSensorType.Temperature && sensor.Name.Contains("Hot Spot")) {
@@ -250,11 +315,7 @@ namespace OmenSuperHub.Services {
                 if (v >= 1 && v <= 120) { _extraRaw["GPUNV_HOTSPOT"] = v; _extraSeenThisTick["GPUNV_HOTSPOT"] = true; }
               }
               if (sensor.Name == "GPU Package" && sensor.SensorType == LibreSensorType.Power) {
-                getGPU = true;
-                if ((int)(sensor.Value.GetValueOrDefault() * 10) == 5900)
-                  GPUPower = 0;
-                else
-                  GPUPower = sensor.Value.GetValueOrDefault();
+                UpdateGpuPowerSample(sensor.Value.GetValueOrDefault());
               }
               if (sensor.SensorType == LibreSensorType.Load && sensor.Name == "GPU Core") {
                 GPUUsage = (float)sensor.Value.GetValueOrDefault();
@@ -263,12 +324,9 @@ namespace OmenSuperHub.Services {
                 float v = (float)sensor.Value.GetValueOrDefault();
                 if (v > snapGpuClock) snapGpuClock = v;
               }
-            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuAmd && GpuWanted(hardware)) {
+            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuAmd && ReferenceEquals(hardware, targetGpu)) {
               if (sensor.Name == "GPU Core" && sensor.SensorType == LibreSensorType.Temperature) {
-                _rawGpuTemp = (int)sensor.Value.GetValueOrDefault();
-                // ponytail: reject impossible GPU temps (<15°C or >120°C)
-                if (_rawGpuTemp >= 15 && _rawGpuTemp <= 120)
-                  GPUTemp = _rawGpuTemp * RespondSpeed + GPUTemp * (1.0f - RespondSpeed);
+                UpdateGpuTempSample(sensor.Value.GetValueOrDefault());
               }
               // GPU Hot Spot(AMD 命中 "Hot Spot" 或 "Temperature #2",两者都认)
               if (sensor.SensorType == LibreSensorType.Temperature && (sensor.Name.Contains("Hot Spot") || sensor.Name.Contains("Hotspot"))) {
@@ -276,12 +334,7 @@ namespace OmenSuperHub.Services {
                 if (v >= 1 && v <= 120) { _extraRaw["GPUNV_HOTSPOT"] = v; _extraSeenThisTick["GPUNV_HOTSPOT"] = true; }
               }
               if (sensor.Name == "GPU Package" && sensor.SensorType == LibreSensorType.Power) {
-                getGPU = true;
-                float pwr = sensor.Value.GetValueOrDefault();
-                if ((int)(pwr * 10) == 5900)
-                  GPUPower = 0;
-                else
-                  GPUPower = pwr;
+                UpdateGpuPowerSample(sensor.Value.GetValueOrDefault());
               }
               if (sensor.SensorType == LibreSensorType.Load && sensor.Name == "GPU Core") {
                 GPUUsage = (float)sensor.Value.GetValueOrDefault();
@@ -290,7 +343,7 @@ namespace OmenSuperHub.Services {
                 float v = (float)sensor.Value.GetValueOrDefault();
                 if (v > snapGpuClock) snapGpuClock = v;
               }
-            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuIntel && GpuWanted(hardware)) {
+            } else if (MonitorGPU && hardware.HardwareType == LibreHardwareType.GpuIntel && ReferenceEquals(hardware, targetGpu)) {
               if (sensor.SensorType == LibreSensorType.Load) {
                 float val = (float)sensor.Value.GetValueOrDefault();
                 if (val > GPUUsage) GPUUsage = val;
@@ -315,10 +368,6 @@ namespace OmenSuperHub.Services {
       CPUClock = snapCpuClock;
       GPUClock = snapGpuClock;
 
-      if (openLib && libreTempCPU > -299 && librePowerCPU >= 0) {
-        openLib = false;
-      }
-
       float tempCPU = 50;
       // ponytail: reject physically impossible temps (<15°C or >120°C) to prevent
       // sensor glitches from polluting EMA and triggering wrong fan behavior
@@ -341,6 +390,8 @@ namespace OmenSuperHub.Services {
         CPUPower = librePowerCPU;
 
       afterLibre:
+      if (ConfigService.HWiNFOReadEnabled)
+        GpuTargetAvailable = GpuTempFresh || GpuPowerFresh;
       // ponytail: IR(红外)温度 — 经 OMEN WMI 0x23 通道读(sensorIndex 0),1~120°C 钳位 + EMA 平滑
       // (同 CPU/GPU 口径)。读不到(无 IR 传感器)保持负值,风扇 max 忽略。HWiNFO 路径也走这里,
       // 保证 IR 数据始终可供 UI 缓存与风扇曲线使用。
@@ -357,14 +408,16 @@ namespace OmenSuperHub.Services {
         countQuery++;
 
       // Auto-disable GPU monitoring (ponytail: 只在电池供电时自动关)
-      if (countQuery > 5 && AutoStopMonitorGPU && !PowerOnline && !IsConnectedToNVIDIA && MonitorGPU && ((GPUPower >= 0 && GPUPower <= 1.3) || !getGPU)) {
+      bool freshGpuPower = GpuPowerFresh;
+      if (countQuery > 5 && AutoStopMonitorGPU && !PowerOnline && !IsConnectedToNVIDIA
+          && MonitorGPU && freshGpuPower && GPUPower <= 1.3f) {
         GPUPower = 0;
         countQuery = 0;
         MonitorGPU = false;
         AutoStartMonitorGPU = true;
         LibreComputer.IsGpuEnabled = false;
+        // 不 Save：只同步本次运行的 UI 状态，注册表中的用户偏好保持不变。
         ConfigService.MonitorGPU = false;
-        ConfigService.Save("MonitorGPU");
         OnGpuMonitoringChanged?.Invoke(false, "检测到显卡进入低功耗状态，OXH已停止监控GPU以节约能源。\n手动打开GPU监控后，本次将不再自动停止监控GPU。");
       }
 
@@ -375,8 +428,8 @@ namespace OmenSuperHub.Services {
         MonitorGPU = true;
         AutoStopMonitorGPU = true;
         LibreComputer.IsGpuEnabled = true;
+        // 不 Save：只恢复本次运行的 UI 状态，注册表中的用户偏好保持不变。
         ConfigService.MonitorGPU = true;
-        ConfigService.Save("MonitorGPU");
         OnGpuMonitoringChanged?.Invoke(true, "检测到显卡连接到显示器，OXH已开始监控GPU。\n手动关闭GPU监控后，本次将不再自动开始监控GPU。");
       }
 
@@ -399,6 +452,14 @@ namespace OmenSuperHub.Services {
       }
     }
 
+    public static void RestoreMonitorGPU(bool enabled) {
+      MonitorGPU = enabled;
+      LibreComputer.IsGpuEnabled = enabled;
+      AutoStartMonitorGPU = enabled;
+      AutoStopMonitorGPU = enabled;
+      if (!enabled) InvalidateGpuSamples();
+    }
+
     // ═══════════════════════════════════════════════════════
     // Monitor Text Generation
     // ═══════════════════════════════════════════════════════
@@ -407,17 +468,19 @@ namespace OmenSuperHub.Services {
       if (CPUPower > 0.01f)
         sb.AppendFormat("CPU: {0:F1}°C, {1:F1}W", CPUTemp, CPUPower);
       else {
-        if (PawnIOState == "RUNNING")
+        // ponytail: PawnIOState 形如 "v1.3.0 (RUNNING)"(GetPawnIOState 拼版本号),
+        // 精确 == "RUNNING" 恒假 → 永远走不到"准备中"分支。按子串判断恢复原意。
+        if (PawnIOState.Contains("RUNNING"))
           sb.Append("CPU: ").Append(Strings.MonitorPrepareLabel);
         else if (!string.IsNullOrEmpty(PawnIOState))
           sb.Append("CPU: PawnIO ").Append(PawnIOState);
       }
       if (MonitorGPU) {
         if (sb.Length > 0) sb.Append('\n');
-        if (PawnIOState == "RUNNING" && GPUPower < 0.01f)
+        if (!TryGetFreshGpuTemp(out float gpuTemp))
           sb.Append("GPU: ").Append(Strings.MonitorPrepareLabel);
         else
-          sb.AppendFormat("GPU: {0:F1}°C, {1:F1}W", GPUTemp, GPUPower);
+          sb.AppendFormat("GPU: {0:F1}°C, {1:F1}W", gpuTemp, GpuPowerUsable ? GPUPower : 0);
       }
       if (MonitorFan) {
         if (sb.Length > 0) sb.Append('\n');
@@ -436,7 +499,8 @@ namespace OmenSuperHub.Services {
 
     /// <summary>Return display temperature: raw or EMA-smoothed based on DisplayMode.</summary>
     public static float GetDisplayCpuTemp() => _displayRaw ? _rawCpuTemp : CPUTemp;
-    public static float GetDisplayGpuTemp() => _displayRaw ? _rawGpuTemp : GPUTemp;
+    public static float GetDisplayGpuTemp() => TryGetFreshGpuTemp(out float value)
+      ? (_displayRaw ? _rawGpuTemp : value) : 0;
     // ponytail: IR 温度无 raw 快照(直接 WMI 读),统一返回 EMA 平滑值;负值=未读到。
     public static float GetDisplayIrTemp() => IrTemp;
 
@@ -445,7 +509,8 @@ namespace OmenSuperHub.Services {
     // GPUTemp 平滑值。GPU raw 访问时做范围校验,防止传感器毛刺直接进查表(写侧 GPUTemp 已 clamp,
     // 这里对未 clamp 的 raw 补一刀)。
     public static float RawCpuTemp => _rawCpuTemp;
-    public static float RawGpuTemp => (_rawGpuTemp >= 15 && _rawGpuTemp <= 120) ? _rawGpuTemp : GPUTemp;
+    public static float RawGpuTemp => TryGetFreshGpuTemp(out _)
+      && _rawGpuTemp >= 15 && _rawGpuTemp <= 120 ? _rawGpuTemp : RawCpuTemp;
     public static float RawIrTemp => _rawIrTemp;
 
     // ponytail: CPU 功耗显示上限 300W —— 传感器偶发读到荒谬值(如 5000W)会误导用户。
@@ -453,18 +518,43 @@ namespace OmenSuperHub.Services {
     const float CpuPowerDisplayMaxW = 300f;
     public static float GetDisplayCpuPower() => CPUPower >= 0 ? Math.Min(CPUPower, CpuPowerDisplayMaxW) : 0f;
 
-    // ponytail: GPU 功耗平滑 + 显示上限 400W —— 原始 GPUPower 直接跟随 LHM 读数,独显
-    // 轻载/瞬时活动切换时在 20W~100W 量级跳(无平滑,对比 GPU 温度有 EMA),UI 表现"徘徊"。
-    // 平滑用 RespondSpeed(与 GPU 温度同口径);clamp 只约束显示,不碰内部 GPUPower 逻辑。
+    // ponytail: 功耗 EMA 每个采样只推进一次；getter 必须保持纯读取，避免 UI 调用次数改变平滑速度。
     static float _gpuPowerDisplay = 0;
     const float GpuPowerDisplayMaxW = 400f;
-    public static float GetDisplayGpuPower() {
-      float raw = GPUPower;
-      if (raw < 0) return 0;
-      _gpuPowerDisplay = raw * RespondSpeed + _gpuPowerDisplay * (1.0f - RespondSpeed);
-      return Math.Min(_gpuPowerDisplay, GpuPowerDisplayMaxW);
-    }
+    public static float GetDisplayGpuPower() => GpuPowerUsable
+      ? Math.Min(Math.Max(_gpuPowerDisplay, 0), GpuPowerDisplayMaxW) : 0;
     static float _rawCpuTemp, _rawGpuTemp, _rawIrTemp = -1;
+
+    // ponytail: 最小可运行检查——非法样本不能刷新状态，显示 getter 不能偷偷推进 EMA。
+    public static string SelfCheck() {
+      float oldTemp = GPUTemp, oldPower = GPUPower, oldRaw = _rawGpuTemp, oldDisplay = _gpuPowerDisplay;
+      DateTime oldTempUtc = _lastGpuTempSampleUtc, oldPowerUtc = _lastGpuPowerSampleUtc;
+      GpuTemperatureSource oldSource = _gpuTempSource;
+      bool oldTarget = GpuTargetAvailable, oldMonitor = MonitorGPU;
+      try {
+        InvalidateGpuSamples();
+        bool rejectsBad = !UpdateGpuTempSample(float.NaN) && !UpdateGpuPowerSample(float.PositiveInfinity)
+          && !GpuTempFresh && !GpuPowerFresh;
+        MonitorGPU = true;
+        GpuTargetAvailable = true;
+        bool acceptsGood = UpdateGpuTempSample(60) && UpdateGpuPowerSample(100);
+        bool officialAccepted = UpdateGpuTempSample(65, GpuTemperatureSource.NvidiaNvApi);
+        float officialValue = GPUTemp;
+        bool sourcePriority = officialAccepted
+          && !UpdateGpuTempSample(55, GpuTemperatureSource.LibreHardwareMonitor)
+          && !UpdateGpuTempSample(54, GpuTemperatureSource.NvidiaNvml)
+          && !UpdateGpuTempSample(53, GpuTemperatureSource.HWiNFO)
+          && Math.Abs(GPUTemp - officialValue) < 0.001f;
+        float first = GetDisplayGpuPower(), second = GetDisplayGpuPower();
+        bool pureGetter = Math.Abs(first - second) < 0.001f;
+        return rejectsBad && acceptsGood && sourcePriority && pureGetter
+          ? "PASS GPU monitor sampling/source priority" : "FAIL GPU monitor sampling/source priority";
+      } finally {
+        GPUTemp = oldTemp; GPUPower = oldPower; _rawGpuTemp = oldRaw; _gpuPowerDisplay = oldDisplay;
+        _lastGpuTempSampleUtc = oldTempUtc; _lastGpuPowerSampleUtc = oldPowerUtc; _gpuTempSource = oldSource;
+        GpuTargetAvailable = oldTarget; MonitorGPU = oldMonitor;
+      }
+    }
 
     public static void Close() {
       LibreComputer.Close();
