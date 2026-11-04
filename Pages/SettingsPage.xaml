@@ -173,6 +173,72 @@
         </ui:CardControl.Header>
       </ui:CardControl>
 
+      <!-- 按键改键 — 与“Omen 键绑定功能”互斥 -->
+      <ui:CardControl Margin="0,0,0,8">
+        <ui:CardControl.Header>
+          <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Keyboard24" FontSize="{DynamicResource FontSizeSubheader}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{x:Static app:Strings.KeyRemapHeading}" FontSize="{DynamicResource FontSizeSubtitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <ui:ToggleSwitch x:Name="KeyRemapToggle" Grid.Column="1" VerticalAlignment="Center"
+                              Checked="KeyRemapToggle_Changed" Unchecked="KeyRemapToggle_Changed"/>
+            </Grid>
+            <TextBlock Text="{x:Static app:Strings.KeyRemapDesc}" FontSize="{DynamicResource FontSizeCaption}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+            <StackPanel x:Name="KeyRemapPanel">
+              <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Static app:Strings.KeyRemapOmenLabel}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                <ComboBox x:Name="RemapOmenCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
+                          SelectionChanged="RemapOmen_SelectionChanged"/>
+              </Grid>
+              <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Static app:Strings.KeyRemapCalcLabel}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                <ComboBox x:Name="RemapCalcCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
+                          SelectionChanged="RemapPlain_SelectionChanged"/>
+              </Grid>
+              <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Static app:Strings.KeyRemapInsertLabel}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                <ComboBox x:Name="RemapInsertCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
+                          SelectionChanged="RemapPlain_SelectionChanged"/>
+              </Grid>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Static app:Strings.KeyRemapPrtScLabel}" FontSize="{DynamicResource FontSizeBody}" VerticalAlignment="Center"/>
+                <ComboBox x:Name="RemapPrtScCombo" Grid.Column="1" MinWidth="{StaticResource ComboMinWidth}"
+                          SelectionChanged="RemapPlain_SelectionChanged"/>
+              </Grid>
+            </StackPanel>
+
+            <TextBlock x:Name="KeyRemapConflictHint" Text="{x:Static app:Strings.KeyRemapConflictHint}"
+                       Visibility="Collapsed" TextWrapping="Wrap" Margin="0,6,0,0"
+                       FontSize="{DynamicResource FontSizeCaption}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+          </StackPanel>
+        </ui:CardControl.Header>
+      </ui:CardControl>
+
       <!-- ══════ 界面设置 ══════ -->
       <TextBlock Text="{x:Static app:Strings.SettingsUiHeading}" FontSize="{DynamicResource FontSizeTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,8,0,8"/>
 

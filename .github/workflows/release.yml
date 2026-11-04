@@ -1,0 +1,89 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (net481 / x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          # 与 global.json 的 sdk.version 保持一致
+          dotnet-version: '8.0.420'
+
+      - name: Show SDK info
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore OmenSuperHub.csproj
+
+      - name: Build
+        run: dotnet build OmenSuperHub.csproj -c Release -p:Platform=x64 --no-restore --nologo
+
+      - name: Verify output
+        shell: pwsh
+        run: |
+          $exe = 'bin/x64/Release/net481/OmenXHub.exe'
+          if (-not (Test-Path $exe)) { throw "build output missing: $exe" }
+          Get-Item $exe | Select-Object FullName, Length
+
+      - name: Package
+        id: pkg
+        shell: pwsh
+        run: |
+          if ("$env:GITHUB_REF" -like 'refs/tags/v*') {
+            $version = "$env:GITHUB_REF" -replace '^refs/tags/v', ''
+          } else {
+            $version = '0.0.0-dev'
+          }
+          $name = "OmenXHub-v$version-x64.zip"
+          Compress-Archive -Path 'bin/x64/Release/net481/*' -DestinationPath $name -Force
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "name=$name"     >> $env:GITHUB_OUTPUT
+          Get-Item $name | Select-Object Name, Length
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmenXHub-${{ steps.pkg.outputs.version }}-x64
+          path: ${{ steps.pkg.outputs.name }}
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: OmenXHub v${{ steps.pkg.outputs.version }}
+          files: ${{ steps.pkg.outputs.name }}
+          generate_release_notes: true
+          body: |
+            ## OmenXHub v${{ steps.pkg.outputs.version }}
+
+            HP OMEN / Victus 轻量控制面板(离线替代 OMEN Gaming Hub)。
+
+            ### 本次新增
+            - **按键改键(Key Remap)**:把 Omen 键 / 计算器键 / Insert / PrtSc 换成
+              Home、End、PageUp、PageDown 等常用键(设置 → 硬件设置 → 按键改键)
+            - Omen 键监听改为**进程内 WMI 事件订阅**,不再向 `root\subscription`
+              写永久订阅、也不再每次按键拉起 `cmd.exe` 写命名管道
+
+            ### 说明
+            - Omen 键的「绑定功能」与「改键」**互斥**:要改 Omen 键,先在设置里把它设为「取消绑定」
+            - 解压后运行 `OmenXHub.exe`,首次运行需管理员权限(订阅 BIOS WMI 事件)

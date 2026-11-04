@@ -21,7 +21,7 @@ flowchart TD
   A10 --> A11["ThreadPool:\nHardwareService.LibreComputer.Open\n→ Dispatcher: TrayService.StartTimers + StartTrayHelperTimers"]
   A11 --> A12["HWiNFOService / HWiNFOReaderService.StartStopIfNeeded"]
   A12 --> A13["ConfigService.HttpApiEnabled? → HardwareApiService.Start (本地 5000 port)"]
-  A13 --> A14["TrayService.GetOmenKeyTask  (NamedPipe 'OmenXHubPipe' 监听)"]
+  A13 --> A14["TrayService.InitOmenKey (订阅 OmenHardware.OmenKeyPressed)"]
   A14 --> A15["Dispatcher BeginInvoke:\n  TrayService.RestoreConfig\n  AutomationService.Initialize (+ Start if enabled)\n  MacroService.Initialize (+ MacroController.Start if enabled)\n  OsdWindow.StartLockKeyMonitor"]
   A15 --> A16["FloatingWindow.ShowInstances if FloatingBar==on\nHelpWindow if 新版本"]
 ```
@@ -143,23 +143,24 @@ flowchart LR
   Switch -.-> CFC["ConfigService.FirePresetCycled →\nDashboardPage 更新 preset 标\n(关面板时已断订阅 ReleaseFrontend)"]
 ```
 
-## 6. 跨进程 Omen Key 触发 (E.1)
+## 6. Omen Key 触发链路 (E.1,进程内事件)
 
 ```mermaid
 flowchart LR
-  Fw["Omen Key 物理按下"] --> Ec["BIOS EC 产生 WMI 事件"]
-  Ec --> WmiFilter["OmenHardware.OmenKeyOn 装的 WMI:\n  __EventFilter + CommandLineEventConsumer + __FilterToConsumerBinding\n  CommandLineTemplate = 'cmd /c echo OmenKeyTriggered > \\.\pipe\OmenXHubPipe'"]
-  WmiFilter --> Cmd["Win32 启动 cmd.exe 写入命名管道"]
-  Cmd --> Pipe["\\\\.\\pipe\\OmenXHubPipe"]
-  Pipe --> Reader["TrayService.GetOmenKeyTask:\nNamedPipeServerStream.WaitForConnection\nStreamReader.ReadToEnd"]
-
-  Reader -->|"OmenKeyTriggered"| Routing{"ConfigService.OmenKey"}
+  Fw["Omen Key 物理按下"] --> Ec["BIOS EC 产生 WMI 事件 hpqBEvnt"]
+  Ec --> Watcher["OmenHardware.OmenKeyOn:\n进程内 ManagementEventWatcher(root\wmi)\nSELECT * FROM hpqBEvnt → 回调比对 eventId=29 / eventData=8613"]
+  Watcher --> Dedup{"300ms 去重\n(一次按下会连发多条 eventType)"}
+  Dedup --> Routing{"ConfigService.OmenKey"}
   Routing -->|showMain| Rm["MainWindow.ShowInstance"]
   Routing -->|cyclePresets| Rc["取下一候选 → PresetManager.SwitchPreset\n+ ApplyPresetHardware + OsdWindow.ShowPresetOsd\n+ FirePresetCycled"]
   Routing -->|app| Ra["LaunchOmenKeyApp (process start)"]
   Routing -->|custom| Rf["checkFloating = true\n(下个 2s tick 由 checkFloatingTimer 切换浮窗)"]
-  Routing -->|none| Rn["no-op"]
+  Routing -->|"none (未绑定)"| Rn["KeyRemapService.HandleOmenKey\n配了改键则注入目标键,否则 no-op"]
 ```
+
+> 旧实现是用 `root\subscription` 的永久订阅(filter + CommandLineEventConsumer)拉起
+> `cmd.exe` 写命名管道 `\\.\pipe\OmenXHubPipe`,再由 `NamedPipeServerStream` 读。
+> 现已改为进程内 `ManagementEventWatcher`:`OmenKeyOff` 顺带清掉旧版本残留的三个 WMI 对象。
 
 ## 7. 关闭主面板的前端释放流程 (F.1-F.3,本次补丁新增)
 

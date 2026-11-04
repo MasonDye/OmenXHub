@@ -451,6 +451,19 @@ namespace OmenSuperHub {
     public static string DebugLogDesc => T("开启后实时记录所有WMI操作到OmenXHub.log", "開啟後即時記錄所有WMI操作到OmenXHub.log", "Log all WMI operations to OmenXHub.log");
     public static string WindowTitle => T("OMEN X Hub 控制面板", "OMEN X Hub 控制面板", "OMEN X Hub Control Panel");
     public static string OmenKeyCustomLabel => T("切换浮窗显示", "切換浮窗顯示", "Toggle Overlay");
+    // Key remap (physical key -> target key)
+    public static string KeyRemapHeading => T("按键改键", "按鍵改鍵", "Key Remap");
+    public static string KeyRemapDesc => T("把计算器键 / Insert / PrtSc 换成 Home、End、PageUp 等常用键；Omen 键需先「取消绑定」才能参与改键",
+      "把計算機鍵 / Insert / PrtSc 換成 Home、End、PageUp 等常用鍵；Omen 鍵需先「取消綁定」才能參與改鍵",
+      "Remap Calculator / Insert / PrtSc to Home, End, PageUp, etc. The Omen key can be remapped only when unbound.");
+    public static string KeyRemapOmenLabel => T("Omen 键", "Omen 鍵", "Omen Key");
+    public static string KeyRemapCalcLabel => T("计算器键", "計算機鍵", "Calculator Key");
+    public static string KeyRemapInsertLabel => T("Insert 键", "Insert 鍵", "Insert Key");
+    public static string KeyRemapPrtScLabel => T("PrtSc 键", "PrtSc 鍵", "PrtSc Key");
+    public static string KeyRemapNone => T("不替换", "不替換", "No remap");
+    public static string KeyRemapConflictHint => T("Omen 键已绑定其它功能，改键与绑定互斥：要用 Omen 键改键，请先把上方 Omen 键设为「取消绑定」",
+      "Omen 鍵已綁定其它功能，改鍵與綁定互斥：要用 Omen 鍵改鍵，請先把上方 Omen 鍵設為「取消綁定」",
+      "Omen key is bound to an action. Remap and binding are mutually exclusive — set the Omen key to \"Unbound\" above to use it for remapping.");
     // Error messages
     public static string CleanCreekUnsupported => T("当前设备不支持反转除尘功能", "目前裝置不支援反轉除塵功能", "This device does not support reverse dust removal");
 
