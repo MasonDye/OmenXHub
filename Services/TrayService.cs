@@ -941,37 +941,31 @@ namespace OmenSuperHub.Services {
     }
 
     static void RestoreOmenKey() {
+      // 监听是否启动、改键是否生效统一由 ApplyOmenKeyListener 决定(含功能互斥判断),
+      // 这里只负责还原浮窗定时器与托盘菜单勾选状态。
       switch (ConfigService.OmenKey) {
         case "custom":
           if (checkFloatingTimer != null) checkFloatingTimer.IsEnabled = true;
-          OmenKeyOff();
-          OmenKeyOn(ConfigService.OmenKey);
           UpdateCheckedState("omenKeyGroup", "切换浮窗显示");
           break;
         case "showMain":
           if (checkFloatingTimer != null) checkFloatingTimer.IsEnabled = false;
-          OmenKeyOff();
-          OmenKeyOn(ConfigService.OmenKey);
           UpdateCheckedState("omenKeyGroup", "显示主界面");
           break;
         case "cyclePresets":
           if (checkFloatingTimer != null) checkFloatingTimer.IsEnabled = false;
-          OmenKeyOff();
-          OmenKeyOn(ConfigService.OmenKey);
           UpdateCheckedState("omenKeyGroup", "循环预设");
           break;
         case "app":
           if (checkFloatingTimer != null) checkFloatingTimer.IsEnabled = true;
-          OmenKeyOff();
-          OmenKeyOn(ConfigService.OmenKey);
           UpdateCheckedState("omenKeyGroup", "打开应用");
           break;
         case "none":
           if (checkFloatingTimer != null) checkFloatingTimer.IsEnabled = false;
-          OmenKeyOff();
           UpdateCheckedState("omenKeyGroup", "取消绑定");
           break;
       }
+      ApplyOmenKeyListener();
     }
 
     static void RestoreMonitors() {
@@ -1433,84 +1427,58 @@ namespace OmenSuperHub.Services {
       }
     }
 
-    // Named pipe for Omen Key
+    // Omen Key — 事件源: OmenHardware 进程内 WMI watcher(旧实现是命名管道 + cmd.exe 消费者)
     static int _cyclePresetIndex = -1;
-    static CancellationTokenSource _omenKeyCts;
 
-    public static void GetOmenKeyTask() {
-      _omenKeyCts?.Cancel();
-      _omenKeyCts = new CancellationTokenSource();
-      var token = _omenKeyCts.Token;
-      System.Threading.Tasks.Task.Run(async () => {
-        while (!token.IsCancellationRequested) {
-          try {
-            // PipeOptions.Asynchronous 必加:默认构造的 WaitForConnectionAsync 会退化为
-            // 同步阻塞包装,token 只在排队前生效 —— 连接前 cancel 唤不醒线程。
-            using (var pipeServer = new System.IO.Pipes.NamedPipeServerStream("OmenXHubPipe",
-                System.IO.Pipes.PipeDirection.In, 1, System.IO.Pipes.PipeTransmissionMode.Byte,
-                System.IO.Pipes.PipeOptions.Asynchronous)) {
-              // ponytail: 原 WaitForConnection()/ReadToEnd() 均无限阻塞 —— 连上不发数据的
-              // 客户端永久占住本处理循环。等待用 token 取消;读用"异步读 + WhenAny 超时"。
-              // NamedPipeStream 不支持 ReadTimeout(CanTimeout=False,赋值即抛)。
-              // 范围说明:取消覆盖连接等待;读阶段有 5s 期限;分发前与 UI 委托内各重查
-              // 一次 token —— 后者封"后台检查通过后 UI 线程才退出"的竞态(已排队的
-              // Invoke 委托执行时再查一次,宁可丢一次按键)。不是"即时取消读取"。
-              await pipeServer.WaitForConnectionAsync(token);
-              string message;
-              using (var reader = new StreamReader(pipeServer)) {
-                var readTask = reader.ReadToEndAsync();
-                if (await System.Threading.Tasks.Task.WhenAny(readTask,
-                    System.Threading.Tasks.Task.Delay(5000)) != readTask) {
-                  // 遗留 readTask 挂个观察器:退出 using 关流不负责观察 Task 异常,若不观察,
-                  // 其 faulted 终态会在终结器时机触发 UnobservedTaskException。_ = 显式丢弃。
-                  _ = readTask.ContinueWith(t => { var obs = t.Exception; },
-                      System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
-                  Logger.Error("OmenKey pipe: 客户端 5s 内未完成发送,丢弃本轮连接");
-                  continue;
-                }
-                message = await readTask;
-              }
-              if (token.IsCancellationRequested) break;
-                if (message.Contains("OmenKeyTriggered")) {
-                  if (ConfigService.OmenKey == "showMain") {
-                    System.Windows.Application.Current?.Dispatcher.Invoke(() => {
-                      if (token.IsCancellationRequested) return;   // 排队期间应用已开始退出
-                      Views.MainWindow.ShowInstance();
-                    });
-                  } else if (ConfigService.OmenKey == "cyclePresets") {
-                    var candidates = ConfigService.OmenKeyPresetCandidates
-                      .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
-                      .Distinct().ToList();
-                    if (candidates.Count == 0) continue;
-                    int idx = Math.Max(0, candidates.IndexOf(ConfigService.Preset));
-                    _cyclePresetIndex = (idx + 1) % candidates.Count;
-                    string preset = candidates[_cyclePresetIndex];
-                    System.Windows.Application.Current?.Dispatcher.Invoke(() => {
-                      if (token.IsCancellationRequested) return;   // 排队期间应用已开始退出
-                      PresetManager.SwitchPreset(preset);
-                      if (System.Windows.Application.Current.MainWindow is Views.MainWindow mw)
-                        mw.ApplyPresetHardware();
-                      Views.OsdWindow.ShowPresetOsd(preset);
-                      ConfigService.FirePresetCycled(preset);
-                    });
-                  } else if (ConfigService.OmenKey == "app") {
-                    LaunchOmenKeyApp();
-                  } else if (ConfigService.OmenKey == "custom") {
-                    if (!checkFloating) checkFloating = true;
-                  }
-                  // "none" does nothing
-                }
-            }
-          } catch (System.OperationCanceledException) {
-            // shutdown 的 cts.Cancel() 唤醒 WaitForConnectionAsync —— 正常退出,不记错误
-            if (token.IsCancellationRequested) break;
-            Logger.Error("OmenKey pipe wait cancelled");
-          } catch (Exception ex) {
-            Logger.Error("OmenKey pipe error: " + ex.Message);
-            await System.Threading.Tasks.Task.Delay(1000);
-          }
+    public static void InitOmenKey() {
+      // ponytail: 静态事件订阅前先解绑,避免重复初始化时叠加两份回调
+      OmenHardware.OmenKeyPressed -= OnOmenKeyPressed;
+      OmenHardware.OmenKeyPressed += OnOmenKeyPressed;
+    }
+
+    // 决定是否需要监听 BIOS 事件,并同步改键状态。
+    // 需要监听的两情形: Omen 键绑定了功能,或 Omen 键被设为改键目标(未绑定功能时)。
+    public static void ApplyOmenKeyListener() {
+      KeyRemapService.Apply();
+      bool need = ConfigService.OmenKey != "none" || KeyRemapService.OmenRemapActive;
+      if (need) OmenHardware.OmenKeyOn(ConfigService.OmenKey);
+      else OmenHardware.OmenKeyOff();
+    }
+
+    // BIOS 事件回调(运行在 WMI 事件线程),UI 操作统一 Dispatcher.Invoke 切回 UI 线程
+    static void OnOmenKeyPressed() {
+      try {
+        // 功能互斥: Omen 键未绑定任何功能时走改键;已绑定则按绑定功能执行
+        if (ConfigService.OmenKey == "none") {
+          KeyRemapService.HandleOmenKey();
+          return;
         }
-      });
+        if (ConfigService.OmenKey == "showMain") {
+          System.Windows.Application.Current?.Dispatcher.Invoke(
+            new Action(() => Views.MainWindow.ShowInstance()));
+        } else if (ConfigService.OmenKey == "cyclePresets") {
+          var candidates = ConfigService.OmenKeyPresetCandidates
+            .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Distinct().ToList();
+          if (candidates.Count == 0) return;
+          int idx = Math.Max(0, candidates.IndexOf(ConfigService.Preset));
+          _cyclePresetIndex = (idx + 1) % candidates.Count;
+          string preset = candidates[_cyclePresetIndex];
+          System.Windows.Application.Current?.Dispatcher.Invoke(new Action(() => {
+            PresetManager.SwitchPreset(preset);
+            if (System.Windows.Application.Current.MainWindow is Views.MainWindow mw)
+              mw.ApplyPresetHardware();
+            Views.OsdWindow.ShowPresetOsd(preset);
+            ConfigService.FirePresetCycled(preset);
+          }));
+        } else if (ConfigService.OmenKey == "app") {
+          LaunchOmenKeyApp();
+        } else if (ConfigService.OmenKey == "custom") {
+          if (!checkFloating) checkFloating = true;
+        }
+      } catch (Exception ex) {
+        Logger.Error("OmenKey route error: " + ex.Message);
+      }
     }
 
     static void LaunchOmenKeyApp() {
@@ -1541,12 +1509,9 @@ namespace OmenSuperHub.Services {
       HardwareService.OnGpuMonitoringChanged -= OnGpuMonitoringChanged;
       AutomationProcessor.Stop();
       try { MacroController.Stop(); } catch { }
-      _omenKeyCts?.Cancel();
-      _omenKeyCts?.Dispose();
-      _omenKeyCts = null;
-      if (ConfigService.OmenKey == "custom" || ConfigService.OmenKey == "showMain" || ConfigService.OmenKey == "cyclePresets" || ConfigService.OmenKey == "app") {
-        OmenKeyOff();
-      }
+      // OMEN 键监听与改键钩子随进程退出一起撤销;事件订阅显式解绑
+      OmenHardware.OmenKeyPressed -= OnOmenKeyPressed;
+      OmenHardware.OmenKeyOff();
       tooltipUpdateTimer?.Stop();
       tooltipUpdateTimer?.Dispose();
       fanControlTimer?.Dispose();

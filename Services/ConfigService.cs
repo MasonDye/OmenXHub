@@ -47,6 +47,13 @@ namespace OmenSuperHub.Services {
     public static string OmenKey = "none";
     public static string OmenKeyAppPath = "";
     public static string OmenKeyPresetCandidates = "LightUse;GpuPriority;Extreme";
+    // ponytail: 物理键改键 —— 值存按键名(Home/End/PageUp/...),空串 = 不替换该键。
+    // Omen 项仅在 OmenKey 未绑定功能("none")时生效:Omen 键的"绑定功能"与"改键"互斥。
+    public static bool KeyRemapEnabled = false;
+    public static string RemapOmen = "";
+    public static string RemapCalc = "";
+    public static string RemapInsert = "";
+    public static string RemapPrtSc = "";
     public static bool MonitorGPU = true;
     public static bool MonitorFan = true;
     public static bool MonitorMemory = true;
@@ -280,6 +287,11 @@ namespace OmenSuperHub.Services {
             case "OmenKey": key.SetValue("OmenKey", OmenKey); break;
             case "OmenKeyAppPath": key.SetValue("OmenKeyAppPath", OmenKeyAppPath); break;
             case "OmenKeyPresetCandidates": key.SetValue("OmenKeyPresetCandidates", OmenKeyPresetCandidates); break;
+            case "KeyRemapEnabled": key.SetValue("KeyRemapEnabled", KeyRemapEnabled ? 1 : 0); break;
+            case "RemapOmen": key.SetValue("RemapOmen", RemapOmen ?? ""); break;
+            case "RemapCalc": key.SetValue("RemapCalc", RemapCalc ?? ""); break;
+            case "RemapInsert": key.SetValue("RemapInsert", RemapInsert ?? ""); break;
+            case "RemapPrtSc": key.SetValue("RemapPrtSc", RemapPrtSc ?? ""); break;
             case "MonitorGPU": key.SetValue("MonitorGPU", MonitorGPU); break;
             case "MonitorFan": key.SetValue("MonitorFan", MonitorFan); break;
             case "MonitorMemory": key.SetValue("MonitorMemory", MonitorMemory); break;
@@ -537,6 +549,11 @@ namespace OmenSuperHub.Services {
           OmenKey = RegStr(key, "OmenKey", "none");
           OmenKeyAppPath = RegStr(key, "OmenKeyAppPath", "");
           OmenKeyPresetCandidates = RegStr(key, "OmenKeyPresetCandidates", "LightUse;GpuPriority;Extreme");
+          KeyRemapEnabled = RegInt(key, "KeyRemapEnabled", 0) == 1;
+          RemapOmen = RegStr(key, "RemapOmen", "");
+          RemapCalc = RegStr(key, "RemapCalc", "");
+          RemapInsert = RegStr(key, "RemapInsert", "");
+          RemapPrtSc = RegStr(key, "RemapPrtSc", "");
           MonitorGPU = RegBool(key, "MonitorGPU", true);
           MonitorFan = RegBool(key, "MonitorFan", true);
           MonitorMemory = RegBool(key, "MonitorMemory", true);

@@ -826,54 +826,97 @@ namespace OmenSuperHub {
     }
 
     // ─── Omen Key ─────────────────────────────────────────────────────
-    public static void OmenKeyOff() {
-      const string namespaceName = @"root\subscription";
-      var scope = new ManagementScope(namespaceName);
+    // ponytail: 改为进程内 ManagementEventWatcher 直订 root\wmi 的 hpqBEvnt。
+    // 旧实现向 root\subscription 写一套永久订阅(__EventFilter + CommandLineEventConsumer
+    // + __FilterToConsumerBinding),每次按键还要 fork 一个 cmd.exe 往命名管道写一行字:
+    // 进程异常退出时三个 WMI 对象会残留在仓库里,且按键到 UI 多绕一次进程创建 + 管道往返。
+    // 现在不留仓库残留、不起子进程,事件直达。
+    static ManagementEventWatcher _omenKeyWatcher;
+    static DateTime _omenKeyLastHit = DateTime.MinValue;
+
+    // 本机实测码值(HP Victus 16-r0xxx);其它机型不同则改这里
+    const int OMEN_KEY_EVENT_ID = 29;
+    const int OMEN_KEY_EVENT_DATA = 8613;
+
+    // OMEN 键按下(已去重)。订阅方: TrayService.InitOmenKey
+    public static event Action OmenKeyPressed;
+
+    public static bool OmenKeyListening => _omenKeyWatcher != null;
+
+    // 保留旧签名: 调用方只关心"该模式下需要监听",模式路由在 TrayService 侧做
+    public static void OmenKeyOn(string method) {
+      if (_omenKeyWatcher != null) return;   // 幂等,重复调用不重复订阅
       try {
+        var scope = new ManagementScope(@"root\wmi");
+        scope.Connect();
+        // hpqBEvnt 是 BIOS 提供的外生事件(extrinsic event),WQL 对它的 WHERE 属性过滤不可靠 ——
+        // 带 WHERE 的订阅一条事件都收不到。只能订阅全量,在回调里比对码值。
+        _omenKeyWatcher = new ManagementEventWatcher(scope, new WqlEventQuery("SELECT * FROM hpqBEvnt"));
+        _omenKeyWatcher.EventArrived += OnOmenKeyEvent;
+        _omenKeyWatcher.Start();
+        Logger.Info("OmenKeyOn: in-process hpqBEvnt watcher started (mode=" + method + ")");
+      } catch (Exception ex) {
+        _omenKeyWatcher = null;
+        Logger.Error("OmenKeyOn Error: " + ex.Message);
+      }
+    }
+
+    public static void OmenKeyOff() {
+      try {
+        if (_omenKeyWatcher != null) {
+          _omenKeyWatcher.EventArrived -= OnOmenKeyEvent;
+          _omenKeyWatcher.Stop();
+          _omenKeyWatcher.Dispose();
+          _omenKeyWatcher = null;
+          Logger.Info("OmenKeyOff: in-process watcher stopped");
+        }
+      } catch (Exception ex) {
+        Logger.Error("OmenKeyOff Error: " + ex.Message);
+      }
+      RemoveLegacyOmenKeySubscription();
+    }
+
+    static void OnOmenKeyEvent(object sender, EventArrivedEventArgs e) {
+      try {
+        var ev = e.NewEvent;
+        if (!OmenKeyPropEquals(ev, "eventId", OMEN_KEY_EVENT_ID)) return;
+        if (!OmenKeyPropEquals(ev, "eventData", OMEN_KEY_EVENT_DATA)) return;
+        // 一次按下会连发多条事件(eventType 不同),300ms 内只认第一条
+        if ((DateTime.Now - _omenKeyLastHit).TotalMilliseconds < 300) return;
+        _omenKeyLastHit = DateTime.Now;
+        OmenKeyPressed?.Invoke();
+      } catch (Exception ex) {
+        Logger.Error("OmenKeyEvent Error: " + ex.Message);
+      }
+    }
+
+    // WMI 属性可能是字符串也可能是数值,两种都接受
+    static bool OmenKeyPropEquals(ManagementBaseObject ev, string name, int expected) {
+      object raw = ev.Properties[name]?.Value;
+      if (raw == null) return false;
+      if (raw is string s) {
+        int parsed;
+        return int.TryParse(s.Trim(), out parsed) && parsed == expected;
+      }
+      try { return Convert.ToInt32(raw) == expected; } catch { return false; }
+    }
+
+    // 清理旧版本(永久订阅实现)可能残留在 WMI 仓库里的三个对象;新实现不再创建它们
+    static void RemoveLegacyOmenKeySubscription() {
+      try {
+        var scope = new ManagementScope(@"root\subscription");
         scope.Connect();
         foreach (ManagementObject mo in new ManagementObjectSearcher(scope,
-          new ObjectQuery("SELECT * FROM __EventFilter WHERE Name='OmenKeyFilter'")).Get())
+          new ObjectQuery("SELECT * FROM __FilterToConsumerBinding WHERE Filter='__EventFilter.Name=\"OmenKeyFilter\"'")).Get())
           using (mo) mo.Delete();
         foreach (ManagementObject mo in new ManagementObjectSearcher(scope,
           new ObjectQuery("SELECT * FROM CommandLineEventConsumer WHERE Name='OmenKeyConsumer'")).Get())
           using (mo) mo.Delete();
         foreach (ManagementObject mo in new ManagementObjectSearcher(scope,
-          new ObjectQuery("SELECT * FROM __FilterToConsumerBinding WHERE Filter='__EventFilter.Name=\"OmenKeyFilter\"'")).Get())
+          new ObjectQuery("SELECT * FROM __EventFilter WHERE Name='OmenKeyFilter'")).Get())
           using (mo) mo.Delete();
       } catch (Exception ex) {
-        Logger.Error("OmenKeyOff Error: " + ex.Message);
-      }
-      Logger.Info("OmenKeyOff: WMI subscription removed");
-    }
-
-    public static void OmenKeyOn(string method) {
-      const string namespaceName = @"root\subscription";
-      var scope = new ManagementScope(namespaceName);
-      try {
-        scope.Connect();
-        var consumerClass = new ManagementClass(scope, new ManagementPath("CommandLineEventConsumer"), null);
-        var consumer = consumerClass.CreateInstance();
-        consumer["CommandLineTemplate"] = @"cmd /c echo OmenKeyTriggered > \\.\pipe\OmenXHubPipe";
-        consumer["Name"] = "OmenKeyConsumer";
-        consumer.Put();
-
-        var filterClass = new ManagementClass(scope, new ManagementPath("__EventFilter"), null);
-        var filter = filterClass.CreateInstance();
-        filter["EventNameSpace"] = @"root\wmi";
-        filter["Name"] = "OmenKeyFilter";
-        filter["Query"] = "SELECT * FROM hpqBEvnt WHERE eventData = 8613 AND eventId = 29";
-        filter["QueryLanguage"] = "WQL";
-        filter.Put();
-
-        var bindingClass = new ManagementClass(scope, new ManagementPath("__FilterToConsumerBinding"), null);
-        var binding = bindingClass.CreateInstance();
-        binding["Consumer"] = new ManagementPath(@"root\subscription:CommandLineEventConsumer.Name='OmenKeyConsumer'");
-        binding["Filter"] = new ManagementPath(@"root\subscription:__EventFilter.Name='OmenKeyFilter'");
-        binding.Put();
-
-        Logger.Info("OmenKeyOn: WMI subscription created for mode=" + method);
-      } catch (Exception ex) {
-        Logger.Error("OmenKeyOn Error: " + ex.Message);
+        Logger.Error("RemoveLegacyOmenKeySubscription Error: " + ex.Message);
       }
     }
 

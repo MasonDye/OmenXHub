@@ -239,8 +239,9 @@ namespace OmenSuperHub {
           });
         }
 
-        // Start Omen Key listener
-        TrayService.GetOmenKeyTask();
+        // Subscribe Omen Key handler (BIOS 事件由 OmenHardware 的进程内 WMI watcher 提供;
+        // 监听是否真正启动由 RestoreOmenKey -> ApplyOmenKeyListener 按配置决定)
+        TrayService.InitOmenKey();
 
         // Defer non-critical startup work (RestoreConfig, Automation, Macro)
         Dispatcher.BeginInvoke(new Action(() => {

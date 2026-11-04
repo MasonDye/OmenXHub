@@ -72,6 +72,17 @@ namespace OmenSuperHub.Pages {
       OmenKeyCyclePanel.Visibility = ConfigService.OmenKey == "cyclePresets" ? Visibility.Visible : Visibility.Collapsed;
       OmenKeyAppPathText.Text = !string.IsNullOrEmpty(ConfigService.OmenKeyAppPath)
         ? ConfigService.OmenKeyAppPath : Strings.OmenKeyNoAppSelected;
+      // 按键改键
+      BuildKeyRemapOptions();
+      KeyRemapToggle.IsChecked = ConfigService.KeyRemapEnabled;
+      KeyRemapPanel.IsEnabled = ConfigService.KeyRemapEnabled;
+      SelectRemapCombo(RemapOmenCombo, ConfigService.RemapOmen);
+      SelectRemapCombo(RemapCalcCombo, ConfigService.RemapCalc);
+      SelectRemapCombo(RemapInsertCombo, ConfigService.RemapInsert);
+      SelectRemapCombo(RemapPrtScCombo, ConfigService.RemapPrtSc);
+      bool omenBound = ConfigService.OmenKey != "none";
+      RemapOmenCombo.IsEnabled = !omenBound;
+      KeyRemapConflictHint.Visibility = omenBound ? Visibility.Visible : Visibility.Collapsed;
       OsdToggle.IsChecked = ConfigService.ShowOsd;
       TrayHoverPopupToggle.IsChecked = ConfigService.TrayHoverPopup;
       OsdPositionPanel.Visibility = ConfigService.ShowOsd ? Visibility.Visible : Visibility.Collapsed;
@@ -212,8 +223,18 @@ namespace OmenSuperHub.Pages {
       string key = idx >= 0 && idx < keys.Length ? keys[idx] : "none";
       ConfigService.OmenKey = key;
       ConfigService.Save("OmenKey");
-      OmenHardware.OmenKeyOff();
-      OmenHardware.OmenKeyOn(key);
+      // 功能互斥: Omen 键一旦绑定功能,改键设置里的 Omen 项立刻失效并清空,
+      // 避免"既绑定功能又改键"的语义冲突。
+      bool omenBound = key != "none";
+      if (omenBound && !string.IsNullOrEmpty(ConfigService.RemapOmen)) {
+        ConfigService.RemapOmen = "";
+        ConfigService.Save("RemapOmen");
+        SelectRemapCombo(RemapOmenCombo, "");
+      }
+      RemapOmenCombo.IsEnabled = !omenBound;
+      KeyRemapConflictHint.Visibility = omenBound ? Visibility.Visible : Visibility.Collapsed;
+      // 监听/改键状态统一重算(Omen 键绑定或改键为空时自动停止 WMI 监听)
+      TrayService.ApplyOmenKeyListener();
       OmenKeyAppPanel.Visibility = key == "app" ? Visibility.Visible : Visibility.Collapsed;
       OmenKeyCyclePanel.Visibility = key == "cyclePresets" ? Visibility.Visible : Visibility.Collapsed;
       if (key == "custom" || key == "showMain" || key == "cyclePresets" || key == "app") {
@@ -221,6 +242,70 @@ namespace OmenSuperHub.Pages {
       } else {
         TrayService.checkFloatingTimer.IsEnabled = false;
       }
+    }
+
+    // ═══════════════ 按键改键 ═══════════════
+    // 下拉框内容: 索引 0 = 不替换,其后与 KeyRemapService.TargetKeyNames 顺序一致
+    void BuildKeyRemapOptions() {
+      var combos = new[] { RemapOmenCombo, RemapCalcCombo, RemapInsertCombo, RemapPrtScCombo };
+      foreach (var cb in combos) {
+        if (cb == null || cb.Items.Count > 0) continue;
+        cb.Items.Add(Strings.KeyRemapNone);
+        foreach (string name in KeyRemapService.TargetKeyNames) cb.Items.Add(name);
+        cb.SelectedIndex = 0;
+      }
+    }
+
+    void SelectRemapCombo(ComboBox cb, string keyName) {
+      if (cb == null) return;
+      int idx = 0;
+      if (!string.IsNullOrWhiteSpace(keyName)) {
+        for (int i = 0; i < KeyRemapService.TargetKeyNames.Length; i++) {
+          if (string.Equals(KeyRemapService.TargetKeyNames[i], keyName.Trim(), StringComparison.OrdinalIgnoreCase)) {
+            idx = i + 1;
+            break;
+          }
+        }
+      }
+      cb.SelectedIndex = idx;
+    }
+
+    string ComboRemapValue(ComboBox cb) {
+      if (cb == null) return "";
+      int i = cb.SelectedIndex - 1;
+      return i >= 0 && i < KeyRemapService.TargetKeyNames.Length ? KeyRemapService.TargetKeyNames[i] : "";
+    }
+
+    void KeyRemapToggle_Changed(object sender, RoutedEventArgs e) {
+      if (_loading) return;
+      ConfigService.KeyRemapEnabled = KeyRemapToggle.IsChecked == true;
+      ConfigService.Save("KeyRemapEnabled");
+      KeyRemapPanel.IsEnabled = ConfigService.KeyRemapEnabled;
+      TrayService.ApplyOmenKeyListener();
+    }
+
+    // Omen 项:受"功能互斥"约束,已绑定时控件本身被禁用,这里再兜一次底
+    void RemapOmen_SelectionChanged(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      if (ConfigService.OmenKey != "none") {
+        SelectRemapCombo(RemapOmenCombo, "");
+        return;
+      }
+      ConfigService.RemapOmen = ComboRemapValue(RemapOmenCombo);
+      ConfigService.Save("RemapOmen");
+      TrayService.ApplyOmenKeyListener();
+    }
+
+    // 计算器键 / Insert / PrtSc 共用:三个一起读,幂等
+    void RemapPlain_SelectionChanged(object s, SelectionChangedEventArgs e) {
+      if (_loading) return;
+      ConfigService.RemapCalc = ComboRemapValue(RemapCalcCombo);
+      ConfigService.RemapInsert = ComboRemapValue(RemapInsertCombo);
+      ConfigService.RemapPrtSc = ComboRemapValue(RemapPrtScCombo);
+      ConfigService.Save("RemapCalc");
+      ConfigService.Save("RemapInsert");
+      ConfigService.Save("RemapPrtSc");
+      TrayService.ApplyOmenKeyListener();
     }
 
     void FloatSize_Changed(object s, RoutedPropertyChangedEventArgs<double> e) {
