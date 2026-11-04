@@ -1455,7 +1455,7 @@ namespace OmenSuperHub.Services {
         }
         if (ConfigService.OmenKey == "showMain") {
           System.Windows.Application.Current?.Dispatcher.Invoke(
-            new Action(() => Views.MainWindow.ShowInstance()));
+            new System.Action(() => Views.MainWindow.ShowInstance()));
         } else if (ConfigService.OmenKey == "cyclePresets") {
           var candidates = ConfigService.OmenKeyPresetCandidates
             .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -1464,7 +1464,7 @@ namespace OmenSuperHub.Services {
           int idx = Math.Max(0, candidates.IndexOf(ConfigService.Preset));
           _cyclePresetIndex = (idx + 1) % candidates.Count;
           string preset = candidates[_cyclePresetIndex];
-          System.Windows.Application.Current?.Dispatcher.Invoke(new Action(() => {
+          System.Windows.Application.Current?.Dispatcher.Invoke(new System.Action(() => {
             PresetManager.SwitchPreset(preset);
             if (System.Windows.Application.Current.MainWindow is Views.MainWindow mw)
               mw.ApplyPresetHardware();
